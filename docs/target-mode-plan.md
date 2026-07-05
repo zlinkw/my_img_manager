@@ -300,6 +300,33 @@ End batch validation checklist:
 - HTML preview index includes a compact source region summary for every preview.
 - Metadata includes `source_region` and `annotation_key` fields with `annotation_key` null unless runtime creates or receives one later.
 - Open PDF URI builder appends `annotation=` only when an annotation key is present.
+- B6 post implementation review agent did not return before timeout; local static checks and diff review found no blocker.
+
+### B7 Runtime Smoke And Reader UX
+
+Status: planned.
+
+Plan:
+
+- After the user next restarts or reloads Zotero add-ons, verify the plugin is registered in the current Zotero session.
+- Smoke test reader toolbar, context menu, manual clip, page preview, auto raster disabled/degraded behavior, and saved HTML index opening.
+- Verify user library, group library, and standalone PDF attachment open-pdf links.
+- Verify source region map and metadata in a real saved HTML index.
+- If runtime smoke passes, consider an explicit opt-in "create source annotation anchor" feature guarded by confirmation and storage/sync impact text.
+
+Pre batch validation:
+
+- B6 static validation and global install passed.
+- `npm run runtime:status` still reports current Zotero session not registered, so B7 requires user-controlled Zotero restart or add-on reload.
+
+End batch validation checklist:
+
+- Zotero current session registers `pdf-image-saver@zlk.local`.
+- Reader UI appears once per PDF reader.
+- Manual clip saves one synced HTML index with preview, page link, region map, and metadata.
+- Clicking preview/page opens the source PDF page.
+- Auto Raster is disabled or safely warns when PDF.js lacks image coordinate support.
+- No `%TEMP%\pdf-image-saver` leftovers remain after saves or failures.
 
 ## Current Validation Results
 
@@ -638,3 +665,5 @@ End batch validation checklist:
 - B4 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `122dcad` B5 tighten preview sync guardrails.
 - B5 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `d8b4c32` B6 add source region indexing.
+- B6 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
