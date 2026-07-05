@@ -37,6 +37,7 @@ var PdfImageSaver = (() => {
     ]);
 
     registerReaderHandlers();
+    await cleanupStaleTempDirectories();
     for (const win of Zotero.getMainWindows()) {
       await addToWindow(win);
     }
@@ -63,6 +64,8 @@ var PdfImageSaver = (() => {
 
     const doc = win.document;
     const toolsPopup = doc.getElementById("menu_ToolsPopup");
+    doc.getElementById("pdf-image-saver-tools-menuitem")?.remove();
+    doc.getElementById("pdf-image-saver-diagnostics-menuitem")?.remove();
     const menuitem = doc.createXULElement
       ? doc.createXULElement("menuitem")
       : doc.createElement("menuitem");
@@ -72,8 +75,18 @@ var PdfImageSaver = (() => {
     menuitem.addEventListener("command", () => {
       void startClipFromActiveReader(win, getDefaultQualityKey());
     });
+    const diagnosticsItem = doc.createXULElement
+      ? doc.createXULElement("menuitem")
+      : doc.createElement("menuitem");
+    diagnosticsItem.id = "pdf-image-saver-diagnostics-menuitem";
+    diagnosticsItem.setAttribute("label", "PDF Image Saver: diagnostics");
+    diagnosticsItem.setAttribute("tooltiptext", "Show runtime status, active PDF link, and temp cleanup state");
+    diagnosticsItem.addEventListener("command", () => {
+      void showDiagnostics(win);
+    });
     toolsPopup?.appendChild(menuitem);
-    windowState.set(win, { menuitem });
+    toolsPopup?.appendChild(diagnosticsItem);
+    windowState.set(win, { menuitems: [menuitem, diagnosticsItem] });
   }
 
   async function removeFromWindow(win) {
@@ -81,7 +94,9 @@ var PdfImageSaver = (() => {
     if (!state) {
       return;
     }
-    state.menuitem?.remove();
+    for (const menuitem of state.menuitems || []) {
+      menuitem?.remove();
+    }
     windowState.delete(win);
   }
 
@@ -116,7 +131,9 @@ var PdfImageSaver = (() => {
     }
 
     ensureReaderStyles(doc);
+    doc.getElementById("pdf-image-saver-toolbar-group")?.remove();
     const group = doc.createElement("span");
+    group.id = "pdf-image-saver-toolbar-group";
     group.className = "pdf-image-saver-toolbar-group";
     const select = doc.createElement("select");
     select.className = "pdf-image-saver-quality";
@@ -210,10 +227,17 @@ var PdfImageSaver = (() => {
     append({
       label: "Optional: save original embedded images from this page",
       onCommand() {
-        void saveOriginalImagesFromReader(reader, {
+        void confirmAndSaveOriginalImagesFromReader(reader, {
           scope: "page",
           pageIndex: getContextPageIndex(params),
         });
+      },
+    });
+
+    append({
+      label: "PDF Image Saver diagnostics",
+      onCommand() {
+        void showReaderDiagnostics(reader);
       },
     });
   }
@@ -225,6 +249,103 @@ var PdfImageSaver = (() => {
       return;
     }
     await startClipFromReader(reader, qualityKey);
+  }
+
+  async function showDiagnostics(win) {
+    const reader = getActiveReader(win);
+    const report = reader
+      ? await buildRuntimeDiagnostics(reader)
+      : await buildRuntimeDiagnostics(null);
+    Services.prompt.alert(win, "PDF Image Saver diagnostics", formatDiagnosticsReport(report));
+  }
+
+  async function showReaderDiagnostics(reader) {
+    const report = await buildRuntimeDiagnostics(reader);
+    const win = Zotero.getMainWindow?.();
+    Services.prompt.alert(win, "PDF Image Saver diagnostics", formatDiagnosticsReport(report));
+  }
+
+  async function buildRuntimeDiagnostics(reader) {
+    const report = {
+      plugin: `${config.id} ${config.version}`,
+      zotero: Zotero.version,
+      started,
+      reader_count: Zotero.Reader?._readers?.length || 0,
+      active_pdf_reader: false,
+      temp_dir: PathUtils.join(PathUtils.tempDir, ADDON_REF),
+      temp_leftovers: 0,
+      temp_bytes: 0,
+      default_quality: getDefaultQualityKey(),
+      max_index: formatBytes(getMaxIndexBytes()),
+      auto_cap: formatBytes(getAutoMaxPreviewBytes()),
+      warnings: [],
+    };
+
+    try {
+      const tempStats = await getTempDirectoryStats(report.temp_dir);
+      report.temp_leftovers = tempStats.count;
+      report.temp_bytes = tempStats.bytes;
+    } catch (error) {
+      report.warnings.push(`Temp check failed: ${getErrorMessage(error)}`);
+    }
+
+    if (!reader || !isPDFReader(reader)) {
+      report.warnings.push("No active PDF reader.");
+      return report;
+    }
+
+    report.active_pdf_reader = true;
+    try {
+      const attachment = getReaderPDFAttachment(reader);
+      report.pdf_attachment = {
+        id: attachment.id,
+        key: attachment.key,
+        library_id: attachment.libraryID,
+        parent_id: attachment.parentID || null,
+        title: attachment.getField("title"),
+      };
+      report.library_prefix = getLibraryURIPath(attachment.libraryID);
+      const pageIndex = await getCurrentPageIndex(reader);
+      report.page_number = pageIndex + 1;
+      report.open_pdf_uri = buildOpenPDFURI(attachment, pageIndex + 1);
+      const context = await getPDFViewerContext(reader);
+      const pageView = getPageView(context, pageIndex);
+      const pdfPage = pageView?.pdfPage || await context?.app?.pdfDocument?.getPage?.(pageIndex + 1);
+      report.auto_raster_available = !!(pdfPage && supportsPDFJSImageCoordinates(pdfPage));
+      report.page_label = getPageLabel(context, pageIndex);
+    } catch (error) {
+      report.warnings.push(getErrorMessage(error));
+    }
+    return report;
+  }
+
+  function formatDiagnosticsReport(report) {
+    const lines = [
+      `Plugin: ${report.plugin}`,
+      `Zotero: ${report.zotero}`,
+      `Started: ${report.started}`,
+      `Reader count: ${report.reader_count}`,
+      `Active PDF reader: ${report.active_pdf_reader}`,
+      `Default quality: ${report.default_quality}`,
+      `Auto preview cap: ${report.auto_cap}`,
+      `Max HTML index: ${report.max_index}`,
+      `Temp dir: ${report.temp_dir}`,
+      `Temp leftovers: ${report.temp_leftovers} (${formatBytes(report.temp_bytes || 0)})`,
+    ];
+    if (report.pdf_attachment) {
+      lines.push(
+        `PDF key: ${report.pdf_attachment.key}`,
+        `Library: ${report.library_prefix}`,
+        `Parent item: ${report.pdf_attachment.parent_id || "none"}`,
+        `Page: ${report.page_number}${report.page_label ? ` (${report.page_label})` : ""}`,
+        `Open PDF URI: ${report.open_pdf_uri}`,
+        `Auto raster available: ${report.auto_raster_available}`,
+      );
+    }
+    if (report.warnings?.length) {
+      lines.push("", "Warnings:", ...report.warnings.map((warning) => `- ${warning}`));
+    }
+    return lines.join("\n");
   }
 
   async function startClipFromReader(reader, qualityKey, explicitPageIndex) {
@@ -816,21 +937,25 @@ var PdfImageSaver = (() => {
   async function createIndexHTML({ attachment, parentItem, entries, scope, qualityKey }) {
     const outputDir = await createTempDirectory();
     const htmlPath = PathUtils.join(outputDir, `pdf-image-index-${Zotero.Utilities.randomString(8)}.html`);
-    const html = buildIndexHTML({
-      attachment,
-      parentItem,
-      entries,
-      scope,
-      qualityKey,
-    });
-    const htmlBytes = estimateUTF8Bytes(html);
-    const maxBytes = getMaxIndexBytes();
-    if (htmlBytes > maxBytes) {
+    try {
+      const html = buildIndexHTML({
+        attachment,
+        parentItem,
+        entries,
+        scope,
+        qualityKey,
+      });
+      const htmlBytes = estimateUTF8Bytes(html);
+      const maxBytes = getMaxIndexBytes();
+      if (htmlBytes > maxBytes) {
+        throw new Error(`Preview index is too large (${formatBytes(htmlBytes)} > ${formatBytes(maxBytes)}). Lower preview quality or reduce auto-detect count.`);
+      }
+      await Zotero.File.putContentsAsync(htmlPath, html);
+      return htmlPath;
+    } catch (error) {
       await removeDirectoryIfExists(outputDir);
-      throw new Error(`Preview index is too large (${formatBytes(htmlBytes)} > ${formatBytes(maxBytes)}). Lower preview quality or reduce auto-detect count.`);
+      throw error;
     }
-    await Zotero.File.putContentsAsync(htmlPath, html);
-    return htmlPath;
   }
 
   function buildIndexHTML({ attachment, parentItem, entries, scope, qualityKey }) {
@@ -938,6 +1063,24 @@ var PdfImageSaver = (() => {
     const base = sanitizeTitle(parentItem?.getField("title") || attachment.getField("title") || "PDF");
     const target = pageIndex === null || pageIndex === undefined ? scope : `p${pageIndex + 1}`;
     return `${base} - image index ${target}`;
+  }
+
+  async function confirmAndSaveOriginalImagesFromReader(reader, options) {
+    const win = Zotero.getMainWindow?.();
+    const scope = options.scope === "document" ? "whole document" : "current page";
+    const maxImages = options.scope === "document"
+      ? getIntegerPref("maxDocumentImages", DEFAULT_MAX_DOCUMENT_IMAGES)
+      : getIntegerPref("maxPageImages", DEFAULT_MAX_PAGE_IMAGES);
+    const ok = Services.prompt.confirm(
+      win,
+      "PDF Image Saver",
+      `Save original embedded images from the ${scope}? This can store up to ${maxImages} original image attachments in Zotero. Preview clipping is safer for sync storage.`,
+    );
+    if (!ok) {
+      showReaderToast(reader, "Original extraction cancelled.", "warning");
+      return;
+    }
+    await saveOriginalImagesFromReader(reader, options);
   }
 
   async function saveOriginalImagesFromReader(reader, options) {
@@ -1304,6 +1447,61 @@ var PdfImageSaver = (() => {
     }
   }
 
+  async function cleanupStaleTempDirectories() {
+    const baseDir = PathUtils.join(PathUtils.tempDir, ADDON_REF);
+    if (!(await IOUtils.exists(baseDir))) {
+      return;
+    }
+    try {
+      const entries = await IOUtils.getChildren(baseDir);
+      const cutoff = Date.now() - 6 * 60 * 60 * 1000;
+      for (const entry of entries) {
+        try {
+          const info = await IOUtils.stat(entry);
+          if (info.lastModified && info.lastModified < cutoff) {
+            await removeDirectoryIfExists(entry);
+          }
+        } catch (error) {
+          logError(error);
+        }
+      }
+    } catch (error) {
+      logError(error);
+    }
+  }
+
+  async function getTempDirectoryStats(path) {
+    if (!(await IOUtils.exists(path))) {
+      return { count: 0, bytes: 0 };
+    }
+    let count = 0;
+    let bytes = 0;
+    const entries = await IOUtils.getChildren(path);
+    for (const entry of entries) {
+      count += 1;
+      bytes += await getPathSize(entry);
+    }
+    return { count, bytes };
+  }
+
+  async function getPathSize(path) {
+    try {
+      const info = await IOUtils.stat(path);
+      if (info.type !== "directory") {
+        return info.size || 0;
+      }
+      const children = await IOUtils.getChildren(path);
+      let total = 0;
+      for (const child of children) {
+        total += await getPathSize(child);
+      }
+      return total;
+    } catch (error) {
+      logError(error);
+      return 0;
+    }
+  }
+
   function getReaderPDFAttachment(reader) {
     const item = reader?._item || (reader?.itemID ? Zotero.Items.get(reader.itemID) : null);
     if (item?.isPDFAttachment?.()) {
@@ -1556,6 +1754,9 @@ var PdfImageSaver = (() => {
 
   function getLibraryURIPath(libraryID) {
     try {
+      if (Zotero.API?.getLibraryPrefix) {
+        return Zotero.API.getLibraryPrefix(libraryID);
+      }
       if (!libraryID || libraryID === Zotero.Libraries.userLibraryID) {
         return "library";
       }

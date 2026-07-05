@@ -37,6 +37,8 @@ The helper discovery also checks the local conda `zlk` environment first when pr
 npm run check
 npm run build
 npm run install:global
+npm run runtime:status
 ```
 
 The global install script writes a Zotero extension proxy file into each detected Zotero profile. Restart Zotero to load a newly installed plugin.
+`runtime:status` reports whether the proxy is installed, whether Zotero has registered the add-on in the current session, and whether temp files remain.

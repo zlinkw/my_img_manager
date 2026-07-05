@@ -217,7 +217,7 @@ End batch validation checklist:
 
 ### B4 Runtime Validation And Link Accuracy
 
-Status: planned.
+Status: in progress.
 
 Plan:
 
@@ -228,6 +228,24 @@ Plan:
 - Verify `zotero://open-pdf` links for user library PDFs, group PDFs, and PDFs without parent items.
 - Verify temp dirs are removed after manual clip, auto raster fallback, helper failure, and import failure.
 - Only after runtime smoke passes, consider filename templates, export directory, and rollback behavior.
+
+Pre batch validation:
+
+- Git worktree clean at B4 start commit `c076185`.
+- Zotero process is currently running from `C:\Program Files\Zotero\zotero.exe`.
+- Installed extension proxy exists and points at this workspace, but current `extensions.json` does not yet list `pdf-image-saver@zlk.local`; runtime smoke needs the next Zotero launch or add-on reload.
+- `%TEMP%\pdf-image-saver` currently has no leftover temp directories.
+- B4 will add local diagnostics so runtime readiness and temp cleanup can be checked without guessing.
+- Zotero 9.0.5 source in `app/omni.ja` confirms supported URI forms: `zotero://open-pdf/library/items/[itemKey]?page=[page]` and `zotero://open-pdf/groups/[groupID]/items/[itemKey]?page=[page]`.
+
+End batch validation checklist:
+
+- `npm run check`: passed.
+- `npm run build`: passed, XPI SHA256 `102175cde18d90dc3bd7ebfa350c59e9c04a44896c6dcb7a3a9e0548a26d5274`.
+- `npm run install:global`: passed.
+- `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
+- Proxy file has no BOM: passed, first bytes `43-3A-5C`.
+- XPI includes runtime status script support through package metadata only; package payload remains Zotero plugin files.
 
 ## Current Validation Results
 
@@ -411,6 +429,76 @@ Plan:
 - Close condition: auto raster detection clears stale image coordinate cache before scratch render and still falls back safely if the runtime does not support the property.
 - Closure: `resetPDFJSImageCoordinates` clears `pdfPage.imageCoordinates` before scratch render and catches read only/runtime errors.
 
+### FAIL-20260706-013
+
+- Batch: B4
+- Environment: Zotero already running during global install
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: closed
+- Symptom: extension proxy is installed, but current Zotero session has not registered `pdf-image-saver@zlk.local` in `extensions.json`.
+- Expected: runtime smoke should only claim plugin availability after Zotero loads the extension.
+- Actual: global install succeeds while Zotero is running, but runtime load remains pending until next Zotero launch or add-on reload.
+- Validation update: add diagnostics that report Zotero process state, proxy path, extension registration state, XPI hash, and temp leftovers.
+- Close condition: diagnostic script distinguishes installed proxy from runtime registered plugin and documents pending restart/reload state.
+- Closure: `scripts/runtime-status.ps1` reports Zotero process state, XPI hash, profile proxy, extension registration, and temp leftovers; plugin menu has a runtime diagnostics dialog.
+
+### FAIL-20260706-014
+
+- Batch: B4
+- Environment: Zotero reader toolbar re-render, multiple PDF tabs, reader reopen
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: closed
+- Symptom: `onRenderToolbar` appends controls without an idempotent group guard.
+- Expected: each PDF reader toolbar shows one PDF Image Saver control group.
+- Actual: repeated `renderToolbar` events could append duplicate groups.
+- Validation update: assign a stable group ID and remove any existing group before appending.
+- Close condition: toolbar render code is idempotent for repeated render events in the same reader document.
+- Closure: toolbar group now uses `pdf-image-saver-toolbar-group` ID and removes an existing group before append.
+
+### FAIL-20260706-015
+
+- Batch: B4
+- Environment: temp HTML index creation and plugin startup
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: closed
+- Symptom: stale `%TEMP%\pdf-image-saver` directories can persist from crashes or create/write failures.
+- Expected: old temp dirs are cleaned at startup and every index creation failure cleans its output dir.
+- Actual: import cleanup exists, but startup cleanup and all create failure paths are not explicit.
+- Validation update: clean stale temp dirs on startup and wrap `createIndexHTML` with failure cleanup.
+- Close condition: startup cleanup and create failure cleanup are implemented and diagnostics expose leftover temp count.
+- Closure: startup removes stale temp directories older than six hours; `createIndexHTML` removes its temp dir on build/write failure; diagnostics reports leftovers.
+
+### FAIL-20260706-016
+
+- Batch: B4
+- Environment: context menu optional original extraction
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: optional original extraction is one click and can import many original image files.
+- Expected: original extraction requires confirmation because it can consume more Zotero storage than preview index mode.
+- Actual: context menu action triggers helper directly.
+- Validation update: show a confirmation before optional original extraction, including scope and helper max count.
+- Close condition: optional original extraction requires explicit confirmation before helper runs.
+- Closure: context menu optional original extraction now prompts with scope and max image count before running the helper.
+
+### FAIL-20260706-017
+
+- Batch: B4
+- Environment: plugin reload or repeated main window load
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: Tools menu entries can duplicate if main-window setup is repeated after an incomplete unload or add-on reload.
+- Expected: Tools menu setup is idempotent like reader toolbar setup.
+- Actual: B4 diagnostics adds a second Tools menu item but setup did not remove existing menu IDs first.
+- Validation update: remove existing Tools menu items by stable IDs before appending new entries.
+- Close condition: `addToWindow` clears existing plugin Tools menu items before appending.
+- Closure: `addToWindow` removes existing `pdf-image-saver-tools-menuitem` and `pdf-image-saver-diagnostics-menuitem` before append.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -426,6 +514,11 @@ Plan:
 - Check auto-detected previews obey max image count and preview byte cap before import.
 - Check missing PDF.js `recordImages` capability disables or safely degrades auto raster detection.
 - Check auto raster detection clears cached PDF.js image coordinates before each scratch render.
+- Check runtime diagnostics reports proxy installed versus Zotero extension registered state.
+- Check reader toolbar render is idempotent.
+- Check optional original extraction requires confirmation.
+- Check stale temp cleanup runs on startup and index creation failure removes temp dir.
+- Check Tools menu setup is idempotent after add-on reload.
 
 ## Real Commit Log
 

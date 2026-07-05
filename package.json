@@ -6,6 +6,7 @@
   "scripts": {
     "check": "powershell -ExecutionPolicy Bypass -File scripts/check.ps1",
     "build": "powershell -ExecutionPolicy Bypass -File scripts/build.ps1",
-    "install:global": "powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1"
+    "install:global": "powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1",
+    "runtime:status": "powershell -ExecutionPolicy Bypass -File scripts/runtime-status.ps1"
   }
 }
