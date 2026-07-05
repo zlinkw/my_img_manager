@@ -815,3 +815,5 @@ End batch validation checklist:
 - B7 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `fd7bab9` B8 verify independent XPI payload.
 - B8 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `9b98898` B9 document runtime smoke checklist.
+- B9 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
