@@ -718,3 +718,5 @@ End batch validation checklist:
 - B5 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `d8b4c32` B6 add source region indexing.
 - B6 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `8627462` B7 add URI regression tests.
+- B7 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
