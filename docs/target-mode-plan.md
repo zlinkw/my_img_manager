@@ -348,7 +348,7 @@ End batch validation checklist:
 
 ### B8 Independent Runtime Packaging
 
-Status: planned.
+Status: implementation complete; runtime smoke pending Zotero restart or add-on reload.
 
 Plan:
 
@@ -365,10 +365,14 @@ Pre batch validation:
 
 End batch validation checklist:
 
+- `npm run check`: passed and runs URI tests plus XPI payload checks when an XPI exists.
+- `npm run build`: passed, XPI SHA256 `f63bf30628da69d973b4c7088051933d4ad10476dbf2ec726892cc3b1134ab9e`.
+- `npm run install:global`: passed without restarting VS Code or Zotero.
+- `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
 - XPI payload contains manifest, bootstrap, prefs, preferences, content JS, helper, icon, and README.
-- XPI payload excludes `work/`, `outputs/`, tests, and local machine paths.
+- XPI payload excludes `work/`, `outputs/`, tests, scripts, and local machine paths.
 - `README.md` states default mode is independent and optional helper is not required.
-- `npm run check`, `npm run build`, `npm run install:global`, and `npm run runtime:status` pass.
+- Native check failures now propagate through `scripts/check.ps1` and `scripts/build.ps1`.
 
 ## Current Validation Results
 
@@ -398,6 +402,10 @@ End batch validation checklist:
 - B7 `npm run build`: passed, XPI SHA256 `88ffb0a226e13f9192890c0ec20d9d459d3377b907dde2fb58ec9c27658ebae1`.
 - B7 `npm run install:global`: passed.
 - B7 `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
+- B8 `npm run check`: passed, including URI tests and XPI payload checks.
+- B8 `npm run build`: passed, XPI SHA256 `f63bf30628da69d973b4c7088051933d4ad10476dbf2ec726892cc3b1134ab9e`.
+- B8 `npm run install:global`: passed.
+- B8 `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
 
 ## New Failures
 
@@ -700,6 +708,34 @@ End batch validation checklist:
 - Close condition: schema entry list includes `source_region` and `annotation_key`.
 - Closure: schema now lists `source_region`, `annotation_key`, `mode`, `detector`, `quality`, and `detection_area` fields for preview entries.
 
+### FAIL-20260706-023
+
+- Batch: B8
+- Environment: `npm run check` invoking native commands and nested PowerShell payload validation
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: closed
+- Symptom: native command failures such as `scripts/check-xpi.ps1`, `node --check`, or helper syntax checks can fail while `npm run check` still exits successfully.
+- Expected: any native validation failure makes `npm run check` fail.
+- Actual: nested `powershell -File scripts/check-xpi.ps1` failure printed an error, then `check ok` still printed.
+- Validation update: wrap native commands and nested payload checks so `$LASTEXITCODE` is checked immediately.
+- Close condition: failing native checks propagate as nonzero `npm run check` failures.
+- Closure: `scripts/check.ps1` and `scripts/build.ps1` now wrap native commands with exit-code checks, and XPI payload validation is invoked through the wrapper.
+
+### FAIL-20260706-024
+
+- Batch: B8
+- Environment: XPI payload independence scan
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: payload scan rejects the generic `.conda` string used for optional helper discovery.
+- Expected: scan rejects absolute machine-specific paths and workspace paths, while allowing generic optional environment discovery strings.
+- Actual: `check-xpi.ps1` flagged `content/pdf-image-saver.js` because it contains `.conda`.
+- Validation update: restrict path scan to absolute user/workspace path patterns and keep optional helper discovery nonblocking.
+- Close condition: XPI payload check passes while still blocking absolute machine-specific paths.
+- Closure: `scripts/check-xpi.ps1` now blocks absolute user/workspace path patterns, permits generic optional helper discovery strings, and B8 payload validation passed.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -726,6 +762,8 @@ End batch validation checklist:
 - Check annotation-aware URI generation appends `annotation=` only when an annotation key exists.
 - Check URI regression tests cover null, invalid, and valid annotation keys.
 - Check plugin code does not create Zotero annotations by default.
+- Check XPI payload validation failures propagate to `npm run check`.
+- Check XPI payload scan blocks absolute machine-specific paths without blocking optional helper discovery strings.
 
 ## Real Commit Log
 

@@ -13,6 +13,12 @@ Zotero plugin for clipping figure previews from the open PDF reader and saving a
 - Auto-detected previews are capped by count, preview bytes, and final synced HTML index size.
 - Optional helper can try PyMuPDF original image extraction when Python is available, but the main workflow does not depend on it.
 
+## Runtime Independence
+
+The default save path is fully contained in the Zotero plugin package. It uses Zotero's own JavaScript runtime, the already-rendered PDF reader canvas, and Zotero stored HTML child attachments. No conda environment, Python interpreter, PyMuPDF install, local export directory, or machine-specific path is required for clipping and syncing previews.
+
+The bundled Python file is only an optional helper for explicit original-image extraction. If Python or PyMuPDF is missing, the plugin keeps the preview workflow available and reports the helper as unavailable.
+
 ## Preview Quality
 
 - Low: max width 240 px, about 20-80 KB per image.

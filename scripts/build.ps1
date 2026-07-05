@@ -6,7 +6,18 @@ $buildDir = Join-Path $buildRoot "pdf-image-saver"
 $xpiPath = Join-Path $outputDir "pdf-image-saver-0.1.0.xpi"
 
 Set-Location $root
-& powershell -ExecutionPolicy Bypass -File .\scripts\check.ps1
+function Invoke-Native {
+  param(
+    [Parameter(Mandatory = $true)][string]$FilePath,
+    [string[]]$ArgumentList = @()
+  )
+  & $FilePath @ArgumentList
+  if ($LASTEXITCODE -ne 0) {
+    throw "$FilePath failed with exit code $LASTEXITCODE"
+  }
+}
+
+Invoke-Native "powershell" @("-ExecutionPolicy", "Bypass", "-File", ".\scripts\check.ps1")
 
 if (Test-Path -LiteralPath $buildDir) {
   Remove-Item -LiteralPath $buildDir -Recurse -Force
@@ -42,5 +53,7 @@ Move-Item -LiteralPath $zipPath -Destination $xpiPath -Force
 
 $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $xpiPath
 $hash.Hash.ToLowerInvariant() | Set-Content -Encoding ASCII -LiteralPath (Join-Path $outputDir "pdf-image-saver-0.1.0.sha256")
+
+Invoke-Native "powershell" @("-ExecutionPolicy", "Bypass", "-File", ".\scripts\check-xpi.ps1")
 
 Write-Host "built $xpiPath"

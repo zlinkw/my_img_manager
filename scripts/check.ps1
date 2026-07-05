@@ -2,11 +2,22 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 Set-Location $root
 
-node --check .\bootstrap.js
-node --check .\content\pdf-image-saver.js
-node --check .\content\preferences.js
-node --check .\tests\open-pdf-uri.test.js
-node .\tests\open-pdf-uri.test.js
+function Invoke-Native {
+  param(
+    [Parameter(Mandatory = $true)][string]$FilePath,
+    [string[]]$ArgumentList = @()
+  )
+  & $FilePath @ArgumentList
+  if ($LASTEXITCODE -ne 0) {
+    throw "$FilePath failed with exit code $LASTEXITCODE"
+  }
+}
+
+Invoke-Native "node" @("--check", ".\bootstrap.js")
+Invoke-Native "node" @("--check", ".\content\pdf-image-saver.js")
+Invoke-Native "node" @("--check", ".\content\preferences.js")
+Invoke-Native "node" @("--check", ".\tests\open-pdf-uri.test.js")
+Invoke-Native "node" @(".\tests\open-pdf-uri.test.js")
 
 [xml](Get-Content -Encoding UTF8 -Raw -LiteralPath .\preferences.xhtml) | Out-Null
 $prefsXML = [xml](Get-Content -Encoding UTF8 -Raw -LiteralPath .\preferences.xhtml)
@@ -22,6 +33,9 @@ if (!$package.scripts.'runtime:status') {
 }
 if (!(Test-Path -LiteralPath .\scripts\runtime-status.ps1)) {
   throw "runtime-status.ps1 missing"
+}
+if (!(Test-Path -LiteralPath .\scripts\check-xpi.ps1)) {
+  throw "check-xpi.ps1 missing"
 }
 
 if (!(Test-Path -LiteralPath .\prefs.js)) {
@@ -65,10 +79,14 @@ if (!$indexMax -or $indexMax.max -ne "12") {
 
 $python = Get-Command python -ErrorAction SilentlyContinue
 if ($python) {
-  python .\content\helper\pdf_image_extract.py --help | Out-Null
+  Invoke-Native "python" @(".\content\helper\pdf_image_extract.py", "--help") | Out-Null
 }
 else {
   Write-Warning "Python not found; optional helper syntax check skipped."
+}
+
+if (Test-Path -LiteralPath .\outputs\pdf-image-saver-0.1.0.xpi) {
+  Invoke-Native "powershell" @("-ExecutionPolicy", "Bypass", "-File", ".\scripts\check-xpi.ps1")
 }
 
 Write-Host "check ok"
