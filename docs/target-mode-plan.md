@@ -137,14 +137,32 @@ End batch validation checklist:
 
 ### B2 UI Hardening
 
-Status: planned.
+Status: in progress.
 
 Plan:
 
+- Run Zotero 9.0.5 smoke test after user restart or next Zotero launch.
 - Improve toolbar icon styling and disabled or busy states.
 - Add preferences for min image area, max whole PDF images, and Python path.
 - Add localized strings.
 - Add duplicate save guard per PDF page.
+- Check Reader API assumptions against actual Zotero 9.0.5 runtime logs.
+
+Pre batch validation:
+
+- B1 static checks passed.
+- B1 XPI built and extension proxy installed.
+- Zotero/VS Code were not restarted by execution.
+
+End batch validation checklist:
+
+- Zotero loads plugin without startup errors after restart.
+- Reader toolbar button appears once per PDF reader.
+- Drag selection can be canceled and can save one HTML index attachment.
+- HTML index source link opens the PDF page.
+- Low, Medium, High menu entries produce different preview byte sizes.
+- No temp directory remains after save or helper failure.
+- Optional original extraction failure does not block preview index.
 
 ### B3 Precision
 
