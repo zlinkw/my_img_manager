@@ -7,6 +7,8 @@ var PdfImageSaver = (() => {
   const DEFAULT_AUTO_DETECT_MAX_IMAGES = 8;
   const DEFAULT_AUTO_MAX_PREVIEW_BYTES_MB = 4;
   const DEFAULT_MAX_INDEX_BYTES_MB = 6;
+  const HARD_MAX_AUTO_PREVIEW_BYTES_MB = 8;
+  const HARD_MAX_INDEX_BYTES_MB = 12;
   const DEFAULT_MAX_PAGE_IMAGES = 80;
   const DEFAULT_MAX_DOCUMENT_IMAGES = 250;
   const DEFAULT_HELPER_TIMEOUT_SECONDS = 60;
@@ -1874,12 +1876,12 @@ var PdfImageSaver = (() => {
   }
 
   function getAutoMaxPreviewBytes() {
-    const megabytes = clamp(getNumberPref("autoMaxPreviewBytesMB", DEFAULT_AUTO_MAX_PREVIEW_BYTES_MB), 0.5, 50);
+    const megabytes = clamp(getNumberPref("autoMaxPreviewBytesMB", DEFAULT_AUTO_MAX_PREVIEW_BYTES_MB), 0.5, HARD_MAX_AUTO_PREVIEW_BYTES_MB);
     return Math.round(megabytes * 1024 * 1024);
   }
 
   function getMaxIndexBytes() {
-    const megabytes = clamp(getNumberPref("maxIndexBytesMB", DEFAULT_MAX_INDEX_BYTES_MB), 1, 100);
+    const megabytes = clamp(getNumberPref("maxIndexBytesMB", DEFAULT_MAX_INDEX_BYTES_MB), 1, HARD_MAX_INDEX_BYTES_MB);
     return Math.round(megabytes * 1024 * 1024);
   }
 

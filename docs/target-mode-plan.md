@@ -247,6 +247,31 @@ End batch validation checklist:
 - Proxy file has no BOM: passed, first bytes `43-3A-5C`.
 - XPI includes runtime status script support through package metadata only; package payload remains Zotero plugin files.
 
+### B5 Guardrails And Static Verification
+
+Status: in progress.
+
+Plan:
+
+- Tighten preview index and auto raster byte cap upper bounds so UI cannot be configured into disk-heavy sync attachments.
+- Extend static checks to validate `runtime:status`, package scripts, XPI payload assumptions, and extension proxy diagnostics.
+- Keep default workflow lightweight and Zotero-synced.
+- Do not attempt Zotero restart; runtime registration remains pending until next Zotero launch/reload.
+
+Pre batch validation:
+
+- Git worktree clean at B5 start commit `2946b45`.
+- `npm run runtime:status` passes and confirms proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
+- B5 will improve checks that can run without restarting Zotero.
+
+End batch validation checklist:
+
+- `npm run check`: passed and now asserts runtime status script presence plus preview cap bounds.
+- `npm run build`: passed, XPI SHA256 `5ca21bdca98a511b1bbc2675f79a41653382cf2f1285fb9ec4a65f2f6d66222c`.
+- `npm run install:global`: passed.
+- `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
+- Proxy file has no BOM: passed, first bytes `43-3A-5C`.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -499,6 +524,34 @@ End batch validation checklist:
 - Close condition: `addToWindow` clears existing plugin Tools menu items before appending.
 - Closure: `addToWindow` removes existing `pdf-image-saver-tools-menuitem` and `pdf-image-saver-diagnostics-menuitem` before append.
 
+### FAIL-20260706-018
+
+- Batch: B5
+- Environment: preferences UI and preview index import
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: closed
+- Symptom: `maxIndexBytesMB` and `autoMaxPreviewBytesMB` preference upper bounds are too high for a sync-first default workflow.
+- Expected: UI and runtime clamps prevent users from accidentally creating very large synced HTML attachments.
+- Actual: B4 allows up to 100 MB HTML index and 50 MB auto preview cap.
+- Validation update: lower runtime clamps and preference UI max values, preserving reasonable high-quality previews without allowing disk-heavy accidental saves.
+- Close condition: runtime clamps and preference UI max values are tightened, and static checks assert the expected bounds.
+- Closure: auto preview cap is clamped to 8 MB, synced HTML index cap is clamped to 12 MB, preference UI max values match, and `scripts/check.ps1` asserts both caps.
+
+### FAIL-20260706-019
+
+- Batch: B5
+- Environment: static guardrail checks
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: static cap assertions in `scripts/check.ps1` used loose substring matching.
+- Expected: cap assertions only pass exact constant assignments for 8 MB and 12 MB.
+- Actual: values such as `80`, `8.5`, or comments containing the same substring could pass.
+- Validation update: use anchored multiline regex checks for exact `const` assignments.
+- Close condition: `scripts/check.ps1` uses anchored regexes for `HARD_MAX_AUTO_PREVIEW_BYTES_MB = 8;` and `HARD_MAX_INDEX_BYTES_MB = 12;`.
+- Closure: `scripts/check.ps1` now uses anchored multiline regexes for exact cap constant assignments.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -519,6 +572,7 @@ End batch validation checklist:
 - Check optional original extraction requires confirmation.
 - Check stale temp cleanup runs on startup and index creation failure removes temp dir.
 - Check Tools menu setup is idempotent after add-on reload.
+- Check preview size preference hard caps stay sync-safe.
 
 ## Real Commit Log
 
