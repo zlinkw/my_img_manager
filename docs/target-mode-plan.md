@@ -106,7 +106,7 @@ Actual size depends on source image detail and format.
 
 ### B0/B1 Interface And Scaffold
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -133,7 +133,7 @@ End batch validation checklist:
 - XPI is created in `outputs/`: passed, `outputs/pdf-image-saver-0.1.0.xpi`.
 - Extension proxy is written to all detected Zotero profiles: passed, `aalpald9.default`.
 - Proxy file has no BOM: passed, first bytes `43-3A-5C`.
-- Git commit records the batch: pending.
+- Git commit records the batch: passed.
 
 ### B2 UI Hardening
 
@@ -303,4 +303,4 @@ Plan:
 
 ## Real Commit Log
 
-- Pending B0/B1 commit after final file staging.
+- `4b121ce` B1 scaffold Zotero PDF image saver.
