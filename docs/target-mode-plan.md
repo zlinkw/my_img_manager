@@ -530,3 +530,5 @@ End batch validation checklist:
 - `ddcdd5a` docs start B3 precision plan.
 - `7e671db` B3 add safe auto raster preview detection.
 - B3 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `4a9ae96` B4 add runtime diagnostics and safety checks.
+- B4 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
