@@ -180,13 +180,16 @@ Implementation notes:
 
 ### B3 Precision
 
-Status: planned.
+Status: planned; next.
 
 Plan:
 
 - Compare PyMuPDF bbox with Zotero reader current page coordinate behavior.
+- Add pure PDF.js embedded image detection if feasible, avoiding external Python for original image paths.
 - Add optional rendered preview capture for vector or fallback cases.
 - Add page label capture when available.
+- Validate `zotero://open-pdf` URI forms for user and group libraries.
+- Add an in reader saved index side panel or recent saved list if default HTML workflow is accepted.
 
 ### B4 Robust Saving
 
@@ -351,4 +354,4 @@ Plan:
 - `4b121ce` B1 scaffold Zotero PDF image saver.
 - `52f4551` docs record B1 validation.
 - `604d546` docs start B2 hardening plan.
-- Pending B2 implementation commit.
+- `5faadda` B2 harden UI preferences and helper limits.
