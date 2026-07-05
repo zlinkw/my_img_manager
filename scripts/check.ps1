@@ -4,10 +4,17 @@ Set-Location $root
 
 node --check .\bootstrap.js
 node --check .\content\pdf-image-saver.js
+node --check .\content\preferences.js
+
+[xml](Get-Content -Encoding UTF8 -Raw -LiteralPath .\preferences.xhtml) | Out-Null
 
 $manifest = Get-Content -Encoding UTF8 -Raw -LiteralPath .\manifest.json | ConvertFrom-Json
 if ($manifest.applications.zotero.id -ne "pdf-image-saver@zlk.local") {
   throw "Unexpected plugin id"
+}
+
+if (!(Test-Path -LiteralPath .\prefs.js)) {
+  throw "Root prefs.js missing"
 }
 
 $python = Get-Command python -ErrorAction SilentlyContinue

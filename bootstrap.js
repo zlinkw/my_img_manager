@@ -10,6 +10,11 @@ function install() {
 
 async function startup({ id, version, rootURI }) {
   log("Starting " + version);
+  Zotero.PreferencePanes.register({
+    pluginID: id,
+    src: rootURI + "preferences.xhtml",
+    scripts: [rootURI + "content/preferences.js"],
+  });
   Services.scriptloader.loadSubScript(rootURI + "content/pdf-image-saver.js");
   PdfImageSaver.init({ id, version, rootURI });
   await PdfImageSaver.startup();

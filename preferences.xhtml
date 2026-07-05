@@ -1,0 +1,58 @@
+<vbox xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+      xmlns:html="http://www.w3.org/1999/xhtml"
+      id="pdf-image-saver-preferences"
+      onload="PdfImageSaverPreferences.init();">
+  <groupbox>
+    <label><html:h2>PDF Image Saver</html:h2></label>
+    <html:p>Default mode saves a compact synced HTML preview index. Original image extraction is optional.</html:p>
+    <html:div class="pdf-image-saver-prefs-grid">
+      <html:label for="pdf-image-saver-default-quality">Default preview quality</html:label>
+      <html:select id="pdf-image-saver-default-quality"
+                   preference="extensions.pdfImageSaver.defaultQuality">
+        <html:option value="low">Low, about 20-80 KB per image</html:option>
+        <html:option value="medium">Medium, about 60-220 KB per image</html:option>
+        <html:option value="high">High, about 180-750 KB per image</html:option>
+      </html:select>
+
+      <html:label for="pdf-image-saver-duplicate-guard">Duplicate guard</html:label>
+      <html:input id="pdf-image-saver-duplicate-guard"
+                  type="checkbox"
+                  preference="extensions.pdfImageSaver.duplicateGuard"/>
+
+      <html:label for="pdf-image-saver-min-area">Optional helper min image area</html:label>
+      <html:input id="pdf-image-saver-min-area"
+                  type="number"
+                  step="0.001"
+                  min="0.001"
+                  max="0.5"
+                  preference="extensions.pdfImageSaver.minImageArea"/>
+
+      <html:label for="pdf-image-saver-max-page-images">Optional helper max page images</html:label>
+      <html:input id="pdf-image-saver-max-page-images"
+                  type="number"
+                  min="1"
+                  max="500"
+                  preference="extensions.pdfImageSaver.maxPageImages"/>
+
+      <html:label for="pdf-image-saver-max-document-images">Optional helper max document images</html:label>
+      <html:input id="pdf-image-saver-max-document-images"
+                  type="number"
+                  min="1"
+                  max="2000"
+                  preference="extensions.pdfImageSaver.maxDocumentImages"/>
+
+      <html:label for="pdf-image-saver-helper-timeout">Optional helper timeout seconds</html:label>
+      <html:input id="pdf-image-saver-helper-timeout"
+                  type="number"
+                  min="5"
+                  max="600"
+                  preference="extensions.pdfImageSaver.helperTimeoutSeconds"/>
+
+      <html:label for="pdf-image-saver-python-path">Optional Python path</html:label>
+      <html:input id="pdf-image-saver-python-path"
+                  type="text"
+                  preference="extensions.pdfImageSaver.pythonPath"/>
+    </html:div>
+    <html:p id="pdf-image-saver-prefs-status"></html:p>
+  </groupbox>
+</vbox>

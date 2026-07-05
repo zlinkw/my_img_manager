@@ -5,6 +5,7 @@ var PdfImageSaver = (() => {
   const DEFAULT_MIN_AREA = 0.004;
   const DEFAULT_MAX_PAGE_IMAGES = 80;
   const DEFAULT_MAX_DOCUMENT_IMAGES = 250;
+  const DEFAULT_HELPER_TIMEOUT_SECONDS = 60;
   const QUALITY = {
     low: { label: "Low", maxWidth: 240, jpegQuality: 0.62, estimate: "20-80 KB/image" },
     medium: { label: "Medium", maxWidth: 480, jpegQuality: 0.78, estimate: "60-220 KB/image" },
@@ -13,6 +14,7 @@ var PdfImageSaver = (() => {
   const readerHandlers = [];
   const windowState = new WeakMap();
   const activeJobs = new Set();
+  const recentIndexSaves = new Map();
 
   let config = null;
   let helperScriptPathPromise = null;
@@ -64,7 +66,7 @@ var PdfImageSaver = (() => {
     menuitem.setAttribute("label", "PDF Image Saver: clip figure");
     menuitem.setAttribute("tooltiptext", "Draw a box in the active PDF reader and save a synced preview index");
     menuitem.addEventListener("command", () => {
-      void startClipFromActiveReader(win, "medium");
+      void startClipFromActiveReader(win, getDefaultQualityKey());
     });
     toolsPopup?.appendChild(menuitem);
     windowState.set(win, { menuitem });
@@ -110,6 +112,22 @@ var PdfImageSaver = (() => {
     }
 
     ensureReaderStyles(doc);
+    const group = doc.createElement("span");
+    group.className = "pdf-image-saver-toolbar-group";
+    const select = doc.createElement("select");
+    select.className = "pdf-image-saver-quality";
+    select.title = "Preview quality and approximate Zotero sync size";
+    for (const key of Object.keys(QUALITY)) {
+      const option = doc.createElement("option");
+      option.value = key;
+      option.textContent = `${QUALITY[key].label} (${QUALITY[key].estimate})`;
+      option.selected = key === getDefaultQualityKey();
+      select.appendChild(option);
+    }
+    select.addEventListener("change", () => {
+      setStringPref("defaultQuality", normalizeQualityKey(select.value));
+    });
+
     const button = doc.createElement("button");
     button.type = "button";
     button.className = "pdf-image-saver-toolbar-button";
@@ -118,9 +136,15 @@ var PdfImageSaver = (() => {
     button.addEventListener("click", (domEvent) => {
       domEvent.preventDefault();
       domEvent.stopPropagation();
-      void startClipFromReader(reader, "medium");
+      button.disabled = true;
+      button.textContent = "Select Area";
+      Promise.resolve(startClipFromReader(reader, normalizeQualityKey(select.value))).finally(() => {
+        button.disabled = false;
+        button.textContent = "Clip Figure";
+      });
     });
-    append(button);
+    group.append(select, button);
+    append(group);
   }
 
   function onCreateViewContextMenu(event) {
@@ -312,6 +336,11 @@ var PdfImageSaver = (() => {
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
       const preview = renderCanvasPreview(options);
+      const duplicateKey = getPreviewDuplicateKey(attachment, preview);
+      if (getBoolPref("duplicateGuard", true) && recentIndexSaves.has(duplicateKey)) {
+        showReaderToast(reader, "This preview was already saved in this Zotero session.", "warning");
+        return null;
+      }
       const indexPath = await createIndexHTML({
         attachment,
         parentItem,
@@ -331,6 +360,8 @@ var PdfImageSaver = (() => {
         `Saved preview index (${formatBytes(preview.byteCount)}).`,
         "success",
       );
+      recentIndexSaves.set(duplicateKey, Date.now());
+      pruneRecentIndexSaves();
       return imported;
     } catch (error) {
       logError(error);
@@ -371,6 +402,11 @@ var PdfImageSaver = (() => {
           height: pageRect.height,
         },
       });
+      const duplicateKey = getPreviewDuplicateKey(attachment, preview);
+      if (getBoolPref("duplicateGuard", true) && recentIndexSaves.has(duplicateKey)) {
+        showReaderToast(reader, "This page preview was already saved in this Zotero session.", "warning");
+        return;
+      }
       const indexPath = await createIndexHTML({
         attachment,
         parentItem,
@@ -385,6 +421,8 @@ var PdfImageSaver = (() => {
         scope: "page",
         pageIndex,
       });
+      recentIndexSaves.set(duplicateKey, Date.now());
+      pruneRecentIndexSaves();
       showReaderToast(reader, `Saved page preview index (${formatBytes(preview.byteCount)}).`, "success");
     } catch (error) {
       logError(error);
@@ -672,7 +710,7 @@ var PdfImageSaver = (() => {
       "--min-area",
       String(getNumberPref("minImageArea", DEFAULT_MIN_AREA)),
       "--max-images",
-      String(scope === "document" ? DEFAULT_MAX_DOCUMENT_IMAGES : DEFAULT_MAX_PAGE_IMAGES),
+      String(scope === "document" ? getIntegerPref("maxDocumentImages", DEFAULT_MAX_DOCUMENT_IMAGES) : getIntegerPref("maxPageImages", DEFAULT_MAX_PAGE_IMAGES)),
     ];
     if (pageIndex !== null && pageIndex !== undefined) {
       argsBase.push("--page-index", String(pageIndex));
@@ -745,6 +783,13 @@ var PdfImageSaver = (() => {
 
   async function findPythonCommands() {
     const commands = [];
+    const prefPythonPath = getStringPref("pythonPath", "");
+    if (prefPythonPath) {
+      const prefPython = await resolvePythonCommand(prefPythonPath);
+      if (prefPython) {
+        commands.push(prefPython);
+      }
+    }
     const condaCommands = await findCondaZlkCommands();
     commands.push(...condaCommands);
 
@@ -856,6 +901,7 @@ var PdfImageSaver = (() => {
 
     await new Promise((resolve, reject) => {
       let settled = false;
+      const timeoutMS = Math.max(5, getIntegerPref("helperTimeoutSeconds", DEFAULT_HELPER_TIMEOUT_SECONDS)) * 1000;
       const timer = setTimeout(() => {
         if (settled) {
           return;
@@ -866,8 +912,8 @@ var PdfImageSaver = (() => {
         } catch (error) {
           logError(error);
         }
-        reject(new Error("Optional helper timed out after 60 seconds."));
-      }, 60000);
+        reject(new Error(`Optional helper timed out after ${Math.round(timeoutMS / 1000)} seconds.`));
+      }, timeoutMS);
       const observer = {
         observe(subject, topic) {
           if (settled) {
@@ -1105,6 +1151,21 @@ var PdfImageSaver = (() => {
         min-height: 26px;
       }
       .pdf-image-saver-toolbar-button:hover { background: var(--fill-quinary, #eee); }
+      .pdf-image-saver-toolbar-button:disabled {
+        opacity: 0.65;
+        cursor: progress;
+      }
+      .pdf-image-saver-toolbar-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin: 0 4px;
+      }
+      .pdf-image-saver-quality {
+        max-width: 170px;
+        min-height: 26px;
+        font: inherit;
+      }
       .pdf-image-saver-toast {
         position: fixed;
         right: 18px;
@@ -1217,6 +1278,67 @@ var PdfImageSaver = (() => {
       return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
     } catch (error) {
       return fallback;
+    }
+  }
+
+  function getIntegerPref(key, fallback) {
+    try {
+      const value = Zotero.Prefs.get(PREF_BRANCH + key, true);
+      const numeric = Number(value);
+      return Number.isInteger(numeric) && numeric > 0 ? numeric : fallback;
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function getStringPref(key, fallback) {
+    try {
+      const value = Zotero.Prefs.get(PREF_BRANCH + key, true);
+      return typeof value === "string" ? value.trim() : fallback;
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function setStringPref(key, value) {
+    try {
+      Zotero.Prefs.set(PREF_BRANCH + key, String(value), true);
+    } catch (error) {
+      logError(error);
+    }
+  }
+
+  function getBoolPref(key, fallback) {
+    try {
+      const value = Zotero.Prefs.get(PREF_BRANCH + key, true);
+      return typeof value === "boolean" ? value : fallback;
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function getDefaultQualityKey() {
+    return normalizeQualityKey(getStringPref("defaultQuality", "medium"));
+  }
+
+  function normalizeQualityKey(value) {
+    return QUALITY[value] ? value : "medium";
+  }
+
+  function getPreviewDuplicateKey(attachment, preview) {
+    const bbox = preview.bboxNormalized.map((value) => value.toFixed(4)).join(",");
+    return `${attachment.libraryID}:${attachment.key}:${preview.pageIndex}:${preview.quality}:${bbox}`;
+  }
+
+  function pruneRecentIndexSaves() {
+    if (recentIndexSaves.size <= 200) {
+      return;
+    }
+    const oldest = [...recentIndexSaves.entries()]
+      .sort((left, right) => left[1] - right[1])
+      .slice(0, recentIndexSaves.size - 160);
+    for (const [key] of oldest) {
+      recentIndexSaves.delete(key);
     }
   }
 

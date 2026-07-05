@@ -137,7 +137,7 @@ End batch validation checklist:
 
 ### B2 UI Hardening
 
-Status: in progress.
+Status: implementation complete; runtime smoke pending Zotero restart.
 
 Plan:
 
@@ -156,13 +156,27 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Zotero loads plugin without startup errors after restart.
-- Reader toolbar button appears once per PDF reader.
-- Drag selection can be canceled and can save one HTML index attachment.
-- HTML index source link opens the PDF page.
-- Low, Medium, High menu entries produce different preview byte sizes.
-- No temp directory remains after save or helper failure.
-- Optional original extraction failure does not block preview index.
+- Zotero loads plugin without startup errors after restart: pending.
+- Reader toolbar button appears once per PDF reader: pending.
+- Drag selection can be canceled and can save one HTML index attachment: pending.
+- HTML index source link opens the PDF page: pending.
+- Low, Medium, High menu entries produce different preview byte sizes: static support present.
+- No temp directory remains after save or helper failure: static support present.
+- Optional original extraction failure does not block preview index: static support present.
+- `npm run check`: passed.
+- `npm run build`: passed, XPI SHA256 `4415997294789b0bf0fd65559c82081809129a45935c46a789f94785e312b1e3`.
+- `npm run install:global`: passed.
+- XPI includes `preferences.xhtml`, `content/preferences.js`, defaults, helper, and main script.
+- XPI includes root `prefs.js`.
+- Proxy file has no BOM: passed, first bytes `43-3A-5C`.
+
+Implementation notes:
+
+- Added preference pane registration and preference UI.
+- Added toolbar quality selector with size estimates.
+- Added configurable default quality, helper timeout, helper max image counts, optional Python path, and duplicate guard.
+- Added session duplicate save guard.
+- B2 review agent did not return before timeout; local static checks passed.
 
 ### B3 Precision
 
@@ -233,7 +247,7 @@ Plan:
 - Batch: B0/B1
 - Environment: Windows PowerShell 5.1 risk
 - Severity: P1
-- Status: open
+- Status: closed
 - Symptom: `scripts/install-global.ps1` may write Zotero extension proxy with UTF-8 BOM.
 - Expected: proxy file contains plain absolute path with no BOM.
 - Actual: `Set-Content -Encoding UTF8` can write BOM and break Zotero proxy path parsing.
@@ -306,6 +320,19 @@ Plan:
 - Close condition: helper loop only returns success immediately; failures aggregate.
 - Closure: `missing_pymupdf` records and continues to next Python candidate.
 
+### FAIL-20260706-009
+
+- Batch: B2
+- Environment: Zotero 7+ default preferences
+- Severity: P2
+- Status: open
+- Symptom: default preferences are packaged only under `defaults/preferences/prefs.js`, while Zotero 7 docs indicate root `prefs.js`.
+- Expected: preferences have root `prefs.js` available for Zotero 7+ bootstrap plugin loading.
+- Actual: root `prefs.js` missing.
+- Validation update: add root `prefs.js` and include it in package, keep old path as compatibility copy.
+- Close condition: XPI contains root `prefs.js`.
+- Closure: root `prefs.js` added and verified in XPI.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -322,3 +349,6 @@ Plan:
 ## Real Commit Log
 
 - `4b121ce` B1 scaffold Zotero PDF image saver.
+- `52f4551` docs record B1 validation.
+- `604d546` docs start B2 hardening plan.
+- Pending B2 implementation commit.

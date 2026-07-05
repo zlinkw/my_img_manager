@@ -16,6 +16,8 @@ New-Item -ItemType Directory -Force -Path $buildDir, $outputDir | Out-Null
 $paths = @(
   "manifest.json",
   "bootstrap.js",
+  "prefs.js",
+  "preferences.xhtml",
   "README.md",
   "content",
   "defaults"
