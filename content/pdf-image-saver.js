@@ -769,6 +769,7 @@ var PdfImageSaver = (() => {
       round6((selectionRect.left + selectionRect.width) / pageRect.width),
       round6((selectionRect.top + selectionRect.height) / pageRect.height),
     ];
+    const sourceRegion = buildSourceRegion(bboxNormalized);
     return {
       id: `preview-p${pageIndex + 1}-${Date.now().toString(36)}`,
       mode: mode || "reader_canvas_preview",
@@ -785,6 +786,8 @@ var PdfImageSaver = (() => {
       sourceCanvasWidth: canvas.width,
       sourceCanvasHeight: canvas.height,
       bboxNormalized,
+      sourceRegion,
+      annotationKey: null,
       detectionArea: detectionArea || round6(selectionRect.width * selectionRect.height / Math.max(1, pageRect.width * pageRect.height)),
       openPDFURI: "",
     };
@@ -965,22 +968,29 @@ var PdfImageSaver = (() => {
     const sourceTitle = parentItem?.getField("title") || attachment.getField("title") || "PDF";
     const entriesHTML = entries
       .map((entry, index) => {
-        const uri = buildOpenPDFURI(attachment, entry.pageNumber);
+        entry.annotationKey = normalizeAnnotationKey(entry.annotationKey);
+        entry.sourceRegion = entry.sourceRegion || buildSourceRegion(entry.bboxNormalized);
+        const uri = buildOpenPDFURI(attachment, entry.pageNumber, entry.annotationKey);
         entry.openPDFURI = uri;
         const pageText = entry.pageLabel && entry.pageLabel !== String(entry.pageNumber)
           ? `${entry.pageNumber} (${entry.pageLabel})`
           : String(entry.pageNumber);
+        const sourceRegionLabel = entry.sourceRegion?.label || entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ");
         return `
           <article class="entry">
-            <a class="preview-link" href="${escapeHTML(uri)}">
-              <img src="${entry.dataURL}" alt="Saved PDF preview ${index + 1}">
-            </a>
+            <div class="preview-column">
+              <a class="preview-link" href="${escapeHTML(uri)}">
+                <img src="${entry.dataURL}" alt="Saved PDF preview ${index + 1}">
+              </a>
+              ${buildSourceRegionMapHTML(entry.sourceRegion)}
+            </div>
             <dl>
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
               <div><dt>Quality</dt><dd>${escapeHTML(QUALITY[entry.quality].label)} (${escapeHTML(entry.qualityEstimate)})</dd></div>
               <div><dt>Actual</dt><dd>${formatBytes(entry.byteCount)}, ${entry.renderedWidth} x ${entry.renderedHeight}px</dd></div>
               <div><dt>Source</dt><dd>${escapeHTML(entry.detector)}</dd></div>
-              <div><dt>Location</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
+              <div><dt>Region</dt><dd>${escapeHTML(sourceRegionLabel)}</dd></div>
+              <div><dt>BBox</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
             </dl>
           </article>`;
       })
@@ -1008,6 +1018,8 @@ var PdfImageSaver = (() => {
         rendered_width: entry.renderedWidth,
         rendered_height: entry.renderedHeight,
         bbox_normalized: entry.bboxNormalized,
+        source_region: entry.sourceRegion,
+        annotation_key: entry.annotationKey,
         detection_area: entry.detectionArea,
         open_pdf_uri: entry.openPDFURI,
       })),
@@ -1024,7 +1036,10 @@ var PdfImageSaver = (() => {
     h1 { font-size: 18px; margin: 0 0 6px; }
     .meta { color: #555; margin: 0; }
     .entry { display: grid; grid-template-columns: minmax(160px, 360px) 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid #ddd; }
+    .preview-column { display: grid; gap: 8px; align-content: start; }
     img { max-width: 100%; height: auto; border: 1px solid #ccc; background: #f6f6f6; }
+    .source-map { position: relative; width: 72px; aspect-ratio: 0.72; border: 1px solid #bbb; background: #fafafa; }
+    .source-map span { position: absolute; min-width: 2px; min-height: 2px; border: 2px solid #1f73b7; background: rgba(31, 115, 183, 0.18); box-sizing: border-box; }
     dl { margin: 0; display: grid; gap: 6px; align-content: start; }
     dl div { display: grid; grid-template-columns: 80px 1fr; gap: 8px; }
     dt { color: #666; }
@@ -1749,9 +1764,15 @@ var PdfImageSaver = (() => {
     doc.head?.appendChild(style);
   }
 
-  function buildOpenPDFURI(attachment, pageNumber) {
+  function buildOpenPDFURI(attachment, pageNumber, annotationKey) {
     const libraryPath = getLibraryURIPath(attachment.libraryID);
-    return `zotero://open-pdf/${libraryPath}/items/${attachment.key}?page=${pageNumber}`;
+    const page = Math.max(1, Number.parseInt(pageNumber, 10) || 1);
+    let uri = `zotero://open-pdf/${libraryPath}/items/${attachment.key}?page=${encodeURIComponent(String(page))}`;
+    const normalizedAnnotationKey = normalizeAnnotationKey(annotationKey);
+    if (normalizedAnnotationKey) {
+      uri += `&annotation=${encodeURIComponent(normalizedAnnotationKey)}`;
+    }
+    return uri;
   }
 
   function getLibraryURIPath(libraryID) {
@@ -1770,6 +1791,46 @@ var PdfImageSaver = (() => {
       logError(error);
     }
     return "library";
+  }
+
+  function buildSourceRegion(bboxNormalized) {
+    const values = Array.isArray(bboxNormalized) ? bboxNormalized : [];
+    const x1 = clampNormalized(values[0], 0);
+    const y1 = clampNormalized(values[1], 0);
+    const x2 = clampNormalized(values[2], 1);
+    const y2 = clampNormalized(values[3], 1);
+    const left = round6(Math.min(x1, x2));
+    const top = round6(Math.min(y1, y2));
+    const right = round6(Math.max(x1, x2));
+    const bottom = round6(Math.max(y1, y2));
+    const width = round6(right - left);
+    const height = round6(bottom - top);
+    const area = round6(width * height);
+    return {
+      coordinate_system: "normalized_page_rect",
+      left,
+      top,
+      right,
+      bottom,
+      width,
+      height,
+      center_x: round6(left + width / 2),
+      center_y: round6(top + height / 2),
+      area,
+      label: `x ${formatPercent(left)}-${formatPercent(right)}, y ${formatPercent(top)}-${formatPercent(bottom)}, size ${formatPercent(width)} x ${formatPercent(height)}`,
+    };
+  }
+
+  function buildSourceRegionMapHTML(region) {
+    if (!region) {
+      return "";
+    }
+    return `<div class="source-map" title="${escapeHTML(region.label || "Source region")}"><span style="left:${formatCSSPercent(region.left)};top:${formatCSSPercent(region.top)};width:${formatCSSPercent(region.width)};height:${formatCSSPercent(region.height)}"></span></div>`;
+  }
+
+  function normalizeAnnotationKey(value) {
+    const key = String(value || "").trim();
+    return /^[A-Za-z0-9]+$/.test(key) ? key : null;
   }
 
   function serializeItem(item) {
@@ -1997,6 +2058,19 @@ var PdfImageSaver = (() => {
 
   function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
+  }
+
+  function clampNormalized(value, fallback) {
+    const number = Number(value);
+    return clamp(Number.isFinite(number) ? number : fallback, 0, 1);
+  }
+
+  function formatPercent(value) {
+    return `${(clampNormalized(value, 0) * 100).toFixed(1)}%`;
+  }
+
+  function formatCSSPercent(value) {
+    return `${(clampNormalized(value, 0) * 100).toFixed(4)}%`;
   }
 
   function escapeHTML(value) {

@@ -33,6 +33,21 @@ if ($mainJS -notmatch "(?m)^\s*const\s+HARD_MAX_AUTO_PREVIEW_BYTES_MB\s*=\s*8\s*
 if ($mainJS -notmatch "(?m)^\s*const\s+HARD_MAX_INDEX_BYTES_MB\s*=\s*12\s*;") {
   throw "Index hard cap changed unexpectedly"
 }
+if ($mainJS -notmatch "function\s+buildOpenPDFURI\s*\(\s*attachment\s*,\s*pageNumber\s*,\s*annotationKey\s*\)") {
+  throw "open-pdf URI builder must accept annotationKey"
+}
+if ($mainJS -notmatch "annotation=\$\{encodeURIComponent\(normalizedAnnotationKey\)\}") {
+  throw "open-pdf URI builder must append encoded annotation parameter"
+}
+if ($mainJS -notmatch "source_region:\s*entry\.sourceRegion") {
+  throw "metadata must include source_region"
+}
+if ($mainJS -notmatch "annotation_key:\s*entry\.annotationKey") {
+  throw "metadata must include annotation_key"
+}
+if ($mainJS -notmatch "class=`"source-map`"") {
+  throw "HTML index must include compact source region map"
+}
 
 $autoMax = $prefsXML.SelectSingleNode("//*[@id='pdf-image-saver-auto-max-preview-mb']")
 if (!$autoMax -or $autoMax.max -ne "8") {

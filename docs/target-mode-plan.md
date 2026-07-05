@@ -217,7 +217,7 @@ End batch validation checklist:
 
 ### B4 Runtime Validation And Link Accuracy
 
-Status: in progress.
+Status: implementation complete; runtime smoke pending Zotero restart or add-on reload.
 
 Plan:
 
@@ -272,6 +272,35 @@ End batch validation checklist:
 - `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
 - Proxy file has no BOM: passed, first bytes `43-3A-5C`.
 
+### B6 Source Position Indexing
+
+Status: implementation complete; runtime smoke pending Zotero restart or add-on reload.
+
+Plan:
+
+- Improve preview index source targeting without creating heavy original files.
+- Keep default click behavior safe: open source PDF page through `zotero://open-pdf`.
+- Add compact bbox metadata and a visible region summary beside each preview so the saved synced HTML remains useful when page-level links cannot focus the exact region.
+- Add support for future exact annotation links by generating `zotero://open-pdf` URIs with `annotation=` only when an entry already has a Zotero annotation key.
+- Do not create Zotero annotations by default in B6 because that changes the user's PDF annotation layer and requires runtime smoke in Zotero.
+
+Pre batch validation:
+
+- Git worktree clean at B6 start commit `e8c7799`.
+- `npm run runtime:status` from B5 reports proxy installed, no BOM, temp child count 0, and current Zotero session not yet registered.
+- Zotero 9.0.5 source scan confirms `zotero://open-pdf/...?...&annotation=<key>` is parsed, but the plugin has no runtime verified annotation creation path yet.
+- B6 will prefer non destructive metadata and HTML link improvements over automatic annotation creation.
+
+End batch validation checklist:
+
+- `npm run check`: passed and asserts open-pdf annotation parameter support plus source-region metadata.
+- `npm run build`: passed, XPI SHA256 `cafb92fbfe5d6f21556d099a6e06fba430c4ad8a2ca35773311315537ba426c1`.
+- `npm run install:global`: passed without restarting VS Code or Zotero.
+- `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
+- HTML preview index includes a compact source region summary for every preview.
+- Metadata includes `source_region` and `annotation_key` fields with `annotation_key` null unless runtime creates or receives one later.
+- Open PDF URI builder appends `annotation=` only when an annotation key is present.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -292,6 +321,10 @@ End batch validation checklist:
 - B3 `npm run install:global`: passed.
 - Local Zotero 9.0.5 package scan found no `recordImages`, `imageCoordinates`, or `CanvasImagesTracker` matches, so B3 auto raster remains optional/degraded.
 - B3 proxy bytes: `43-3A-5C`, no BOM.
+- B6 `npm run check`: passed.
+- B6 `npm run build`: passed, XPI SHA256 `cafb92fbfe5d6f21556d099a6e06fba430c4ad8a2ca35773311315537ba426c1`.
+- B6 `npm run install:global`: passed.
+- B6 `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
 
 ## New Failures
 
@@ -552,6 +585,20 @@ End batch validation checklist:
 - Close condition: `scripts/check.ps1` uses anchored regexes for `HARD_MAX_AUTO_PREVIEW_BYTES_MB = 8;` and `HARD_MAX_INDEX_BYTES_MB = 12;`.
 - Closure: `scripts/check.ps1` now uses anchored multiline regexes for exact cap constant assignments.
 
+### FAIL-20260706-020
+
+- Batch: B6
+- Environment: saved synced HTML preview index
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: closed
+- Symptom: clicking a saved preview opens the source PDF page but does not focus or identify the exact clipped bbox.
+- Expected: saved data should make it quick to return to the source PDF location corresponding to the saved figure.
+- Actual: `open_pdf_uri` only contains `page=`, while bbox is present only as raw normalized values.
+- Validation update: make source region metadata explicit, show a compact region summary in the HTML index, and prepare `annotation=` URI support without creating annotations by default.
+- Close condition: every index entry has human-readable region metadata, metadata has `source_region`, and URI builder supports annotation keys without changing behavior when absent.
+- Closure: preview entries now include `source_region` and `annotation_key`, HTML shows a compact source region map and label, and `buildOpenPDFURI()` appends encoded `annotation=` only for valid existing annotation keys.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -573,6 +620,9 @@ End batch validation checklist:
 - Check stale temp cleanup runs on startup and index creation failure removes temp dir.
 - Check Tools menu setup is idempotent after add-on reload.
 - Check preview size preference hard caps stay sync-safe.
+- Check saved preview source links still open source PDF page when no annotation key exists.
+- Check saved preview metadata includes source region fields for locating bbox manually.
+- Check annotation-aware URI generation appends `annotation=` only when an annotation key exists.
 
 ## Real Commit Log
 
