@@ -68,15 +68,20 @@ Saved metadata JSON records:
 Each preview entry includes:
 
 - `id`
-- `source`
+- `mode`
+- `detector`
 - `page_index`
 - `page_number`
+- `page_label`
 - `bbox_normalized`
+- `source_region`
+- `annotation_key`
 - `byte_count`
 - `rendered_width`
 - `rendered_height`
-- `preview_quality`
-- `estimated_preview_size`
+- `quality`
+- `qualityEstimate`
+- `detection_area`
 - `open_pdf_uri`
 - optional `zotero_attachment` only when original save is enabled
 
@@ -304,10 +309,12 @@ End batch validation checklist:
 
 ### B7 Runtime Smoke And Reader UX
 
-Status: planned.
+Status: implementation complete for static regression checks; runtime smoke pending Zotero restart or add-on reload.
 
 Plan:
 
+- Add static regression tests for open-pdf URI behavior before runtime smoke.
+- Synchronize metadata schema docs with B6 `source_region` and `annotation_key`.
 - After the user next restarts or reloads Zotero add-ons, verify the plugin is registered in the current Zotero session.
 - Smoke test reader toolbar, context menu, manual clip, page preview, auto raster disabled/degraded behavior, and saved HTML index opening.
 - Verify user library, group library, and standalone PDF attachment open-pdf links.
@@ -317,16 +324,26 @@ Plan:
 Pre batch validation:
 
 - B6 static validation and global install passed.
+- B6 post implementation review found no P0/P1 blockers.
+- B6 post implementation review found P2 gaps: weak static guard for annotation URI behavior and metadata schema mismatch.
 - `npm run runtime:status` still reports current Zotero session not registered, so B7 requires user-controlled Zotero restart or add-on reload.
 
 End batch validation checklist:
 
-- Zotero current session registers `pdf-image-saver@zlk.local`.
-- Reader UI appears once per PDF reader.
-- Manual clip saves one synced HTML index with preview, page link, region map, and metadata.
-- Clicking preview/page opens the source PDF page.
-- Auto Raster is disabled or safely warns when PDF.js lacks image coordinate support.
-- No `%TEMP%\pdf-image-saver` leftovers remain after saves or failures.
+- `npm run check`: passed and runs open-pdf URI regression tests.
+- `npm run build`: passed, XPI SHA256 `88ffb0a226e13f9192890c0ec20d9d459d3377b907dde2fb58ec9c27658ebae1`.
+- `npm run install:global`: passed without restarting VS Code or Zotero.
+- `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
+- Null or invalid annotation keys produce page-only open-pdf URIs.
+- Valid annotation keys append encoded `annotation=`.
+- Plugin code still does not call `Zotero.Annotations.saveFromJSON`.
+- Metadata schema lists `source_region` and `annotation_key`.
+- Zotero current session registers `pdf-image-saver@zlk.local`: pending user-controlled Zotero restart or add-on reload.
+- Reader UI appears once per PDF reader: pending runtime smoke.
+- Manual clip saves one synced HTML index with preview, page link, region map, and metadata: pending runtime smoke.
+- Clicking preview/page opens the source PDF page: pending runtime smoke.
+- Auto Raster is disabled or safely warns when PDF.js lacks image coordinate support: pending runtime smoke.
+- No `%TEMP%\pdf-image-saver` leftovers remain after saves or failures: pending runtime smoke.
 
 ## Current Validation Results
 
@@ -352,6 +369,10 @@ End batch validation checklist:
 - B6 `npm run build`: passed, XPI SHA256 `cafb92fbfe5d6f21556d099a6e06fba430c4ad8a2ca35773311315537ba426c1`.
 - B6 `npm run install:global`: passed.
 - B6 `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
+- B7 `npm run check`: passed, including `tests/open-pdf-uri.test.js`.
+- B7 `npm run build`: passed, XPI SHA256 `88ffb0a226e13f9192890c0ec20d9d459d3377b907dde2fb58ec9c27658ebae1`.
+- B7 `npm run install:global`: passed.
+- B7 `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
 
 ## New Failures
 
@@ -626,6 +647,34 @@ End batch validation checklist:
 - Close condition: every index entry has human-readable region metadata, metadata has `source_region`, and URI builder supports annotation keys without changing behavior when absent.
 - Closure: preview entries now include `source_region` and `annotation_key`, HTML shows a compact source region map and label, and `buildOpenPDFURI()` appends encoded `annotation=` only for valid existing annotation keys.
 
+### FAIL-20260706-021
+
+- Batch: B7
+- Environment: static regression checks
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: B6 guardrails only use string matching and cannot prove default links remain page-only or that annotation keys are appended only when present.
+- Expected: regression tests cover null, invalid, and valid annotation keys for `buildOpenPDFURI()`.
+- Actual: `scripts/check.ps1` asserts helper text but does not execute URI behavior.
+- Validation update: export minimal test hooks and add Node regression tests called by `npm run check`.
+- Close condition: tests prove page-only default URI and encoded annotation URI behavior.
+- Closure: `tests/open-pdf-uri.test.js` now verifies null and invalid annotation keys keep page-only URIs, valid keys append `annotation=`, group URI prefixes are preserved, and `npm run check` runs the test.
+
+### FAIL-20260706-022
+
+- Batch: B7
+- Environment: target plan metadata schema
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: the top-level metadata schema did not list B6 `source_region` and `annotation_key` fields.
+- Expected: `docs/target-mode-plan.md` schema matches saved metadata.
+- Actual: B6 fields were documented in batch results but not the schema section.
+- Validation update: synchronize metadata schema.
+- Close condition: schema entry list includes `source_region` and `annotation_key`.
+- Closure: schema now lists `source_region`, `annotation_key`, `mode`, `detector`, `quality`, and `detection_area` fields for preview entries.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -650,6 +699,8 @@ End batch validation checklist:
 - Check saved preview source links still open source PDF page when no annotation key exists.
 - Check saved preview metadata includes source region fields for locating bbox manually.
 - Check annotation-aware URI generation appends `annotation=` only when an annotation key exists.
+- Check URI regression tests cover null, invalid, and valid annotation keys.
+- Check plugin code does not create Zotero annotations by default.
 
 ## Real Commit Log
 

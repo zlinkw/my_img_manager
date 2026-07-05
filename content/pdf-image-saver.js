@@ -2109,6 +2109,11 @@ var PdfImageSaver = (() => {
     shutdown,
     addToWindow,
     removeFromWindow,
+    __test__: {
+      buildOpenPDFURI,
+      buildSourceRegion,
+      normalizeAnnotationKey,
+    },
     get started() {
       return started;
     },

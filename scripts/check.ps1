@@ -5,6 +5,8 @@ Set-Location $root
 node --check .\bootstrap.js
 node --check .\content\pdf-image-saver.js
 node --check .\content\preferences.js
+node --check .\tests\open-pdf-uri.test.js
+node .\tests\open-pdf-uri.test.js
 
 [xml](Get-Content -Encoding UTF8 -Raw -LiteralPath .\preferences.xhtml) | Out-Null
 $prefsXML = [xml](Get-Content -Encoding UTF8 -Raw -LiteralPath .\preferences.xhtml)
@@ -47,6 +49,9 @@ if ($mainJS -notmatch "annotation_key:\s*entry\.annotationKey") {
 }
 if ($mainJS -notmatch "class=`"source-map`"") {
   throw "HTML index must include compact source region map"
+}
+if ($mainJS -match "Zotero\.Annotations\.saveFromJSON") {
+  throw "Plugin must not create Zotero annotations by default"
 }
 
 $autoMax = $prefsXML.SelectSingleNode("//*[@id='pdf-image-saver-auto-max-preview-mb']")
