@@ -435,4 +435,5 @@ Plan:
 - `5faadda` B2 harden UI preferences and helper limits.
 - `947fb74` docs record B2 completion.
 - `ddcdd5a` docs start B3 precision plan.
-- Pending B3 implementation commit.
+- `7e671db` B3 add safe auto raster preview detection.
+- B3 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
