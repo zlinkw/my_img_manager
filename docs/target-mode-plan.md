@@ -344,6 +344,31 @@ End batch validation checklist:
 - Clicking preview/page opens the source PDF page: pending runtime smoke.
 - Auto Raster is disabled or safely warns when PDF.js lacks image coordinate support: pending runtime smoke.
 - No `%TEMP%\pdf-image-saver` leftovers remain after saves or failures: pending runtime smoke.
+- B7 post implementation review agent did not return before timeout and was closed; local static checks passed.
+
+### B8 Independent Runtime Packaging
+
+Status: planned.
+
+Plan:
+
+- Verify the XPI contains all plugin runtime files and no machine-specific dependency paths.
+- Document why the default workflow has a complete in-plugin runtime: Zotero JavaScript, PDF reader canvas, synced HTML attachment, and no Python dependency.
+- Keep optional Python/PyMuPDF helper explicitly optional and disabled by absence.
+- Add static checks for package payload and helper optionality if missing.
+- Keep runtime smoke as pending until Zotero is user-restarted or add-on reloaded.
+
+Pre batch validation:
+
+- B7 static checks, build, install, and runtime diagnostics passed.
+- Current Zotero process is running and plugin remains not registered in current session.
+
+End batch validation checklist:
+
+- XPI payload contains manifest, bootstrap, prefs, preferences, content JS, helper, icon, and README.
+- XPI payload excludes `work/`, `outputs/`, tests, and local machine paths.
+- `README.md` states default mode is independent and optional helper is not required.
+- `npm run check`, `npm run build`, `npm run install:global`, and `npm run runtime:status` pass.
 
 ## Current Validation Results
 
