@@ -180,7 +180,7 @@ Implementation notes:
 
 ### B3 Precision
 
-Status: in progress.
+Status: implementation complete; runtime smoke pending Zotero restart.
 
 Plan:
 
@@ -189,7 +189,7 @@ Plan:
 - Add optional rendered preview capture for vector or fallback cases.
 - Add page label capture when available.
 - Validate `zotero://open-pdf` URI forms for user and group libraries.
-- Add an in reader saved index side panel or recent saved list if default HTML workflow is accepted.
+- Defer in reader saved index side panel because B3 precision work should keep UI risk low.
 
 Pre batch validation:
 
@@ -197,6 +197,8 @@ Pre batch validation:
 - B2 XPI built and installed.
 - Zotero runtime smoke remains pending because execution must not restart Zotero.
 - Next useful code work: pure PDF.js current page image candidate detection using existing reader PDF.js context.
+- Resume check on 2026-07-06: git worktree clean at B3 start commit `ddcdd5a`.
+- PDF.js source confirms `PDFPageProxy.render({ recordImages: true })` can populate `imageCoordinates` with normalized rendered image coordinates, so B3 will attempt this path first and fall back to manual clip when unavailable.
 
 End batch validation checklist:
 
@@ -204,19 +206,28 @@ End batch validation checklist:
 - `npm run build` passes.
 - `npm run install:global` passes.
 - Current page auto image save path exists without Python.
-- Auto detection has safe fallback to manual clip when operator list is unavailable.
+- Auto detection has safe fallback to manual clip when PDF.js image coordinate support is unavailable.
 - Candidate count and preview bytes are capped.
 - Target plan records new findings and commits.
+- Local Zotero 9.0.5 app files were scanned for `recordImages`, `imageCoordinates`, and `CanvasImagesTracker`: no hits found, so auto raster detection is treated as optional and disabled/degraded at runtime.
+- `npm run check`: passed.
+- `npm run build`: passed, XPI SHA256 `24e7ad798502a8ab168d9a8e9e8a1c603dd8ee50754b2fb93a6967b6df5901d7`.
+- `npm run install:global`: passed.
+- Proxy file has no BOM: passed, first bytes `43-3A-5C`.
 
-### B4 Robust Saving
+### B4 Runtime Validation And Link Accuracy
 
 Status: planned.
 
 Plan:
 
-- Add filename template preference.
-- Add optional export directory in addition to Zotero attachments.
-- Add transaction style rollback for partially failed batch saves.
+- After user next launches Zotero, run runtime smoke without restarting VS Code.
+- Verify reader toolbar appears once and `Clip Figure` saves one synced HTML preview index.
+- Verify `Auto Raster` is hidden, disabled, or safely warns when Zotero PDF.js lacks `imageCoordinates`.
+- Verify Low, Medium, High preview byte sizes differ on same selection.
+- Verify `zotero://open-pdf` links for user library PDFs, group PDFs, and PDFs without parent items.
+- Verify temp dirs are removed after manual clip, auto raster fallback, helper failure, and import failure.
+- Only after runtime smoke passes, consider filename templates, export directory, and rollback behavior.
 
 ## Current Validation Results
 
@@ -233,6 +244,11 @@ Plan:
 - `npm run build`: passed, XPI SHA256 `4415997294789b0bf0fd65559c82081809129a45935c46a789f94785e312b1e3`.
 - `npm run install:global`: passed.
 - Proxy bytes: `43-3A-5C`, no BOM.
+- B3 `npm run check`: passed.
+- B3 `npm run build`: passed, XPI SHA256 `24e7ad798502a8ab168d9a8e9e8a1c603dd8ee50754b2fb93a6967b6df5901d7`.
+- B3 `npm run install:global`: passed.
+- Local Zotero 9.0.5 package scan found no `recordImages`, `imageCoordinates`, or `CanvasImagesTracker` matches, so B3 auto raster remains optional/degraded.
+- B3 proxy bytes: `43-3A-5C`, no BOM.
 
 ## New Failures
 
@@ -353,6 +369,48 @@ Plan:
 - Close condition: XPI contains root `prefs.js`.
 - Closure: root `prefs.js` added and verified in XPI.
 
+### FAIL-20260706-010
+
+- Batch: B3
+- Environment: auto-detected current page previews
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: closed
+- Symptom: first auto-detected preview could be saved even when it exceeded the configured auto-save preview byte cap.
+- Expected: auto-save byte cap applies to every preview and total imported HTML attachment size.
+- Actual: cap check only blocked later previews after at least one preview had been accepted.
+- Validation update: reject any single preview that exceeds the cap and stop before adding previews that would exceed total cap.
+- Close condition: auto path checks per-preview and cumulative byte caps before importing the HTML index.
+- Closure: auto path skips previews above the auto cap, stops before cumulative cap is exceeded, and `createIndexHTML` rejects HTML index files above `maxIndexBytesMB`.
+
+### FAIL-20260706-011
+
+- Batch: B3
+- Environment: local Zotero 9.0.5 bundled PDF.js
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: closed
+- Symptom: upstream PDF.js supports `recordImages`, but the installed Zotero 9.0.5 runtime may not expose `recordImages` or `imageCoordinates`.
+- Expected: unsupported runtime must not present auto image extraction as guaranteed.
+- Actual: B3 initial implementation exposed `Auto Images` directly and only failed after click.
+- Validation update: auto path must perform capability detection, use conservative `Auto Raster` naming, and fall back to manual clip without blocking default preview index workflow.
+- Close condition: UI labels and runtime checks make auto raster detection optional and safe when PDF.js lacks `imageCoordinates`.
+- Closure: toolbar/context labels now say `Auto Raster`; runtime checks require `imageCoordinates` or `recordImages` support and otherwise disable/degrade to manual `Clip Figure`.
+
+### FAIL-20260706-012
+
+- Batch: B3
+- Environment: PDF.js auto raster detection after page rotation or repeated render
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `pdfPage.imageCoordinates` may be cached by PDF.js after the first `recordImages` render.
+- Expected: each auto raster save records coordinates for the current page orientation and render state.
+- Actual: B3 initial auto path did not clear cached coordinates before scratch render.
+- Validation update: reset cached `imageCoordinates` before rendering when the property is writable.
+- Close condition: auto raster detection clears stale image coordinate cache before scratch render and still falls back safely if the runtime does not support the property.
+- Closure: `resetPDFJSImageCoordinates` clears `pdfPage.imageCoordinates` before scratch render and catches read only/runtime errors.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -365,6 +423,9 @@ Plan:
 - Check extension proxy install does not require VS Code restart.
 - Check proxy file has no BOM.
 - Check helper failure cleans temp output.
+- Check auto-detected previews obey max image count and preview byte cap before import.
+- Check missing PDF.js `recordImages` capability disables or safely degrades auto raster detection.
+- Check auto raster detection clears cached PDF.js image coordinates before each scratch render.
 
 ## Real Commit Log
 
@@ -373,4 +434,5 @@ Plan:
 - `604d546` docs start B2 hardening plan.
 - `5faadda` B2 harden UI preferences and helper limits.
 - `947fb74` docs record B2 completion.
+- `ddcdd5a` docs start B3 precision plan.
 - Pending B3 implementation commit.

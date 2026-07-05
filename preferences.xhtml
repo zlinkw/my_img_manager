@@ -27,6 +27,37 @@
                   max="0.5"
                   preference="extensions.pdfImageSaver.minImageArea"/>
 
+      <html:label for="pdf-image-saver-min-auto-area">Auto-detect min image area</html:label>
+      <html:input id="pdf-image-saver-min-auto-area"
+                  type="number"
+                  step="0.001"
+                  min="0.001"
+                  max="0.5"
+                  preference="extensions.pdfImageSaver.minAutoImageArea"/>
+
+      <html:label for="pdf-image-saver-auto-max-images">Auto-detect max page images</html:label>
+      <html:input id="pdf-image-saver-auto-max-images"
+                  type="number"
+                  min="1"
+                  max="50"
+                  preference="extensions.pdfImageSaver.autoDetectMaxImages"/>
+
+      <html:label for="pdf-image-saver-auto-max-preview-mb">Auto-save preview cap MB</html:label>
+      <html:input id="pdf-image-saver-auto-max-preview-mb"
+                  type="number"
+                  step="0.5"
+                  min="0.5"
+                  max="50"
+                  preference="extensions.pdfImageSaver.autoMaxPreviewBytesMB"/>
+
+      <html:label for="pdf-image-saver-max-index-mb">Max synced HTML index MB</html:label>
+      <html:input id="pdf-image-saver-max-index-mb"
+                  type="number"
+                  step="0.5"
+                  min="1"
+                  max="100"
+                  preference="extensions.pdfImageSaver.maxIndexBytesMB"/>
+
       <html:label for="pdf-image-saver-max-page-images">Optional helper max page images</html:label>
       <html:input id="pdf-image-saver-max-page-images"
                   type="number"

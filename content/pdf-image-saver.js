@@ -3,6 +3,10 @@ var PdfImageSaver = (() => {
   const HELPER_SCHEMA_VERSION = "zotero-pdf-image-saver/v1";
   const PREF_BRANCH = "extensions.pdfImageSaver.";
   const DEFAULT_MIN_AREA = 0.004;
+  const DEFAULT_MIN_AUTO_IMAGE_AREA = 0.003;
+  const DEFAULT_AUTO_DETECT_MAX_IMAGES = 8;
+  const DEFAULT_AUTO_MAX_PREVIEW_BYTES_MB = 4;
+  const DEFAULT_MAX_INDEX_BYTES_MB = 6;
   const DEFAULT_MAX_PAGE_IMAGES = 80;
   const DEFAULT_MAX_DOCUMENT_IMAGES = 250;
   const DEFAULT_HELPER_TIMEOUT_SECONDS = 60;
@@ -143,7 +147,27 @@ var PdfImageSaver = (() => {
         button.textContent = "Clip Figure";
       });
     });
-    group.append(select, button);
+
+    const autoButton = doc.createElement("button");
+    autoButton.type = "button";
+    autoButton.className = "pdf-image-saver-toolbar-button";
+    autoButton.title = "Try to auto-detect embedded raster images on the current page and save one synced preview index.";
+    autoButton.textContent = "Auto Raster";
+    autoButton.addEventListener("click", (domEvent) => {
+      domEvent.preventDefault();
+      domEvent.stopPropagation();
+      autoButton.disabled = true;
+      autoButton.textContent = "Saving...";
+      Promise.resolve(saveAutoDetectedPageImagePreviews(reader, {
+        qualityKey: normalizeQualityKey(select.value),
+      })).finally(() => {
+        autoButton.disabled = false;
+        autoButton.textContent = "Auto Raster";
+        void updateAutoRasterButtonState(reader, autoButton);
+      });
+    });
+    updateAutoRasterButtonState(reader, autoButton);
+    group.append(select, button, autoButton);
     append(group);
   }
 
@@ -162,6 +186,16 @@ var PdfImageSaver = (() => {
         },
       });
     }
+
+    append({
+      label: `Try auto raster image previews (${QUALITY[getDefaultQualityKey()].label})`,
+      onCommand() {
+        void saveAutoDetectedPageImagePreviews(reader, {
+          qualityKey: getDefaultQualityKey(),
+          pageIndex: getContextPageIndex(params),
+        });
+      },
+    });
 
     append({
       label: "Save current page preview index (Medium)",
@@ -372,6 +406,129 @@ var PdfImageSaver = (() => {
     }
   }
 
+  async function saveAutoDetectedPageImagePreviews(reader, options) {
+    const qualityKey = normalizeQualityKey(options.qualityKey);
+    const pageIndex = await getCurrentPageIndex(reader, options.pageIndex);
+    const jobKey = getReaderJobKey(reader, { scope: "auto-page", pageIndex });
+    if (activeJobs.has(jobKey)) {
+      showReaderToast(reader, "Auto image save already running for this page.", "warning");
+      return null;
+    }
+
+    activeJobs.add(jobKey);
+    try {
+      const context = await getPDFViewerContext(reader);
+      const pageElement = await waitForPageElement(context, pageIndex + 1);
+      const canvas = getPageCanvas(pageElement);
+      if (!pageElement || !canvas) {
+        throw new Error("Rendered PDF page canvas was not found.");
+      }
+
+      const detection = await detectPageImageCandidates({
+        context,
+        pageElement,
+        canvas,
+        pageIndex,
+      });
+      if (!detection.candidates.length) {
+        showReaderToast(
+          reader,
+          `${detection.reason || "No embedded images were detected on this page."} Use Clip Figure for manual save.`,
+          "warning",
+        );
+        return null;
+      }
+
+      const attachment = getReaderPDFAttachment(reader);
+      const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
+      const previews = [];
+      const duplicateGuard = getBoolPref("duplicateGuard", true);
+      const maxBytes = getAutoMaxPreviewBytes();
+      let totalBytes = 0;
+      let skippedDuplicates = 0;
+      let skippedByteLimit = 0;
+      let skippedOversized = 0;
+
+      for (const candidate of detection.candidates) {
+        const preview = renderCanvasPreview({
+          canvas,
+          pageElement,
+          pageIndex,
+          qualityKey,
+          selectionRect: candidate.selectionRect,
+          pageLabel: detection.pageLabel,
+          mode: "auto_detected_reader_canvas_preview",
+          detector: candidate.detector,
+          detectionArea: candidate.area,
+        });
+        const duplicateKey = getPreviewDuplicateKey(attachment, preview);
+        if (duplicateGuard && recentIndexSaves.has(duplicateKey)) {
+          skippedDuplicates += 1;
+          continue;
+        }
+        if (preview.byteCount > maxBytes) {
+          skippedOversized += 1;
+          continue;
+        }
+        if (totalBytes + preview.byteCount > maxBytes) {
+          skippedByteLimit += 1;
+          break;
+        }
+        previews.push(preview);
+        totalBytes += preview.byteCount;
+      }
+
+      if (!previews.length) {
+        const reason = skippedDuplicates
+          ? "All detected previews were already saved in this Zotero session."
+          : "Detected previews exceeded the auto-save byte cap.";
+        showReaderToast(reader, reason, "warning");
+        return null;
+      }
+
+      const indexPath = await createIndexHTML({
+        attachment,
+        parentItem,
+        entries: previews,
+        scope: "auto-page",
+        qualityKey,
+      });
+      const imported = await importIndexAttachment({
+        attachment,
+        parentItem,
+        indexPath,
+        scope: "auto-page",
+        pageIndex,
+      });
+      for (const preview of previews) {
+        recentIndexSaves.set(getPreviewDuplicateKey(attachment, preview), Date.now());
+      }
+      pruneRecentIndexSaves();
+      const notes = [];
+      if (skippedDuplicates) {
+        notes.push(`${skippedDuplicates} duplicate skipped`);
+      }
+      if (skippedByteLimit) {
+        notes.push("byte cap reached");
+      }
+      if (skippedOversized) {
+        notes.push(`${skippedOversized} oversized skipped`);
+      }
+      showReaderToast(
+        reader,
+        `Saved ${previews.length} detected image preview${previews.length === 1 ? "" : "s"} (${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
+        "success",
+      );
+      return imported;
+    } catch (error) {
+      logError(error);
+      showReaderToast(reader, getErrorMessage(error), "error");
+      return null;
+    } finally {
+      activeJobs.delete(jobKey);
+    }
+  }
+
   async function savePagePreviewIndex(reader, options) {
     const pageIndex = await getCurrentPageIndex(reader, options.pageIndex);
     const jobKey = getReaderJobKey(reader, { scope: "page", pageIndex });
@@ -395,6 +552,7 @@ var PdfImageSaver = (() => {
         pageElement,
         pageIndex,
         qualityKey: options.qualityKey,
+        pageLabel: getPageLabel(context, pageIndex),
         selectionRect: {
           left: 0,
           top: 0,
@@ -432,7 +590,17 @@ var PdfImageSaver = (() => {
     }
   }
 
-  function renderCanvasPreview({ canvas, pageElement, pageIndex, qualityKey, selectionRect }) {
+  function renderCanvasPreview({
+    canvas,
+    pageElement,
+    pageIndex,
+    qualityKey,
+    selectionRect,
+    pageLabel,
+    mode,
+    detector,
+    detectionArea,
+  }) {
     const quality = QUALITY[qualityKey] || QUALITY.medium;
     const canvasRect = canvas.getBoundingClientRect();
     const pageRect = pageElement.getBoundingClientRect();
@@ -480,9 +648,11 @@ var PdfImageSaver = (() => {
     ];
     return {
       id: `preview-p${pageIndex + 1}-${Date.now().toString(36)}`,
-      mode: "reader_canvas_preview",
+      mode: mode || "reader_canvas_preview",
+      detector: detector || "manual_selection",
       pageIndex,
       pageNumber: pageIndex + 1,
+      pageLabel: pageLabel || null,
       quality: qualityKey,
       qualityEstimate: quality.estimate,
       dataURL,
@@ -492,8 +662,155 @@ var PdfImageSaver = (() => {
       sourceCanvasWidth: canvas.width,
       sourceCanvasHeight: canvas.height,
       bboxNormalized,
+      detectionArea: detectionArea || round6(selectionRect.width * selectionRect.height / Math.max(1, pageRect.width * pageRect.height)),
       openPDFURI: "",
     };
+  }
+
+  async function detectPageImageCandidates({ context, pageElement, canvas, pageIndex }) {
+    const pageView = getPageView(context, pageIndex);
+    const pdfPage = pageView?.pdfPage || await context?.app?.pdfDocument?.getPage?.(pageIndex + 1);
+    if (!pdfPage?.render || !pdfPage?.getViewport) {
+      return { candidates: [], reason: "PDF.js page render API is unavailable.", pageLabel: getPageLabel(context, pageIndex) };
+    }
+    if (!supportsPDFJSImageCoordinates(pdfPage)) {
+      return { candidates: [], reason: "Auto raster detection is unavailable in this Zotero PDF.js runtime.", pageLabel: getPageLabel(context, pageIndex) };
+    }
+
+    const doc = pageElement.ownerDocument;
+    const scratchCanvas = doc.createElement("canvas");
+    let renderTask = null;
+    try {
+      const rotation = pageView?.viewport?.rotation ?? pdfPage.rotate ?? 0;
+      const baseViewport = pdfPage.getViewport({ scale: 1, rotation });
+      const maxRenderDimension = 1200;
+      const detectionScale = Math.min(1, maxRenderDimension / Math.max(baseViewport.width || 1, baseViewport.height || 1));
+      const viewport = pdfPage.getViewport({ scale: detectionScale, rotation });
+      scratchCanvas.width = Math.max(1, Math.ceil(viewport.width));
+      scratchCanvas.height = Math.max(1, Math.ceil(viewport.height));
+      const scratchContext = scratchCanvas.getContext("2d", { alpha: false });
+      resetPDFJSImageCoordinates(pdfPage);
+      renderTask = pdfPage.render({
+        canvas: scratchCanvas,
+        canvasContext: scratchContext,
+        viewport,
+        recordImages: true,
+      });
+      await renderTask.promise;
+      const coordinates = pdfPage.imageCoordinates;
+      if (!coordinates?.length) {
+        return { candidates: [], reason: "No PDF.js image coordinates were recorded.", pageLabel: getPageLabel(context, pageIndex) };
+      }
+      return {
+        candidates: imageCoordinatesToCandidates({
+          coordinates,
+          pageElement,
+          canvas,
+          pageIndex,
+        }),
+        pageLabel: getPageLabel(context, pageIndex),
+      };
+    } catch (error) {
+      renderTask?.cancel?.();
+      logError(error);
+      return { candidates: [], reason: "Auto detection is unavailable in this Zotero/PDF.js runtime.", pageLabel: getPageLabel(context, pageIndex) };
+    } finally {
+      scratchCanvas.width = 0;
+      scratchCanvas.height = 0;
+    }
+  }
+
+  function imageCoordinatesToCandidates({ coordinates, pageElement, canvas, pageIndex }) {
+    const pageRect = pageElement.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    const minArea = clamp(getNumberPref("minAutoImageArea", DEFAULT_MIN_AUTO_IMAGE_AREA), 0.0001, 0.5);
+    const maxCount = clamp(getIntegerPref("autoDetectMaxImages", DEFAULT_AUTO_DETECT_MAX_IMAGES), 1, 50);
+    const candidates = [];
+
+    for (let index = 0; index + 5 < coordinates.length; index += 6) {
+      const x1 = Number(coordinates[index]);
+      const y1 = Number(coordinates[index + 1]);
+      const x2 = Number(coordinates[index + 2]);
+      const y2 = Number(coordinates[index + 3]);
+      const x3 = Number(coordinates[index + 4]);
+      const y3 = Number(coordinates[index + 5]);
+      const x4 = x2 + x3 - x1;
+      const y4 = y2 + y3 - y1;
+      const xs = [x1, x2, x3, x4].filter(Number.isFinite);
+      const ys = [y1, y2, y3, y4].filter(Number.isFinite);
+      if (xs.length !== 4 || ys.length !== 4) {
+        continue;
+      }
+
+      const minX = clamp(Math.min(...xs), 0, 1);
+      const minY = clamp(Math.min(...ys), 0, 1);
+      const maxX = clamp(Math.max(...xs), 0, 1);
+      const maxY = clamp(Math.max(...ys), 0, 1);
+      if (maxX <= minX || maxY <= minY) {
+        continue;
+      }
+
+      const selectionRect = clipSelectionRect({
+        left: canvasRect.left - pageRect.left + minX * canvasRect.width,
+        top: canvasRect.top - pageRect.top + minY * canvasRect.height,
+        width: (maxX - minX) * canvasRect.width,
+        height: (maxY - minY) * canvasRect.height,
+      }, pageRect);
+      const area = selectionRect.width * selectionRect.height / Math.max(1, pageRect.width * pageRect.height);
+      if (selectionRect.width < 12 || selectionRect.height < 12 || area < minArea) {
+        continue;
+      }
+      candidates.push({
+        detector: "pdfjs_record_images",
+        pageIndex,
+        area: round6(area),
+        selectionRect,
+      });
+    }
+
+    return dedupeImageCandidates(candidates)
+      .sort((left, right) => right.area - left.area)
+      .slice(0, maxCount);
+  }
+
+  async function updateAutoRasterButtonState(reader, button) {
+    try {
+      const pageIndex = await getCurrentPageIndex(reader);
+      const context = await getPDFViewerContext(reader);
+      const pageView = getPageView(context, pageIndex);
+      const pdfPage = pageView?.pdfPage || await context?.app?.pdfDocument?.getPage?.(pageIndex + 1);
+      if (pdfPage && !supportsPDFJSImageCoordinates(pdfPage)) {
+        button.disabled = true;
+        button.title = "Auto raster detection is unavailable in this Zotero PDF.js runtime. Use Clip Figure.";
+      }
+    } catch (error) {
+      logError(error);
+    }
+  }
+
+  function supportsPDFJSImageCoordinates(pdfPage) {
+    if (!pdfPage?.render) {
+      return false;
+    }
+    if ("imageCoordinates" in pdfPage) {
+      return true;
+    }
+    try {
+      return Function.prototype.toString.call(pdfPage.render).includes("recordImages");
+    } catch (error) {
+      logError(error);
+      return false;
+    }
+  }
+
+  function resetPDFJSImageCoordinates(pdfPage) {
+    try {
+      if ("imageCoordinates" in pdfPage) {
+        pdfPage.imageCoordinates = null;
+      }
+    } catch (error) {
+      logError(error);
+    }
   }
 
   async function createIndexHTML({ attachment, parentItem, entries, scope, qualityKey }) {
@@ -506,6 +823,12 @@ var PdfImageSaver = (() => {
       scope,
       qualityKey,
     });
+    const htmlBytes = estimateUTF8Bytes(html);
+    const maxBytes = getMaxIndexBytes();
+    if (htmlBytes > maxBytes) {
+      await removeDirectoryIfExists(outputDir);
+      throw new Error(`Preview index is too large (${formatBytes(htmlBytes)} > ${formatBytes(maxBytes)}). Lower preview quality or reduce auto-detect count.`);
+    }
     await Zotero.File.putContentsAsync(htmlPath, html);
     return htmlPath;
   }
@@ -517,15 +840,19 @@ var PdfImageSaver = (() => {
       .map((entry, index) => {
         const uri = buildOpenPDFURI(attachment, entry.pageNumber);
         entry.openPDFURI = uri;
+        const pageText = entry.pageLabel && entry.pageLabel !== String(entry.pageNumber)
+          ? `${entry.pageNumber} (${entry.pageLabel})`
+          : String(entry.pageNumber);
         return `
           <article class="entry">
             <a class="preview-link" href="${escapeHTML(uri)}">
               <img src="${entry.dataURL}" alt="Saved PDF preview ${index + 1}">
             </a>
             <dl>
-              <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${entry.pageNumber}</a></dd></div>
+              <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
               <div><dt>Quality</dt><dd>${escapeHTML(QUALITY[entry.quality].label)} (${escapeHTML(entry.qualityEstimate)})</dd></div>
               <div><dt>Actual</dt><dd>${formatBytes(entry.byteCount)}, ${entry.renderedWidth} x ${entry.renderedHeight}px</dd></div>
+              <div><dt>Source</dt><dd>${escapeHTML(entry.detector)}</dd></div>
               <div><dt>Location</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
             </dl>
           </article>`;
@@ -545,13 +872,16 @@ var PdfImageSaver = (() => {
       entries: entries.map((entry) => ({
         id: entry.id,
         mode: entry.mode,
+        detector: entry.detector,
         page_index: entry.pageIndex,
         page_number: entry.pageNumber,
+        page_label: entry.pageLabel,
         quality: entry.quality,
         byte_count: entry.byteCount,
         rendered_width: entry.renderedWidth,
         rendered_height: entry.renderedHeight,
         bbox_normalized: entry.bboxNormalized,
+        detection_area: entry.detectionArea,
         open_pdf_uri: entry.openPDFURI,
       })),
     };
@@ -1061,10 +1391,27 @@ var PdfImageSaver = (() => {
     if (pageElement) {
       return pageElement;
     }
-    const pageView =
-      context?.app?.pdfViewer?.getPageView?.(pageNumber - 1) ||
-      context?.app?.pdfViewer?._pages?.[pageNumber - 1];
+    const pageView = getPageView(context, pageNumber - 1);
     return pageView?.div || null;
+  }
+
+  function getPageView(context, pageIndex) {
+    return (
+      context?.app?.pdfViewer?.getPageView?.(pageIndex) ||
+      context?.app?.pdfViewer?._pages?.[pageIndex] ||
+      null
+    );
+  }
+
+  function getPageLabel(context, pageIndex) {
+    const pageView = getPageView(context, pageIndex);
+    const label =
+      pageView?.pageLabel ||
+      pageView?.pdfPage?.pageLabel ||
+      context?.app?.pdfViewer?._pageLabels?.[pageIndex] ||
+      context?.app?.pdfLinkService?._pageLabels?.[pageIndex] ||
+      "";
+    return label ? String(label) : null;
   }
 
   function getPageCanvas(pageElement) {
@@ -1325,6 +1672,16 @@ var PdfImageSaver = (() => {
     return QUALITY[value] ? value : "medium";
   }
 
+  function getAutoMaxPreviewBytes() {
+    const megabytes = clamp(getNumberPref("autoMaxPreviewBytesMB", DEFAULT_AUTO_MAX_PREVIEW_BYTES_MB), 0.5, 50);
+    return Math.round(megabytes * 1024 * 1024);
+  }
+
+  function getMaxIndexBytes() {
+    const megabytes = clamp(getNumberPref("maxIndexBytesMB", DEFAULT_MAX_INDEX_BYTES_MB), 1, 100);
+    return Math.round(megabytes * 1024 * 1024);
+  }
+
   function getPreviewDuplicateKey(attachment, preview) {
     const bbox = preview.bboxNormalized.map((value) => value.toFixed(4)).join(",");
     return `${attachment.libraryID}:${attachment.key}:${preview.pageIndex}:${preview.quality}:${bbox}`;
@@ -1370,9 +1727,55 @@ var PdfImageSaver = (() => {
     };
   }
 
+  function clipSelectionRect(rect, pageRect) {
+    const left = clamp(rect.left, 0, pageRect.width);
+    const top = clamp(rect.top, 0, pageRect.height);
+    const right = clamp(rect.left + rect.width, 0, pageRect.width);
+    const bottom = clamp(rect.top + rect.height, 0, pageRect.height);
+    return {
+      left,
+      top,
+      width: Math.max(0, right - left),
+      height: Math.max(0, bottom - top),
+    };
+  }
+
+  function dedupeImageCandidates(candidates) {
+    const kept = [];
+    for (const candidate of candidates.sort((left, right) => right.area - left.area)) {
+      if (kept.some((existing) => rectIntersectionRatio(candidate.selectionRect, existing.selectionRect) > 0.9)) {
+        continue;
+      }
+      kept.push(candidate);
+    }
+    return kept;
+  }
+
+  function rectIntersectionRatio(a, b) {
+    const intersection = intersectRects(rectToBox(a), rectToBox(b));
+    const smallerArea = Math.min(a.width * a.height, b.width * b.height);
+    return smallerArea > 0 ? (intersection.width * intersection.height) / smallerArea : 0;
+  }
+
+  function rectToBox(rect) {
+    return {
+      left: rect.left,
+      top: rect.top,
+      right: rect.left + rect.width,
+      bottom: rect.top + rect.height,
+    };
+  }
+
   function estimateDataURLBytes(dataURL) {
     const base64 = String(dataURL).split(",")[1] || "";
     return Math.round((base64.length * 3) / 4);
+  }
+
+  function estimateUTF8Bytes(value) {
+    if (typeof TextEncoder !== "undefined") {
+      return new TextEncoder().encode(String(value)).length;
+    }
+    return unescape(encodeURIComponent(String(value))).length;
   }
 
   function formatBytes(bytes) {

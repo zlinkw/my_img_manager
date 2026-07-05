@@ -21,7 +21,7 @@ var PdfImageSaverPreferences = {
     doc.documentElement.appendChild(style);
     const status = doc.getElementById("pdf-image-saver-prefs-status");
     if (status) {
-      status.textContent = "Preview indexes follow Zotero attachment sync. Optional original extraction may need Python and PyMuPDF.";
+      status.textContent = "Preview indexes follow Zotero attachment sync. Auto-detect uses bundled PDF.js when available; optional original extraction may need Python and PyMuPDF.";
     }
   },
 };
