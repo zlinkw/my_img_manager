@@ -1,0 +1,6 @@
+node_modules/
+work/
+outputs/*.xpi
+outputs/*.zip
+outputs/*.sha256
+*.log

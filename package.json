@@ -1,0 +1,11 @@
+{
+  "name": "zotero-pdf-image-saver",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Zotero plugin for saving lightweight synced PDF figure preview indexes.",
+  "scripts": {
+    "check": "powershell -ExecutionPolicy Bypass -File scripts/check.ps1",
+    "build": "powershell -ExecutionPolicy Bypass -File scripts/build.ps1",
+    "install:global": "powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1"
+  }
+}
