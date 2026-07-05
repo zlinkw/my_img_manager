@@ -48,3 +48,15 @@ npm run runtime:status
 
 The global install script writes a Zotero extension proxy file into each detected Zotero profile. Restart Zotero to load a newly installed plugin.
 `runtime:status` reports whether the proxy is installed, whether Zotero has registered the add-on in the current session, and whether temp files remain.
+
+## Runtime Smoke Checklist
+
+After Zotero has been restarted or the add-on has been reloaded:
+
+- `npm run runtime:status` shows `registered: true` for `pdf-image-saver@zlk.local`.
+- A PDF reader toolbar shows one `Clip Figure` control group.
+- A manual clip creates one Zotero stored HTML child attachment.
+- The HTML preview opens, shows the preview, source region map, `source_region`, and `annotation_key`.
+- Clicking preview or page opens the source PDF page.
+- `Auto Raster` disables or warns safely when image coordinates are unavailable.
+- `%TEMP%\pdf-image-saver` has no leftover child directories after the save.

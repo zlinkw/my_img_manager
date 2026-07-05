@@ -373,6 +373,32 @@ End batch validation checklist:
 - XPI payload excludes `work/`, `outputs/`, tests, scripts, and local machine paths.
 - `README.md` states default mode is independent and optional helper is not required.
 - Native check failures now propagate through `scripts/check.ps1` and `scripts/build.ps1`.
+- B8 post implementation review agent did not return before timeout and was closed; local static checks passed.
+
+### B9 Runtime Smoke Readiness
+
+Status: complete; runtime smoke pending Zotero restart or add-on reload.
+
+Plan:
+
+- Keep code changes minimal until Zotero loads the plugin in the current session.
+- Add a concise runtime smoke checklist to README for manual validation after user-controlled Zotero restart or add-on reload.
+- Keep `runtime:status` as the gate for determining whether plugin registration is available.
+- After registration is true, run reader smoke tests and record results in this plan.
+
+Pre batch validation:
+
+- B8 static validation, build, install, and runtime diagnostics passed.
+- `runtime:status` still reports current Zotero session not registered.
+
+End batch validation checklist:
+
+- README includes a runtime smoke checklist.
+- docs target plan identifies runtime smoke as the next blocking validation.
+- `npm run check`: passed.
+- `npm run build`: passed, XPI SHA256 `c1c33619883c4f4e9e6a24c40f6942a747f6adbc1b91d795566a10cbc14f1ffa`.
+- `npm run install:global`: passed.
+- `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
 
 ## Current Validation Results
 
@@ -406,6 +432,10 @@ End batch validation checklist:
 - B8 `npm run build`: passed, XPI SHA256 `f63bf30628da69d973b4c7088051933d4ad10476dbf2ec726892cc3b1134ab9e`.
 - B8 `npm run install:global`: passed.
 - B8 `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
+- B9 `npm run check`: passed.
+- B9 `npm run build`: passed, XPI SHA256 `c1c33619883c4f4e9e6a24c40f6942a747f6adbc1b91d795566a10cbc14f1ffa`.
+- B9 `npm run install:global`: passed.
+- B9 `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
 
 ## New Failures
 
