@@ -180,7 +180,7 @@ Implementation notes:
 
 ### B3 Precision
 
-Status: planned; next.
+Status: in progress.
 
 Plan:
 
@@ -190,6 +190,23 @@ Plan:
 - Add page label capture when available.
 - Validate `zotero://open-pdf` URI forms for user and group libraries.
 - Add an in reader saved index side panel or recent saved list if default HTML workflow is accepted.
+
+Pre batch validation:
+
+- B2 static checks passed.
+- B2 XPI built and installed.
+- Zotero runtime smoke remains pending because execution must not restart Zotero.
+- Next useful code work: pure PDF.js current page image candidate detection using existing reader PDF.js context.
+
+End batch validation checklist:
+
+- `npm run check` passes.
+- `npm run build` passes.
+- `npm run install:global` passes.
+- Current page auto image save path exists without Python.
+- Auto detection has safe fallback to manual clip when operator list is unavailable.
+- Candidate count and preview bytes are capped.
+- Target plan records new findings and commits.
 
 ### B4 Robust Saving
 
@@ -213,7 +230,7 @@ Plan:
 - User requires data to follow Zotero sync; index and optional originals must be Zotero child attachments.
 - User clarified plugin must have independent runtime and must not depend on local special environments.
 - `npm run check`: passed after independent reader canvas implementation.
-- `npm run build`: passed, XPI SHA256 `1ac08852ef5e3dcc6d6f24e3a16dcf30a66830314d0fc73c4d797ff0fb152e93`.
+- `npm run build`: passed, XPI SHA256 `4415997294789b0bf0fd65559c82081809129a45935c46a789f94785e312b1e3`.
 - `npm run install:global`: passed.
 - Proxy bytes: `43-3A-5C`, no BOM.
 
@@ -328,7 +345,7 @@ Plan:
 - Batch: B2
 - Environment: Zotero 7+ default preferences
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: default preferences are packaged only under `defaults/preferences/prefs.js`, while Zotero 7 docs indicate root `prefs.js`.
 - Expected: preferences have root `prefs.js` available for Zotero 7+ bootstrap plugin loading.
 - Actual: root `prefs.js` missing.
@@ -355,3 +372,5 @@ Plan:
 - `52f4551` docs record B1 validation.
 - `604d546` docs start B2 hardening plan.
 - `5faadda` B2 harden UI preferences and helper limits.
+- `947fb74` docs record B2 completion.
+- Pending B3 implementation commit.
