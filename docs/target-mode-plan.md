@@ -586,3 +586,5 @@ End batch validation checklist:
 - B3 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `4a9ae96` B4 add runtime diagnostics and safety checks.
 - B4 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `122dcad` B5 tighten preview sync guardrails.
+- B5 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
