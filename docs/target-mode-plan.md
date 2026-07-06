@@ -1853,7 +1853,7 @@ End batch validation checklist:
 
 ### B63 Save Entry Malformed Options Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1874,7 +1874,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `b2393da8f3edfbebfa56323bee47264eb5abe8035867cdf3e3a472d68c409d72`, bytes `31411`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: first review found no blockers and suggested stronger raw-options static guard; final review found no blockers after optional-chain, multiline destructuring, and bracket-access guards were added.
+- Git commit records B63 implementation: `a5d1fa3`.
 
 ## Current Validation Results
 
@@ -3834,12 +3840,13 @@ End batch validation checklist:
 - Environment: reader save entry option normalization
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: save entries default only `options = {}` and can still throw raw TypeErrors for `null`, array, or scalar option values.
 - Expected: malformed direct or future menu calls should normalize options before reading `pageIndex`, `qualityKey`, or `scope`, then report a compact reader error.
 - Actual: `saveClipPreviewIndex`, `saveAutoDetectedPageImagePreviews`, `savePagePreviewIndex`, and `saveOriginalImagesFromReader` can read raw `options.*`.
 - Validation update: next runtime batch should add null/scalar/array options regression tests and static checks requiring `normalizeOptionsObject(options)` inside each save entry.
 - Close condition: tests prove the four save entries do not reject with raw TypeErrors for malformed options, and static checks prove no raw `options.*` reads remain in those blocks.
+- Closure: the four reader save entries now normalize `options` through `normalizeOptionsObject()` before field access; tests cover missing, null, array, and scalar options for each entry and assert no raw TypeError text leaks.
 
 ### FAIL-20260706-131
 
@@ -3875,12 +3882,13 @@ End batch validation checklist:
 - Environment: save-entry malformed-options static guard
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: B63 static checks block `options.foo` and `...options`, but future code could still read malformed options via destructuring or bracket access.
 - Expected: save-entry static guards should reject raw `options` field reads whether they use dot, bracket, spread, or destructuring syntax.
 - Actual: the first guard only matches dot reads and spreads.
 - Validation update: extend static checks to reject raw destructuring from `options` and raw bracket access for `pageIndex`, `qualityKey`, or `scope`.
 - Close condition: `npm.cmd run check` passes with the stronger guard active and current save entries using only `safeOptions` fields.
+- Closure: `scripts/check.ps1` now requires `safeOptions = normalizeOptionsObject(options)` in each save entry and rejects raw dot access, spread, destructuring, and bracket reads from `options`.
 
 ### FAIL-20260706-134
 
@@ -3888,12 +3896,13 @@ End batch validation checklist:
 - Environment: save-entry raw-options static guard variants
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the strengthened static guard can still miss raw optional-chain reads, multiline destructuring, and computed or template bracket field reads from `options`.
 - Expected: save-entry static guards should reject common raw `options` access variants for `pageIndex`, `qualityKey`, and `scope`.
 - Actual: the B63 guard only covers dot reads, spread, single-line destructuring, and literal bracket reads.
 - Validation update: extend static checks to reject optional-chain reads, multiline destructuring, and any raw bracket field read from `options`.
 - Close condition: `npm.cmd run check` passes with current save entries using only `safeOptions`, and the guard patterns include optional-chain, multiline destructuring, and bracket variants.
+- Closure: save-entry static guards now reject `options?.`, multiline raw destructuring, and any raw `options[...]` bracket access; `npm.cmd run check` passes with all save entries using `safeOptions`.
 
 ## Revised Validation Checklist
 
@@ -4159,3 +4168,5 @@ End batch validation checklist:
 - `cefdc62` B62 require batch regression guards.
 - `c880302` B62 tighten regression guard checks.
 - B62 XPI SHA256 `2d8252f42ffa35d53674369a8958732280ac52c1cff228d057258fc560ca6364` was built in `outputs/` for manual Zotero add-on manager installation; plugin payload unchanged from B61.
+- `a5d1fa3` B63 guard malformed save options.
+- B63 XPI SHA256 `b2393da8f3edfbebfa56323bee47264eb5abe8035867cdf3e3a472d68c409d72` was built in `outputs/` for manual Zotero add-on manager installation.
