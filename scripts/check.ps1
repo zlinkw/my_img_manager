@@ -194,6 +194,12 @@ if ($mainJS -notmatch "source_region:\s*entry\.sourceRegion") {
 if ($mainJS -notmatch "annotation_key:\s*entry\.annotationKey") {
   throw "metadata must include annotation_key"
 }
+if ($mainJS -notmatch "_unregisterEventListenerByPluginID\(config\.id\)") {
+  throw "Reader listener cleanup must use plugin-ID scoped unregister when available"
+}
+if ($mainJS -notmatch "\.filter\(\(listener\)\s*=>\s*listener\.pluginID\s*!==\s*config\.id\)") {
+  throw "Reader listener cleanup fallback must filter by plugin ID"
+}
 if ($mainJS -notmatch "class=`"source-map`"") {
   throw "HTML index must include compact source region map"
 }

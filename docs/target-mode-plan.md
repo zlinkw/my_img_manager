@@ -772,6 +772,31 @@ End batch validation checklist:
 - `npm run package:manual`: passed; printed `npm run verify:manual` in post-install verification commands and built XPI SHA256 `24f48b0b03c12c73bd103e2efba1f6718bef59f7d4fee39824f106737cddbdf2`.
 - Git commit records B23: pending.
 
+### B24 Reader Listener Shutdown Hardening
+
+Status: complete; manual Zotero install and reader smoke pending user action.
+
+Plan:
+
+- Audit core plugin shutdown and reader listener cleanup against local Zotero 9.0.5 source.
+- Avoid using a Zotero 9.0.5 public unregister path that can remove unrelated reader event listeners.
+- Add static checks so reader listener cleanup remains plugin-ID scoped.
+
+Pre batch validation:
+
+- Git worktree clean at B24 start commit `405bc1d`.
+- Local Zotero 9.0.5 `app\omni.ja` source confirms `Zotero.Reader.registerEventListener(type, handler, pluginID)` and `_unregisterEventListenerByPluginID(pluginID)` exist.
+- Local Zotero 9.0.5 `Zotero.Reader.unregisterEventListener(type, handler)` filters listeners with `x.type === type && x.handler === handler`, which can retain only the target listener and drop unrelated listeners; recorded as `FAIL-20260706-052`.
+- `Zotero.Attachments.importFromFile()` accepts `file`, `parentItemID`, `libraryID`, `title`, `contentType`, and `charset`, matching current import calls.
+
+End batch validation checklist:
+
+- `npm run check`: passed.
+- `npm run build`: passed.
+- `npm run package:manual`: passed, packaged XPI SHA256 `f921e70fef60d0db2a171f29f54b8df50f1aeb6095906dabff8bc4b473bc12e4`.
+- `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- Git commit records B24: pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -882,6 +907,11 @@ End batch validation checklist:
 - B23 `npm run check`: passed.
 - B23 `npm run build`: passed.
 - B23 `npm run package:manual`: passed; packaged XPI SHA256 `24f48b0b03c12c73bd103e2efba1f6718bef59f7d4fee39824f106737cddbdf2`.
+- B24 local Zotero 9.0.5 source audit: Reader event registration and attachment import API matched the plugin, but public reader unregister behavior is unsafe for unrelated listeners.
+- B24 `npm run check`: passed.
+- B24 `npm run build`: passed.
+- B24 `npm run package:manual`: passed; packaged XPI SHA256 `f921e70fef60d0db2a171f29f54b8df50f1aeb6095906dabff8bc4b473bc12e4`.
+- B24 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
 
 ## New Failures
 
@@ -1588,6 +1618,20 @@ End batch validation checklist:
 - Close condition: `smoke:preflight` accepts a registered active add-on, and `npm run verify:manual` reports clear next actions when the add-on is not yet installed.
 - Closure: source validation now only blocks while registration is missing, `npm run verify:manual` reports package, profile, registration, source hints, rescan state, temp children, and next action, and B23 checks pass.
 
+### FAIL-20260706-052
+
+- Batch: B24
+- Environment: plugin shutdown or add-on reload with other reader event listeners registered in Zotero 9.0.5
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: plugin shutdown calls `Zotero.Reader.unregisterEventListener(type, handler)` for each handler.
+- Expected: removing this plugin's reader handlers must not remove unrelated reader listeners registered by Zotero or other plugins.
+- Actual: local Zotero 9.0.5 source shows public `unregisterEventListener(type, handler)` keeps only listeners matching the passed type and handler, which can drop unrelated listeners during the first unregister call.
+- Validation update: use Zotero's plugin-ID scoped unregister path when available, and fall back to filtering `_registeredListeners` by plugin ID rather than iterating the public unregister function.
+- Close condition: static checks confirm cleanup uses `_unregisterEventListenerByPluginID(config.id)` or plugin-ID filtering and does not call public `unregisterEventListener(type, handler)` in the normal path.
+- Closure: reader cleanup now uses `_unregisterEventListenerByPluginID(config.id)` when available and plugin-ID filtering as fallback; static checks assert both guards.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1635,6 +1679,7 @@ End batch validation checklist:
 - Check target plan does not close runtime failures before their close conditions are validated.
 - Check copied-XPI profile fallback survives Zotero launch or clearly hand off to manual add-on manager installation.
 - Check manual install verifier reports package identity, registration state, source hints, rescan state, temp children, and next action.
+- Check reader event listener cleanup is scoped by plugin ID and does not remove unrelated listeners.
 
 ## Real Commit Log
 
@@ -1687,4 +1732,6 @@ End batch validation checklist:
 - B21 XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187` was built in `outputs/` for manual Zotero add-on manager installation; runtime source-copy fallback remains open under `FAIL-20260706-050`.
 - `58540f5` B22 add manual package handoff.
 - B22 XPI SHA256 `64b4b823c79afa2d04956d19ca8eab0d3ec67d56cbded82607096831ff42e097` was built in `outputs/` for manual Zotero add-on manager installation.
+- `405bc1d` B23 add manual install verifier.
 - B23 XPI SHA256 `24f48b0b03c12c73bd103e2efba1f6718bef59f7d4fee39824f106737cddbdf2` was built in `outputs/` for manual Zotero add-on manager installation.
+- B24 XPI SHA256 `f921e70fef60d0db2a171f29f54b8df50f1aeb6095906dabff8bc4b473bc12e4` was built in `outputs/` for manual Zotero add-on manager installation.

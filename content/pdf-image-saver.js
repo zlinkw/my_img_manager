@@ -114,12 +114,19 @@ var PdfImageSaver = (() => {
   }
 
   function unregisterReaderHandlers() {
-    for (const { type, handler } of readerHandlers) {
-      try {
-        Zotero.Reader.unregisterEventListener(type, handler);
-      } catch (error) {
-        logError(error);
+    try {
+      if (typeof Zotero.Reader?._unregisterEventListenerByPluginID === "function" && config?.id) {
+        Zotero.Reader._unregisterEventListenerByPluginID(config.id);
+      } else if (Array.isArray(Zotero.Reader?._registeredListeners) && config?.id) {
+        Zotero.Reader._registeredListeners = Zotero.Reader._registeredListeners
+          .filter((listener) => listener.pluginID !== config.id);
+      } else {
+        for (const { type, handler } of readerHandlers) {
+          Zotero.Reader.unregisterEventListener(type, handler);
+        }
       }
+    } catch (error) {
+      logError(error);
     }
     readerHandlers.length = 0;
   }
