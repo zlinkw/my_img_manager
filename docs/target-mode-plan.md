@@ -1465,7 +1465,7 @@ End batch validation checklist:
 
 ### B49 Render Preview Quality Self Normalization
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1481,7 +1481,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `783c4d2bea774291e7dae43db39ead409b95c956b0b1168e6c4b8dd3f1b3bad3`, bytes `30054`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: local read-only review and targeted `test/check` rerun found no P0-P2 blockers; subagent review unavailable due prior thread/rate limits.
+- Git commit records B49 implementation: `89cbf6d`.
 
 ## Current Validation Results
 
@@ -3147,12 +3153,13 @@ End batch validation checklist:
 - Environment: canvas preview renderer quality handling
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `renderCanvasPreview()` falls back to Medium pixels for malformed `qualityKey` but returns the raw malformed value in preview metadata.
 - Expected: the renderer itself should normalize quality so preview pixels, `preview.quality`, `qualityEstimate`, and smoothing behavior agree.
 - Actual: direct or future unnormalized renderer calls can create a preview with Medium pixels but invalid quality metadata until later HTML normalization.
 - Validation update: normalize `qualityKey` at renderer entry and add behavior/static checks.
 - Close condition: tests/static checks prove malformed renderer quality becomes Medium before pixel sizing, JPEG quality, smoothing, and preview metadata.
+- Closure: `renderCanvasPreview()` now normalizes `qualityKey` before `QUALITY` lookup, smoothing selection, and preview metadata output; behavior/static checks prove malformed quality keys produce Medium pixels and metadata.
 
 ## Revised Validation Checklist
 
@@ -3365,3 +3372,5 @@ End batch validation checklist:
 - B47 XPI SHA256 `4de6c08e391d4a482f038fb50a92fdc807417e7fb8130e3803d0404b68084e20` was built in `outputs/` for manual Zotero add-on manager installation.
 - `831577c` B48 normalize save entry quality keys.
 - B48 XPI SHA256 `711864fcc57e00ca87c2ae66215d889845d222a0b3c97c4943a08401d1c692d4` was built in `outputs/` for manual Zotero add-on manager installation.
+- `89cbf6d` B49 normalize renderer quality keys.
+- B49 XPI SHA256 `783c4d2bea774291e7dae43db39ead409b95c956b0b1168e6c4b8dd3f1b3bad3` was built in `outputs/` for manual Zotero add-on manager installation.
