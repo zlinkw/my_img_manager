@@ -62,6 +62,12 @@ const context = {
     exists: async () => false,
     remove: async () => {},
   },
+  PathUtils: {
+    tempDir: "C:\\Temp",
+    join(...parts) {
+      return parts.filter(Boolean).join("\\");
+    },
+  },
 };
 
 vm.createContext(context);
@@ -1420,6 +1426,43 @@ async function runAsyncAssertions() {
   );
   assert.strictEqual(allFailureErrors.length, 2, "all failed Zotero imports must log each failed import");
   assert.deepStrictEqual(context.Zotero.Attachments.imported, [], "all failed Zotero imports must not record imports");
+
+  const recursiveRemovals = [];
+  context.IOUtils.remove = async (targetPath, options) => {
+    recursiveRemovals.push({ targetPath, options });
+  };
+  context.Zotero.Attachments.importFromFile = async () => {};
+  await importOriginalImages({
+    report: { output_dir: "C:\\Users\\ZLK\\Documents", images: [] },
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    scope: "page",
+  });
+  await importOriginalImages({
+    report: { output_dir: "C:\\Temp\\pdf-image-saver", images: [] },
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    scope: "page",
+  });
+  await importOriginalImages({
+    report: { output_dir: "C:\\Temp\\pdf-image-saver\\..\\outside", images: [] },
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    scope: "page",
+  });
+  await importOriginalImages({
+    report: { output_dir: "C:\\Temp\\pdf-image-saver\\job-safe", images: [] },
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    scope: "page",
+  });
+  assert.strictEqual(recursiveRemovals.length, 1, "recursive cleanup must skip outside paths and temp root");
+  assert.strictEqual(recursiveRemovals[0].targetPath, "C:\\Temp\\pdf-image-saver\\job-safe");
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(recursiveRemovals[0].options)),
+    { recursive: true, ignoreAbsent: true },
+    "recursive cleanup must keep expected IOUtils.remove options for plugin temp children",
+  );
 
   const readerEntryErrors = [];
   context.Zotero.logError = (error) => readerEntryErrors.push(error);

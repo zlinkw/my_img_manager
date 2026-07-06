@@ -303,6 +303,23 @@ if ($mainJS -notmatch "function\s+normalizeOriginalImageForImport\s*\(\s*image,\
 if ($mainJS -notmatch "function\s+normalizeHelperFilePath\s*\(\s*value,\s*outputDir\s*\)") {
   throw "Original helper file path normalizer missing"
 }
+if ($mainJS -notmatch "function\s+isPluginTempChildDirectory\s*\(\s*path\s*\)") {
+  throw "Recursive cleanup temp-boundary guard missing"
+}
+$removeDirectoryEntry = [regex]::Match($mainJS, "async\s+function\s+removeDirectoryIfExists\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+isPluginTempChildDirectory")
+if (!$removeDirectoryEntry.Success) {
+  throw "Recursive directory cleanup function block not found"
+}
+if ($removeDirectoryEntry.Value -notmatch "!isPluginTempChildDirectory\(path\)[\s\S]*return[\s\S]*IOUtils\.remove\(path,\s*\{\s*recursive:\s*true,\s*ignoreAbsent:\s*true\s*\}\)") {
+  throw "Recursive directory cleanup must guard paths before IOUtils.remove"
+}
+$tempGuardEntry = [regex]::Match($mainJS, "function\s+isPluginTempChildDirectory\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+removeFileIfExists")
+if (!$tempGuardEntry.Success) {
+  throw "Recursive cleanup temp-boundary guard function block not found"
+}
+if ($tempGuardEntry.Value -notmatch "normalizePathForComparison\(path\)[\s\S]*normalizePathForComparison\(PathUtils\.join\(PathUtils\.tempDir,\s*ADDON_REF\)\)[\s\S]*tempRootPrefix[\s\S]*normalizedPath\.startsWith\(tempRootPrefix\)[\s\S]*normalizedPath\.length\s*>\s*tempRootPrefix\.length") {
+  throw "Recursive cleanup guard must require a normalized plugin temp child path"
+}
 if ($mainJS -notmatch "function\s+normalizeImageContentType\s*\(\s*value,\s*extension\s*\)") {
   throw "Original helper content type normalizer missing"
 }

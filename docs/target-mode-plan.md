@@ -1733,6 +1733,26 @@ End batch validation checklist:
 - Code review: subagent read-only review found separate recursive-delete boundary fault; recorded as `FAIL-20260706-124` for B59. B58 local targeted rerun found no P0-P2 blockers in coordinate coverage.
 - Git commit records B58 implementation: `dd5022c`.
 
+### B59 Recursive Cleanup Temp Boundary Guard
+
+Status: in progress.
+
+Plan:
+
+- Add a final guard so recursive directory cleanup only removes plugin temp child directories under `PathUtils.tempDir/pdf-image-saver/`.
+- Keep normal cleanup for helper-created temp output directories and stale temp children.
+- Add behavior/static checks proving outside paths and the plugin temp root itself are skipped.
+
+Pre batch validation:
+
+- Git worktree clean at B59 start commit `e76f632`.
+- B59 starts from open `FAIL-20260706-124`: recursive cleanup lacks a final temp-root boundary guard.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.

@@ -1818,11 +1818,28 @@ var PdfImageSaver = (() => {
     if (!path) {
       return;
     }
+    if (!isPluginTempChildDirectory(path)) {
+      log("Skipped recursive cleanup outside plugin temp root", { path });
+      return;
+    }
     try {
       await IOUtils.remove(path, { recursive: true, ignoreAbsent: true });
     } catch (error) {
       logError(error);
     }
+  }
+
+  function isPluginTempChildDirectory(path) {
+    if (typeof PathUtils === "undefined") {
+      return false;
+    }
+    const normalizedPath = normalizePathForComparison(path);
+    const normalizedTempRoot = normalizePathForComparison(PathUtils.join(PathUtils.tempDir, ADDON_REF));
+    if (!normalizedPath || !normalizedTempRoot) {
+      return false;
+    }
+    const tempRootPrefix = normalizedTempRoot.endsWith("/") ? normalizedTempRoot : `${normalizedTempRoot}/`;
+    return normalizedPath.startsWith(tempRootPrefix) && normalizedPath.length > tempRootPrefix.length;
   }
 
   async function removeFileIfExists(path) {
