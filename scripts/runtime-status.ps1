@@ -319,7 +319,7 @@ function Get-ExtensionRescanInfo {
     lastAppPrefs = $lastAppPrefs
     needsRescan = [bool]$lastAppPrefs.Count
     action = if ($lastAppPrefs.Count) {
-      "Close Zotero and rerun npm run install:global once so install script can clear extension scan cache prefs."
+      "Close Zotero and rerun npm.cmd run install:global once so install script can clear extension scan cache prefs."
     }
     else {
       "Extension scan cache prefs are clear for next Zotero launch."

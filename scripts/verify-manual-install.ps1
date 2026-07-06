@@ -85,7 +85,7 @@ foreach ($profile in $status.profiles) {
     Write-Host "next: registration is active; rescan prefs are informational for this manual install state."
   }
   else {
-    Write-Host "next: run npm run smoke:preflight, then open a PDF reader and test Clip Figure."
+    Write-Host "next: run npm.cmd run smoke:preflight, then open a PDF reader and test Clip Figure."
   }
 }
 

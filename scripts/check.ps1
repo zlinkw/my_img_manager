@@ -63,7 +63,7 @@ foreach ($requiredRule in @(
   "Every batch marked complete must replace ``Pending`` with real validation output",
   "Fixes that reveal follow-up faults must record the new fault before changing that behavior",
   "Every B62+ batch must declare a ``Regression guard:`` line naming prior ``FAIL-*`` IDs or ``validation family:`` names",
-  "For B63+ batches, group up to three related fixes or improvements that share a validation surface before testing, unless isolation is required",
+  "For B65+ batches, default to larger grouped batches up to roughly three times the earlier micro-batch size by combining related fixes or improvements that share a validation surface before testing, unless isolation is required",
   "``scripts/check.ps1`` must enforce these plan-state invariants"
 )) {
   if ($targetPlan -notmatch [regex]::Escape($requiredRule)) {
@@ -167,14 +167,62 @@ if (!(Test-Path -LiteralPath .\scripts\verify-manual-install.ps1)) {
 }
 
 $readme = Get-Content -Encoding UTF8 -Raw -LiteralPath .\README.md
-if ($readme -notmatch "npm run package:manual") {
+if ($readme -notmatch "npm\.cmd run package:manual") {
   throw "README must document manual package command"
 }
-if ($readme -notmatch "npm run verify:manual") {
+if ($readme -notmatch "npm\.cmd run verify:manual") {
   throw "README must document manual verification command"
+}
+foreach ($requiredReadmeCommand in @(
+  "npm.cmd run check",
+  "npm.cmd run build",
+  "npm.cmd run package:manual",
+  "npm.cmd run verify:manual",
+  "npm.cmd run install:global",
+  "npm.cmd run install:xpi",
+  "npm.cmd run runtime:status",
+  "npm.cmd run smoke:preflight",
+  "npm.cmd run smoke:wait"
+)) {
+  if ($readme -notmatch [regex]::Escape($requiredReadmeCommand)) {
+    throw "README missing Windows-safe PowerShell command: $requiredReadmeCommand"
+  }
+}
+if ($readme -match '(?m)^\s*npm run\s+' -or $readme -match '`npm run\s+') {
+  throw "README PowerShell command guidance must use npm.cmd run"
 }
 if ($readme -notmatch "Install Add-on From File") {
   throw "README must document Zotero manual add-on installation"
+}
+
+$packageManualScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\package-manual.ps1
+foreach ($requiredPackageCommand in @(
+  "npm.cmd run verify:manual",
+  "npm.cmd run smoke:wait",
+  "npm.cmd run smoke:preflight",
+  "npm.cmd run runtime:status"
+)) {
+  if ($packageManualScript -notmatch [regex]::Escape($requiredPackageCommand)) {
+    throw "package-manual.ps1 missing Windows-safe handoff command: $requiredPackageCommand"
+  }
+}
+
+$verifyManualScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\verify-manual-install.ps1
+if ($verifyManualScript -notmatch [regex]::Escape("npm.cmd run smoke:preflight")) {
+  throw "verify-manual-install.ps1 must print npm.cmd run smoke:preflight"
+}
+
+foreach ($handoffScriptPath in @(
+  ".\scripts\package-manual.ps1",
+  ".\scripts\verify-manual-install.ps1",
+  ".\scripts\install-global.ps1",
+  ".\scripts\runtime-status.ps1",
+  ".\scripts\smoke-preflight.ps1"
+)) {
+  $handoffScript = Get-Content -Encoding UTF8 -Raw -LiteralPath $handoffScriptPath
+  if ($handoffScript -match '\bnpm run\s+(?:check|build|package:manual|verify:manual|install:global|install:xpi|runtime:status|smoke:preflight|smoke:wait)\b') {
+    throw "PowerShell handoff script must use npm.cmd run: $handoffScriptPath"
+  }
 }
 
 $runtimeStatusScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\runtime-status.ps1
@@ -215,7 +263,7 @@ if ($installScript -notmatch 'ValidateSet\("Proxy",\s*"XPI"\)') {
 if ($installScript -notmatch "Install-ProfileXPI") {
   throw "install-global.ps1 must support profile XPI fallback"
 }
-if ($installScript -notmatch "npm run install:xpi") {
+if ($installScript -notmatch "npm\.cmd run install:xpi") {
   throw "install-global.ps1 must print the XPI fallback command when Zotero is running"
 }
 if ($installScript -notmatch 'before writing proxy"[^\r\n]*\r?\n\s*return\s+\$false') {

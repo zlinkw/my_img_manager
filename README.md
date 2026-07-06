@@ -40,15 +40,15 @@ The helper discovery also checks the local conda `zlk` environment first when pr
 ## Development
 
 ```powershell
-npm run check
-npm run build
-npm run package:manual
-npm run verify:manual
-npm run install:global
-npm run install:xpi
-npm run runtime:status
-npm run smoke:preflight
-npm run smoke:wait
+npm.cmd run check
+npm.cmd run build
+npm.cmd run package:manual
+npm.cmd run verify:manual
+npm.cmd run install:global
+npm.cmd run install:xpi
+npm.cmd run runtime:status
+npm.cmd run smoke:preflight
+npm.cmd run smoke:wait
 ```
 
 ## Manual Installation
@@ -56,7 +56,7 @@ npm run smoke:wait
 Use the manual package command for the handoff build:
 
 ```powershell
-npm run package:manual
+npm.cmd run package:manual
 ```
 
 It rebuilds the XPI, validates the payload, and prints the exact XPI path, SHA256, file size, Zotero manual install steps, and post-install verification commands.
@@ -72,10 +72,10 @@ Install the printed XPI through Zotero's add-on manager:
 After Zotero starts, run:
 
 ```powershell
-npm run verify:manual
-npm run smoke:wait
-npm run smoke:preflight
-npm run runtime:status
+npm.cmd run verify:manual
+npm.cmd run smoke:wait
+npm.cmd run smoke:preflight
+npm.cmd run runtime:status
 ```
 
 `verify:manual` is read-only. It summarizes the packaged XPI, Zotero process count, profile registration state, source hints, rescan state, temp children, and the next action.
@@ -83,15 +83,15 @@ npm run runtime:status
 The global install script writes a Zotero extension proxy file into each detected Zotero profile for development testing. Restart Zotero to load a newly installed proxy.
 `install:xpi` is a profile XPI fallback for testing the packaged plugin rather than the development proxy; close Zotero before running it so the installer can switch the source cleanly. On Zotero 9.0.5, manual add-on manager installation is the preferred package handoff until the copied-profile-XPI fallback is verified.
 `runtime:status` reports whether the proxy is installed, whether the proxy target manifest is readable, whether expected payload files exist, whether Zotero has registered the add-on in the current session, whether startup cache/UUID hints exist, and whether temp files remain.
-If `runtime:status` reports `rescan.needsRescan: true`, close Zotero and run `npm run install:global` once more. The installer will then clear Zotero's extension scan cache prefs so the proxy is registered on the next Zotero launch.
+If `runtime:status` reports `rescan.needsRescan: true`, close Zotero and run `npm.cmd run install:global` once more. The installer will then clear Zotero's extension scan cache prefs so the proxy is registered on the next Zotero launch.
 
 ## Runtime Smoke Checklist
 
 After Zotero has been restarted or the add-on has been reloaded:
 
-- Optional: `npm run smoke:wait` waits until registration is ready.
-- `npm run smoke:preflight` passes.
-- `npm run runtime:status` shows `registered: true` for `pdf-image-saver@zlk.local`.
+- Optional: `npm.cmd run smoke:wait` waits until registration is ready.
+- `npm.cmd run smoke:preflight` passes.
+- `npm.cmd run runtime:status` shows `registered: true` for `pdf-image-saver@zlk.local`.
 - A PDF reader toolbar shows one `Clip Figure` control group.
 - A manual clip creates one Zotero stored HTML child attachment.
 - The HTML preview opens, shows the preview, source region map, `source_region`, and `annotation_key`.

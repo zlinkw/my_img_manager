@@ -58,13 +58,13 @@ foreach ($profile in $status.profiles) {
   $registered = [bool]($profile.registration -and $profile.registration.registered)
 
   if (!$devProxyValid -and !$xpiInstallValid -and !$registered) {
-    $failures.Add("No valid extension source in profile $($profile.name). Run npm run install:global or install the XPI.")
+    $failures.Add("No valid extension source in profile $($profile.name). Run npm.cmd run install:global or install the XPI.")
     if (!$profile.proxy.exists -and !($xpiInstall -and $xpiInstall.exists)) {
       $failures.Add("Extension proxy and XPI source are both missing in profile $($profile.name).")
     }
     elseif ($profile.proxy.exists) {
       if ($profile.proxy.hasBOM) {
-        $failures.Add("Extension proxy has BOM in profile $($profile.name). Run npm run install:global.")
+        $failures.Add("Extension proxy has BOM in profile $($profile.name). Run npm.cmd run install:global.")
       }
       elseif ($profile.proxy.target -ne $status.workspace) {
         $failures.Add("Extension proxy target mismatch in profile $($profile.name): $($profile.proxy.target)")
@@ -73,7 +73,7 @@ foreach ($profile in $status.profiles) {
   }
 
   if ($profile.rescan.needsRescan) {
-    $failures.Add("Extension scan cache still needs clearing in profile $($profile.name). Close Zotero and run npm run install:global.")
+    $failures.Add("Extension scan cache still needs clearing in profile $($profile.name). Close Zotero and run npm.cmd run install:global.")
   }
 
   if (!$profile.registration.registered) {

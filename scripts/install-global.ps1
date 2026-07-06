@@ -45,7 +45,7 @@ function Install-DevelopmentProxy {
     Remove-Item -LiteralPath $profileXPIPath -Force
   }
   elseif (Test-Path -LiteralPath $profileXPIPath) {
-    Write-Host "source switch: pending: Zotero is running; close Zotero and rerun npm run install:global to remove profile XPI fallback before writing proxy"
+    Write-Host "source switch: pending: Zotero is running; close Zotero and rerun npm.cmd run install:global to remove profile XPI fallback before writing proxy"
     return $false
   }
   Set-Content -Encoding ASCII -NoNewline -LiteralPath $proxyPath -Value $root
@@ -57,13 +57,13 @@ function Install-ProfileXPI {
   param([string]$ProfilePath)
 
   if (!(Test-Path -LiteralPath $xpiPath)) {
-    throw "XPI missing: $xpiPath. Run npm run build first."
+    throw "XPI missing: $xpiPath. Run npm.cmd run build first."
   }
   $extensionsDir = Join-Path $ProfilePath "extensions"
   $proxyPath = Join-Path $extensionsDir $addonId
   $profileXPIPath = Join-Path $extensionsDir "$addonId.xpi"
   if ($zoteroRunning) {
-    Write-Host "source switch: pending: Zotero is running; close Zotero and rerun npm run install:xpi to copy profile XPI fallback"
+    Write-Host "source switch: pending: Zotero is running; close Zotero and rerun npm.cmd run install:xpi to copy profile XPI fallback"
     return $false
   }
   if (Test-Path -LiteralPath $proxyPath) {
@@ -86,7 +86,7 @@ if (!$profiles) {
 foreach ($profile in $profiles) {
   $extensionsDir = Join-Path $profile.FullName "extensions"
   New-Item -ItemType Directory -Force -Path $extensionsDir | Out-Null
-  $retryCommand = if ($InstallMode -eq "XPI") { "npm run install:xpi" } else { "npm run install:global" }
+  $retryCommand = if ($InstallMode -eq "XPI") { "npm.cmd run install:xpi" } else { "npm.cmd run install:global" }
   if ($InstallMode -eq "XPI") {
     $sourceReady = Install-ProfileXPI -ProfilePath $profile.FullName
   }

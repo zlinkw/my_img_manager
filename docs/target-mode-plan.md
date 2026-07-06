@@ -101,7 +101,7 @@ Each preview entry includes:
 - Every batch marked complete must replace `Pending` with real validation output.
 - Fixes that reveal follow-up faults must record the new fault before changing that behavior.
 - Every B62+ batch must declare a `Regression guard:` line naming prior `FAIL-*` IDs or `validation family:` names that its changes could affect.
-- For B63+ batches, group up to three related fixes or improvements that share a validation surface before testing, unless isolation is required.
+- For B65+ batches, default to larger grouped batches up to roughly three times the earlier micro-batch size by combining related fixes or improvements that share a validation surface before testing, unless isolation is required.
 - `scripts/check.ps1` must enforce these plan-state invariants so a future patch cannot silently reopen old risks or close a fault without evidence.
 
 ## Preview Quality
@@ -1914,6 +1914,52 @@ End batch validation checklist:
 - `git diff --check`: passed with LF-to-CRLF warnings only.
 - Code review: subagent found no blockers; non-blocker behavior-test gap was recorded and covered in this batch.
 - Git commit records B64 implementation: `0965738`.
+
+### B65 Windows Manual Handoff Command Guard
+
+Status: in progress.
+
+Plan:
+
+- Change manual package output to print `npm.cmd run ...` verification commands for Windows PowerShell.
+- Change manual verifier next-action output to print `npm.cmd run ...` smoke commands.
+- Update README PowerShell command examples and static checks so the documented handoff matches the Windows-safe command form.
+- Update related diagnostic script guidance that prints install, smoke, runtime, or build commands so Windows users do not copy `npm run ...`.
+
+Pre batch validation:
+
+- Git worktree clean at B65 start commit `871aa4c`.
+- B65 local review found `scripts/package-manual.ps1` prints `npm run ...` commands even though this session uses `npm.cmd` to avoid PowerShell `npm.ps1` execution-policy failures; recorded as `FAIL-20260706-142`.
+- B65 local review found `scripts/verify-manual-install.ps1` tells ready users to run `npm run smoke:preflight`; recorded as `FAIL-20260706-143`.
+- B65 local review found README PowerShell blocks still use `npm run ...`; recorded as `FAIL-20260706-144`.
+- B65 local review found related PowerShell diagnostics still print `npm run ...` install, build, smoke, and runtime guidance; recorded as `FAIL-20260706-145`.
+- Regression guard: protect `FAIL-20260706-058`, `FAIL-20260706-125`, and validation family: Windows manual-install handoff commands.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
+### B66 Saved Index Identity And Duplicate Guard
+
+Status: planned.
+
+Plan:
+
+- Make saved index source links distinguish same-page previews when bbox metadata differs.
+- Add a stable persisted preview index key so duplicate checks survive Zotero restart or add-on reload.
+- Make saved index attachment titles concise but distinguishable by quality, count, and short fingerprint.
+
+Pre batch validation:
+
+- B66 review found `open_pdf_uri` targets only the PDF page, so two different same-page previews can have identical click targets; recorded as `FAIL-20260706-146`.
+- B66 review found duplicate prevention relies on in-memory `recentIndexSaves`, so reloads can create duplicate synced HTML index attachments; recorded as `FAIL-20260706-147`.
+- B66 review found index titles omit quality, count, and a short fingerprint, making repeated child attachments hard to distinguish; recorded as `FAIL-20260706-148`.
+- Regression guard: validation family: saved index source links, duplicate/storage guard, and attachment title identity.
+
+End batch validation checklist:
+
+- Pending.
 
 ## Current Validation Results
 
@@ -4035,6 +4081,97 @@ End batch validation checklist:
 - Close condition: `npm.cmd run test` passes through the toolbar change handler without fake-pref TypeErrors.
 - Closure: the VM test double now implements `Zotero.Prefs.set()`, so rendered-toolbar preference writes are covered without fake-pref TypeErrors.
 
+### FAIL-20260706-142
+
+- Batch: B65
+- Environment: manual package post-install command output on Windows PowerShell
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `scripts/package-manual.ps1` prints `npm run verify:manual` and related commands.
+- Expected: PowerShell handoff output should use `npm.cmd run ...`, matching the validated command path in this session.
+- Actual: users can copy `npm run ...` and hit blocked `npm.ps1` execution-policy behavior.
+- Validation update: print `npm.cmd run ...` commands and add static checks.
+- Close condition: `npm.cmd run check` proves package-manual output uses `npm.cmd run` for verification commands.
+
+### FAIL-20260706-143
+
+- Batch: B65
+- Environment: manual verifier next-action command output on Windows PowerShell
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `scripts/verify-manual-install.ps1` prints `next: run npm run smoke:preflight`.
+- Expected: verifier next-action output should use `npm.cmd run smoke:preflight`.
+- Actual: the copied command can resolve to blocked `npm.ps1`.
+- Validation update: print `npm.cmd run smoke:preflight` in the ready-state next action and add a static check.
+- Close condition: `npm.cmd run check` proves verifier next-action output uses `npm.cmd run`.
+
+### FAIL-20260706-144
+
+- Batch: B65
+- Environment: README PowerShell command examples
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: README PowerShell command blocks and inline rerun guidance use `npm run ...`.
+- Expected: Windows PowerShell examples should use `npm.cmd run ...` to match the working validation commands.
+- Actual: users following README examples can hit `npm.ps1` execution-policy failures.
+- Validation update: update README PowerShell examples and static checks to prefer `npm.cmd run`.
+- Close condition: `npm.cmd run check` proves README documents `npm.cmd run package:manual` and `npm.cmd run verify:manual`.
+
+### FAIL-20260706-145
+
+- Batch: B65
+- Environment: PowerShell diagnostic script command guidance
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: related scripts can still print `npm run ...` guidance for install, build, smoke, or runtime commands.
+- Expected: user-facing PowerShell guidance should use `npm.cmd run ...` consistently for commands this project asks users to copy.
+- Actual: Windows users can still copy commands that resolve to blocked `npm.ps1`.
+- Validation update: update the related script guidance and add static checks rejecting `npm run ...` in those handoff strings.
+- Close condition: `npm.cmd run check` proves the selected handoff scripts use `npm.cmd run ...` and do not print `npm run ...`.
+
+### FAIL-20260706-146
+
+- Batch: B66
+- Environment: saved HTML index source links
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `open_pdf_uri` links are page-only when no annotation key exists.
+- Expected: same-page previews with different `bbox_normalized` values should have distinguishable source targets or source-link metadata that can index the exact region.
+- Actual: clicking two different same-page previews can navigate to the same page-only target, forcing manual search.
+- Validation update: add behavior coverage for same-page entries with distinct bbox metadata and matching link/source metadata.
+- Close condition: tests prove same-page entries with distinct bbox metadata generate distinguishable saved index identity/source-link data.
+
+### FAIL-20260706-147
+
+- Batch: B66
+- Environment: duplicate saved index prevention
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: duplicate prevention uses only in-memory `recentIndexSaves`.
+- Expected: duplicate preview index saves should be skipped when an existing child index attachment has the same stable key, even after Zotero restart or add-on reload.
+- Actual: reloads can recreate identical HTML index attachments and grow synced storage.
+- Validation update: add a persisted `preview_index_key` and tests that simulate existing child index attachments.
+- Close condition: tests prove a duplicate existing child index causes save to skip without creating a new index attachment.
+
+### FAIL-20260706-148
+
+- Batch: B66
+- Environment: saved index attachment titles
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: index titles only include page or scope, so repeated saves are hard to distinguish in Zotero child attachments.
+- Expected: titles should stay short but include enough quality/count/fingerprint identity for cleanup and review.
+- Actual: repeated same-page saves produce visually similar child attachment names.
+- Validation update: add title behavior tests for single image, multi image, quality differences, and bbox/fingerprint differences.
+- Close condition: tests prove generated titles are short, sanitized, and distinguish single/multi/quality/bbox variants.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -4163,13 +4300,17 @@ End batch validation checklist:
 - Check B62+ regression guards cite prior `FAIL-*` IDs or explicit `validation family:` entries rather than broad generic words.
 - Check target-plan batch parsing stops before the next top-level section.
 - Check reader save entries normalize null, array, and scalar option objects before reading fields.
-- Check B63+ batches can group up to three related fixes or improvements when they share a validation surface.
+- Check B65+ batches default to grouped changes up to roughly three times the prior micro-batch size when fixes share a validation surface.
 - Check save-entry static guards reject raw `options` dot, bracket, spread, and destructuring reads.
 - Check save-entry static guards reject raw optional-chain reads, multiline destructuring, and computed bracket reads from `options`.
 - Check context menu exposes explicit page and whole-PDF optional original extraction actions with max attachment counts.
 - Check context menu original extraction commands pass page/document scopes distinctly.
 - Check toolbar quality changes reapply Auto Raster availability state instead of overwriting unavailable messaging.
 - Check toolbar rendered behavior leaves Auto Raster disabled with unavailable text after quality changes when PDF.js image coordinates are unsupported.
+- Check Windows PowerShell manual-install handoff commands use `npm.cmd run ...` in scripts and README.
+- Check saved preview source links distinguish same-page previews with different source regions.
+- Check persisted preview index duplicate keys skip duplicate child index creation across reloads.
+- Check saved index attachment titles stay short while exposing quality, count, and short identity.
 
 ## Real Commit Log
 
