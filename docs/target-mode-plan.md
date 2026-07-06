@@ -1326,7 +1326,7 @@ End batch validation checklist:
 
 ### B44 Reader Save Entry Options Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1346,7 +1346,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `54a31be2fbad818d908d33ecd4953cf853cf7de4e0301df9cce8c497d1d5aa2b`, bytes `29701`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent review was unavailable due 429 retry limit; local read-only review passed with no P0-P2 blockers found.
+- Git commit records B44 implementation: `534954c`.
 
 ## Current Validation Results
 
@@ -2858,12 +2864,13 @@ End batch validation checklist:
 - Environment: reader save entry error handling
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: reader page and auto-raster save entry points read `options.*` before entering their `try/catch`.
 - Expected: missing or malformed option objects should be handled by the same reader error feedback path as later page/canvas failures.
 - Actual: missing options can throw before the save entry point reaches its local catch block, producing inconsistent button/menu behavior and possible unhandled rejections.
 - Validation update: default options to `{}`, move setup into guarded blocks, and only clear active jobs that the current call added.
 - Close condition: tests/static checks prove missing options do not reject and active-job cleanup is guarded.
+- Closure: both reader save entries now default missing options, move page/job setup inside local `try/catch`, and clear active jobs only when the current call added the job; regression/static checks pass.
 
 ### FAIL-20260706-099
 
@@ -2871,12 +2878,13 @@ End batch validation checklist:
 - Environment: B44 reader save active-job static checks
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: the new `jobAdded` static check scans the whole plugin once instead of checking both save entry functions independently.
 - Expected: static checks prove both `saveAutoDetectedPageImagePreviews()` and `savePagePreviewIndex()` guard active-job deletion.
 - Actual: one guarded entry can satisfy the check while the other regresses.
 - Validation update: scope guarded-cleanup static checks to each save entry function without allowing cross-function matches.
 - Close condition: static checks fail if either save entry drops guarded cleanup.
+- Closure: `scripts/check.ps1` now extracts auto-raster and page-preview function blocks separately and validates guarded cleanup within each block.
 
 ### FAIL-20260706-100
 
@@ -2884,12 +2892,13 @@ End batch validation checklist:
 - Environment: B44 missing-options regression tests
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: missing-options tests assert that at least one save entry logs the expected guarded-path error.
 - Expected: tests prove both page and auto-raster save entries individually handle missing options through the guarded error path.
 - Actual: one entry can still reject or log a pre-guard `TypeError` while the other makes the test pass.
 - Validation update: assert each save entry adds its own expected guarded-path error.
 - Close condition: regression tests fail if either save entry does not log the guarded page/canvas error.
+- Closure: `tests/open-pdf-uri.test.js` now calls each reader save entry without options and asserts each call logs its own guarded page/canvas error without rejecting.
 
 ## Revised Validation Checklist
 
@@ -3083,3 +3092,5 @@ End batch validation checklist:
 - B42 XPI SHA256 `1938b80d2f321cf3a60d380428c82dec82c104aa3d17e6e44cc40e1c4599ac39` was built in `outputs/` for manual Zotero add-on manager installation.
 - `bfef86f` B43 validate preview data url base64.
 - B43 XPI SHA256 `8eb72ca65d77bdcf9cbeb36d3d6f4760805673f605f816af36c01a41db66c718` was built in `outputs/` for manual Zotero add-on manager installation.
+- `534954c` B44 guard reader save entry options.
+- B44 XPI SHA256 `54a31be2fbad818d908d33ecd4953cf853cf7de4e0301df9cce8c497d1d5aa2b` was built in `outputs/` for manual Zotero add-on manager installation.
