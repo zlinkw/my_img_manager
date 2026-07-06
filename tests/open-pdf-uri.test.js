@@ -1466,41 +1466,54 @@ async function runAsyncAssertions() {
 
   const readerEntryErrors = [];
   context.Zotero.logError = (error) => readerEntryErrors.push(error);
-  await assert.doesNotReject(
-    () => saveAutoDetectedPageImagePreviews(null),
-    "auto-raster save entry must handle missing options inside its guarded error path",
+  const malformedOptionsCases = [
+    { label: "missing", args: [] },
+    { label: "null", args: [null] },
+    { label: "array", args: [[]] },
+    { label: "scalar", args: [42] },
+  ];
+  async function assertSaveEntryHandlesMalformedOptions(fn, label, expectedMessage) {
+    for (const optionsCase of malformedOptionsCases) {
+      const before = readerEntryErrors.length;
+      await assert.doesNotReject(
+        () => fn(null, ...optionsCase.args),
+        `${label} save entry must handle ${optionsCase.label} options inside its guarded error path`,
+      );
+      assert.strictEqual(
+        readerEntryErrors.length,
+        before + 1,
+        `${label} save entry must log its own guarded error for ${optionsCase.label} options`,
+      );
+      const message = String(readerEntryErrors[before]?.message || readerEntryErrors[before]);
+      assert.ok(
+        message.includes(expectedMessage),
+        `${label} ${optionsCase.label}-options failure must reach guarded error handling`,
+      );
+      assert.ok(
+        !message.includes("Cannot read properties"),
+        `${label} ${optionsCase.label}-options failure must not leak a raw TypeError`,
+      );
+    }
+  }
+  await assertSaveEntryHandlesMalformedOptions(
+    saveAutoDetectedPageImagePreviews,
+    "auto-raster",
+    "Rendered PDF page canvas was not found",
   );
-  assert.strictEqual(readerEntryErrors.length, 1, "auto-raster save entry must log its own guarded error");
-  assert.ok(
-    String(readerEntryErrors[0]?.message || readerEntryErrors[0]).includes("Rendered PDF page canvas was not found"),
-    "auto-raster missing-options failure must reach guarded page/canvas error handling",
+  await assertSaveEntryHandlesMalformedOptions(
+    savePagePreviewIndex,
+    "page-preview",
+    "Rendered PDF page canvas was not found",
   );
-  await assert.doesNotReject(
-    () => savePagePreviewIndex(null),
-    "page-preview save entry must handle missing options inside its guarded error path",
+  await assertSaveEntryHandlesMalformedOptions(
+    saveClipPreviewIndex,
+    "clip-preview",
+    "Active reader item is not a PDF attachment",
   );
-  assert.strictEqual(readerEntryErrors.length, 2, "page-preview save entry must log its own guarded error");
-  assert.ok(
-    String(readerEntryErrors[1]?.message || readerEntryErrors[1]).includes("Rendered PDF page canvas was not found"),
-    "page-preview missing-options failure must reach guarded page/canvas error handling",
-  );
-  await assert.doesNotReject(
-    () => saveClipPreviewIndex(null),
-    "clip-preview save entry must handle missing options inside its guarded error path",
-  );
-  assert.strictEqual(readerEntryErrors.length, 3, "clip-preview save entry must log its own guarded error");
-  assert.ok(
-    String(readerEntryErrors[2]?.message || readerEntryErrors[2]).includes("Active reader item is not a PDF attachment"),
-    "clip-preview missing-options failure must reach guarded reader error handling",
-  );
-  await assert.doesNotReject(
-    () => saveOriginalImagesFromReader(null),
-    "original-image save entry must handle missing options inside its guarded error path",
-  );
-  assert.strictEqual(readerEntryErrors.length, 4, "original-image save entry must log its own guarded error");
-  assert.ok(
-    String(readerEntryErrors[3]?.message || readerEntryErrors[3]).includes("Active reader item is not a PDF attachment"),
-    "original-image missing-options failure must reach guarded reader error handling",
+  await assertSaveEntryHandlesMalformedOptions(
+    saveOriginalImagesFromReader,
+    "original-image",
+    "Active reader item is not a PDF attachment",
   );
 }
 

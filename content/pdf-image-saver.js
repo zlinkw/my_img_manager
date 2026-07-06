@@ -563,8 +563,9 @@ var PdfImageSaver = (() => {
     let jobKey = null;
     let jobAdded = false;
     try {
-      const pageIndex = normalizePageIndex(options.pageIndex, 0);
-      const qualityKey = normalizeQualityKey(options.qualityKey);
+      const safeOptions = normalizeOptionsObject(options);
+      const pageIndex = normalizePageIndex(safeOptions.pageIndex, 0);
+      const qualityKey = normalizeQualityKey(safeOptions.qualityKey);
       jobKey = getReaderJobKey(reader, {
         scope: "clip",
         pageIndex,
@@ -577,7 +578,7 @@ var PdfImageSaver = (() => {
       jobAdded = true;
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
-      const preview = renderCanvasPreview({ ...options, pageIndex, qualityKey });
+      const preview = renderCanvasPreview({ ...safeOptions, pageIndex, qualityKey });
       const duplicateKey = getPreviewDuplicateKey(attachment, preview);
       if (getBoolPref("duplicateGuard", true) && recentIndexSaves.has(duplicateKey)) {
         showReaderToast(reader, "This preview was already saved in this Zotero session.", "warning");
@@ -620,8 +621,9 @@ var PdfImageSaver = (() => {
     let jobKey = null;
     let jobAdded = false;
     try {
-      const qualityKey = normalizeQualityKey(options.qualityKey);
-      const pageIndex = await getCurrentPageIndex(reader, options.pageIndex);
+      const safeOptions = normalizeOptionsObject(options);
+      const qualityKey = normalizeQualityKey(safeOptions.qualityKey);
+      const pageIndex = await getCurrentPageIndex(reader, safeOptions.pageIndex);
       jobKey = getReaderJobKey(reader, { scope: "auto-page", pageIndex });
       if (activeJobs.has(jobKey)) {
         showReaderToast(reader, "Auto image save already running for this page.", "warning");
@@ -748,8 +750,9 @@ var PdfImageSaver = (() => {
     let jobKey = null;
     let jobAdded = false;
     try {
-      const pageIndex = await getCurrentPageIndex(reader, options.pageIndex);
-      const qualityKey = normalizeQualityKey(options.qualityKey);
+      const safeOptions = normalizeOptionsObject(options);
+      const pageIndex = await getCurrentPageIndex(reader, safeOptions.pageIndex);
+      const qualityKey = normalizeQualityKey(safeOptions.qualityKey);
       jobKey = getReaderJobKey(reader, { scope: "page", pageIndex });
       if (activeJobs.has(jobKey)) {
         showReaderToast(reader, "Save already running for this page.", "warning");
@@ -1322,12 +1325,13 @@ var PdfImageSaver = (() => {
     let jobKey = null;
     let jobAdded = false;
     try {
-      const scope = normalizeOriginalScope(options.scope);
+      const safeOptions = normalizeOptionsObject(options);
+      const scope = normalizeOriginalScope(safeOptions.scope);
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
       const pageIndex =
         scope === "page"
-          ? await getCurrentPageIndex(reader, options.pageIndex)
+          ? await getCurrentPageIndex(reader, safeOptions.pageIndex)
           : null;
       jobKey = getReaderJobKey(reader, { scope, pageIndex });
       if (activeJobs.has(jobKey)) {

@@ -101,6 +101,7 @@ Each preview entry includes:
 - Every batch marked complete must replace `Pending` with real validation output.
 - Fixes that reveal follow-up faults must record the new fault before changing that behavior.
 - Every B62+ batch must declare a `Regression guard:` line naming prior `FAIL-*` IDs or `validation family:` names that its changes could affect.
+- For B63+ batches, group up to three related fixes or improvements that share a validation surface before testing, unless isolation is required.
 - `scripts/check.ps1` must enforce these plan-state invariants so a future patch cannot silently reopen old risks or close a fault without evidence.
 
 ## Preview Quality
@@ -1849,6 +1850,31 @@ End batch validation checklist:
 - `git diff --check`: passed with LF-to-CRLF warnings only.
 - Code review: subagent found broad/narrow guard validation and last-batch body parsing blockers; both recorded and fixed. Planning agent found malformed-options save-entry fault; recorded as `FAIL-20260706-130` for B63.
 - Git commits record B62 implementation: `cefdc62`, `c880302`.
+
+### B63 Save Entry Malformed Options Guard
+
+Status: in progress.
+
+Plan:
+
+- Normalize malformed `options` containers inside the four reader save entries before reading `pageIndex`, `qualityKey`, or `scope`.
+- Extend save-entry regression tests from missing `undefined` options to `null`, array, and scalar option values.
+- Add static checks that each save entry uses `normalizeOptionsObject(options)` and no raw `options.*` reads remain in those function bodies.
+- Tighten the same static checks against future raw `options` destructuring and bracket-field reads.
+
+Pre batch validation:
+
+- Git worktree clean at B63 start commit `f3b2017`.
+- B63 starts from open `FAIL-20260706-130`: reader save entries can still read raw malformed `options.*`.
+- User requested larger batches because very small batches leave too many iteration defects; added a global B63+ throughput rule.
+- B63 code review found static guards can miss raw `options` destructuring or bracket reads; recorded as `FAIL-20260706-133`.
+- B63 final review found static guards can still miss optional-chain reads, multiline destructuring, and template/computed bracket reads; recorded as `FAIL-20260706-134`.
+- Regression guard: protect `FAIL-20260706-098`, `FAIL-20260706-101`, `FAIL-20260706-102`, `FAIL-20260706-130`, `FAIL-20260706-133`, and `FAIL-20260706-134` by keeping each save-entry options path covered separately.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
 
 ## Current Validation Results
 
@@ -3843,6 +3869,32 @@ End batch validation checklist:
 - Close condition: `npm.cmd run check` passes with batch bodies scoped before `## Current Validation Results`.
 - Closure: target-plan batch parsing now stops before the next batch heading, top-level section, or end of file, so B62 no longer consumes `## Current Validation Results`; `npm.cmd run check` passes.
 
+### FAIL-20260706-133
+
+- Batch: B63
+- Environment: save-entry malformed-options static guard
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: B63 static checks block `options.foo` and `...options`, but future code could still read malformed options via destructuring or bracket access.
+- Expected: save-entry static guards should reject raw `options` field reads whether they use dot, bracket, spread, or destructuring syntax.
+- Actual: the first guard only matches dot reads and spreads.
+- Validation update: extend static checks to reject raw destructuring from `options` and raw bracket access for `pageIndex`, `qualityKey`, or `scope`.
+- Close condition: `npm.cmd run check` passes with the stronger guard active and current save entries using only `safeOptions` fields.
+
+### FAIL-20260706-134
+
+- Batch: B63
+- Environment: save-entry raw-options static guard variants
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the strengthened static guard can still miss raw optional-chain reads, multiline destructuring, and computed or template bracket field reads from `options`.
+- Expected: save-entry static guards should reject common raw `options` access variants for `pageIndex`, `qualityKey`, and `scope`.
+- Actual: the B63 guard only covers dot reads, spread, single-line destructuring, and literal bracket reads.
+- Validation update: extend static checks to reject optional-chain reads, multiline destructuring, and any raw bracket field read from `options`.
+- Close condition: `npm.cmd run check` passes with current save entries using only `safeOptions`, and the guard patterns include optional-chain, multiline destructuring, and bracket variants.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3971,6 +4023,9 @@ End batch validation checklist:
 - Check B62+ regression guards cite prior `FAIL-*` IDs or explicit `validation family:` entries rather than broad generic words.
 - Check target-plan batch parsing stops before the next top-level section.
 - Check reader save entries normalize null, array, and scalar option objects before reading fields.
+- Check B63+ batches can group up to three related fixes or improvements when they share a validation surface.
+- Check save-entry static guards reject raw `options` dot, bracket, spread, and destructuring reads.
+- Check save-entry static guards reject raw optional-chain reads, multiline destructuring, and computed bracket reads from `options`.
 
 ## Real Commit Log
 

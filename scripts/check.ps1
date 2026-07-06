@@ -63,6 +63,7 @@ foreach ($requiredRule in @(
   "Every batch marked complete must replace ``Pending`` with real validation output",
   "Fixes that reveal follow-up faults must record the new fault before changing that behavior",
   "Every B62+ batch must declare a ``Regression guard:`` line naming prior ``FAIL-*`` IDs or ``validation family:`` names",
+  "For B63+ batches, group up to three related fixes or improvements that share a validation surface before testing, unless isolation is required",
   "``scripts/check.ps1`` must enforce these plan-state invariants"
 )) {
   if ($targetPlan -notmatch [regex]::Escape($requiredRule)) {
@@ -865,31 +866,61 @@ if ($originalConfirmEntry.Value -cmatch "\.\.\.options") {
 if ($mainJS -notmatch "function\s+normalizeOptionsObject\s*\(\s*options\s*\)[\s\S]*typeof\s+options\s*===\s*`"object`"[\s\S]*!Array\.isArray\(options\)[\s\S]*\{\}") {
   throw "Options object normalizer must reject null and arrays"
 }
+function Assert-SaveEntryNormalizesOptions {
+  param(
+    [Parameter(Mandatory = $true)]$Entry,
+    [Parameter(Mandatory = $true)][string]$Name
+  )
+  if ($Entry.Value -notmatch "const\s+safeOptions\s*=\s*normalizeOptionsObject\(options\)") {
+    throw "$Name save entry must normalize malformed options before reading fields"
+  }
+  if ($Entry.Value -cmatch "options\.") {
+    throw "$Name save entry must not read raw options fields"
+  }
+  if ($Entry.Value -cmatch "options\?\.") {
+    throw "$Name save entry must not optional-chain raw options fields"
+  }
+  if ($Entry.Value -cmatch "\.\.\.options") {
+    throw "$Name save entry must not spread raw options"
+  }
+  if ($Entry.Value -cmatch '(?s)\{[^}]*(?:pageIndex|qualityKey|scope)[^}]*\}\s*=\s*options\b') {
+    throw "$Name save entry must not destructure raw options fields"
+  }
+  if ($Entry.Value -cmatch 'options\s*\[') {
+    throw "$Name save entry must not read raw options fields by bracket access"
+  }
+}
 $clipSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveClipPreviewIndex\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+saveAutoDetectedPageImagePreviews")
 if (!$clipSaveEntry.Success) {
   throw "Clip-preview save entry function block not found"
 }
+Assert-SaveEntryNormalizesOptions $clipSaveEntry "Clip-preview"
 if ($clipSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
   throw "Clip-preview save entry must only clear active jobs added by the current call"
 }
-if ($clipSaveEntry.Value -notmatch "const\s+qualityKey\s*=\s*normalizeQualityKey\(options\.qualityKey\)[\s\S]*renderCanvasPreview\(\s*\{\s*\.\.\.options,\s*pageIndex,\s*qualityKey\s*\}\s*\)[\s\S]*qualityKey,") {
+if ($clipSaveEntry.Value -notmatch "const\s+qualityKey\s*=\s*normalizeQualityKey\(safeOptions\.qualityKey\)[\s\S]*renderCanvasPreview\(\s*\{\s*\.\.\.safeOptions,\s*pageIndex,\s*qualityKey\s*\}\s*\)[\s\S]*qualityKey,") {
   throw "Clip-preview save entry must normalize quality before rendering and index metadata"
 }
 $autoSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveAutoDetectedPageImagePreviews\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+savePagePreviewIndex")
 if (!$autoSaveEntry.Success) {
   throw "Auto-raster save entry function block not found"
 }
+Assert-SaveEntryNormalizesOptions $autoSaveEntry "Auto-raster"
 if ($autoSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
   throw "Auto-raster save entry must only clear active jobs added by the current call"
+}
+if ($autoSaveEntry.Value -notmatch "const\s+qualityKey\s*=\s*normalizeQualityKey\(safeOptions\.qualityKey\)[\s\S]*getCurrentPageIndex\(reader,\s*safeOptions\.pageIndex\)") {
+  throw "Auto-raster save entry must normalize malformed options before page and quality lookup"
 }
 $pageSaveEntry = [regex]::Match($mainJS, "async\s+function\s+savePagePreviewIndex\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+renderCanvasPreview")
 if (!$pageSaveEntry.Success) {
   throw "Page-preview save entry function block not found"
 }
+Assert-SaveEntryNormalizesOptions $pageSaveEntry "Page-preview"
 if ($pageSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
   throw "Page-preview save entry must only clear active jobs added by the current call"
 }
-if ($pageSaveEntry.Value -notmatch "const\s+qualityKey\s*=\s*normalizeQualityKey\(options\.qualityKey\)[\s\S]*qualityKey,\s*\r?\n\s*pageLabel[\s\S]*qualityKey,") {
+if ($pageSaveEntry.Value -notmatch "const\s+qualityKey\s*=\s*normalizeQualityKey\(safeOptions\.qualityKey\)[\s\S]*qualityKey,\s*\r?\n\s*pageLabel[\s\S]*qualityKey,") {
   throw "Page-preview save entry must normalize quality before rendering and index metadata"
 }
 $renderCanvasPreviewEntry = [regex]::Match($mainJS, "function\s+renderCanvasPreview\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+calculateCanvasCrop")
@@ -937,6 +968,7 @@ $originalSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveOriginalIma
 if (!$originalSaveEntry.Success) {
   throw "Original-image save entry function block not found"
 }
+Assert-SaveEntryNormalizesOptions $originalSaveEntry "Original-image"
 if ($originalSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
   throw "Original-image save entry must only clear active jobs added by the current call"
 }
@@ -946,7 +978,7 @@ if ($mainJS -notmatch 'function\s+getReaderJobKey\s*\(\s*reader\s*,\s*options\s*
 if ($mainJS -notmatch "function\s+normalizeOriginalScope\s*\(\s*value\s*\)") {
   throw "Original-image save scope normalizer missing"
 }
-if ($originalSaveEntry.Value -notmatch "const\s+scope\s*=\s*normalizeOriginalScope\(options\.scope\)[\s\S]*getReaderJobKey\(reader,\s*\{\s*scope,\s*pageIndex\s*\}\)") {
+if ($originalSaveEntry.Value -notmatch "const\s+scope\s*=\s*normalizeOriginalScope\(safeOptions\.scope\)[\s\S]*getCurrentPageIndex\(reader,\s*safeOptions\.pageIndex\)[\s\S]*getReaderJobKey\(reader,\s*\{\s*scope,\s*pageIndex\s*\}\)") {
   throw "Original-image save entry must normalize scope before job key generation"
 }
 if ($mainJS -notmatch "const\s+contextPageIndex\s*=\s*normalizePageIndex\(params\?\.pageIndexFromContextMenu,\s*null\)") {
