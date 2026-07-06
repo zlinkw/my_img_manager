@@ -1027,5 +1027,5 @@ End batch validation checklist:
 - B12 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `c3a140d` B13 add runtime registration wait gate.
 - B13 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
-- B14 smoke preflight and manifest compatibility fix commit pending.
+- `5d54001` B14 fix manifest compatibility and preflight count.
 - B14 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
