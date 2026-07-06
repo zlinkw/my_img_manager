@@ -862,3 +862,5 @@ End batch validation checklist:
 - B8 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `9b98898` B9 document runtime smoke checklist.
 - B9 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `596dbc8` B10 diagnose Zotero extension rescan.
+- B10 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
