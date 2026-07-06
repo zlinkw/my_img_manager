@@ -2030,7 +2030,7 @@ End batch validation checklist:
 
 ### B69 Batch Size Constraint Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -2047,7 +2047,11 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run check`: passed and now enforces the strengthened B69+ grouped-batch rule plus per-batch `Batch size guard:` entries.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `5cf967a54f51cb642ac44201b1f2b9dcc0b3214e8e9311a5d6feac0e1ff8837a`, bytes `32887`; plugin payload unchanged from B68.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
+- Git commit records B69 implementation: `762d682`.
 
 ## Current Validation Results
 
@@ -4343,12 +4347,13 @@ End batch validation checklist:
 - Environment: target-mode batch planning cadence
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: recent batches were too small, causing many iterations while residual issues remained.
 - Expected: B69+ implementation batches should group roughly three times the earlier micro-batch amount before testing when changes share a validation surface, using git history for rollback instead of splitting only to avoid temporary local breakage.
 - Actual: the plan only stated a softer B65+ grouped-batch preference and did not force every future batch to document whether it met the 3x grouping rule or had a real isolation reason.
 - Validation update: strengthen the global grouped-batch rule, require a `Batch size guard:` line for B69+ batches, and add static checks that reject missing or placeholder size guards.
 - Close condition: `npm.cmd run check` passes while enforcing the strengthened B69+ grouped-batch rule and per-batch size guard.
+- Closure: `Regression Loop Control` now makes the 3x grouped-batch target the B69+ default, every B69+ batch must include a `Batch size guard:` line, and `scripts/check.ps1` rejects missing, pending, or content-free size guards; `npm.cmd run check` passes.
 
 ## Revised Validation Checklist
 
@@ -4638,3 +4643,5 @@ End batch validation checklist:
 - B67 XPI SHA256 `071e00bfee69d46d7c841d2401a865a8f26692110c0fd8f9faf96ebce8146157` was built in `outputs/` for manual Zotero add-on manager installation.
 - `58dd3c9` B68 sync preview metadata schema.
 - B68 XPI SHA256 `5cf967a54f51cb642ac44201b1f2b9dcc0b3214e8e9311a5d6feac0e1ff8837a` was built in `outputs/` for manual Zotero add-on manager installation.
+- `762d682` B69 enforce batch size guard.
+- B69 XPI SHA256 `5cf967a54f51cb642ac44201b1f2b9dcc0b3214e8e9311a5d6feac0e1ff8837a` was built in `outputs/` for manual Zotero add-on manager installation; plugin payload unchanged from B68.
