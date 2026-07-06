@@ -12,6 +12,9 @@ var PdfImageSaver = (() => {
   const DEFAULT_MAX_PAGE_IMAGES = 80;
   const DEFAULT_MAX_DOCUMENT_IMAGES = 250;
   const DEFAULT_HELPER_TIMEOUT_SECONDS = 60;
+  const HARD_MAX_PAGE_IMAGES = 500;
+  const HARD_MAX_DOCUMENT_IMAGES = 2000;
+  const HARD_MAX_HELPER_TIMEOUT_SECONDS = 600;
   const QUALITY = {
     low: { label: "Low", maxWidth: 240, jpegQuality: 0.62, estimate: "20-80 KB/image" },
     medium: { label: "Medium", maxWidth: 480, jpegQuality: 0.78, estimate: "60-220 KB/image" },
@@ -1152,8 +1155,8 @@ var PdfImageSaver = (() => {
     const win = Zotero.getMainWindow?.();
     const scope = options.scope === "document" ? "whole document" : "current page";
     const maxImages = options.scope === "document"
-      ? getIntegerPref("maxDocumentImages", DEFAULT_MAX_DOCUMENT_IMAGES)
-      : getIntegerPref("maxPageImages", DEFAULT_MAX_PAGE_IMAGES);
+      ? getHelperMaxImages("document")
+      : getHelperMaxImages("page");
     const ok = Services.prompt.confirm(
       win,
       "PDF Image Saver",
@@ -1266,7 +1269,7 @@ var PdfImageSaver = (() => {
       "--min-area",
       String(getNumberPref("minImageArea", DEFAULT_MIN_AREA)),
       "--max-images",
-      String(scope === "document" ? getIntegerPref("maxDocumentImages", DEFAULT_MAX_DOCUMENT_IMAGES) : getIntegerPref("maxPageImages", DEFAULT_MAX_PAGE_IMAGES)),
+      String(getHelperMaxImages(scope)),
     ];
     if (pageIndex !== null && pageIndex !== undefined) {
       argsBase.push("--page-index", String(pageIndex));
@@ -1457,7 +1460,7 @@ var PdfImageSaver = (() => {
 
     await new Promise((resolve, reject) => {
       let settled = false;
-      const timeoutMS = Math.max(5, getIntegerPref("helperTimeoutSeconds", DEFAULT_HELPER_TIMEOUT_SECONDS)) * 1000;
+      const timeoutMS = getHelperTimeoutSeconds() * 1000;
       const timer = setTimeout(() => {
         if (settled) {
           return;
@@ -2010,6 +2013,22 @@ var PdfImageSaver = (() => {
   function getMaxIndexBytes() {
     const megabytes = clamp(getNumberPref("maxIndexBytesMB", DEFAULT_MAX_INDEX_BYTES_MB), 1, HARD_MAX_INDEX_BYTES_MB);
     return Math.round(megabytes * 1024 * 1024);
+  }
+
+  function getHelperMaxImages(scope) {
+    const isDocument = scope === "document";
+    const key = isDocument ? "maxDocumentImages" : "maxPageImages";
+    const fallback = isDocument ? DEFAULT_MAX_DOCUMENT_IMAGES : DEFAULT_MAX_PAGE_IMAGES;
+    const hardMax = isDocument ? HARD_MAX_DOCUMENT_IMAGES : HARD_MAX_PAGE_IMAGES;
+    return clampInteger(getIntegerPref(key, fallback), 1, hardMax);
+  }
+
+  function getHelperTimeoutSeconds() {
+    return clampInteger(
+      getIntegerPref("helperTimeoutSeconds", DEFAULT_HELPER_TIMEOUT_SECONDS),
+      5,
+      HARD_MAX_HELPER_TIMEOUT_SECONDS,
+    );
   }
 
   function getPreviewDuplicateKey(attachment, preview) {

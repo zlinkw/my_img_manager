@@ -120,6 +120,36 @@ if ($mainJS -notmatch "(?m)^\s*const\s+HARD_MAX_AUTO_PREVIEW_BYTES_MB\s*=\s*8\s*
 if ($mainJS -notmatch "(?m)^\s*const\s+HARD_MAX_INDEX_BYTES_MB\s*=\s*12\s*;") {
   throw "Index hard cap changed unexpectedly"
 }
+if ($mainJS -notmatch "(?m)^\s*const\s+HARD_MAX_PAGE_IMAGES\s*=\s*500\s*;") {
+  throw "Optional helper page image hard cap changed unexpectedly"
+}
+if ($mainJS -notmatch "(?m)^\s*const\s+HARD_MAX_DOCUMENT_IMAGES\s*=\s*2000\s*;") {
+  throw "Optional helper document image hard cap changed unexpectedly"
+}
+if ($mainJS -notmatch "(?m)^\s*const\s+HARD_MAX_HELPER_TIMEOUT_SECONDS\s*=\s*600\s*;") {
+  throw "Optional helper timeout hard cap changed unexpectedly"
+}
+if ($mainJS -notmatch "function\s+getHelperMaxImages\s*\(\s*scope\s*\)") {
+  throw "Optional helper max images must use a hard-clamped getter"
+}
+if ($mainJS -notmatch "function\s+getHelperTimeoutSeconds\s*\(") {
+  throw "Optional helper timeout must use a hard-clamped getter"
+}
+$helperMaxCallCount = ([regex]::Matches($mainJS, "getHelperMaxImages\(")).Count
+if ($helperMaxCallCount -lt 3) {
+  throw "Confirmation text and helper args must call getHelperMaxImages()"
+}
+$mainWithoutHelperMaxGetter = [regex]::Replace(
+  $mainJS,
+  "function\s+getHelperMaxImages\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+getHelperTimeoutSeconds",
+  "function getHelperTimeoutSeconds"
+)
+if ($mainWithoutHelperMaxGetter -match 'getIntegerPref\("max(Page|Document)Images"') {
+  throw "Optional helper max image prefs must not be read outside getHelperMaxImages()"
+}
+if ($mainJS -match 'getIntegerPref\("helperTimeoutSeconds",\s*DEFAULT_HELPER_TIMEOUT_SECONDS\)\)\s*\*\s*1000') {
+  throw "runProcess must not read raw helper timeout prefs directly"
+}
 if ($mainJS -notmatch "function\s+buildOpenPDFURI\s*\(\s*attachment\s*,\s*pageNumber\s*,\s*annotationKey\s*\)") {
   throw "open-pdf URI builder must accept annotationKey"
 }

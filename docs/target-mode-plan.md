@@ -668,6 +668,30 @@ End batch validation checklist:
 - `npm run runtime:status`: passed after B19 final fix; XPI SHA256 `bb4ef2e01449900e89e7ebf5a1db8de9ee6bcbd0253fa129c4e5301c3320bc7c`, temp child count 0, registration false, `rescan.needsRescan: true`.
 - B19 review agent found source-pixel rounding mismatch and insufficient fractional tests; both were folded into this batch before commit.
 
+### B20 Optional Helper Hard Caps
+
+Status: complete; runtime registration pending user-controlled Zotero close, reinstall, and launch.
+
+Plan:
+
+- Add hard runtime clamps for optional original extraction image counts and helper timeout.
+- Use the same clamped values for confirmation text and helper command arguments.
+- Add static checks so these hard caps cannot be removed accidentally.
+
+Pre batch validation:
+
+- Git worktree clean at B20 start commit `ded7fbb`.
+- Zotero is still running, so runtime registration smoke remains pending.
+- Code scan found `maxPageImages`, `maxDocumentImages`, and `helperTimeoutSeconds` are read directly through `getIntegerPref()`, so manually edited prefs can bypass the UI max values.
+
+End batch validation checklist:
+
+- `npm run check`: passed and asserts optional helper hard cap constants/functions.
+- `npm run build`: passed, XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`.
+- `npm run install:global`: passed without restarting Zotero and reported rescan pending because Zotero is running.
+- `npm run runtime:status`: passed after review fixes; XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`, temp child count 0, registration false, `rescan.needsRescan: true`.
+- B20 review agent found target-plan status inconsistency and weak static coverage for raw helper max-count reads; both were folded into this batch before commit.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -759,6 +783,11 @@ End batch validation checklist:
 - B19 `npm run check`: passed after crop helper and tests were corrected.
 - B19 `npm run build`: passed, XPI SHA256 `bb4ef2e01449900e89e7ebf5a1db8de9ee6bcbd0253fa129c4e5301c3320bc7c`.
 - B19 `npm run install:global`: passed and reported rescan pending because Zotero is running.
+- B20 first `npm run check`: failed due invalid static regex for raw helper timeout reads; recorded as FAIL-046 before fixing.
+- B20 `npm run check`: passed after regex fix.
+- B20 `npm run build`: passed, XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`.
+- B20 `npm run install:global`: passed and reported rescan pending because Zotero is running.
+- B20 `npm run runtime:status`: passed after review fixes; XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`, temp child count 0, registration false, `rescan.needsRescan: true`.
 
 ## New Failures
 
@@ -1220,7 +1249,7 @@ End batch validation checklist:
 - Environment: install script and profile source diagnostics
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: runtime diagnostics and preflight can recognize a profile XPI install source, but no install script can create one.
 - Expected: there is a documented command to switch a profile from development proxy install to copied XPI install after Zotero is closed.
 - Actual: `npm run install:global` only writes a development proxy path into the profile.
@@ -1304,7 +1333,7 @@ End batch validation checklist:
 - Environment: manual clip or auto raster preview when the rendered canvas does not exactly match the page element rectangle
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: preview pixels are cropped from the intersection of the user selection and rendered canvas, but metadata `bbox_normalized` is computed from the original selection relative to the page element.
 - Expected: `bbox_normalized` and source region map describe the actual preview pixels that were saved.
 - Actual: selecting into page margins or any page/canvas offset can make saved metadata point to a larger or shifted source region than the preview.
@@ -1368,6 +1397,62 @@ End batch validation checklist:
 - Close condition: fractional crop regression test passes.
 - Closure: fractional crop expected source height and projected bbox values were corrected, and `npm run check` passes.
 
+### FAIL-20260706-045
+
+- Batch: B20
+- Environment: optional original extraction with manually edited Zotero prefs
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: optional helper max image count and timeout rely on preference UI max values but runtime reads raw prefs directly.
+- Expected: optional original extraction is hard-capped in runtime code even if prefs are manually edited.
+- Actual: `maxPageImages`, `maxDocumentImages`, and `helperTimeoutSeconds` can exceed UI max values through edited prefs.
+- Validation update: add hard cap constants and clamped helper getter functions.
+- Close condition: confirmation text, helper args, and process timeout all use hard-clamped values and static checks assert the guardrails.
+- Closure: confirmation text and helper args now use `getHelperMaxImages()`, process timeout uses `getHelperTimeoutSeconds()`, and `npm run check` asserts hard cap constants and getters.
+
+### FAIL-20260706-046
+
+- Batch: B20
+- Environment: `npm run check` static regex for raw helper timeout reads
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: new static regex for direct helper timeout reads has invalid grouping and fails with `Too many )'s`.
+- Expected: static check detects direct raw helper timeout usage without invalid regex syntax.
+- Actual: `npm run check` fails before validating the code.
+- Validation update: simplify the regex to a valid direct-pattern check.
+- Close condition: `npm run check` passes.
+- Closure: static regex was simplified and `npm run check` passes.
+
+### FAIL-20260706-047
+
+- Batch: B20
+- Environment: target plan execution source
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: FAIL-045 remains open even though B20 status is complete and FAIL-045 has a closure.
+- Expected: closed failures with closure have `Status: closed`.
+- Actual: target plan state is internally inconsistent.
+- Validation update: correct FAIL-045 status.
+- Close condition: FAIL-045 status and closure are consistent.
+- Closure: FAIL-045 status is now closed and matches its closure text.
+
+### FAIL-20260706-048
+
+- Batch: B20
+- Environment: static helper hard-cap validation
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: static checks confirm hard-clamped helper getters exist but do not prevent raw `maxPageImages` or `maxDocumentImages` reads outside the getter.
+- Expected: `npm run check` fails if confirmation text or helper args bypass `getHelperMaxImages()`.
+- Actual: a future regression could reintroduce direct `getIntegerPref()` reads and still pass check.
+- Validation update: assert call count for `getHelperMaxImages()` and fail on raw helper image-count pref reads outside the getter body.
+- Close condition: static checks cover both current call sites and raw-read regressions.
+- Closure: `npm run check` now asserts `getHelperMaxImages()` call count and rejects raw helper image-count pref reads outside the getter.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1411,6 +1496,7 @@ End batch validation checklist:
 - Check install scripts reject live source switching in both directions.
 - Check XPI install mode does not tell the user to rerun proxy install.
 - Check preview bbox metadata reflects the actual rendered canvas crop.
+- Check optional original helper count and timeout prefs are hard-clamped in runtime.
 
 ## Real Commit Log
 
