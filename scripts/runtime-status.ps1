@@ -20,6 +20,33 @@ function Get-DirectorySize {
   return $sum
 }
 
+function Format-ProcessDateTime {
+  param($Value)
+  if ($null -eq $Value) {
+    return ""
+  }
+  try {
+    return ([datetime]$Value).ToString("s")
+  }
+  catch {
+    return ""
+  }
+}
+
+function Get-ProcessPathSafe {
+  param($Process)
+  try {
+    $path = $Process.Path
+    if ($null -eq $path) {
+      return ""
+    }
+    return [string]$path
+  }
+  catch {
+    return ""
+  }
+}
+
 function Get-ProxyInfo {
   param([string]$ProfilePath)
   $proxy = Join-Path $ProfilePath "extensions\$addonID"
@@ -335,7 +362,7 @@ if (Test-Path -LiteralPath $tempRoot) {
 }
 
 $zoteroProcesses = @(Get-Process -Name Zotero -ErrorAction SilentlyContinue | ForEach-Object {
-  [ordered]@{ id = $_.Id; startTime = $_.StartTime.ToString("s"); path = $_.Path }
+  [ordered]@{ id = $_.Id; startTime = Format-ProcessDateTime $_.StartTime; path = Get-ProcessPathSafe $_ }
 })
 
 $status = [ordered]@{

@@ -54,6 +54,14 @@ if ($targetPlan -notmatch "Use Zotero reader rendered canvas for default preview
 if ($targetPlan -match "(?m)^- Use local Python and PyMuPDF for original embedded image extraction\.$") {
   throw "Target plan must not present local Python helper as required"
 }
+$failureSections = [regex]::Matches($targetPlan, '(?ms)^###\s+(FAIL-\d{8}-\d{3})\s*(.*?)(?=^#{1,6}\s+|\z)')
+foreach ($section in $failureSections) {
+  $failureID = $section.Groups[1].Value
+  $body = $section.Groups[2].Value
+  if ($body -match '(?m)^-\s+Status:\s+open\s*$' -and $body -match '(?m)^-\s+Closure:') {
+    throw "Target plan failure $failureID is open but contains closure evidence"
+  }
+}
 
 $package = Get-Content -Encoding UTF8 -Raw -LiteralPath .\package.json | ConvertFrom-Json
 if (!$package.scripts.'runtime:status') {
@@ -122,6 +130,15 @@ if ($runtimeStatusScript -notmatch "rawBytesContainAddonID") {
 }
 if ($runtimeStatusScript -match "(?m)^\s*containsAddonID\s*=") {
   throw "startup cache add-on id scan must not imply parsed cache semantics"
+}
+if ($runtimeStatusScript -match "StartTime\.ToString") {
+  throw "runtime status must not call ToString() directly on Zotero process StartTime"
+}
+if ($runtimeStatusScript -notmatch "function\s+Format-ProcessDateTime") {
+  throw "runtime status must use a null-safe process date formatter"
+}
+if ($runtimeStatusScript -notmatch "function\s+Get-ProcessPathSafe") {
+  throw "runtime status must use a safe process path helper"
 }
 
 $preflightScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\smoke-preflight.ps1

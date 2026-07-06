@@ -918,6 +918,34 @@ End batch validation checklist:
 - Code review: passed; no blocking code issues found, only plan status needed closure.
 - Git commit records B29: `a5cbf3c`.
 
+### B30 Target Plan State Consistency Guard
+
+Status: complete.
+
+Plan:
+
+- Close `FAIL-20260706-047` because `FAIL-20260706-045` is already closed and has matching closure evidence.
+- Add a static target-plan consistency check so future failure sections cannot remain `Status: open` while also carrying a `Closure:` line.
+- Keep runtime/manual-install failures open when their close conditions still depend on manual Zotero installation or closed-Zotero validation.
+
+Pre batch validation:
+
+- Git worktree clean at B30 start commit `0496825`.
+- `FAIL-20260706-047` is still `Status: open` even though its own closure says `FAIL-045` is now closed.
+- Current `scripts/check.ps1` has no generic target-plan status/closure consistency guard; recorded as `FAIL-20260706-057`.
+- Validation shell resolved `npm` to `npm.ps1`, which is blocked by the Windows execution policy in this session; recorded as `FAIL-20260706-058`.
+- `npm.cmd run verify:manual` failed because `runtime-status.ps1` calls `.ToString("s")` on a null Zotero process `StartTime`; recorded as `FAIL-20260706-059`.
+- B30 code review found the target-plan failure-section regex can consume following non-failure sections after the last `FAIL-*` heading; recorded as `FAIL-20260706-060`.
+
+End batch validation checklist:
+
+- `npm.cmd run check`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run package:manual`: passed, packaged XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1`.
+- `npm.cmd run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- Plan review: passed after fixing the failure-section heading boundary and closing B30 failure states.
+- Git commit records B30: pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -1053,6 +1081,10 @@ End batch validation checklist:
 - B29 `npm run build`: passed.
 - B29 `npm run package:manual`: passed; packaged XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1`.
 - B29 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- B30 `npm.cmd run check`: passed and now includes target plan open-with-closure consistency, runtime-status process metadata null safety, and strict PDF reader checks.
+- B30 `npm.cmd run build`: passed.
+- B30 `npm.cmd run package:manual`: passed; packaged XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1`.
+- B30 `npm.cmd run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
 
 ## New Failures
 
@@ -1696,7 +1728,7 @@ End batch validation checklist:
 - Environment: target plan execution source
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: FAIL-045 remains open even though B20 status is complete and FAIL-045 has a closure.
 - Expected: closed failures with closure have `Status: closed`.
 - Actual: target plan state is internally inconsistent.
@@ -1829,6 +1861,62 @@ End batch validation checklist:
 - Close condition: regression tests prove PDF readers are accepted while EPUB and type-missing readers are rejected.
 - Closure: `isPDFReader()` now delegates to `getReaderType()` and requires an explicit `pdf` type; regression tests and `scripts/check.ps1` cover the guard.
 
+### FAIL-20260706-057
+
+- Batch: B30
+- Environment: target plan execution source after multiple documentation and code batches
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: a failure section can remain `Status: open` while also containing a `Closure:` line.
+- Expected: target plan state cannot silently drift after a closure is recorded.
+- Actual: `FAIL-20260706-047` kept `Status: open` even though it had a closure and its close condition was satisfied.
+- Validation update: add a static check that fails when any `FAIL-*` section contains both `Status: open` and `Closure:`.
+- Close condition: `npm run check` fails on open-with-closure failure sections and passes after `FAIL-20260706-047` is closed.
+- Closure: `scripts/check.ps1` now rejects open failure sections that contain closure evidence, and `FAIL-20260706-047` is closed.
+
+### FAIL-20260706-058
+
+- Batch: B30
+- Environment: PowerShell validation command execution in the managed sandbox
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: closed
+- Symptom: `npm run check` fails before project scripts run because PowerShell resolves `npm` to `npm.ps1`.
+- Expected: validation commands run without changing host execution policy.
+- Actual: Windows execution policy blocks `C:\Program Files\nodejs\npm.ps1`.
+- Validation update: run npm scripts as `npm.cmd ...` in this shell and document the fallback if needed.
+- Close condition: B30 validation commands complete through `npm.cmd` without changing PowerShell execution policy.
+- Closure: B30 validation completed through `npm.cmd` without changing host execution policy.
+
+### FAIL-20260706-059
+
+- Batch: B30
+- Environment: read-only manual installer verification while Zotero process metadata is partially unavailable
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `npm.cmd run verify:manual` fails inside `runtime-status.ps1`.
+- Expected: runtime status tolerates missing or inaccessible process fields and still reports Zotero process count.
+- Actual: `runtime-status.ps1` calls `$_.StartTime.ToString("s")` and crashes when `StartTime` is null.
+- Validation update: format Zotero process metadata with null-safe helpers for `StartTime` and `Path`.
+- Close condition: `npm.cmd run verify:manual` passes when Zotero process metadata is incomplete.
+- Closure: `runtime-status.ps1` now uses null-safe process metadata helpers and `npm.cmd run verify:manual` passes.
+
+### FAIL-20260706-060
+
+- Batch: B30
+- Environment: target plan consistency static check near the end of `docs/target-mode-plan.md`
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: closed
+- Symptom: the failure-section regex stops only at the next `###` heading or EOF.
+- Expected: a `FAIL-*` section ends before the next Markdown heading at any level.
+- Actual: the last `FAIL-*` section can include later `## Revised Validation Checklist` or `## Real Commit Log` content and falsely detect closure evidence there.
+- Validation update: stop failure-section parsing at the next Markdown heading of any level.
+- Close condition: `scripts/check.ps1` uses a heading-boundary regex that cannot include later `##` sections in a failure body.
+- Closure: `scripts/check.ps1` now stops failure-section parsing at any Markdown heading level.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1883,6 +1971,10 @@ End batch validation checklist:
 - Check Tools menu active reader selection never falls back to selected library items or arbitrary first PDF reader.
 - Check PDF viewer context lookup supports Zotero 9.0.5 direct `reader._iframeWindow`.
 - Check PDF reader detection requires explicit `pdf` type from `reader.type`, `reader._type`, or `reader._item.attachmentReaderType`, and rejects EPUB plus type-missing readers.
+- Check target plan failure sections cannot have `Status: open` and `Closure:` at the same time.
+- Check Windows PowerShell validation can use `npm.cmd` when `npm.ps1` is blocked by execution policy.
+- Check runtime status handles null or inaccessible Zotero process `StartTime` and `Path` fields.
+- Check target-plan failure-section parsing stops before the next Markdown heading at any level.
 
 ## Real Commit Log
 
@@ -1949,3 +2041,4 @@ End batch validation checklist:
 - B28 XPI SHA256 `c9372a54ba896172f43cae7e71be1e00d53d0e906d0513b013aaf620ba22c0e1` was built in `outputs/` for manual Zotero add-on manager installation.
 - `a5cbf3c` B29 require explicit PDF reader type.
 - B29 XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1` was built in `outputs/` for manual Zotero add-on manager installation.
+- B30 XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1` was built in `outputs/` for manual Zotero add-on manager installation.
