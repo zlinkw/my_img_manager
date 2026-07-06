@@ -54,6 +54,12 @@ if (!$package.scripts.'smoke:preflight') {
 if (!$package.scripts.'smoke:wait') {
   throw "smoke:wait script missing"
 }
+if (!$package.scripts.'install:xpi') {
+  throw "install:xpi script missing"
+}
+if ($package.scripts.'install:xpi' -ne "powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1 -InstallMode XPI") {
+  throw "install:xpi script must call install-global.ps1 -InstallMode XPI"
+}
 if (!(Test-Path -LiteralPath .\scripts\runtime-status.ps1)) {
   throw "runtime-status.ps1 missing"
 }
@@ -84,6 +90,23 @@ if ($preflightScript -notmatch "xpiInstallValid") {
 }
 if ($preflightScript -match "startupCache.*\.containsAddonID") {
   throw "smoke preflight must not hard-fail on raw startup cache add-on id hints"
+}
+
+$installScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\install-global.ps1
+if ($installScript -notmatch 'ValidateSet\("Proxy",\s*"XPI"\)') {
+  throw "install-global.ps1 must expose Proxy and XPI install modes"
+}
+if ($installScript -notmatch "Install-ProfileXPI") {
+  throw "install-global.ps1 must support profile XPI fallback"
+}
+if ($installScript -notmatch "npm run install:xpi") {
+  throw "install-global.ps1 must print the XPI fallback command when Zotero is running"
+}
+if ($installScript -notmatch 'before writing proxy"[^\r\n]*\r?\n\s*return\s+\$false') {
+  throw "Proxy mode must refuse live source switching before writing proxy"
+}
+if ($installScript -notmatch "RetryCommand") {
+  throw "install-global.ps1 must use mode-specific retry command guidance"
 }
 
 if (!(Test-Path -LiteralPath .\prefs.js)) {

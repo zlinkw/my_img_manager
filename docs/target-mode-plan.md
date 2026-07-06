@@ -592,6 +592,57 @@ End batch validation checklist:
 - `npm run runtime:status`: passed after install; temp child count 0.
 - B16 post implementation review agent did not return before timeout and was closed; local static checks passed.
 
+### B17 XPI Install Fallback
+
+Status: complete; runtime registration pending user-controlled Zotero close, reinstall, and launch.
+
+Plan:
+
+- Add a formal XPI install mode that copies the built XPI into the Zotero profile extensions directory and removes the development proxy for that add-on when switching to XPI mode.
+- Keep `install:global` as the development proxy install used for fast iteration, but expose a separate script for XPI fallback.
+- Make runtime diagnostics and preflight keep accepting either valid development proxy or valid XPI source.
+- Do not close or restart Zotero automatically; if Zotero is running, XPI mode must report that a clean source switch requires closing Zotero.
+
+Pre batch validation:
+
+- Git worktree clean at B17 start commit `64dd171`.
+- `npm run runtime:status`: Zotero running with process count 3, development proxy valid, no profile XPI install source, registration false, `rescan.needsRescan: true`.
+- B16 preflight source validation can accept XPI source, but installer cannot yet create that XPI source.
+
+End batch validation checklist:
+
+- `npm run check`: passed and asserts XPI install mode script exists.
+- `npm run install:xpi`: passed in protected mode while Zotero is running; it did not switch source and instructed to close Zotero and rerun.
+- `npm run build`: passed, XPI SHA256 `0278efa14ba1e7b99f9c88298af808988e6c0c757d53e7ca2a248d13b5720d8a`.
+- `npm run install:global`: passed and kept development proxy behavior.
+- XPI fallback mode is available for use after the user closes Zotero.
+- `npm run runtime:status`: passed and reports profile XPI source state.
+
+### B18 XPI Source Switch Guardrails
+
+Status: complete; closed-Zotero XPI copy validation still pending under FAIL-034.
+
+Plan:
+
+- Reject source switching while Zotero is running in both directions: proxy to XPI and XPI to proxy.
+- Make live-runner messages mode-specific so `install:xpi` never instructs the user to rerun `install:global`.
+- Strengthen static checks for the exact `install:xpi` package command and source-switch guardrails.
+- Keep FAIL-034 open until XPI copy is actually validated with Zotero closed.
+
+Pre batch validation:
+
+- B17 review agent reported four P2 issues: proxy mode can write proxy while profile XPI still exists if Zotero is running, XPI mode prints a conflicting `install:global` rescan instruction, static checks are too loose, and FAIL-034 was given a closure before closed-Zotero XPI copy validation.
+- `npm run check`: passed before B18 changes but did not catch these issues.
+
+End batch validation checklist:
+
+- `npm run check`: passed and catches missing/incorrect `install:xpi` command plus missing source-switch guardrail marker.
+- `npm run install:xpi`: passed while Zotero is running; prints only XPI-specific rerun guidance and does not switch sources.
+- `npm run install:global`: passed while Zotero is running; keeps proxy behavior and does not conflict with absent XPI source.
+- `npm run runtime:status`: passed and reports no profile XPI source and valid development proxy.
+- `npm run build`: passed, XPI SHA256 `0278efa14ba1e7b99f9c88298af808988e6c0c757d53e7ca2a248d13b5720d8a`.
+- `npm run install:global`: passed after build and reported rescan pending because Zotero is running.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -664,6 +715,18 @@ End batch validation checklist:
 - B16 `npm run build`: passed, XPI SHA256 `bcdd8fcf42017e06eff5b3523225200f1ac90237a93d3ce08b9cf8a948d80a8f`.
 - B16 `npm run install:global`: passed and reported rescan pending because Zotero is running.
 - B16 `npm run runtime:status` after install: passed; Zotero running, registration false, `rescan.needsRescan: true`, temp child count 0.
+- B17 `npm run check`: passed.
+- B17 `npm run install:xpi`: passed in protected mode while Zotero is running and did not switch source.
+- B17 `npm run build`: passed, XPI SHA256 `0278efa14ba1e7b99f9c88298af808988e6c0c757d53e7ca2a248d13b5720d8a`.
+- B17 `npm run install:global`: passed and reported rescan pending because Zotero is running.
+- B17 `npm run runtime:status`: passed; development proxy valid, profile XPI source absent, registration false, `rescan.needsRescan: true`, temp child count 0.
+- B18 `npm run install:xpi`: passed while Zotero is running; output only points back to `npm run install:xpi`.
+- B18 `npm run install:global`: passed while Zotero is running; proxy behavior retained.
+- B18 first `npm run check`: failed due invalid PowerShell regex escape for `$false`; recorded as FAIL-039 before fixing.
+- B18 `npm run check`: passed after regex fix.
+- B18 `npm run runtime:status`: passed; development proxy valid, profile XPI source absent, registration false, `rescan.needsRescan: true`, temp child count 0.
+- B18 `npm run build`: passed, XPI SHA256 `0278efa14ba1e7b99f9c88298af808988e6c0c757d53e7ca2a248d13b5720d8a`.
+- B18 `npm run install:global`: passed after build and reported rescan pending because Zotero is running.
 
 ## New Failures
 
@@ -673,7 +736,7 @@ End batch validation checklist:
 - Environment: Windows, Zotero profile `aalpald9.default`, Python 3.12.4
 - Zotero version target: 9.0.5
 - Severity: P1
-- Status: closed
+- Status: open
 - Symptom: local Python does not provide `fitz`, so original embedded image extraction cannot run through PyMuPDF.
 - Expected: helper can import PyMuPDF and extract image xrefs.
 - Actual: `ModuleNotFoundError: No module named 'fitz'`.
@@ -1069,7 +1132,7 @@ End batch validation checklist:
 - Environment: B15 runtime diagnostics source payload check
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: optional `content\helper\pdf_image_extract.py` is included in the source missing-payload list that preflight treats as a registration-blocking failure.
 - Expected: default preview-index runtime does not require Python helper files; helper presence may be reported as optional diagnostics only.
 - Actual: missing helper would populate `missingPayload` and trigger `Proxy target payload missing`.
@@ -1119,6 +1182,90 @@ End batch validation checklist:
 - Close condition: real commit log contains B14 validation and review-timeout docs commits plus B15 commit.
 - Closure: real commit log now includes `5b6efd0`, `98bc1ba`, and `1ef08d1`.
 
+### FAIL-20260706-034
+
+- Batch: B17
+- Environment: install script and profile source diagnostics
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: runtime diagnostics and preflight can recognize a profile XPI install source, but no install script can create one.
+- Expected: there is a documented command to switch a profile from development proxy install to copied XPI install after Zotero is closed.
+- Actual: `npm run install:global` only writes a development proxy path into the profile.
+- Validation update: add XPI install mode/script and static checks.
+- Close condition: XPI fallback command exists, refuses unsafe live source switching while Zotero is running, and can copy the built XPI when Zotero is closed.
+- Partial progress: `npm run install:xpi` exists and refuses unsafe live source switching while Zotero is running; closed-Zotero XPI copy validation remains pending.
+
+### FAIL-20260706-035
+
+- Batch: B18
+- Environment: proxy install mode with an existing profile XPI source and Zotero running
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: proxy mode can leave both a development proxy and copied XPI source in the profile.
+- Expected: source switching is rejected while Zotero is running, preventing dual-source state.
+- Actual: if a profile XPI exists and Zotero is running, the script warns but still writes the proxy file.
+- Validation update: make `Install-DevelopmentProxy` return without writing proxy when source switching cannot safely remove the profile XPI.
+- Close condition: static check enforces the guarded return and runtime output does not switch source while Zotero is running.
+- Closure: `Install-DevelopmentProxy` now returns `$false` before writing proxy when a profile XPI exists and Zotero is running; static check asserts this guard.
+
+### FAIL-20260706-036
+
+- Batch: B18
+- Environment: XPI install mode with Zotero running
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `install:xpi` prints an XPI rerun instruction and then the generic rescan instruction tells the user to rerun `install:global`.
+- Expected: XPI mode only tells the user to close Zotero and rerun `npm run install:xpi`.
+- Actual: generic rescan message points to `install:global`, which switches back to proxy mode.
+- Validation update: make source-switch and rescan guidance mode-specific.
+- Close condition: `npm run install:xpi` output while Zotero is running does not mention rerunning `install:global`.
+- Closure: `Enable-ExtensionDirectoryRescan` now receives a mode-specific retry command; `install:xpi` output only points to `npm run install:xpi`.
+
+### FAIL-20260706-037
+
+- Batch: B18
+- Environment: static install-script validation
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `npm run check` did not catch B17 source-switch bugs.
+- Expected: static checks cover the exact `install:xpi` command and source-switch guardrail markers.
+- Actual: checks only looked for loose strings.
+- Validation update: assert exact package script and guarded return markers.
+- Close condition: removing guardrail marker or changing `install:xpi` command makes `npm run check` fail.
+- Closure: `npm run check` now asserts exact `install:xpi` command, guarded return marker, and mode-specific retry command marker.
+
+### FAIL-20260706-038
+
+- Batch: B18
+- Environment: target plan execution source
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: FAIL-034 had a closure line before closed-Zotero XPI copy validation.
+- Expected: FAIL-034 remains open until copied XPI install is validated while Zotero is closed.
+- Actual: B17 documented a closure after only live-runner refusal was verified.
+- Validation update: downgrade closure to partial progress and add closed-Zotero validation to pending checklist.
+- Close condition: plan keeps FAIL-034 open until actual closed-Zotero XPI copy succeeds.
+- Closure: FAIL-034 remains open with only partial progress recorded, and B18 status notes closed-Zotero XPI copy validation is still pending.
+
+### FAIL-20260706-039
+
+- Batch: B18
+- Environment: `npm run check` with PowerShell regex for source-switch guard
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: static guardrail regex for `return $false` expands `$false` inside a double-quoted PowerShell string and produces an invalid regex escape.
+- Expected: static check regex treats `$false` literally.
+- Actual: `npm run check` fails with `Unrecognized escape sequence \F`.
+- Validation update: use a single-quoted regex or escaped dollar for the guardrail assertion.
+- Close condition: `npm run check` passes and still catches missing guarded return.
+- Closure: guardrail regex now uses a single-quoted pattern, and `npm run check` passes.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1158,6 +1305,9 @@ End batch validation checklist:
 - Check startup cache add-on-id scan is labeled as raw-byte weak hint unless decompressed parsing is implemented.
 - Check smoke preflight accepts valid development proxy or valid profile XPI source.
 - Check real commit log includes documentation-only batch commits.
+- Check install scripts expose a copied-XPI fallback for independent profile installation.
+- Check install scripts reject live source switching in both directions.
+- Check XPI install mode does not tell the user to rerun proxy install.
 
 ## Real Commit Log
 

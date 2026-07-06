@@ -43,12 +43,14 @@ The helper discovery also checks the local conda `zlk` environment first when pr
 npm run check
 npm run build
 npm run install:global
+npm run install:xpi
 npm run runtime:status
 npm run smoke:preflight
 npm run smoke:wait
 ```
 
 The global install script writes a Zotero extension proxy file into each detected Zotero profile. Restart Zotero to load a newly installed plugin.
+`install:xpi` is the profile XPI fallback for testing the packaged plugin rather than the development proxy; close Zotero before running it so the installer can switch the source cleanly.
 `runtime:status` reports whether the proxy is installed, whether the proxy target manifest is readable, whether expected payload files exist, whether Zotero has registered the add-on in the current session, whether startup cache/UUID hints exist, and whether temp files remain.
 If `runtime:status` reports `rescan.needsRescan: true`, close Zotero and run `npm run install:global` once more. The installer will then clear Zotero's extension scan cache prefs so the proxy is registered on the next Zotero launch.
 
