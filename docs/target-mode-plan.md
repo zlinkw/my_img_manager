@@ -1386,7 +1386,7 @@ End batch validation checklist:
 
 ### B46 Selection Overlay Cleanup Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1402,7 +1402,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `603eaf0f0d4985e3ad339cdac83ad89c6d00b1684a58f597137ce19de7c43b45`, bytes `29930`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: planning subagent agreed with B46 scope; local read-only review found no P0-P2 blockers.
+- Git commit records B46 implementation: `82fdde1`.
 
 ## Current Validation Results
 
@@ -3012,12 +3018,13 @@ End batch validation checklist:
 - Environment: manual clip selection overlay lifecycle
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: starting Clip Figure again removes an existing selection overlay with `existing.remove()` but does not restore the old page element's previous `style.position`.
 - Expected: replacing, cancelling, or completing a clip overlay restores the host page position to its exact previous value.
 - Actual: repeated clip starts can leave a PDF page host stuck at `position: relative`, causing avoidable reader layout/style drift.
 - Validation update: introduce a cleanup helper that stores previous host position on the overlay and restores it whenever an overlay is removed.
 - Close condition: tests/static checks prove existing overlay replacement and normal cleanup restore host position.
+- Closure: selection overlay installation now cleans existing overlays through `cleanupSelectionOverlay()`, stores previous host position on each overlay, and restores it for replacement, cancel, small-selection, and pointer-up cleanup paths; tests and static checks cover the lifecycle.
 
 ## Revised Validation Checklist
 
@@ -3220,3 +3227,5 @@ End batch validation checklist:
 - B44 XPI SHA256 `54a31be2fbad818d908d33ecd4953cf853cf7de4e0301df9cce8c497d1d5aa2b` was built in `outputs/` for manual Zotero add-on manager installation.
 - `d4d3b1d` B45 guard remaining save entry options.
 - B45 XPI SHA256 `4d509d996d12f04d8bd5945d155dab8e60b60d81b32f48c1a3f95a89b0940b3b` was built in `outputs/` for manual Zotero add-on manager installation.
+- `82fdde1` B46 restore selection overlay host state.
+- B46 XPI SHA256 `603eaf0f0d4985e3ad339cdac83ad89c6d00b1684a58f597137ce19de7c43b45` was built in `outputs/` for manual Zotero add-on manager installation.
