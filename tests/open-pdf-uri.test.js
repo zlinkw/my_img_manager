@@ -536,6 +536,50 @@ assert.throws(
   /Preview image data URL is invalid/,
   "malformed preview data URL must be rejected before HTML output",
 );
+assert.throws(
+  () => buildIndexHTML({
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    entries: null,
+    scope: "clip",
+    qualityKey: "medium",
+  }),
+  /Preview index entries must be an array/,
+  "non-array preview entries must fail with a clear validation error",
+);
+assert.throws(
+  () => buildIndexHTML({
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    entries: [],
+    scope: "clip",
+    qualityKey: "medium",
+  }),
+  /Preview index must include at least one entry/,
+  "empty preview entries must fail with a clear validation error",
+);
+assert.throws(
+  () => buildIndexHTML({
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    entries: [null],
+    scope: "clip",
+    qualityKey: "medium",
+  }),
+  /Preview image data URL is invalid/,
+  "null preview entries must be normalized before data URL validation",
+);
+assert.throws(
+  () => buildIndexHTML({
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    entries: ["bad"],
+    scope: "clip",
+    qualityKey: "medium",
+  }),
+  /Preview image data URL is invalid/,
+  "scalar preview entries must be normalized before field mutation",
+);
 
 const helperCapOutputDir = "C:\\Temp\\pdf-image-saver\\cap-job";
 const helperImages = Array.from({ length: 5 }, (_, index) => ({ file_path: `${helperCapOutputDir}\\image-${index}.jpg` }));

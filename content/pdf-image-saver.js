@@ -1044,7 +1044,8 @@ var PdfImageSaver = (() => {
     const sourceTitle = getSourceTitle(parentItem, attachment);
     const normalizedScope = normalizeScope(scope);
     const previewQualityKey = normalizeQualityKey(qualityKey);
-    const entriesHTML = entries
+    const normalizedEntries = normalizePreviewEntries(entries);
+    const entriesHTML = normalizedEntries
       .map((entry, index) => {
         const pageTarget = normalizeEntryPageTarget(entry);
         const fallbackID = `preview-${index + 1}`;
@@ -1100,7 +1101,7 @@ var PdfImageSaver = (() => {
       zotero_version: Zotero.version,
       parent_item: serializeItem(parentItem),
       pdf_attachment: serializeAttachment(attachment),
-      entries: entries.map((entry) => ({
+      entries: normalizedEntries.map((entry) => ({
         id: entry.id,
         mode: entry.mode,
         detector: entry.detector,
@@ -1153,6 +1154,18 @@ var PdfImageSaver = (() => {
   <pre>${escapeHTML(JSON.stringify(metadata, null, 2))}</pre>
 </body>
 </html>`;
+  }
+
+  function normalizePreviewEntries(entries) {
+    if (!Array.isArray(entries)) {
+      throw new Error("Preview index entries must be an array.");
+    }
+    if (!entries.length) {
+      throw new Error("Preview index must include at least one entry.");
+    }
+    return entries.map((entry) => (
+      entry && typeof entry === "object" && !Array.isArray(entry) ? entry : {}
+    ));
   }
 
   async function importIndexAttachment({ attachment, parentItem, indexPath, scope, pageIndex }) {

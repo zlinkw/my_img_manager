@@ -435,6 +435,33 @@ if ($mainJS -notmatch "source_region:\s*entry\.sourceRegion") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexHTML") {
   throw "buildIndexHTML must remain exported for regression tests"
 }
+if ($mainJS -notmatch "function\s+normalizePreviewEntries\s*\(\s*entries\s*\)") {
+  throw "HTML preview entry-list normalizer missing"
+}
+if ($mainJS -notmatch "Preview index entries must be an array") {
+  throw "HTML preview non-array entry lists must fail clearly"
+}
+if ($mainJS -notmatch "Preview index must include at least one entry") {
+  throw "HTML preview empty entry lists must fail clearly"
+}
+if ($mainJS -notmatch "const\s+normalizedEntries\s*=\s*normalizePreviewEntries\(entries\)") {
+  throw "HTML preview entries must be normalized before field mutation"
+}
+if ($mainJS -notmatch "const\s+entriesHTML\s*=\s*normalizedEntries\s*\r?\n\s*\.map") {
+  throw "HTML preview HTML output must use normalized entries"
+}
+if ($mainJS -notmatch "entries:\s*normalizedEntries\.map") {
+  throw "HTML preview metadata output must use normalized entries"
+}
+if ($mainJS -match "const\s+entriesHTML\s*=\s*entries\s*\r?\n\s*\.map") {
+  throw "HTML preview HTML output must not use raw entries.map"
+}
+if ($mainJS -match "entries:\s*entries\.map") {
+  throw "HTML preview metadata output must not use raw entries.map"
+}
+if ($mainJS -notmatch "entry\s+&&\s+typeof\s+entry\s+===\s+`"object`"\s+&&\s+!Array\.isArray\(entry\)") {
+  throw "HTML preview entry normalizer must convert non-object entries before mutation"
+}
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexTitle") {
   throw "buildIndexTitle must remain exported for regression tests"
 }

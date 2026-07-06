@@ -1270,6 +1270,27 @@ End batch validation checklist:
 - Code review: passed; no P0-P2 blockers found after formatter branch guard fix.
 - Git commit records B41 implementation: `5a20a63`.
 
+### B42 HTML Preview Entry Container Normalization
+
+Status: in progress.
+
+Plan:
+
+- Normalize preview index entry containers before mutating per-entry fields.
+- Reject non-array or empty entry lists with clear preview-index errors.
+- Convert non-object entry values to safe empty entry objects before scalar/page/bbox/data URL validation.
+- Keep normal reader canvas preview output unchanged.
+
+Pre batch validation:
+
+- Git worktree clean at B42 start commit `9626d15`.
+- B42 planning pass found `buildIndexHTML()` calls `entries.map()` and then mutates `entry.*`, so non-array entries or scalar/null entry values can produce unclear TypeErrors before existing data URL validation; recorded as `FAIL-20260706-096`.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -2746,6 +2767,19 @@ End batch validation checklist:
 - Close condition: `npm.cmd run check` passes while still blocking raw `report.status` branches in `formatHelperFailure()`.
 - Closure: raw-status static guard is scoped to `formatHelperFailure()` and `npm.cmd run check` passes while preserving positive normalized branch checks.
 
+### FAIL-20260706-096
+
+- Batch: B42
+- Environment: synced HTML preview index entry list normalization
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `buildIndexHTML()` calls `entries.map()` and mutates `entry.*` without first normalizing the entry list and entry containers.
+- Expected: malformed entry containers produce clear preview-index validation errors or safe fallback entry objects before field normalization.
+- Actual: non-array entries or null/scalar entries can throw unclear TypeErrors before the plugin reaches existing preview data URL validation.
+- Validation update: normalize the preview entry list at the start of HTML index generation and add regression/static checks.
+- Close condition: tests/static checks prove non-array entry lists fail clearly and scalar/null entries are normalized before data URL validation.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2839,6 +2873,7 @@ End batch validation checklist:
 - Check optional helper schema mismatch errors normalize schema values before warning output.
 - Check optional helper failure formatter handles missing or malformed helper reports without throwing.
 - Check B41 raw-status static guard is scoped to the helper failure formatter.
+- Check synced HTML preview entry lists and entry containers are normalized before field mutation.
 
 ## Real Commit Log
 
