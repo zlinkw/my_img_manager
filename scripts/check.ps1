@@ -376,6 +376,9 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*prepareSelectionOverlayHost") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*cleanupSelectionOverlay") {
   throw "Selection overlay cleanup helper must remain exported for regression tests"
 }
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*showReaderToast") {
+  throw "Reader toast helper must remain exported for regression tests"
+}
 if ($mainJS -notmatch "omittedCount:\s*\(limited\.omittedCount\s*\|\|\s*0\)\s*\+\s*missingCount\s*\+\s*errorCount") {
   throw "Original image existence filter must add missing and unreadable files to omission count"
 }
@@ -730,6 +733,31 @@ if ($mainJS -notmatch "function\s+prepareSelectionOverlayHost\s*\(\s*pageElement
 }
 if ($mainJS -notmatch "function\s+cleanupSelectionOverlay\s*\(\s*overlay\s*\)[\s\S]*overlay\.__pdfImageSaverHost\s*\|\|\s*overlay\.parentElement[\s\S]*host\.style\.position\s*=\s*previousPosition[\s\S]*overlay\.remove\?\.\(\)") {
   throw "Selection overlay cleanup helper must restore host position before removal"
+}
+$readerToastEntry = [regex]::Match($mainJS, "function\s+showReaderToast\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+showToastInDocument")
+if (!$readerToastEntry.Success) {
+  throw "Reader toast function block not found"
+}
+if ($readerToastEntry.Value -notmatch "if\s*\(\s*!isPDFReader\(reader\)\s*\)\s*\{[\s\S]*showFallbackAlert\(fallbackWindow,\s*message\)[\s\S]*return;") {
+  throw "Reader toast must use immediate fallback when no PDF reader is available"
+}
+if ($readerToastEntry.Value -notmatch "if\s*\(\s*!isPDFReader\(reader\)\s*\)\s*\{[\s\S]*return;[\s\S]*const\s+immediateContext\s*=\s*getPDFViewerContextCandidate\(reader\)") {
+  throw "Reader toast must check missing/non-PDF reader before looking up reader document context"
+}
+if ($readerToastEntry.Value -notmatch "showToastInDocument\(immediateContext\?\.doc,\s*message,\s*level\)[\s\S]*showToastInDocument\(fallbackWindow\?\.document,\s*message,\s*level\)") {
+  throw "Reader toast must prefer reader document before falling back to the main window document"
+}
+if ($readerToastEntry.Value -match "showToastInDocument\(immediateContext\?\.doc\s*\|\|\s*fallbackWindow\?\.document") {
+  throw "Reader toast must not combine reader and main-window document fallback before PDF reader check"
+}
+if ($readerToastEntry.Value -match "Services\.prompt\.alert") {
+  throw "Reader toast should route fallback prompts through showFallbackAlert"
+}
+if ($mainJS -notmatch "function\s+showToastInDocument\s*\(\s*doc\s*,\s*message\s*,\s*level\s*\)[\s\S]*return\s+false;[\s\S]*doc\.body\.appendChild\(toast\)[\s\S]*return\s+true;") {
+  throw "Reader toast document renderer must return whether toast display succeeded"
+}
+if ($mainJS -notmatch "function\s+showFallbackAlert\s*\(\s*fallbackWindow\s*,\s*message\s*\)[\s\S]*Services\.prompt\.alert\(fallbackWindow,\s*`"PDF Image Saver`",\s*message\)") {
+  throw "Reader toast fallback alert helper missing"
 }
 if ($mainJS -notmatch "annotation_key:\s*entry\.annotationKey") {
   throw "metadata must include annotation_key"

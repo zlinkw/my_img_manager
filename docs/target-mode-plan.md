@@ -1410,6 +1410,27 @@ End batch validation checklist:
 - Code review: planning subagent agreed with B46 scope; local read-only review found no P0-P2 blockers.
 - Git commit records B46 implementation: `82fdde1`.
 
+### B47 Reader Toast Fallback Fast Path
+
+Status: in progress.
+
+Plan:
+
+- Make reader toast fallback avoid the full PDF viewer context wait when no reader or no PDF reader is available.
+- Split toast rendering and fallback alert helpers so behavior is testable and compact.
+- Add behavior/static checks proving missing-reader toast feedback is immediate and still uses reader document toast when a context is already available.
+
+Pre batch validation:
+
+- Git worktree clean at B47 start commit `d102a90`.
+- B47 planning pass found `showReaderToast(null, ...)` calls `getPDFViewerContext(null)` and waits through PDF context retries before falling back to `Services.prompt.alert`; recorded as `FAIL-20260706-106`.
+- B47 code review found the first fix can render a toast in `fallbackWindow.document` before checking `!isPDFReader(reader)`, so missing-reader feedback can still avoid the intended alert path; recorded as `FAIL-20260706-107`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3026,6 +3047,32 @@ End batch validation checklist:
 - Close condition: tests/static checks prove existing overlay replacement and normal cleanup restore host position.
 - Closure: selection overlay installation now cleans existing overlays through `cleanupSelectionOverlay()`, stores previous host position on each overlay, and restores it for replacement, cancel, small-selection, and pointer-up cleanup paths; tests and static checks cover the lifecycle.
 
+### FAIL-20260706-106
+
+- Batch: B47
+- Environment: reader toast fallback without an active PDF reader context
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `showReaderToast(null, ...)` calls `getPDFViewerContext(null)` and waits through retry delays before falling back to a prompt alert.
+- Expected: missing-reader or non-PDF-reader feedback should show a fallback alert immediately, while valid reader documents still get in-reader toast UI.
+- Actual: error feedback paths invoked without a reader can be delayed by context polling even though no PDF context can appear.
+- Validation update: add a fast fallback path plus regression/static checks for no-reader toast behavior.
+- Close condition: tests/static checks prove no-reader toast does not call `Zotero.Promise.delay()` and still displays the fallback alert.
+
+### FAIL-20260706-107
+
+- Batch: B47
+- Environment: reader toast fallback with Zotero main window document available
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the B47 fast-path fix can render a toast in `fallbackWindow.document` before checking `!isPDFReader(reader)`.
+- Expected: missing-reader or non-PDF-reader feedback should use the immediate alert fallback even when the Zotero main window has a document body.
+- Actual: `showReaderToast(null, ...)` can create a transient main-window toast instead of the prompt alert.
+- Validation update: move the non-PDF fallback before any fallback-window document toast attempt and test a main-window document stub.
+- Close condition: tests/static checks prove no-reader toast with a main-window document does not create a DOM toast and does show `Services.prompt.alert`.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3129,6 +3176,8 @@ End batch validation checklist:
 - Check reader active-job keys normalize malformed scopes and tolerate missing option objects.
 - Check original-image normalized-scope static coverage is scoped to `saveOriginalImagesFromReader()`.
 - Check selection overlay replacement and cleanup restore the previous page host position.
+- Check reader toast fallback does not wait for PDF context when no reader is available.
+- Check reader toast fallback uses alert rather than main-window DOM toast when no PDF reader is available.
 
 ## Real Commit Log
 

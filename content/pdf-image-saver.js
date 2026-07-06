@@ -2009,25 +2009,45 @@ var PdfImageSaver = (() => {
 
   function showReaderToast(reader, message, level) {
     const fallbackWindow = Zotero.getMainWindow?.();
+    if (!isPDFReader(reader)) {
+      showFallbackAlert(fallbackWindow, message);
+      return;
+    }
+    const immediateContext = getPDFViewerContextCandidate(reader);
+    if (showToastInDocument(immediateContext?.doc, message, level)) {
+      return;
+    }
+    if (showToastInDocument(fallbackWindow?.document, message, level)) {
+      return;
+    }
     getPDFViewerContext(reader).then((context) => {
-      const doc = context?.doc || fallbackWindow?.document;
-      if (!doc?.body) {
-        Services.prompt.alert(fallbackWindow, "PDF Image Saver", message);
-        return;
+      if (!showToastInDocument(context?.doc || fallbackWindow?.document, message, level)) {
+        showFallbackAlert(fallbackWindow, message);
       }
-      ensureReaderStyles(doc);
-      const existing = doc.getElementById("pdf-image-saver-toast");
-      existing?.remove();
-      const toast = doc.createElement("div");
-      toast.id = "pdf-image-saver-toast";
-      toast.className = `pdf-image-saver-toast pdf-image-saver-${level || "info"}`;
-      toast.textContent = message;
-      doc.body.appendChild(toast);
-      doc.defaultView.setTimeout(() => toast.remove(), level === "error" ? 8000 : 3500);
     }).catch((error) => {
       logError(error);
-      Services.prompt.alert(fallbackWindow, "PDF Image Saver", message);
+      showFallbackAlert(fallbackWindow, message);
     });
+  }
+
+  function showToastInDocument(doc, message, level) {
+    if (!doc?.body) {
+      return false;
+    }
+    ensureReaderStyles(doc);
+    const existing = doc.getElementById("pdf-image-saver-toast");
+    existing?.remove();
+    const toast = doc.createElement("div");
+    toast.id = "pdf-image-saver-toast";
+    toast.className = `pdf-image-saver-toast pdf-image-saver-${level || "info"}`;
+    toast.textContent = message;
+    doc.body.appendChild(toast);
+    doc.defaultView.setTimeout(() => toast.remove(), level === "error" ? 8000 : 3500);
+    return true;
+  }
+
+  function showFallbackAlert(fallbackWindow, message) {
+    Services.prompt.alert(fallbackWindow, "PDF Image Saver", message);
   }
 
   function ensureReaderStyles(doc) {
@@ -2754,6 +2774,7 @@ var PdfImageSaver = (() => {
       saveClipPreviewIndex,
       saveOriginalImagesFromReader,
       savePagePreviewIndex,
+      showReaderToast,
       isPDFReader,
       normalizeAnnotationKey,
     },

@@ -5,6 +5,7 @@ const vm = require("vm");
 
 const root = path.resolve(__dirname, "..");
 const source = fs.readFileSync(path.join(root, "content", "pdf-image-saver.js"), "utf8");
+let delayCallCount = 0;
 
 const context = {
   console,
@@ -21,7 +22,9 @@ const context = {
     },
     version: "9.0.5-test",
     Promise: {
-      delay: async () => {},
+      delay: async () => {
+        delayCallCount += 1;
+      },
     },
     Prefs: {
       values: Object.create(null),
@@ -94,6 +97,7 @@ const {
   saveClipPreviewIndex,
   saveOriginalImagesFromReader,
   savePagePreviewIndex,
+  showReaderToast,
   isPDFReader,
   normalizeAnnotationKey,
 } = context.PdfImageSaver.__test__;
@@ -180,6 +184,46 @@ function createFakeOverlay(host, previousPosition) {
   };
 }
 
+function createFakeToastDocument() {
+  const bodyChildren = [];
+  const headChildren = [];
+  function createElement(tagName) {
+    return {
+      tagName,
+      id: "",
+      className: "",
+      textContent: "",
+      removed: false,
+      remove() {
+        this.removed = true;
+      },
+    };
+  }
+  return {
+    body: {
+      children: bodyChildren,
+      appendChild(element) {
+        bodyChildren.push(element);
+      },
+    },
+    head: {
+      children: headChildren,
+      appendChild(element) {
+        headChildren.push(element);
+      },
+    },
+    defaultView: {
+      setTimeout() {},
+    },
+    createElement,
+    getElementById(id) {
+      return [...bodyChildren, ...headChildren].find((element) => element.id === id && !element.removed) || null;
+    },
+    bodyChildren,
+    headChildren,
+  };
+}
+
 const unpositionedHost = { style: { position: "" } };
 const unpositionedOverlay = createFakeOverlay(unpositionedHost);
 prepareSelectionOverlayHost(unpositionedHost, unpositionedOverlay);
@@ -206,6 +250,29 @@ const replacedHost = { style: { position: "relative" } };
 const replacedOverlay = createFakeOverlay(replacedHost, "");
 cleanupSelectionOverlay(replacedOverlay);
 assert.strictEqual(replacedHost.style.position, "", "replaced overlay cleanup must restore previous host position from overlay metadata");
+const mainWindowToastDoc = createFakeToastDocument();
+context.Zotero.getMainWindow = () => ({ document: mainWindowToastDoc });
+context.Services.prompt.alerts = [];
+delayCallCount = 0;
+showReaderToast(null, "No reader fallback", "error");
+assert.strictEqual(delayCallCount, 0, "missing-reader toast must not wait for PDF context polling");
+assert.strictEqual(context.Services.prompt.alerts.length, 1, "missing-reader toast must show a fallback alert immediately");
+assert.strictEqual(context.Services.prompt.alerts[0].message, "No reader fallback", "fallback alert must preserve toast text");
+assert.strictEqual(mainWindowToastDoc.bodyChildren.length, 0, "missing-reader toast must not render into the main window document");
+assert.strictEqual(mainWindowToastDoc.headChildren.length, 0, "missing-reader toast must not inject styles into the main window document");
+
+const readerToastDoc = createFakeToastDocument();
+context.Services.prompt.alerts = [];
+delayCallCount = 0;
+showReaderToast(
+  { type: "pdf", _iframeWindow: { PDFViewerApplication: {}, document: readerToastDoc } },
+  "Reader document toast",
+  "success",
+);
+assert.strictEqual(delayCallCount, 0, "available reader toast must not poll for PDF context");
+assert.strictEqual(context.Services.prompt.alerts.length, 0, "available reader toast must not use fallback alert");
+assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "available reader toast must render into the reader document");
+assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "Reader document toast", "reader toast must preserve message text");
 assert.strictEqual(getContextPageIndex({ pageIndex: "4" }), 4, "context pageIndex strings must be accepted");
 assert.strictEqual(
   getContextPageIndex({ pageIndex: "-1", pageIndexFromContextMenu: "2" }),
