@@ -2151,7 +2151,7 @@ End batch validation checklist:
 
 ### B73 Source Region Session Guard And Skip Reason Fixes
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -2170,7 +2170,12 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed and covers in-session source-region duplicate matching plus mixed duplicate/byte-cap feedback.
+- `npm.cmd run check`: passed and now enforces source-region keys in in-session duplicate memory plus mixed duplicate/byte-cap message coverage.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `7f4983c2e9f5b61ef8e939acc96f2d0ffabeee3d117ca392cdc893aca62fa05b`, bytes `34435`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
+- Git commit records B73 implementation: `52ef9c5`.
 
 ## Current Validation Results
 
@@ -4620,12 +4625,13 @@ End batch validation checklist:
 - Environment: in-session source-region duplicate guard
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: same-region duplicate protection works against persisted child HTML metadata but not the in-session duplicate cache.
 - Expected: after saving a region once, saving the same PDF/source region at a different preview quality in the same session should be blocked by default.
 - Actual: `recentIndexSaves` stores quality-sensitive `preview_duplicate_key` values but not `source_region_key` values.
 - Validation update: remember and check source-region keys in the in-session duplicate cache, and add tests/static checks for the same-region different-quality path.
 - Close condition: tests and static checks prove `rememberPreviewIndexSave()` records source-region keys and `isDuplicatePreviewIndexSave()` checks them before persisted scanning.
+- Closure: `rememberPreviewIndexSave()` now stores `source_region_key` values, `isDuplicatePreviewIndexSave()` and auto-page filtering check in-session source-region keys, and tests/static checks cover same-region different-quality duplicates before persisted HTML is readable.
 
 ### FAIL-20260707-006
 
@@ -4633,12 +4639,13 @@ End batch validation checklist:
 - Environment: auto-page no-preview skip reason formatting
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: no-preview auto-page feedback reports all candidates as duplicates whenever any duplicate was skipped, even if other candidates were oversized or hit the byte cap.
 - Expected: mixed duplicate and byte-cap/oversized outcomes should tell the user both causes.
 - Actual: the no-preview branch uses only duplicate counters to choose the reason and hides byte-cap/oversized causes.
 - Validation update: pass byte-cap and oversized counters into the formatter and add mixed-reason tests/static checks.
 - Close condition: tests and static checks prove mixed duplicate plus byte-cap/oversized no-preview cases mention both duplicate and storage-cap causes.
+- Closure: `formatAutoDuplicateSkipReason()` now accepts duplicate, byte-limit, and oversized counters and reports mixed causes together; tests/static checks cover persisted duplicate plus byte-cap and session duplicate plus oversized cases.
 
 ## Revised Validation Checklist
 
@@ -4948,3 +4955,5 @@ End batch validation checklist:
 - B71 XPI SHA256 `cadc62a2136eceb340299a7b35948bb645e79ca4ec09584fa109875130f649cd` was built in `outputs/` for manual Zotero add-on manager installation.
 - `1ae5e61` B72 improve saved index actions.
 - B72 XPI SHA256 `f932ec6e4d242dff651740e9a1520b4fabab8a8cca44d53de2eec05e07324563` was built in `outputs/` for manual Zotero add-on manager installation.
+- `52ef9c5` B73 fix source region duplicate feedback.
+- B73 XPI SHA256 `7f4983c2e9f5b61ef8e939acc96f2d0ffabeee3d117ca392cdc893aca62fa05b` was built in `outputs/` for manual Zotero add-on manager installation.
