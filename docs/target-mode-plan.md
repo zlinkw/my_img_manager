@@ -2090,7 +2090,7 @@ End batch validation checklist:
 
 ### B71 Saved Index Scanner Review Fixes
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -2109,7 +2109,12 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed and covers child-list exception fallback plus unrelated text/html metadata rejection.
+- `npm.cmd run check`: passed and now enforces empty identity return on scanner child-list failure, plugin schema/storage/id metadata validation, and constrained legacy fallback.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `cadc62a2136eceb340299a7b35948bb645e79ca4ec09584fa109875130f649cd`, bytes `33734`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
+- Git commit records B71 implementation: `f56a0e1`.
 
 ## Current Validation Results
 
@@ -4475,12 +4480,13 @@ End batch validation checklist:
 - Environment: persisted saved-index duplicate scanner error handling
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `getExistingPreviewIndexIdentities()` returns `false` when `parentItem.getAttachments()` throws.
 - Expected: scanner failures should degrade to empty identity sets so saving can continue and callers can safely read `.indexKeys` and `.entryKeys`.
 - Actual: callers expect an identity object and can crash if child-list retrieval fails.
 - Validation update: return `createEmptyPreviewIndexIdentities()` from the exception branch and add tests/static checks for that invariant.
 - Close condition: tests and static checks prove child-list exceptions do not throw through duplicate detection and return no duplicate.
+- Closure: `getExistingPreviewIndexIdentities()` now returns empty identity sets from the child-list exception branch, duplicate checks degrade to no persisted duplicate, and tests/static checks cover the invariant.
 
 ### FAIL-20260706-160
 
@@ -4488,12 +4494,13 @@ End batch validation checklist:
 - Environment: persisted saved-index duplicate scanner candidate validation
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: broad `text/html` scanning can treat unrelated HTML metadata as this plugin's saved preview index.
 - Expected: duplicate decisions should use only metadata with this plugin's schema/storage markers, while legacy regex fallback remains limited to legacy title candidates.
 - Actual: any HTML child with first `<pre>` JSON containing `preview_index_key` can produce a false duplicate.
 - Validation update: validate parsed metadata with `schema_version`, `storage_mode`, and plugin id before using it; constrain legacy fallback by candidate title.
 - Close condition: tests and static checks prove unrelated HTML metadata is ignored while renamed valid plugin HTML metadata is still detected.
+- Closure: parsed HTML metadata must match `HELPER_SCHEMA_VERSION`, `reader_preview_index`, and plugin id before duplicate use; legacy fallback is limited to title candidates; tests/static checks cover unrelated HTML rejection and renamed valid HTML detection.
 
 ## Revised Validation Checklist
 
@@ -4793,3 +4800,5 @@ End batch validation checklist:
 - B69 XPI SHA256 `5cf967a54f51cb642ac44201b1f2b9dcc0b3214e8e9311a5d6feac0e1ff8837a` was built in `outputs/` for manual Zotero add-on manager installation; plugin payload unchanged from B68.
 - `b45db97` B70 harden saved index duplicates.
 - B70 XPI SHA256 `d1cbf42132710991fba392d0375b41ba52fa097ebad34e17a93312c7810ffcab` was built in `outputs/` for manual Zotero add-on manager installation.
+- `f56a0e1` B71 validate saved index scanner.
+- B71 XPI SHA256 `cadc62a2136eceb340299a7b35948bb645e79ca4ec09584fa109875130f649cd` was built in `outputs/` for manual Zotero add-on manager installation.
