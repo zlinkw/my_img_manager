@@ -1975,7 +1975,7 @@ End batch validation checklist:
 
 ### B67 Open PDF URI Compatibility
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1991,7 +1991,12 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed and proves no-annotation `open_pdf_uri` remains page-only while `source_region_key` distinguishes same-page entries.
+- `npm.cmd run check`: passed and now rejects unsupported `pdfImageSaverRegion` custom query parameters.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `071e00bfee69d46d7c841d2401a865a8f26692110c0fd8f9faf96ebce8146157`, bytes `32875`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
+- Git commit records B67 implementation: `2b7de9b`.
 
 ## Current Validation Results
 
@@ -4231,12 +4236,13 @@ End batch validation checklist:
 - Environment: Zotero 9.0.5 `zotero://open-pdf` URI handling
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: B66 appends `pdfImageSaverRegion=` to `open_pdf_uri` for no-annotation entries.
 - Expected: `open_pdf_uri` should only use parameters Zotero handles, while source-region identity stays in separate metadata when no annotation key exists.
 - Actual: local Zotero 9.0.5 `ZoteroProtocolHandler.mjs` maps only `annotation`, `page`, `cfi`, and `sel`; custom `pdfImageSaverRegion` is ignored, creating false precision.
 - Validation update: remove unsupported custom open-pdf parameters and add tests/static checks that no `pdfImageSaverRegion` query is emitted.
 - Close condition: `npm.cmd run test` and `npm.cmd run check` pass while proving no-annotation `open_pdf_uri` remains page-only and `source_region_key` still distinguishes same-page entries.
+- Closure: `buildOpenPDFURI()` now emits only Zotero-supported `page` and optional `annotation` parameters, while saved index metadata keeps `source_region_key`; `npm.cmd run test` and `npm.cmd run check` pass.
 
 ## Revised Validation Checklist
 
@@ -4520,3 +4526,5 @@ End batch validation checklist:
 - B65 XPI SHA256 `cc99aa9bdfb12901a93bd6ed607afe2da394e23c6653067180e25cf23dc9155e` was built in `outputs/` for manual Zotero add-on manager installation.
 - `fc3d6cd` B66 stabilize saved index identity.
 - B66 XPI SHA256 `84c0ced82e50b9b4f6947a6bbe19e58eff18fc823358969f17ea00b9c75ededf` was built in `outputs/` for manual Zotero add-on manager installation.
+- `2b7de9b` B67 keep open-pdf links compatible.
+- B67 XPI SHA256 `071e00bfee69d46d7c841d2401a865a8f26692110c0fd8f9faf96ebce8146157` was built in `outputs/` for manual Zotero add-on manager installation.
