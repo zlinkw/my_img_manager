@@ -274,6 +274,18 @@ assert.strictEqual(delayCallCount, 0, "available reader toast must not poll for 
 assert.strictEqual(context.Services.prompt.alerts.length, 0, "available reader toast must not use fallback alert");
 assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "available reader toast must render into the reader document");
 assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "Reader document toast", "reader toast must preserve message text");
+
+showReaderToast(
+  { type: "pdf", _iframeWindow: { PDFViewerApplication: {}, document: readerToastDoc } },
+  { bad: true },
+  { level: "bad" },
+);
+assert.strictEqual(readerToastDoc.bodyChildren[1].textContent, "PDF Image Saver notification.", "malformed toast messages must normalize to compact fallback text");
+assert.strictEqual(readerToastDoc.bodyChildren[1].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
+
+context.Services.prompt.alerts = [];
+showReaderToast(null, new Error("Structured failure"), "fatal");
+assert.strictEqual(context.Services.prompt.alerts[0].message, "Structured failure", "fallback alerts must use normalized error messages");
 assert.strictEqual(getContextPageIndex({ pageIndex: "4" }), 4, "context pageIndex strings must be accepted");
 assert.strictEqual(
   getContextPageIndex({ pageIndex: "-1", pageIndexFromContextMenu: "2" }),

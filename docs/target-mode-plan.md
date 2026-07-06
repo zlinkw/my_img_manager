@@ -1489,6 +1489,27 @@ End batch validation checklist:
 - Code review: local read-only review and targeted `test/check` rerun found no P0-P2 blockers; subagent review unavailable due prior thread/rate limits.
 - Git commit records B49 implementation: `89cbf6d`.
 
+### B50 Reader Toast Input Normalization
+
+Status: in progress.
+
+Plan:
+
+- Normalize reader toast messages and levels at the `showReaderToast()` boundary.
+- Keep missing-reader fast fallback from B47 unchanged.
+- Add behavior/static checks proving malformed toast level/message values cannot leak into CSS class names or fallback alert text.
+
+Pre batch validation:
+
+- Git worktree clean at B50 start commit `35c245f`.
+- B50 local planning pass found `showReaderToast()` forwards raw `message` and `level` into `showToastInDocument()` and `showFallbackAlert()`, so malformed internal errors or future callers can render `[object Object]` text or `pdf-image-saver-[object Object]` class names; recorded as `FAIL-20260706-110`.
+- Subagent planning scan unavailable due thread limit; local read-only scan selected this as the next low-risk UI correctness hardening task.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3161,6 +3182,19 @@ End batch validation checklist:
 - Close condition: tests/static checks prove malformed renderer quality becomes Medium before pixel sizing, JPEG quality, smoothing, and preview metadata.
 - Closure: `renderCanvasPreview()` now normalizes `qualityKey` before `QUALITY` lookup, smoothing selection, and preview metadata output; behavior/static checks prove malformed quality keys produce Medium pixels and metadata.
 
+### FAIL-20260706-110
+
+- Batch: B50
+- Environment: reader toast UI feedback
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `showReaderToast()` forwards raw `message` and `level` to document toast rendering and fallback alerts.
+- Expected: toast messages should be compact scalar strings and toast levels should be one of `info`, `success`, `warning`, or `error`.
+- Actual: malformed internal callers can produce noisy alert text and unsupported CSS classes such as `pdf-image-saver-[object Object]`.
+- Validation update: normalize `message` and `level` once at the reader toast boundary and add behavior/static checks.
+- Close condition: tests/static checks prove malformed toast input becomes a compact fallback message and a supported level before document toast or alert output.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3268,6 +3302,7 @@ End batch validation checklist:
 - Check reader toast fallback uses alert rather than main-window DOM toast when no PDF reader is available.
 - Check clip/page save entries normalize quality keys before rendering, duplicate-key generation, and index metadata.
 - Check canvas preview renderer self-normalizes malformed quality keys before pixels and metadata.
+- Check reader toast message and level inputs are normalized before document toast and fallback alert output.
 
 ## Real Commit Log
 

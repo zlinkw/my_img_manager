@@ -763,20 +763,35 @@ $readerToastEntry = [regex]::Match($mainJS, "function\s+showReaderToast\s*\([\s\
 if (!$readerToastEntry.Success) {
   throw "Reader toast function block not found"
 }
-if ($readerToastEntry.Value -notmatch "if\s*\(\s*!isPDFReader\(reader\)\s*\)\s*\{[\s\S]*showFallbackAlert\(fallbackWindow,\s*message\)[\s\S]*return;") {
+if ($readerToastEntry.Value -notmatch "const\s+toastMessage\s*=\s*normalizeToastMessage\(message\)[\s\S]*const\s+toastLevel\s*=\s*normalizeToastLevel\(level\)") {
+  throw "Reader toast must normalize message and level at entry"
+}
+if ($readerToastEntry.Value -notmatch "if\s*\(\s*!isPDFReader\(reader\)\s*\)\s*\{[\s\S]*showFallbackAlert\(fallbackWindow,\s*toastMessage\)[\s\S]*return;") {
   throw "Reader toast must use immediate fallback when no PDF reader is available"
 }
 if ($readerToastEntry.Value -notmatch "if\s*\(\s*!isPDFReader\(reader\)\s*\)\s*\{[\s\S]*return;[\s\S]*const\s+immediateContext\s*=\s*getPDFViewerContextCandidate\(reader\)") {
   throw "Reader toast must check missing/non-PDF reader before looking up reader document context"
 }
-if ($readerToastEntry.Value -notmatch "showToastInDocument\(immediateContext\?\.doc,\s*message,\s*level\)[\s\S]*showToastInDocument\(fallbackWindow\?\.document,\s*message,\s*level\)") {
+if ($readerToastEntry.Value -notmatch "showToastInDocument\(immediateContext\?\.doc,\s*toastMessage,\s*toastLevel\)[\s\S]*showToastInDocument\(fallbackWindow\?\.document,\s*toastMessage,\s*toastLevel\)") {
   throw "Reader toast must prefer reader document before falling back to the main window document"
+}
+if ($readerToastEntry.Value -match "showToastInDocument\([^,\r\n]+,\s*message,\s*level\)") {
+  throw "Reader toast must not pass raw message or level to document toast"
+}
+if ($readerToastEntry.Value -match "showFallbackAlert\(fallbackWindow,\s*message\)") {
+  throw "Reader toast must not pass raw message to fallback alert"
 }
 if ($readerToastEntry.Value -match "showToastInDocument\(immediateContext\?\.doc\s*\|\|\s*fallbackWindow\?\.document") {
   throw "Reader toast must not combine reader and main-window document fallback before PDF reader check"
 }
 if ($readerToastEntry.Value -match "Services\.prompt\.alert") {
   throw "Reader toast should route fallback prompts through showFallbackAlert"
+}
+if ($mainJS -notmatch "function\s+normalizeToastMessage\s*\(\s*message\s*\)[\s\S]*normalizeMetadataText\(message,\s*`"PDF Image Saver notification\.`",\s*280\)") {
+  throw "Reader toast message normalizer missing compact fallback"
+}
+if ($mainJS -notmatch "function\s+normalizeToastLevel\s*\(\s*level\s*\)[\s\S]*\[`"info`",\s*`"success`",\s*`"warning`",\s*`"error`"\]\.includes\(text\)\s*\?\s*text\s*:\s*`"info`"") {
+  throw "Reader toast level normalizer must allow only supported levels"
 }
 if ($mainJS -notmatch "function\s+showToastInDocument\s*\(\s*doc\s*,\s*message\s*,\s*level\s*\)[\s\S]*return\s+false;[\s\S]*doc\.body\.appendChild\(toast\)[\s\S]*return\s+true;") {
   throw "Reader toast document renderer must return whether toast display succeeded"

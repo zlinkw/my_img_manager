@@ -2012,25 +2012,39 @@ var PdfImageSaver = (() => {
 
   function showReaderToast(reader, message, level) {
     const fallbackWindow = Zotero.getMainWindow?.();
+    const toastMessage = normalizeToastMessage(message);
+    const toastLevel = normalizeToastLevel(level);
     if (!isPDFReader(reader)) {
-      showFallbackAlert(fallbackWindow, message);
+      showFallbackAlert(fallbackWindow, toastMessage);
       return;
     }
     const immediateContext = getPDFViewerContextCandidate(reader);
-    if (showToastInDocument(immediateContext?.doc, message, level)) {
+    if (showToastInDocument(immediateContext?.doc, toastMessage, toastLevel)) {
       return;
     }
-    if (showToastInDocument(fallbackWindow?.document, message, level)) {
+    if (showToastInDocument(fallbackWindow?.document, toastMessage, toastLevel)) {
       return;
     }
     getPDFViewerContext(reader).then((context) => {
-      if (!showToastInDocument(context?.doc || fallbackWindow?.document, message, level)) {
-        showFallbackAlert(fallbackWindow, message);
+      if (!showToastInDocument(context?.doc || fallbackWindow?.document, toastMessage, toastLevel)) {
+        showFallbackAlert(fallbackWindow, toastMessage);
       }
     }).catch((error) => {
       logError(error);
-      showFallbackAlert(fallbackWindow, message);
+      showFallbackAlert(fallbackWindow, toastMessage);
     });
+  }
+
+  function normalizeToastMessage(message) {
+    if (message && typeof message.message === "string") {
+      return normalizeMetadataText(message.message, "PDF Image Saver notification.", 280);
+    }
+    return normalizeMetadataText(message, "PDF Image Saver notification.", 280);
+  }
+
+  function normalizeToastLevel(level) {
+    const text = normalizeMetadataText(level, "info", 24);
+    return ["info", "success", "warning", "error"].includes(text) ? text : "info";
   }
 
   function showToastInDocument(doc, message, level) {
