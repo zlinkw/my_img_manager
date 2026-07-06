@@ -1518,7 +1518,7 @@ End batch validation checklist:
 
 ### B51 Original Confirmation Options Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1536,7 +1536,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `ed5a6cec5a3cbbbee20498d463de5c68b23c73e4512c5d325d0d7a8968512df9`, bytes `30261`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent rejected the initial stale candidate; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
+- Git commit records B51 implementation: `e288c89`.
 
 ## Current Validation Results
 
@@ -3230,12 +3236,13 @@ End batch validation checklist:
 - Environment: optional original image confirmation entry
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `confirmAndSaveOriginalImagesFromReader()` reads `options.scope` before normalizing the options object and has no local guarded error path.
 - Expected: optional original confirmation should tolerate null or malformed options and still require explicit user confirmation before original image import.
 - Actual: direct or future malformed calls can reject before showing compact reader feedback.
 - Validation update: normalize confirmation options at entry, wrap confirmation flow in guarded error handling, export the entry for regression tests, and add static checks.
 - Close condition: behavior/static checks prove null confirmation options do not throw and the confirmation path keeps normalized options before calling original-image save.
+- Closure: `confirmAndSaveOriginalImagesFromReader()` now normalizes options with `normalizeOptionsObject()`, keeps confirmation gated, catches prompt/save delegation errors, and has behavior/static regression coverage for null options and safe delegation.
 
 ### FAIL-20260706-112
 
@@ -3243,12 +3250,13 @@ End batch validation checklist:
 - Environment: B51 static validation for original confirmation options
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the raw `options.scope` and `...options` static guards use PowerShell case-insensitive matching, so they match `safeOptions.scope` and `...safeOptions`.
 - Expected: static guards should reject only raw lowercase `options` usage in `confirmAndSaveOriginalImagesFromReader()`.
 - Actual: `npm.cmd run check` fails even when the implementation uses `safeOptions`.
 - Validation update: make the raw-options static guards case-sensitive.
 - Close condition: `npm.cmd run check` passes while still guarding raw `options.scope` and `...options` spellings.
+- Closure: raw original confirmation options guards now use `-cmatch`, so `safeOptions` passes while lowercase raw `options.scope` and `...options` remain rejected.
 
 ## Revised Validation Checklist
 
@@ -3468,3 +3476,5 @@ End batch validation checklist:
 - B49 XPI SHA256 `783c4d2bea774291e7dae43db39ead409b95c956b0b1168e6c4b8dd3f1b3bad3` was built in `outputs/` for manual Zotero add-on manager installation.
 - `e50fcca` B50 normalize reader toast inputs.
 - B50 XPI SHA256 `0a7695c5634eb7cbb213c4a0f868b16216cdcd6b80c55c0bc419727229992339` was built in `outputs/` for manual Zotero add-on manager installation.
+- `e288c89` B51 guard original confirmation options.
+- B51 XPI SHA256 `ed5a6cec5a3cbbbee20498d463de5c68b23c73e4512c5d325d0d7a8968512df9` was built in `outputs/` for manual Zotero add-on manager installation.
