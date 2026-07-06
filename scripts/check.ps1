@@ -62,7 +62,7 @@ foreach ($requiredRule in @(
   "Every closed fault added from B60 onward must keep ``Close condition`` and ``Closure`` evidence",
   "Every batch marked complete must replace ``Pending`` with real validation output",
   "Fixes that reveal follow-up faults must record the new fault before changing that behavior",
-  "Every B62+ batch must declare a ``Regression guard:`` line naming prior fault IDs or validation families",
+  "Every B62+ batch must declare a ``Regression guard:`` line naming prior ``FAIL-*`` IDs or ``validation family:`` names",
   "``scripts/check.ps1`` must enforce these plan-state invariants"
 )) {
   if ($targetPlan -notmatch [regex]::Escape($requiredRule)) {
@@ -91,7 +91,7 @@ foreach ($section in $failureSections) {
     }
   }
 }
-$batchSections = [regex]::Matches($targetPlan, '(?ms)^###\s+(B\d+[^\r\n]*)\s*(.*?)(?=^###\s+B\d+|\z)')
+$batchSections = [regex]::Matches($targetPlan, '(?ms)^###\s+(B\d+[^\r\n]*)\s*(.*?)(?=^###\s+B\d+|^##\s+|\z)')
 foreach ($section in $batchSections) {
   $batchTitle = $section.Groups[1].Value
   $body = $section.Groups[2].Value
@@ -109,7 +109,10 @@ foreach ($section in $batchSections) {
     if ($guardText -match '(?i)^\s*(pending|todo|tbd)\.?\s*$') {
       throw "Target plan B62+ batch has pending regression guard: $batchTitle"
     }
-    if ($guardText -notmatch '(FAIL-\d{8}-\d{3}|validation|check|test|guard)') {
+    $hasFailureReference = $guardText -match 'FAIL-\d{8}-\d{3}'
+    $validationFamilyMatch = [regex]::Match($guardText, '(?i)\bvalidation famil(?:y|ies):\s*(\S.*)$')
+    $hasValidationFamily = $validationFamilyMatch.Success -and $validationFamilyMatch.Groups[1].Value.Trim() -notmatch '(?i)^\s*(pending|todo|tbd)\.?\s*$'
+    if (!$hasFailureReference -and !$hasValidationFamily) {
       throw "Target plan B62+ batch regression guard lacks prior-fault or validation reference: $batchTitle"
     }
   }

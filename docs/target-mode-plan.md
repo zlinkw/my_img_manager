@@ -100,7 +100,7 @@ Each preview entry includes:
 - Every closed fault added from B60 onward must keep `Close condition` and `Closure` evidence.
 - Every batch marked complete must replace `Pending` with real validation output.
 - Fixes that reveal follow-up faults must record the new fault before changing that behavior.
-- Every B62+ batch must declare a `Regression guard:` line naming prior fault IDs or validation families that its changes could affect.
+- Every B62+ batch must declare a `Regression guard:` line naming prior `FAIL-*` IDs or `validation family:` names that its changes could affect.
 - `scripts/check.ps1` must enforce these plan-state invariants so a future patch cannot silently reopen old risks or close a fault without evidence.
 
 ## Preview Quality
@@ -1827,7 +1827,7 @@ Status: in progress.
 Plan:
 
 - Add a global regression-loop rule requiring B62+ batches to declare the prior fault IDs or validation families protected by the batch.
-- Extend `scripts/check.ps1` so completed B62+ batches cannot omit or leave pending regression-guard evidence.
+- Extend `scripts/check.ps1` so B62+ batches cannot omit or leave pending regression-guard evidence.
 - Keep this batch scoped to plan integrity; no plugin runtime behavior change.
 
 Pre batch validation:
@@ -1837,6 +1837,8 @@ Pre batch validation:
 - Regression guard: protect `FAIL-20260706-125` and `FAIL-20260706-126` by keeping existing unique-fault, close-evidence, and no-pending checks while adding the B62+ guard declaration check.
 - B62 validation found the first pending-guard detector falsely rejects guard text containing `no-pending`; recorded as `FAIL-20260706-129`.
 - Planning agent found a separate malformed-options save-entry fault; recorded as `FAIL-20260706-130` for the next runtime batch.
+- B62 code review found the guard reference detector can both miss placeholder text and reject valid validation-family names; recorded as `FAIL-20260706-131`.
+- B62 code review found the batch parser can let the last batch body consume later top-level plan sections; recorded as `FAIL-20260706-132`.
 - Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
 
 End batch validation checklist:
@@ -3806,6 +3808,32 @@ End batch validation checklist:
 - Validation update: next runtime batch should add null/scalar/array options regression tests and static checks requiring `normalizeOptionsObject(options)` inside each save entry.
 - Close condition: tests prove the four save entries do not reject with raw TypeErrors for malformed options, and static checks prove no raw `options.*` reads remain in those blocks.
 
+### FAIL-20260706-131
+
+- Batch: B62
+- Environment: B62 target-plan regression guard reference validation
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: the first guard reference detector accepts broad words like `check`, `test`, or `guard`, but can reject legitimate validation-family names that do not contain those words.
+- Expected: a B62+ `Regression guard:` line should explicitly cite prior `FAIL-*` IDs or a labeled `validation family:` entry, and placeholder text should not pass through broad keyword matches.
+- Actual: the detector can pass `pending check` and can reject non-English or domain-specific validation family names.
+- Validation update: require either a `FAIL-*` reference or an explicit `validation family:` label with non-placeholder content.
+- Close condition: `npm.cmd run check` passes with B62 fault-ID guard text and the static check no longer accepts only generic `check`, `test`, or `guard` words as evidence.
+
+### FAIL-20260706-132
+
+- Batch: B62
+- Environment: target-plan batch-section parser
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: the batch-section regex stops only at the next batch heading or end of file.
+- Expected: each batch body should stop before the next batch or any next top-level plan section.
+- Actual: the last batch body can consume `## Current Validation Results`, failure sections, revised checklist, and real commit log, causing false passes or false failures.
+- Validation update: stop batch-section parsing at the next `### B*` heading, the next `##` top-level heading, or end of file.
+- Close condition: `npm.cmd run check` passes with batch bodies scoped before `## Current Validation Results`.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3931,6 +3959,8 @@ End batch validation checklist:
 - Check optional-helper temp output directories are created only after Python and helper script prerequisites are available.
 - Check B62+ completed batches declare non-pending regression guards for prior failures or validation families affected by their changes.
 - Check B62+ regression-guard placeholder detection does not reject legitimate `no-pending` guard text.
+- Check B62+ regression guards cite prior `FAIL-*` IDs or explicit `validation family:` entries rather than broad generic words.
+- Check target-plan batch parsing stops before the next top-level section.
 - Check reader save entries normalize null, array, and scalar option objects before reading fields.
 
 ## Real Commit Log
