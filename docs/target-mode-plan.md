@@ -425,6 +425,7 @@ End batch validation checklist:
 - `npm run install:global`: passed and reported rescan pending because Zotero is running.
 - `npm run runtime:status`: passed and now reports `rescan.needsRescan`, the exact `extensions.lastAppBuildId` and `extensions.lastAppVersion` prefs, and the required action.
 - Current session registration remains false because Zotero is running and the installer does not edit live profile prefs.
+- B10 post implementation review agent did not return before timeout and was closed; local static checks passed.
 
 ## Current Validation Results
 
