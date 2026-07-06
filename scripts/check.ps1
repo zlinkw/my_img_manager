@@ -200,6 +200,9 @@ if ($mainJS -notmatch "annotation=\$\{encodeURIComponent\(normalizedAnnotationKe
 if ($mainJS -notmatch "source_region:\s*entry\.sourceRegion") {
   throw "metadata must include source_region"
 }
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexHTML") {
+  throw "buildIndexHTML must remain exported for regression tests"
+}
 if ($mainJS -notmatch "annotation_key:\s*entry\.annotationKey") {
   throw "metadata must include annotation_key"
 }

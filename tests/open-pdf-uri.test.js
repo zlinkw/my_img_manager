@@ -19,6 +19,7 @@ const context = {
         return null;
       },
     },
+    version: "9.0.5-test",
     debug() {},
     logError(error) {
       throw error;
@@ -27,9 +28,15 @@ const context = {
 };
 
 vm.createContext(context);
+context.globalThis = context;
 vm.runInContext(source, context, { filename: "pdf-image-saver.js" });
+context.PdfImageSaver.init({
+  id: "pdf-image-saver@zlk.local",
+  version: "0.1.0-test",
+  rootURI: "resource://pdf-image-saver/",
+});
 
-const { buildOpenPDFURI, buildSourceRegion, calculateCanvasCrop, normalizeAnnotationKey } = context.PdfImageSaver.__test__;
+const { buildIndexHTML, buildOpenPDFURI, buildSourceRegion, calculateCanvasCrop, normalizeAnnotationKey } = context.PdfImageSaver.__test__;
 const userAttachment = { libraryID: 1, key: "ABCDEF12" };
 const groupAttachment = { libraryID: 2, key: "GROUP123" };
 
@@ -122,5 +129,73 @@ assert.deepStrictEqual(
   [0.024212, 0.031265, 0.3375, 0.460468],
   "metadata bbox must be projected from rounded drawImage source pixels",
 );
+
+function stubItem(fields, extra = {}) {
+  return {
+    ...extra,
+    getField(name) {
+      return fields[name] || "";
+    },
+  };
+}
+
+const htmlAttachment = stubItem(
+  { title: "Attachment <PDF>" },
+  { libraryID: 1, key: "HTMLPDF1", attachmentContentType: "application/pdf" },
+);
+const htmlParent = stubItem(
+  { title: "Paper <script>alert(1)</script>", date: "2026", DOI: "10.0000/test" },
+  { key: "PARENT1" },
+);
+const htmlEntry = {
+  id: "entry-1",
+  mode: "reader_canvas_preview",
+  detector: "manual_selection",
+  pageIndex: 4,
+  pageNumber: 5,
+  pageLabel: "v",
+  quality: "medium",
+  qualityEstimate: "60-220 KB/image",
+  dataURL: "data:image/jpeg;base64,AAAA",
+  byteCount: 3,
+  renderedWidth: 120,
+  renderedHeight: 80,
+  bboxNormalized: [0.1, 0.2, 0.4, 0.6],
+  sourceRegion: null,
+  annotationKey: "bad-key",
+  detectionArea: 0.12,
+  openPDFURI: "",
+};
+const html = buildIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  entries: [htmlEntry],
+  scope: "clip",
+  qualityKey: "medium",
+});
+assert.ok(html.includes("Paper &lt;script&gt;alert(1)&lt;/script&gt;"), "HTML title must be escaped");
+assert.ok(!html.includes("<script>alert(1)</script>"), "raw script text must not appear in HTML");
+assert.ok(html.includes("zotero://open-pdf/library/items/HTMLPDF1?page=5"), "HTML must include source PDF link");
+assert.ok(!html.includes("annotation=bad-key"), "invalid annotation key must be dropped");
+assert.ok(html.includes("source-map"), "HTML must include source region map");
+assert.ok(htmlEntry.openPDFURI.endsWith("?page=5"), "entry must receive page-only open PDF URI");
+assert.strictEqual(htmlEntry.annotationKey, null, "invalid annotation key must be normalized to null");
+assert.ok(htmlEntry.sourceRegion, "entry must receive source region metadata");
+
+const metadataText = html.match(/<pre>([\s\S]*?)<\/pre>/)[1]
+  .replace(/&quot;/g, '"')
+  .replace(/&amp;/g, "&")
+  .replace(/&lt;/g, "<")
+  .replace(/&gt;/g, ">")
+  .replace(/&#39;/g, "'");
+const metadata = JSON.parse(metadataText);
+assert.strictEqual(metadata.schema_version, "zotero-pdf-image-saver/v1");
+assert.strictEqual(metadata.storage_mode, "reader_preview_index");
+assert.strictEqual(metadata.plugin.id, "pdf-image-saver@zlk.local");
+assert.strictEqual(metadata.plugin.version, "0.1.0-test");
+assert.strictEqual(metadata.zotero_version, "9.0.5-test");
+assert.strictEqual(metadata.entries[0].open_pdf_uri, "zotero://open-pdf/library/items/HTMLPDF1?page=5");
+assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normalized_page_rect");
+assert.strictEqual(metadata.entries[0].annotation_key, null);
 
 console.log("open-pdf uri tests ok");

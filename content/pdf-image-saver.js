@@ -2223,6 +2223,7 @@ var PdfImageSaver = (() => {
     addToWindow,
     removeFromWindow,
     __test__: {
+      buildIndexHTML,
       buildOpenPDFURI,
       buildSourceRegion,
       calculateCanvasCrop,

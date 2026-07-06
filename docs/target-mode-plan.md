@@ -819,7 +819,31 @@ End batch validation checklist:
 - `npm run build`: passed.
 - `npm run package:manual`: passed, packaged XPI SHA256 `abd001395b50ca6bbc2b5f54866f1df408178733d5a3ba8b53667d7e38efef33`.
 - `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
-- Git commit records B25: pending.
+- Git commit records B25: `44cc930`.
+
+### B26 HTML Index Regression Coverage
+
+Status: complete; manual Zotero install and reader smoke pending user action.
+
+Plan:
+
+- Add pure-function regression coverage for the saved HTML index, because this is the artifact users sync and reopen on other machines.
+- Verify source PDF links, page labels, source region metadata, annotation key normalization, embedded metadata JSON, and HTML escaping.
+- Keep the test independent of Zotero runtime by using existing Node VM test harness.
+
+Pre batch validation:
+
+- Git worktree clean at B26 start commit `44cc930`.
+- `tests/open-pdf-uri.test.js` covers URI, annotation key, source region, and canvas crop math, but does not cover `buildIndexHTML()` output.
+- `buildIndexHTML()` is a pure enough function once Zotero/version/config and item field stubs are provided.
+
+End batch validation checklist:
+
+- `npm run check`: passed.
+- `npm run build`: passed.
+- `npm run package:manual`: passed, packaged XPI SHA256 `8bb8549b63579451e191c6410805f05af3f8f6a62c34124e756fbb52623eedd6`.
+- `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- Git commit records B26: pending.
 
 ## Current Validation Results
 
@@ -940,6 +964,10 @@ End batch validation checklist:
 - B25 `npm run build`: passed.
 - B25 `npm run package:manual`: passed; packaged XPI SHA256 `abd001395b50ca6bbc2b5f54866f1df408178733d5a3ba8b53667d7e38efef33`.
 - B25 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- B26 `npm run check`: passed and includes HTML index output regression coverage.
+- B26 `npm run build`: passed.
+- B26 `npm run package:manual`: passed; packaged XPI SHA256 `8bb8549b63579451e191c6410805f05af3f8f6a62c34124e756fbb52623eedd6`.
+- B26 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
 
 ## New Failures
 
@@ -1723,6 +1751,7 @@ End batch validation checklist:
 - Check manual install verifier reports package identity, registration state, source hints, rescan state, temp children, and next action.
 - Check reader event listener cleanup is scoped by plugin ID and does not remove unrelated listeners.
 - Check optional helper report files are isolated per Python candidate and helper exit codes are recorded.
+- Check HTML index output includes escaped title text, Zotero source PDF links, source region map, metadata JSON, source region metadata, and normalized annotation keys.
 
 ## Real Commit Log
 
@@ -1779,4 +1808,6 @@ End batch validation checklist:
 - B23 XPI SHA256 `24f48b0b03c12c73bd103e2efba1f6718bef59f7d4fee39824f106737cddbdf2` was built in `outputs/` for manual Zotero add-on manager installation.
 - `266f6e4` B24 scope reader listener cleanup.
 - B24 XPI SHA256 `f921e70fef60d0db2a171f29f54b8df50f1aeb6095906dabff8bc4b473bc12e4` was built in `outputs/` for manual Zotero add-on manager installation.
+- `44cc930` B25 isolate helper reports.
 - B25 XPI SHA256 `abd001395b50ca6bbc2b5f54866f1df408178733d5a3ba8b53667d7e38efef33` was built in `outputs/` for manual Zotero add-on manager installation.
+- B26 XPI SHA256 `8bb8549b63579451e191c6410805f05af3f8f6a62c34124e756fbb52623eedd6` was built in `outputs/` for manual Zotero add-on manager installation.
