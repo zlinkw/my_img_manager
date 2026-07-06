@@ -94,6 +94,7 @@ const {
   getPDFViewerContextCandidate,
   getPreviewDuplicateKey,
   getReaderJobKey,
+  imageCoordinatesToCandidates,
   importOriginalImages,
   limitOriginalImagesForImport,
   onCreateViewContextMenu,
@@ -1195,6 +1196,37 @@ assert.strictEqual(
   autoRasterStateButton.title,
   "Auto-detect embedded raster previews on the current page. Selected: High, 180-750 KB/image.",
   "available auto-raster state must restore selected quality tooltip",
+);
+const autoCandidatePage = {
+  getBoundingClientRect: () => ({ left: 100, top: 50, width: 1000, height: 800 }),
+};
+const autoCandidateCanvas = {
+  getBoundingClientRect: () => ({ left: 150, top: 90, width: 800, height: 600 }),
+};
+const autoCandidates = imageCoordinatesToCandidates({
+  pageElement: autoCandidatePage,
+  canvas: autoCandidateCanvas,
+  pageIndex: 4,
+  coordinates: [
+    0.1, 0.1, 0.4, 0.1, 0.1, 0.4,
+    0.01, 0.01, 0.02, 0.01, 0.01, 0.02,
+    0.5, 0.5, 0.9, 0.5, 0.5, 0.9,
+    0.51, 0.51, 0.91, 0.51, 0.51, 0.91,
+  ],
+});
+assert.strictEqual(autoCandidates.length, 2, "auto-raster candidates must filter tiny and duplicate rectangles");
+assert.strictEqual(autoCandidates[0].area, 0.096, "auto-raster candidates must be sorted largest first");
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(autoCandidates[0].selectionRect)),
+  { left: 450, top: 340, width: 320, height: 240 },
+  "auto-raster normalized coordinates must map to page-relative selection rects",
+);
+assert.strictEqual(autoCandidates[0].pageIndex, 4, "auto-raster candidates must preserve page index");
+assert.strictEqual(autoCandidates[0].detector, "pdfjs_record_images", "auto-raster candidates must record detector");
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(autoCandidates[1].selectionRect)),
+  { left: 130, top: 100, width: 240, height: 180 },
+  "auto-raster smaller candidate must survive after larger duplicate filtering",
 );
 context.Zotero.Prefs.values["extensions.pdfImageSaver.defaultQuality"] = "high";
 const contextMenuItems = [];

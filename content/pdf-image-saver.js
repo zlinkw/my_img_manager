@@ -2885,6 +2885,7 @@ var PdfImageSaver = (() => {
       applyAutoRasterButtonState,
       buildContextMenuActions,
       buildToolbarActionTooltip,
+      imageCoordinatesToCandidates,
       getPreviewDuplicateKey,
       importOriginalImages,
       limitOriginalImagesForImport,

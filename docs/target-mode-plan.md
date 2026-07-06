@@ -1706,6 +1706,27 @@ End batch validation checklist:
 - Code review: subagent read-only review found missing command-path validation; B57 added that coverage. Local targeted rerun found no P0-P2 blockers.
 - Git commit records B57 implementation: `adaccce`.
 
+### B58 Auto Raster Candidate Coordinate Coverage
+
+Status: in progress.
+
+Plan:
+
+- Export the PDF.js image-coordinate candidate converter for focused regression tests.
+- Add behavior tests proving normalized coordinates become page-relative selection rectangles, tiny candidates are filtered, overlapping candidates are deduped, and largest candidates are returned first.
+- Add static checks keeping the converter exported and the candidate sort/dedupe path covered.
+
+Pre batch validation:
+
+- Git worktree clean at B58 start commit `47a26ba`.
+- B58 local planning pass found the auto-raster coordinate conversion path is core to precision but has no direct behavior regression coverage; recorded as `FAIL-20260706-123`.
+- B58 subagent review found recursive temp cleanup accepts helper-reported `output_dir` without a final temp-root boundary guard; recorded as `FAIL-20260706-124` for the next safety batch.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3560,6 +3581,32 @@ End batch validation checklist:
 - Close condition: `npm.cmd run test` passes while still proving Auto Raster and page-preview command handlers pass `qualityKey: "high"` and `pageIndex: 2`.
 - Closure: the VM-backed regression test now compares scalar behavior fields and reader identity directly; `npm.cmd run test` passes while preserving command-path coverage.
 
+### FAIL-20260706-123
+
+- Batch: B58
+- Environment: auto-raster PDF.js image-coordinate conversion
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `imageCoordinatesToCandidates()` converts PDF.js recorded image coordinates into source selection rectangles, filters tiny images, dedupes overlaps, and sorts by area, but there is no direct behavior regression test for that precision-critical path.
+- Expected: tests should prove coordinate-to-selection math, tiny-candidate filtering, overlap dedupe, and largest-first ordering.
+- Actual: current coverage reaches auto-raster behavior only indirectly through static checks and save-entry guards.
+- Validation update: export the converter under `__test__`, add targeted behavior tests, and add static checks for export and candidate ordering path.
+- Close condition: tests/static checks prove normalized coordinates produce the expected page-relative candidate rectangles and sorted/deduped output.
+
+### FAIL-20260706-124
+
+- Batch: B59
+- Environment: recursive cleanup of optional-helper output directories
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: open
+- Symptom: `importOriginalImages()` passes `report.output_dir` to `removeDirectoryIfExists()`, and `removeDirectoryIfExists()` recursively removes any supplied path without proving it is under `PathUtils.tempDir/pdf-image-saver/`.
+- Expected: recursive cleanup should only remove directories inside the plugin temp root.
+- Actual: a malformed or future helper report could point cleanup at a non-plugin directory.
+- Validation update: add a final deletion-boundary guard and tests/static checks proving outside paths are skipped.
+- Close condition: tests/static checks prove recursive removal is limited to the normalized plugin temp root.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3680,6 +3727,8 @@ End batch validation checklist:
 - Check context menu default-quality actions show the normalized default quality estimate and do not hardcode Medium for full-page preview.
 - Check context menu default-quality action commands pass the same normalized quality key shown in their labels.
 - Check VM-backed command payload tests assert scalar behavior fields rather than cross-context object prototype equality.
+- Check auto-raster PDF.js image-coordinate conversion is behavior-tested for rectangle math, tiny-candidate filtering, overlap dedupe, and largest-first ordering.
+- Check recursive cleanup only removes paths under the normalized plugin temp root.
 
 ## Real Commit Log
 

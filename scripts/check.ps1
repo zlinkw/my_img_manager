@@ -235,6 +235,19 @@ if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*butt
 if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto raster detection is unavailable") {
   throw "Auto-raster unavailable state must disable button with fallback tooltip"
 }
+$imageCoordinateEntry = [regex]::Match($mainJS, "function\s+imageCoordinatesToCandidates\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+updateAutoRasterButtonState")
+if (!$imageCoordinateEntry.Success) {
+  throw "Auto-raster image-coordinate converter function block not found"
+}
+if ($imageCoordinateEntry.Value -notmatch "clipSelectionRect\([\s\S]*canvasRect\.left\s*-\s*pageRect\.left[\s\S]*minX\s*\*\s*canvasRect\.width[\s\S]*minY\s*\*\s*canvasRect\.height") {
+  throw "Auto-raster image-coordinate converter must map normalized coordinates to page-relative selection rectangles"
+}
+if ($imageCoordinateEntry.Value -notmatch "selectionRect\.width\s*<\s*12[\s\S]*selectionRect\.height\s*<\s*12[\s\S]*area\s*<\s*minArea") {
+  throw "Auto-raster image-coordinate converter must filter tiny candidates"
+}
+if ($imageCoordinateEntry.Value -notmatch "dedupeImageCandidates\(candidates\)[\s\S]*\.sort\(\(left,\s*right\)\s*=>\s*right\.area\s*-\s*left\.area\)[\s\S]*\.slice\(0,\s*maxCount\)") {
+  throw "Auto-raster image-coordinate converter must dedupe, sort largest-first, and cap candidates"
+}
 if ($mainJS -notmatch "(?m)^\s*const\s+HARD_MAX_AUTO_PREVIEW_BYTES_MB\s*=\s*8\s*;") {
   throw "Auto preview hard cap changed unexpectedly"
 }
@@ -424,6 +437,9 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getErrorMessage") {
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildToolbarActionTooltip") {
   throw "Toolbar tooltip helper must remain exported for regression tests"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*imageCoordinatesToCandidates") {
+  throw "Auto-raster image-coordinate converter must remain exported for regression tests"
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*applyAutoRasterButtonState") {
   throw "Auto-raster button state helper must remain exported for regression tests"
