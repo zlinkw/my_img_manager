@@ -1412,7 +1412,7 @@ End batch validation checklist:
 
 ### B47 Reader Toast Fallback Fast Path
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1429,7 +1429,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `4de6c08e391d4a482f038fb50a92fdc807417e7fb8130e3803d0404b68084e20`, bytes `30050`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent review failed due concurrency limit; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
+- Git commit records B47 implementation: `4d44b8b`.
 
 ## Current Validation Results
 
@@ -3053,12 +3059,13 @@ End batch validation checklist:
 - Environment: reader toast fallback without an active PDF reader context
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `showReaderToast(null, ...)` calls `getPDFViewerContext(null)` and waits through retry delays before falling back to a prompt alert.
 - Expected: missing-reader or non-PDF-reader feedback should show a fallback alert immediately, while valid reader documents still get in-reader toast UI.
 - Actual: error feedback paths invoked without a reader can be delayed by context polling even though no PDF context can appear.
 - Validation update: add a fast fallback path plus regression/static checks for no-reader toast behavior.
 - Close condition: tests/static checks prove no-reader toast does not call `Zotero.Promise.delay()` and still displays the fallback alert.
+- Closure: `showReaderToast()` now immediately alerts for missing or non-PDF readers without polling PDF context, and tests/static checks cover the no-reader fast path.
 
 ### FAIL-20260706-107
 
@@ -3066,12 +3073,13 @@ End batch validation checklist:
 - Environment: reader toast fallback with Zotero main window document available
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the B47 fast-path fix can render a toast in `fallbackWindow.document` before checking `!isPDFReader(reader)`.
 - Expected: missing-reader or non-PDF-reader feedback should use the immediate alert fallback even when the Zotero main window has a document body.
 - Actual: `showReaderToast(null, ...)` can create a transient main-window toast instead of the prompt alert.
 - Validation update: move the non-PDF fallback before any fallback-window document toast attempt and test a main-window document stub.
 - Close condition: tests/static checks prove no-reader toast with a main-window document does not create a DOM toast and does show `Services.prompt.alert`.
+- Closure: the non-PDF fallback now runs before reader/main-window document toast attempts; tests cover a main-window document body and prove no DOM toast or style injection occurs.
 
 ## Revised Validation Checklist
 
@@ -3278,3 +3286,5 @@ End batch validation checklist:
 - B45 XPI SHA256 `4d509d996d12f04d8bd5945d155dab8e60b60d81b32f48c1a3f95a89b0940b3b` was built in `outputs/` for manual Zotero add-on manager installation.
 - `82fdde1` B46 restore selection overlay host state.
 - B46 XPI SHA256 `603eaf0f0d4985e3ad339cdac83ad89c6d00b1684a58f597137ce19de7c43b45` was built in `outputs/` for manual Zotero add-on manager installation.
+- `4d44b8b` B47 speed up reader toast fallback.
+- B47 XPI SHA256 `4de6c08e391d4a482f038fb50a92fdc807417e7fb8130e3803d0404b68084e20` was built in `outputs/` for manual Zotero add-on manager installation.
