@@ -1542,3 +1542,6 @@ End batch validation checklist:
 - `dd01624` docs record B18 validation.
 - `a3ba2a4` B19 align preview crop metadata.
 - B19 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `ded7fbb` docs record B19 validation.
+- `c8b887b` B20 hard cap optional helper prefs.
+- B20 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
