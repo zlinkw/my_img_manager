@@ -370,6 +370,12 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*savePagePreviewIndex") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getReaderJobKey") {
   throw "Reader job key helper must remain exported for regression tests"
 }
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*prepareSelectionOverlayHost") {
+  throw "Selection overlay host helper must remain exported for regression tests"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*cleanupSelectionOverlay") {
+  throw "Selection overlay cleanup helper must remain exported for regression tests"
+}
 if ($mainJS -notmatch "omittedCount:\s*\(limited\.omittedCount\s*\|\|\s*0\)\s*\+\s*missingCount\s*\+\s*errorCount") {
   throw "Original image existence filter must add missing and unreadable files to omission count"
 }
@@ -702,6 +708,28 @@ if ($mainJS -notmatch 'function\s+isPDFReader\s*\(\s*reader\s*\)\s*\{\s*return\s
 }
 if ($mainJS -notmatch "reader\?\._iframeWindow\s*\|\|\s*reader\?\._iframe\?\.contentWindow") {
   throw "PDF viewer context lookup must check direct reader iframe window"
+}
+$selectionOverlayEntry = [regex]::Match($mainJS, "function\s+installSelectionOverlay\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+prepareSelectionOverlayHost")
+if (!$selectionOverlayEntry.Success) {
+  throw "Selection overlay installer function block not found"
+}
+if ($selectionOverlayEntry.Value -notmatch "cleanupSelectionOverlay\(existing\)") {
+  throw "Selection overlay replacement must clean up the existing overlay host state"
+}
+if ($selectionOverlayEntry.Value -match "existing\?\.remove\(\)") {
+  throw "Selection overlay replacement must not remove existing overlays without host cleanup"
+}
+if ($selectionOverlayEntry.Value -notmatch "prepareSelectionOverlayHost\(pageElement,\s*overlay\)") {
+  throw "Selection overlay installer must record and prepare host positioning"
+}
+if ($selectionOverlayEntry.Value -notmatch "cleanupSelectionOverlay\(overlay\)") {
+  throw "Selection overlay cleanup path must restore host positioning"
+}
+if ($mainJS -notmatch "function\s+prepareSelectionOverlayHost\s*\(\s*pageElement\s*,\s*overlay\s*\)[\s\S]*data-pdf-image-saver-previous-position[\s\S]*pageElement\.style\.position\s*=\s*`"relative`"") {
+  throw "Selection overlay host helper must store previous position and position the host"
+}
+if ($mainJS -notmatch "function\s+cleanupSelectionOverlay\s*\(\s*overlay\s*\)[\s\S]*overlay\.__pdfImageSaverHost\s*\|\|\s*overlay\.parentElement[\s\S]*host\.style\.position\s*=\s*previousPosition[\s\S]*overlay\.remove\?\.\(\)") {
+  throw "Selection overlay cleanup helper must restore host position before removal"
 }
 if ($mainJS -notmatch "annotation_key:\s*entry\.annotationKey") {
   throw "metadata must include annotation_key"

@@ -71,6 +71,7 @@ const {
   buildOpenPDFURI,
   buildSourceRegion,
   calculateCanvasCrop,
+  cleanupSelectionOverlay,
   filterExistingOriginalImagesForImport,
   formatHelperFailure,
   getActiveReader,
@@ -88,6 +89,7 @@ const {
   normalizeOriginalImageForImport,
   normalizePageIndex,
   normalizePageNumber,
+  prepareSelectionOverlayHost,
   saveAutoDetectedPageImagePreviews,
   saveClipPreviewIndex,
   saveOriginalImagesFromReader,
@@ -157,6 +159,53 @@ assert.strictEqual(
   "7:page:2",
   "valid job scopes and numeric page strings must be preserved",
 );
+
+function createFakeOverlay(host, previousPosition) {
+  const attributes = Object.create(null);
+  if (previousPosition !== undefined) {
+    attributes["data-pdf-image-saver-previous-position"] = previousPosition;
+  }
+  return {
+    parentElement: host,
+    removed: false,
+    setAttribute(name, value) {
+      attributes[name] = String(value);
+    },
+    getAttribute(name) {
+      return Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null;
+    },
+    remove() {
+      this.removed = true;
+    },
+  };
+}
+
+const unpositionedHost = { style: { position: "" } };
+const unpositionedOverlay = createFakeOverlay(unpositionedHost);
+prepareSelectionOverlayHost(unpositionedHost, unpositionedOverlay);
+assert.strictEqual(unpositionedHost.style.position, "relative", "overlay host must become positioned when position is empty");
+cleanupSelectionOverlay(unpositionedOverlay);
+assert.strictEqual(unpositionedHost.style.position, "", "overlay cleanup must restore an empty previous host position");
+assert.strictEqual(unpositionedOverlay.removed, true, "overlay cleanup must remove the overlay");
+
+const staticHost = { style: { position: "static" } };
+const staticOverlay = createFakeOverlay(staticHost);
+prepareSelectionOverlayHost(staticHost, staticOverlay);
+assert.strictEqual(staticHost.style.position, "relative", "overlay host must become positioned when position is static");
+cleanupSelectionOverlay(staticOverlay);
+assert.strictEqual(staticHost.style.position, "static", "overlay cleanup must restore static host position");
+
+const absoluteHost = { style: { position: "absolute" } };
+const absoluteOverlay = createFakeOverlay(absoluteHost);
+prepareSelectionOverlayHost(absoluteHost, absoluteOverlay);
+assert.strictEqual(absoluteHost.style.position, "absolute", "overlay host with existing positioning must not be changed");
+cleanupSelectionOverlay(absoluteOverlay);
+assert.strictEqual(absoluteHost.style.position, "absolute", "overlay cleanup must preserve existing host positioning");
+
+const replacedHost = { style: { position: "relative" } };
+const replacedOverlay = createFakeOverlay(replacedHost, "");
+cleanupSelectionOverlay(replacedOverlay);
+assert.strictEqual(replacedHost.style.position, "", "replaced overlay cleanup must restore previous host position from overlay metadata");
 assert.strictEqual(getContextPageIndex({ pageIndex: "4" }), 4, "context pageIndex strings must be accepted");
 assert.strictEqual(
   getContextPageIndex({ pageIndex: "-1", pageIndexFromContextMenu: "2" }),

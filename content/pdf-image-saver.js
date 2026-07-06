@@ -379,17 +379,13 @@ var PdfImageSaver = (() => {
 
   function installSelectionOverlay(reader, doc, pageElement, canvas, qualityKey, pageIndex) {
     const existing = doc.getElementById("pdf-image-saver-selection-overlay");
-    existing?.remove();
-
-    const previousPosition = pageElement.style.position;
-    if (!previousPosition || previousPosition === "static") {
-      pageElement.style.position = "relative";
-    }
+    cleanupSelectionOverlay(existing);
 
     const overlay = doc.createElement("div");
     overlay.id = "pdf-image-saver-selection-overlay";
     overlay.tabIndex = 0;
     overlay.className = "pdf-image-saver-selection-overlay";
+    prepareSelectionOverlayHost(pageElement, overlay);
     const selection = doc.createElement("div");
     selection.className = "pdf-image-saver-selection-box";
     overlay.appendChild(selection);
@@ -401,8 +397,7 @@ var PdfImageSaver = (() => {
     let activePointerID = null;
 
     const cleanup = () => {
-      overlay.remove();
-      pageElement.style.position = previousPosition;
+      cleanupSelectionOverlay(overlay);
     };
 
     overlay.addEventListener("keydown", (event) => {
@@ -477,6 +472,31 @@ var PdfImageSaver = (() => {
     };
     overlay.addEventListener("pointercancel", cancelPointer);
     overlay.addEventListener("lostpointercapture", cancelPointer);
+  }
+
+  function prepareSelectionOverlayHost(pageElement, overlay) {
+    const previousPosition = pageElement?.style?.position || "";
+    overlay.__pdfImageSaverHost = pageElement;
+    overlay.__pdfImageSaverPreviousPosition = previousPosition;
+    overlay.setAttribute?.("data-pdf-image-saver-previous-position", previousPosition);
+    if (!previousPosition || previousPosition === "static") {
+      pageElement.style.position = "relative";
+    }
+  }
+
+  function cleanupSelectionOverlay(overlay) {
+    if (!overlay) {
+      return;
+    }
+    const host = overlay.__pdfImageSaverHost || overlay.parentElement;
+    if (host?.style) {
+      const previousPosition =
+        overlay.__pdfImageSaverPreviousPosition ??
+        overlay.getAttribute?.("data-pdf-image-saver-previous-position") ??
+        "";
+      host.style.position = previousPosition;
+    }
+    overlay.remove?.();
   }
 
   function renderSelection(selection, start, current) {
@@ -2711,6 +2731,7 @@ var PdfImageSaver = (() => {
       buildOpenPDFURI,
       buildSourceRegion,
       calculateCanvasCrop,
+      cleanupSelectionOverlay,
       filterExistingOriginalImagesForImport,
       formatHelperFailure,
       getActiveReader,
@@ -2727,6 +2748,7 @@ var PdfImageSaver = (() => {
       normalizeOriginalImageForImport,
       normalizePageIndex,
       normalizePageNumber,
+      prepareSelectionOverlayHost,
       getReaderJobKey,
       saveAutoDetectedPageImagePreviews,
       saveClipPreviewIndex,

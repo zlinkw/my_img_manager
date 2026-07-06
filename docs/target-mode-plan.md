@@ -1384,6 +1384,26 @@ End batch validation checklist:
 - Code review: subagent found `FAIL-20260706-104`; fixed and revalidated. Local review found no remaining P0-P2 blockers.
 - Git commit records B45 implementation: `d4d3b1d`.
 
+### B46 Selection Overlay Cleanup Guard
+
+Status: in progress.
+
+Plan:
+
+- Make selection overlay replacement and cancellation restore the previous page host `position` value.
+- Store the host position state on the overlay so replacing an existing overlay can clean up the old host before installing a new overlay.
+- Add behavior/static checks for host style restoration and overlay cleanup helper usage.
+
+Pre batch validation:
+
+- Git worktree clean at B46 start commit `3eda1ab`.
+- B46 planning pass found repeated Clip Figure starts remove the existing selection overlay with `existing.remove()` but do not restore the previous page host style; recorded as `FAIL-20260706-105`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -2986,6 +3006,19 @@ End batch validation checklist:
 - Close condition: static checks fail if `saveOriginalImagesFromReader()` stops normalizing scope before calling `getReaderJobKey()`.
 - Closure: the original-image normalized-scope static assertion now runs against the extracted `saveOriginalImagesFromReader()` block instead of the full plugin text.
 
+### FAIL-20260706-105
+
+- Batch: B46
+- Environment: manual clip selection overlay lifecycle
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: starting Clip Figure again removes an existing selection overlay with `existing.remove()` but does not restore the old page element's previous `style.position`.
+- Expected: replacing, cancelling, or completing a clip overlay restores the host page position to its exact previous value.
+- Actual: repeated clip starts can leave a PDF page host stuck at `position: relative`, causing avoidable reader layout/style drift.
+- Validation update: introduce a cleanup helper that stores previous host position on the overlay and restores it whenever an overlay is removed.
+- Close condition: tests/static checks prove existing overlay replacement and normal cleanup restore host position.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3088,6 +3121,7 @@ End batch validation checklist:
 - Check all save entry active-job cleanup paths only delete jobs added by the current call.
 - Check reader active-job keys normalize malformed scopes and tolerate missing option objects.
 - Check original-image normalized-scope static coverage is scoped to `saveOriginalImagesFromReader()`.
+- Check selection overlay replacement and cleanup restore the previous page host position.
 
 ## Real Commit Log
 
