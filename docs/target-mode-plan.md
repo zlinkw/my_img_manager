@@ -746,7 +746,31 @@ End batch validation checklist:
 - `npm run package:manual`: passed; printed manual Zotero add-on manager install steps, XPI path, SHA256, byte size, and post-install verification commands.
 - `npm run check`: passed.
 - `npm run build`: passed, packaged XPI SHA256 `64b4b823c79afa2d04956d19ca8eab0d3ec67d56cbded82607096831ff42e097`.
-- Git commit records B22: pending.
+- Git commit records B22: `58540f5`.
+
+### B23 Manual Install Verification Diagnostics
+
+Status: complete; manual Zotero install and reader smoke pending user action.
+
+Plan:
+
+- Make manual post-install validation tolerant of Zotero's real registered add-on state instead of over-requiring the development proxy/profile-XPI source shape.
+- Add a read-only manual verification command that prints package identity, registration state, source hints, and next actions.
+- Update README and static checks so the post-install workflow points to the manual verifier.
+
+Pre batch validation:
+
+- Git worktree clean at B23 start commit `58540f5`.
+- B22 added `npm run package:manual`, but post-install verification still depends on `smoke:preflight`.
+- `smoke:preflight` checks source validity before considering a registered active extension, so a future manual install could be falsely rejected if Zotero stores the XPI somewhere other than the profile source path currently inspected by `runtime:status`; recorded as `FAIL-20260706-051`.
+
+End batch validation checklist:
+
+- `npm run verify:manual`: passed; reported packaged XPI exists, Zotero process count 3, temp children 0, profile registration false, source hints false, rescan needed true, and next action to install the XPI from Zotero Add-ons.
+- `npm run check`: passed.
+- `npm run build`: passed.
+- `npm run package:manual`: passed; printed `npm run verify:manual` in post-install verification commands and built XPI SHA256 `24f48b0b03c12c73bd103e2efba1f6718bef59f7d4fee39824f106737cddbdf2`.
+- Git commit records B23: pending.
 
 ## Current Validation Results
 
@@ -854,6 +878,10 @@ End batch validation checklist:
 - B22 `npm run package:manual`: passed; printed XPI path `outputs\pdf-image-saver-0.1.0.xpi`, SHA256 `64b4b823c79afa2d04956d19ca8eab0d3ec67d56cbded82607096831ff42e097`, size 26128 bytes, manual install steps, and post-install verification commands.
 - B22 `npm run check`: passed.
 - B22 `npm run build`: passed; packaged XPI SHA256 `64b4b823c79afa2d04956d19ca8eab0d3ec67d56cbded82607096831ff42e097`.
+- B23 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- B23 `npm run check`: passed.
+- B23 `npm run build`: passed.
+- B23 `npm run package:manual`: passed; packaged XPI SHA256 `24f48b0b03c12c73bd103e2efba1f6718bef59f7d4fee39824f106737cddbdf2`.
 
 ## New Failures
 
@@ -1546,6 +1574,20 @@ End batch validation checklist:
 - Validation update: manual Zotero add-on manager installation from the packaged XPI is now the next runtime validation path; source-copy fallback needs a separate diagnostic batch before it can be considered reliable.
 - Close condition: either manual install registers the packaged XPI, or source-copy fallback is diagnosed and fixed with evidence that Zotero preserves and registers the copied XPI.
 
+### FAIL-20260706-051
+
+- Batch: B23
+- Environment: manual Zotero add-on manager installation with a registered extension whose source path is not the development proxy or the inspected profile XPI fallback path
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `smoke:preflight` can fail on "No valid extension source" before accepting a registered and active add-on.
+- Expected: once `extensions.json` proves the add-on is registered and active, smoke preflight should accept runtime registration even if source shape diagnostics are incomplete.
+- Actual: source validation is evaluated independently and can reject a valid manual install whose package source is not represented by `source.developmentProxy` or `source.xpiInstall`.
+- Validation update: make source validity a required fallback only while the plugin is unregistered; add a separate read-only manual verifier for post-install state.
+- Close condition: `smoke:preflight` accepts a registered active add-on, and `npm run verify:manual` reports clear next actions when the add-on is not yet installed.
+- Closure: source validation now only blocks while registration is missing, `npm run verify:manual` reports package, profile, registration, source hints, rescan state, temp children, and next action, and B23 checks pass.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1592,6 +1634,7 @@ End batch validation checklist:
 - Check optional original helper count and timeout prefs are hard-clamped in runtime.
 - Check target plan does not close runtime failures before their close conditions are validated.
 - Check copied-XPI profile fallback survives Zotero launch or clearly hand off to manual add-on manager installation.
+- Check manual install verifier reports package identity, registration state, source hints, rescan state, temp children, and next action.
 
 ## Real Commit Log
 
@@ -1642,4 +1685,6 @@ End batch validation checklist:
 - B20 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `76779d8` docs record B20 validation.
 - B21 XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187` was built in `outputs/` for manual Zotero add-on manager installation; runtime source-copy fallback remains open under `FAIL-20260706-050`.
+- `58540f5` B22 add manual package handoff.
 - B22 XPI SHA256 `64b4b823c79afa2d04956d19ca8eab0d3ec67d56cbded82607096831ff42e097` was built in `outputs/` for manual Zotero add-on manager installation.
+- B23 XPI SHA256 `24f48b0b03c12c73bd103e2efba1f6718bef59f7d4fee39824f106737cddbdf2` was built in `outputs/` for manual Zotero add-on manager installation.

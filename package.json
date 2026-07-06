@@ -8,6 +8,7 @@
     "check": "powershell -ExecutionPolicy Bypass -File scripts/check.ps1",
     "build": "powershell -ExecutionPolicy Bypass -File scripts/build.ps1",
     "package:manual": "powershell -ExecutionPolicy Bypass -File scripts/package-manual.ps1",
+    "verify:manual": "powershell -ExecutionPolicy Bypass -File scripts/verify-manual-install.ps1",
     "install:global": "powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1",
     "install:xpi": "powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1 -InstallMode XPI",
     "runtime:status": "powershell -ExecutionPolicy Bypass -File scripts/runtime-status.ps1",

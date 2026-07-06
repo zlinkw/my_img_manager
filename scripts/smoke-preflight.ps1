@@ -55,8 +55,9 @@ foreach ($profile in $status.profiles) {
     $xpiInstall.idMatches -and
     $xpiInstall.strictMaxVersionExpected
   )
+  $registered = [bool]($profile.registration -and $profile.registration.registered)
 
-  if (!$devProxyValid -and !$xpiInstallValid) {
+  if (!$devProxyValid -and !$xpiInstallValid -and !$registered) {
     $failures.Add("No valid extension source in profile $($profile.name). Run npm run install:global or install the XPI.")
     if (!$profile.proxy.exists -and !($xpiInstall -and $xpiInstall.exists)) {
       $failures.Add("Extension proxy and XPI source are both missing in profile $($profile.name).")

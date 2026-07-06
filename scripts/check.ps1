@@ -60,8 +60,14 @@ if (!$package.scripts.'install:xpi') {
 if (!$package.scripts.'package:manual') {
   throw "package:manual script missing"
 }
+if (!$package.scripts.'verify:manual') {
+  throw "verify:manual script missing"
+}
 if ($package.scripts.'package:manual' -ne "powershell -ExecutionPolicy Bypass -File scripts/package-manual.ps1") {
   throw "package:manual script must call scripts/package-manual.ps1"
+}
+if ($package.scripts.'verify:manual' -ne "powershell -ExecutionPolicy Bypass -File scripts/verify-manual-install.ps1") {
+  throw "verify:manual script must call scripts/verify-manual-install.ps1"
 }
 if ($package.scripts.'install:xpi' -ne "powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1 -InstallMode XPI") {
   throw "install:xpi script must call install-global.ps1 -InstallMode XPI"
@@ -81,10 +87,16 @@ if (!(Test-Path -LiteralPath .\scripts\check-xpi.ps1)) {
 if (!(Test-Path -LiteralPath .\scripts\package-manual.ps1)) {
   throw "package-manual.ps1 missing"
 }
+if (!(Test-Path -LiteralPath .\scripts\verify-manual-install.ps1)) {
+  throw "verify-manual-install.ps1 missing"
+}
 
 $readme = Get-Content -Encoding UTF8 -Raw -LiteralPath .\README.md
 if ($readme -notmatch "npm run package:manual") {
   throw "README must document manual package command"
+}
+if ($readme -notmatch "npm run verify:manual") {
+  throw "README must document manual verification command"
 }
 if ($readme -notmatch "Install Add-on From File") {
   throw "README must document Zotero manual add-on installation"
@@ -104,6 +116,9 @@ if ($runtimeStatusScript -match "(?m)^\s*containsAddonID\s*=") {
 $preflightScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\smoke-preflight.ps1
 if ($preflightScript -notmatch "xpiInstallValid") {
   throw "smoke preflight must accept a valid XPI install source"
+}
+if ($preflightScript -notmatch '!\$devProxyValid\s+-and\s+!\$xpiInstallValid\s+-and\s+!\$registered') {
+  throw "smoke preflight must not reject a registered manual install only because source hints are incomplete"
 }
 if ($preflightScript -match "startupCache.*\.containsAddonID") {
   throw "smoke preflight must not hard-fail on raw startup cache add-on id hints"

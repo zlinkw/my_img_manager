@@ -43,6 +43,7 @@ The helper discovery also checks the local conda `zlk` environment first when pr
 npm run check
 npm run build
 npm run package:manual
+npm run verify:manual
 npm run install:global
 npm run install:xpi
 npm run runtime:status
@@ -71,10 +72,13 @@ Install the printed XPI through Zotero's add-on manager:
 After Zotero starts, run:
 
 ```powershell
+npm run verify:manual
 npm run smoke:wait
 npm run smoke:preflight
 npm run runtime:status
 ```
+
+`verify:manual` is read-only. It summarizes the packaged XPI, Zotero process count, profile registration state, source hints, rescan state, temp children, and the next action.
 
 The global install script writes a Zotero extension proxy file into each detected Zotero profile for development testing. Restart Zotero to load a newly installed proxy.
 `install:xpi` is a profile XPI fallback for testing the packaged plugin rather than the development proxy; close Zotero before running it so the installer can switch the source cleanly. On Zotero 9.0.5, manual add-on manager installation is the preferred package handoff until the copied-profile-XPI fallback is verified.
