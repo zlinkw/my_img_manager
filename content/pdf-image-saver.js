@@ -15,6 +15,8 @@ var PdfImageSaver = (() => {
   const HARD_MAX_PAGE_IMAGES = 500;
   const HARD_MAX_DOCUMENT_IMAGES = 2000;
   const HARD_MAX_HELPER_TIMEOUT_SECONDS = 600;
+  const ORIGINAL_MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+  const ORIGINAL_MAX_TOTAL_BYTES = 150 * 1024 * 1024;
   const QUALITY = {
     low: { label: "Low", maxWidth: 240, jpegQuality: 0.62, estimate: "20-80 KB/image" },
     medium: { label: "Medium", maxWidth: 480, jpegQuality: 0.78, estimate: "60-220 KB/image" },
@@ -1439,7 +1441,7 @@ var PdfImageSaver = (() => {
       const ok = Services.prompt.confirm(
         win,
         "PDF Image Saver",
-        `Save original embedded images from the ${scopeLabel}? This can store up to ${maxImages} original image attachments in Zotero. Preview clipping is safer for sync storage.`,
+        `Save original embedded images from the ${scopeLabel}? This can store up to ${maxImages} original image attachments in Zotero, with a safety limit of ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)} per image and ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)} total per run. Preview clipping is safer for sync storage.`,
       );
       if (!ok) {
         showReaderToast(reader, "Original extraction cancelled.", "warning");
@@ -1486,6 +1488,7 @@ var PdfImageSaver = (() => {
         return;
       }
       if (!report.images?.length) {
+        await removeDirectoryIfExists(report.output_dir);
         showReaderToast(reader, "No embedded original images matched helper filters.", "warning");
         return;
       }
@@ -1498,6 +1501,10 @@ var PdfImageSaver = (() => {
       const skippedText = importResult.omittedCount
         ? buildOriginalImportSkippedText(importResult)
         : "";
+      if (!importResult.count) {
+        showReaderToast(reader, `No new original image attachments saved.${skippedText}`, "warning");
+        return;
+      }
       showReaderToast(
         reader,
         `Saved ${importResult.count} original image attachment${importResult.count === 1 ? "" : "s"}.${skippedText}`,
@@ -1519,8 +1526,20 @@ var PdfImageSaver = (() => {
     let importErrorCount = 0;
     const limited = limitOriginalImagesForImport(report, scope);
     const prepared = await filterExistingOriginalImagesForImport(limited);
+    const existingOriginalKeys = await getExistingOriginalImageKeys(parentItem);
+    const importableImages = [];
+    let duplicateCount = 0;
+    for (const image of prepared.images) {
+      image.originalImageKey = getOriginalImageKey(attachment, image);
+      if (existingOriginalKeys.has(image.originalImageKey)) {
+        duplicateCount += 1;
+        continue;
+      }
+      importableImages.push(image);
+    }
+    const importedImages = [];
     try {
-      for (const image of prepared.images) {
+      for (const image of importableImages) {
         try {
           await Zotero.Attachments.importFromFile({
             file: image.filePath,
@@ -1529,24 +1548,36 @@ var PdfImageSaver = (() => {
             title: buildOriginalImageTitle(parentItem, attachment, image),
             contentType: image.contentType,
           });
+          importedImages.push(image);
           count += 1;
         } catch (error) {
           importErrorCount += 1;
           logError(error);
         }
       }
-      if (prepared.images.length && !count && importErrorCount === prepared.images.length) {
+      if (importableImages.length && !count && importErrorCount === importableImages.length) {
         throw new Error(`All ${importErrorCount} Zotero original image imports failed.`);
+      }
+      if (importedImages.length) {
+        await createOriginalImageIndexAttachment({
+          attachment,
+          parentItem,
+          images: importedImages,
+          scope,
+        });
       }
       return {
         count,
-        omittedCount: prepared.omittedCount + importErrorCount,
+        omittedCount: prepared.omittedCount + duplicateCount + importErrorCount,
         invalidCount: prepared.invalidCount,
         overCapCount: prepared.overCapCount,
         missingCount: prepared.missingCount,
         errorCount: prepared.errorCount,
+        byteCapCount: prepared.byteCapCount,
+        duplicateCount,
         importErrorCount: importErrorCount,
         maxImages: prepared.maxImages,
+        totalBytes: prepared.totalBytes,
       };
     } finally {
       await removeDirectoryIfExists(report.output_dir);
@@ -1557,10 +1588,20 @@ var PdfImageSaver = (() => {
     const images = [];
     let missingCount = 0;
     let errorCount = 0;
+    let byteCapCount = 0;
+    let totalBytes = 0;
     for (const image of limited.images || []) {
       const status = await getHelperImageFileStatus(image.filePath);
       if (status.exists) {
+        const byteCount = normalizeNonNegativeInteger(status.bytes ?? image.byteCount, 0);
+        if (byteCount > ORIGINAL_MAX_IMAGE_BYTES || totalBytes + byteCount > ORIGINAL_MAX_TOTAL_BYTES) {
+          byteCapCount += 1;
+          continue;
+        }
+        image.byteCount = byteCount;
+        image.byte_count = byteCount;
         images.push(image);
+        totalBytes += byteCount;
       } else if (status.error) {
         errorCount += 1;
       } else {
@@ -1572,19 +1613,29 @@ var PdfImageSaver = (() => {
       images,
       missingCount,
       errorCount,
-      omittedCount: (limited.omittedCount || 0) + missingCount + errorCount,
+      byteCapCount,
+      totalBytes,
+      omittedCount: (limited.omittedCount || 0) + missingCount + errorCount + byteCapCount,
     };
   }
 
   async function getHelperImageFileStatus(filePath) {
     if (typeof filePath !== "string") {
-      return { exists: false, error: false };
+      return { exists: false, error: false, bytes: null };
     }
     try {
-      return { exists: !!(await IOUtils.exists(filePath)), error: false };
+      const exists = !!(await IOUtils.exists(filePath));
+      if (!exists) {
+        return { exists: false, error: false, bytes: null };
+      }
+      if (typeof IOUtils.stat === "function") {
+        const stat = await IOUtils.stat(filePath);
+        return { exists: true, error: false, bytes: normalizeNonNegativeInteger(stat?.size, 0) };
+      }
+      return { exists: true, error: false, bytes: null };
     } catch (error) {
       logError(error);
-      return { exists: false, error: true };
+      return { exists: false, error: true, bytes: null };
     }
   }
 
@@ -1622,6 +1673,7 @@ var PdfImageSaver = (() => {
     const pageNumberFallback = pageIndex === null ? 1 : pageIndex + 1;
     const pageNumber = normalizePageNumber(image?.page_number, pageNumberFallback);
     const contentType = normalizeImageContentType(image?.content_type, extension);
+    const byteCount = normalizeNonNegativeInteger(image?.byte_count, 0);
     return {
       file_path: filePath,
       filePath,
@@ -1630,7 +1682,14 @@ var PdfImageSaver = (() => {
       extension,
       page_number: pageNumber,
       pageNumber,
+      page_index: pageIndex,
+      pageIndex,
       occurrence: normalizePositiveInteger(image?.occurrence, index + 1),
+      xref: normalizeNonNegativeInteger(image?.xref, null),
+      sha256: normalizeMetadataText(image?.sha256, null, 80),
+      byte_count: byteCount,
+      byteCount,
+      bbox_normalized: normalizeBBoxNormalized(image?.bbox_normalized),
     };
   }
 
@@ -1638,7 +1697,8 @@ var PdfImageSaver = (() => {
     const base = sanitizeTitle(getSourceTitle(parentItem, attachment));
     const pageNumber = normalizePageNumber(image?.pageNumber ?? image?.page_number, 1);
     const occurrence = normalizePositiveInteger(image?.occurrence, 1);
-    return `${base} - original p${pageNumber} image ${occurrence}`;
+    const key = getOriginalImageFingerprint(image?.originalImageKey || getOriginalImageKey(attachment, image));
+    return `${base} - original p${pageNumber} image ${occurrence} ${key}`.slice(0, 140);
   }
 
   function buildOriginalImportSkippedText(importResult) {
@@ -1652,6 +1712,12 @@ var PdfImageSaver = (() => {
     if (importResult.errorCount) {
       parts.push(`skipped ${importResult.errorCount} unreadable helper file${importResult.errorCount === 1 ? "" : "s"}`);
     }
+    if (importResult.byteCapCount) {
+      parts.push(`skipped ${importResult.byteCapCount} over byte safety cap`);
+    }
+    if (importResult.duplicateCount) {
+      parts.push(`skipped ${importResult.duplicateCount} duplicate original image${importResult.duplicateCount === 1 ? "" : "s"}`);
+    }
     if (importResult.importErrorCount) {
       parts.push(`skipped ${importResult.importErrorCount} failed Zotero import${importResult.importErrorCount === 1 ? "" : "s"}`);
     }
@@ -1659,6 +1725,181 @@ var PdfImageSaver = (() => {
       parts.push(`skipped ${importResult.overCapCount} over safety cap ${importResult.maxImages}`);
     }
     return parts.length ? ` ${parts.join("; ")}.` : "";
+  }
+
+  function getOriginalImageKey(attachment, image) {
+    const libraryID = normalizeMetadataText(attachment?.libraryID, "library", 40);
+    const itemKey = normalizeItemKey(attachment?.key, "UNKNOWN");
+    const pageNumber = normalizePageNumber(image?.pageNumber ?? image?.page_number, 1);
+    const sha = normalizeMetadataText(image?.sha256, null, 80);
+    const xref = normalizeNonNegativeInteger(image?.xref, 0);
+    const occurrence = normalizePositiveInteger(image?.occurrence, 1);
+    const bbox = normalizeBBoxNormalized(image?.bbox_normalized)
+      .map((value) => value.toFixed(4))
+      .join(",");
+    const weakIdentity = xref > 0 ? `xref${xref}` : `occurrence${occurrence}`;
+    const identity = sha || `${weakIdentity}:bbox${bbox}`;
+    return `original-image:v1:${libraryID}:${itemKey}:p${pageNumber}:${identity}`;
+  }
+
+  function getOriginalImageFingerprint(originalImageKey) {
+    return getPreviewIndexFingerprint(originalImageKey) || "unknown";
+  }
+
+  async function createOriginalImageIndexAttachment({ attachment, parentItem, images, scope }) {
+    const outputDir = await createTempDirectory();
+    const htmlPath = PathUtils.join(outputDir, `pdf-original-image-index-${Zotero.Utilities.randomString(8)}.html`);
+    try {
+      const html = buildOriginalImageIndexHTML({ attachment, parentItem, images, scope });
+      await Zotero.File.putContentsAsync(htmlPath, html);
+      const parentID = attachment.parentID || undefined;
+      return await Zotero.Attachments.importFromFile({
+        file: htmlPath,
+        parentItemID: parentID,
+        libraryID: parentID ? undefined : attachment.libraryID,
+        title: buildOriginalImageIndexTitle(parentItem, attachment, images, scope),
+        contentType: "text/html",
+        charset: "utf-8",
+      });
+    } finally {
+      await removeDirectoryIfExists(outputDir);
+    }
+  }
+
+  function buildOriginalImageIndexTitle(parentItem, attachment, images, scope) {
+    const base = sanitizeTitle(getSourceTitle(parentItem, attachment)).slice(0, 70);
+    const count = Array.isArray(images) ? images.length : 0;
+    return `${base} - original image index ${normalizeOriginalScope(scope)} ${count}img`.slice(0, 140);
+  }
+
+  function buildOriginalImageIndexHTML({ attachment, parentItem, images, scope }) {
+    const createdAt = new Date().toISOString();
+    const normalizedScope = normalizeOriginalScope(scope);
+    const normalizedImages = (Array.isArray(images) ? images : []).map((image, index) => {
+      const originalImageKey = normalizeMetadataText(image?.originalImageKey, null, 1000) || getOriginalImageKey(attachment, image);
+      return {
+        id: normalizeMetadataText(image?.id, `original-${index + 1}`, 120),
+        original_image_key: originalImageKey,
+        original_image_fingerprint: getOriginalImageFingerprint(originalImageKey),
+        page_number: normalizePageNumber(image?.pageNumber ?? image?.page_number, 1),
+        bbox_normalized: normalizeBBoxNormalized(image?.bbox_normalized),
+        byte_count: normalizeNonNegativeInteger(image?.byteCount ?? image?.byte_count, 0),
+        content_type: normalizeMetadataText(image?.contentType ?? image?.content_type, null, 80),
+        sha256: normalizeMetadataText(image?.sha256, null, 80),
+        open_pdf_uri: buildOpenPDFURI(attachment, image?.pageNumber ?? image?.page_number),
+      };
+    });
+    const rows = normalizedImages.map((image) => `
+      <tr>
+        <td><a href="${escapeHTML(image.open_pdf_uri)}">p${escapeHTML(String(image.page_number))}</a></td>
+        <td title="${escapeHTML(image.original_image_key)}">${escapeHTML(image.original_image_fingerprint)}</td>
+        <td>${escapeHTML(formatBytes(image.byte_count))}</td>
+        <td>${escapeHTML(image.bbox_normalized.map((value) => value.toFixed(4)).join(", "))}</td>
+      </tr>`).join("\n");
+    const metadata = {
+      schema_version: HELPER_SCHEMA_VERSION,
+      created_at: createdAt,
+      plugin: { id: config.id, version: config.version },
+      storage_mode: "original_image_index",
+      scope: normalizedScope,
+      parent_item: serializeItem(parentItem),
+      pdf_attachment: serializeAttachment(attachment),
+      images: normalizedImages,
+    };
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHTML(getSourceTitle(parentItem, attachment))} - original image index</title>
+  <style>
+    body { margin: 24px; font: 14px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border-top: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; }
+    pre { white-space: pre-wrap; word-break: break-word; padding: 12px; background: #f6f8fa; border: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
+  <p>Original image index - ${normalizedImages.length} imported attachment${normalizedImages.length === 1 ? "" : "s"} - source links open the PDF page.</p>
+  <table>
+    <thead><tr><th>Source</th><th>Image</th><th>Size</th><th>BBox</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <details>
+    <summary>Metadata JSON</summary>
+    <pre>${escapeHTML(JSON.stringify(metadata, null, 2))}</pre>
+  </details>
+</body>
+</html>`;
+  }
+
+  async function getExistingOriginalImageKeys(parentItem) {
+    const keys = new Set();
+    if (!parentItem || typeof parentItem.getAttachments !== "function") {
+      return keys;
+    }
+    let childIDs = [];
+    try {
+      childIDs = parentItem.getAttachments() || [];
+    } catch (error) {
+      try {
+        logError(error);
+      } catch (_logError) {
+        // Duplicate scanning must not block original import.
+      }
+      return keys;
+    }
+    for (const childID of Array.isArray(childIDs) ? childIDs : []) {
+      let child = null;
+      try {
+        child = Zotero.Items.get(childID);
+      } catch (error) {
+        logError(error);
+      }
+      if (!child || !isHTMLAttachment(child)) {
+        continue;
+      }
+      const metadata = await readOriginalImageIndexMetadataFromAttachment(child);
+      const images = Array.isArray(metadata?.images) ? metadata.images : [];
+      for (const image of images) {
+        const key = normalizeMetadataText(image?.original_image_key, null, 1000);
+        if (key) {
+          keys.add(key);
+        }
+      }
+    }
+    return keys;
+  }
+
+  async function readOriginalImageIndexMetadataFromAttachment(item) {
+    if (typeof item?.getFilePathAsync !== "function" || typeof Zotero.File?.getContentsAsync !== "function") {
+      return null;
+    }
+    try {
+      const filePath = await item.getFilePathAsync();
+      if (!filePath) {
+        return null;
+      }
+      const contents = await Zotero.File.getContentsAsync(filePath);
+      const preMatch = String(contents || "").match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+      if (!preMatch) {
+        return null;
+      }
+      const metadata = JSON.parse(unescapeHTMLEntities(preMatch[1]).trim());
+      if (
+        metadata
+        && typeof metadata === "object"
+        && !Array.isArray(metadata)
+        && metadata.schema_version === HELPER_SCHEMA_VERSION
+        && metadata.storage_mode === "original_image_index"
+        && metadata.plugin?.id === config.id
+      ) {
+        return metadata;
+      }
+    } catch (_error) {
+      // Not every HTML child attachment is an original-image index.
+    }
+    return null;
   }
 
   async function runHelperExtraction({ attachment, pdfPath, pageIndex, scope }) {
@@ -3306,6 +3547,7 @@ var PdfImageSaver = (() => {
     __test__: {
       buildIndexHTML,
       buildIndexTitle,
+      buildOriginalImageIndexHTML,
       buildOriginalImageTitle,
       buildOpenPDFURI,
       buildSourceRegion,
@@ -3327,6 +3569,7 @@ var PdfImageSaver = (() => {
       getPreviewDuplicateKey,
       getPreviewIndexFingerprint,
       getPreviewIndexKey,
+      getOriginalImageKey,
       getSourceRegionFingerprint,
       getSourceRegionKey,
       hasExistingPreviewIndexAttachment,

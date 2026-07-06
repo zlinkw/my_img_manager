@@ -91,7 +91,8 @@ foreach ($requiredRule in @(
   "Every batch marked complete must replace ``Pending`` with real validation output",
   "Fixes that reveal follow-up faults must record the new fault before changing that behavior",
   "Every B62+ batch must declare a ``Regression guard:`` line naming prior ``FAIL-*`` IDs or ``validation family:`` names",
-  "For B69+ batches, treat roughly three times the earlier micro-batch size as the default batch target before testing; combine related fixes or improvements that share a validation surface, do not split only to avoid temporary local breakage, and rely on git history for rollback",
+  "For B69+ batches, treat roughly three times the earlier micro-batch size as the minimum default batch target before testing; combine related fixes or improvements that share a validation surface, do not split only to avoid temporary local breakage, and rely on git history for rollback",
+  "For all future implementation batches, prefer larger coherent batches over repeated tiny loops: update the plan once, modify the full same-surface final version, then run the relevant validation suite; git commits provide rollback, so fear of temporary breakage is not a valid reason to shrink the batch",
   "Every B69+ batch must declare a ``Batch size guard:`` line explaining whether the batch used the 3x grouped-batch target or why isolation was required",
   "``scripts/check.ps1`` must enforce these plan-state invariants"
 )) {
@@ -549,8 +550,8 @@ if ($mainJS -notmatch "importErrorCount\s*\+=\s*1") {
 if ($mainJS -notmatch "importErrorCount:\s*importErrorCount") {
   throw "Original image import result must expose Zotero import failure count"
 }
-if ($mainJS -notmatch "omittedCount:\s*prepared\.omittedCount\s*\+\s*importErrorCount") {
-  throw "Original image import result must add Zotero import failures to omission count"
+if ($mainJS -notmatch "omittedCount:\s*prepared\.omittedCount\s*\+\s*duplicateCount\s*\+\s*importErrorCount") {
+  throw "Original image import result must add duplicate skips and Zotero import failures to omission count"
 }
 if ($mainJS -notmatch "skipped\s+\$\{importResult\.importErrorCount\}\s+failed Zotero import") {
   throw "Original helper import toast must expose failed Zotero imports separately"
@@ -558,11 +559,71 @@ if ($mainJS -notmatch "skipped\s+\$\{importResult\.importErrorCount\}\s+failed Z
 if ($mainJS -notmatch "try\s*\{\s*\r?\n\s*await\s+Zotero\.Attachments\.importFromFile") {
   throw "Original image import must isolate each Zotero import call"
 }
-if ($mainJS -notmatch "prepared\.images\.length\s*&&\s*!count\s*&&\s*importErrorCount\s*===\s*prepared\.images\.length") {
+if ($mainJS -notmatch "importableImages\.length\s*&&\s*!count\s*&&\s*importErrorCount\s*===\s*importableImages\.length") {
   throw "Original image import must detect all attempted Zotero imports failing"
 }
 if ($mainJS -notmatch "All\s+\$\{importErrorCount\}\s+Zotero original image imports failed") {
   throw "Original image import must throw a clear all-imports-failed error"
+}
+if ($mainJS -notmatch "const\s+ORIGINAL_MAX_IMAGE_BYTES\s*=\s*25\s*\*\s*1024\s*\*\s*1024") {
+  throw "Original image import must define a per-image byte safety cap"
+}
+if ($mainJS -notmatch "const\s+ORIGINAL_MAX_TOTAL_BYTES\s*=\s*150\s*\*\s*1024\s*\*\s*1024") {
+  throw "Original image import must define a total byte safety cap"
+}
+if ($mainJS -notmatch "IOUtils\.stat\(filePath\)") {
+  throw "Original image import must stat helper output files before Zotero import"
+}
+if ($mainJS -notmatch "byteCount\s*>\s*ORIGINAL_MAX_IMAGE_BYTES\s*\|\|\s*totalBytes\s*\+\s*byteCount\s*>\s*ORIGINAL_MAX_TOTAL_BYTES") {
+  throw "Original image import must enforce per-file and total byte caps"
+}
+if ($mainJS -notmatch "byteCapCount:\s*prepared\.byteCapCount") {
+  throw "Original image import result must expose byte-cap skip count"
+}
+if ($mainJS -notmatch "skipped\s+\$\{importResult\.byteCapCount\}\s+over byte safety cap") {
+  throw "Original helper import toast must expose byte-cap skips"
+}
+if ($mainJS -notmatch "const\s+existingOriginalKeys\s*=\s*await\s+getExistingOriginalImageKeys\(parentItem\)") {
+  throw "Original image import must scan existing original-image keys before import"
+}
+if ($mainJS -notmatch "existingOriginalKeys\.has\(image\.originalImageKey\)") {
+  throw "Original image import must skip duplicate original-image keys"
+}
+if ($mainJS -notmatch "duplicateCount\s*\+=\s*1") {
+  throw "Original image import must count duplicate original-image skips"
+}
+if ($mainJS -notmatch 'const\s+weakIdentity\s*=\s*xref\s*>\s*0\s*\?\s*`xref\$\{xref\}`\s*:\s*`occurrence\$\{occurrence\}`') {
+  throw "Original image weak identity fallback must include occurrence"
+}
+if ($mainJS -notmatch "async\s+function\s+createOriginalImageIndexAttachment") {
+  throw "Original image import must create a synced HTML original-image index helper"
+}
+if ($mainJS -notmatch "await\s+createOriginalImageIndexAttachment\(\s*\{[\s\S]*images:\s*importedImages") {
+  throw "Original image import must create an index for successfully imported originals"
+}
+if ($mainJS -notmatch "function\s+buildOriginalImageIndexHTML") {
+  throw "Original image import missing HTML index builder"
+}
+if ($mainJS -notmatch 'storage_mode:\s*"original_image_index"') {
+  throw "Original image index metadata must use original_image_index storage mode"
+}
+if ($mainJS -notmatch "original_image_key:\s*originalImageKey") {
+  throw "Original image index metadata must include stable original_image_key values"
+}
+if ($mainJS -notmatch "open_pdf_uri:\s*buildOpenPDFURI\(attachment,\s*image\?\.pageNumber\s*\?\?\s*image\?\.page_number\)") {
+  throw "Original image index metadata must include source PDF links"
+}
+if ($mainJS -notmatch "readOriginalImageIndexMetadataFromAttachment") {
+  throw "Original image duplicate scanner must read original-image index metadata"
+}
+if ($mainJS -notmatch "metadata\.storage_mode\s*===\s*`"original_image_index`"") {
+  throw "Original image duplicate scanner must validate original_image_index storage mode"
+}
+if ($mainJS -notmatch "formatBytes\(ORIGINAL_MAX_IMAGE_BYTES\)[\s\S]*formatBytes\(ORIGINAL_MAX_TOTAL_BYTES\)") {
+  throw "Original extraction confirmation must include byte-cap risk text"
+}
+if ($mainJS -notmatch "if\s*\(\s*!report\.images\?\.length\s*\)\s*\{\s*\r?\n\s*await\s+removeDirectoryIfExists\(report\.output_dir\)") {
+  throw "Original-image save entry must clean helper output immediately when helper returns zero images"
 }
 if ($mainJS -match "\(\s*report\.warnings\s*\|\|\s*\[\]\s*\)\.join") {
   throw "Helper failure formatter must not join raw report warnings"

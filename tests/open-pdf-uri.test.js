@@ -45,6 +45,21 @@ const context = {
         this.imported.push(options);
       },
     },
+    File: {
+      contents: Object.create(null),
+      async createDirectoryIfMissingAsync() {},
+      async getContentsAsync(filePath) {
+        return this.contents[filePath] || "";
+      },
+      async putContentsAsync(filePath, contents) {
+        this.contents[filePath] = contents;
+      },
+    },
+    Utilities: {
+      randomString() {
+        return "RANDOM01";
+      },
+    },
   },
   Services: {
     appinfo: { OS: "WINNT" },
@@ -63,6 +78,7 @@ const context = {
   },
   IOUtils: {
     exists: async () => false,
+    stat: async () => ({ size: 0 }),
     remove: async () => {},
   },
   PathUtils: {
@@ -85,6 +101,7 @@ context.PdfImageSaver.init({
 const {
   buildIndexHTML,
   buildIndexTitle,
+  buildOriginalImageIndexHTML,
   buildOriginalImageTitle,
   buildOpenPDFURI,
   buildSourceRegion,
@@ -105,6 +122,7 @@ const {
   getPreviewDuplicateKey,
   getPreviewIndexFingerprint,
   getPreviewIndexKey,
+  getOriginalImageKey,
   getSourceRegionFingerprint,
   getSourceRegionKey,
   hasExistingPreviewIndexAttachment,
@@ -535,6 +553,17 @@ function extractMetadata(htmlText) {
   return JSON.parse(metadataText);
 }
 
+function importedImageFiles() {
+  return context.Zotero.Attachments.imported
+    .filter((entry) => String(entry.contentType || "").startsWith("image/"))
+    .map((entry) => entry.file);
+}
+
+function importedHTMLIndexes() {
+  return context.Zotero.Attachments.imported
+    .filter((entry) => entry.contentType === "text/html");
+}
+
 const htmlAttachment = stubItem(
   { title: "Attachment <PDF>" },
   { libraryID: 1, key: "HTMLPDF1", attachmentContentType: "application/pdf" },
@@ -616,6 +645,39 @@ assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region
 assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");
 assert.ok(html.includes('<details class="entry-details">'), "technical entry metadata must be in a per-entry details block");
 assert.ok(!/<details class="entry-details"[^>]*open/i.test(html), "technical entry metadata must be collapsed by default");
+
+const originalIndexImage = normalizeOriginalImageForImport({
+  file_path: "C:\\Temp\\pdf-image-saver\\job-index\\original-1.jpg",
+  page_index: 4,
+  occurrence: 2,
+  xref: 42,
+  sha256: "abc123",
+  byte_count: 65536,
+  bbox_normalized: [0.2, 0.3, 0.5, 0.7],
+}, 0, "C:\\Temp\\pdf-image-saver\\job-index");
+originalIndexImage.originalImageKey = getOriginalImageKey(htmlAttachment, originalIndexImage);
+const originalIndexHTML = buildOriginalImageIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  images: [originalIndexImage],
+  scope: "page",
+});
+const originalIndexMetadata = extractMetadata(originalIndexHTML);
+assert.strictEqual(originalIndexMetadata.storage_mode, "original_image_index", "original index must use its own storage mode");
+assert.strictEqual(originalIndexMetadata.scope, "page", "original index must normalize scope");
+assert.strictEqual(originalIndexMetadata.images.length, 1, "original index metadata must record imported originals");
+assert.strictEqual(originalIndexMetadata.images[0].original_image_key, originalIndexImage.originalImageKey);
+assert.strictEqual(originalIndexMetadata.images[0].open_pdf_uri, "zotero://open-pdf/library/items/HTMLPDF1?page=5");
+assert.strictEqual(originalIndexMetadata.images[0].byte_count, 65536);
+assert.ok(originalIndexHTML.includes("zotero://open-pdf/library/items/HTMLPDF1?page=5"), "original index must include source PDF links");
+assert.ok(originalIndexHTML.includes("abc123"), "original index must keep compact original identity metadata");
+const weakOriginalKeyA = getOriginalImageKey(htmlAttachment, { page_number: 5, occurrence: 1 });
+const weakOriginalKeyB = getOriginalImageKey(htmlAttachment, { page_number: 5, occurrence: 2 });
+assert.notStrictEqual(
+  weakOriginalKeyA,
+  weakOriginalKeyB,
+  "same-page original records without sha/xref/bbox must not share fallback keys",
+);
 
 const samePageLeft = {
   ...htmlEntry,
@@ -1122,14 +1184,21 @@ assert.deepStrictEqual(
     extension: "webp",
     page_number: 1,
     pageNumber: 1,
+    page_index: null,
+    pageIndex: null,
     occurrence: 5,
+    xref: 0,
+    sha256: null,
+    byte_count: 0,
+    byteCount: 0,
+    bbox_normalized: [0, 0, 1, 1],
   },
   "helper image normalization must produce scalar import fields",
 );
-assert.strictEqual(
+assert.match(
   buildOriginalImageTitle(noisyParent, noisyAttachment, { page_number: { bad: true }, occurrence: ["bad"] }),
-  "PDF - original p1 image 1",
-  "original attachment title must normalize malformed source, page, and occurrence fields",
+  /^PDF - original p1 image 1 [a-z0-9]+$/,
+  "original attachment title must normalize malformed source, page, occurrence, and append compact identity",
 );
 const noisyHelperWarnings = normalizeHelperWarningMessages([
   { bad: true },
@@ -1607,6 +1676,7 @@ async function runAsyncAssertions() {
     },
   };
   context.Zotero.File = {
+    ...context.Zotero.File,
     async getContentsAsync(filePath) {
       assert.ok(
         ["C:\\Temp\\existing-index.html", "C:\\Temp\\renamed-index.html", "C:\\Temp\\unrelated.html"].includes(filePath),
@@ -1731,6 +1801,11 @@ async function runAsyncAssertions() {
     context.Services.prompt.confirms[0].message.includes("current page"),
     "malformed original confirmation options must fall back to current-page scope",
   );
+  assert.ok(
+    context.Services.prompt.confirms[0].message.includes("25 MB per image")
+      && context.Services.prompt.confirms[0].message.includes("150 MB total"),
+    "original confirmation must state per-image and total byte risk",
+  );
   assert.strictEqual(
     context.Services.prompt.alerts[0].message,
     "Original extraction cancelled.",
@@ -1789,6 +1864,36 @@ async function runAsyncAssertions() {
   assert.strictEqual(filteredWithReadError.omittedCount, 1, "existence-check errors must add to omission count");
   assert.strictEqual(loggedErrors.length, 1, "existence-check errors must be logged");
 
+  const mb = 1024 * 1024;
+  const oversizedOriginalFile = `${helperOutputDir}\\oversized.jpg`;
+  const totalCapOriginalFiles = Array.from(
+    { length: 8 },
+    (_value, index) => `${helperOutputDir}\\total-cap-${index + 1}.jpg`,
+  );
+  existingFiles.add(oversizedOriginalFile.toLowerCase());
+  totalCapOriginalFiles.forEach((filePath) => existingFiles.add(filePath.toLowerCase()));
+  const helperByteSizes = new Map([
+    [oversizedOriginalFile.toLowerCase(), 26 * mb],
+    ...totalCapOriginalFiles.map((filePath) => [filePath.toLowerCase(), 20 * mb]),
+  ]);
+  context.IOUtils.exists = async (filePath) => existingFiles.has(String(filePath).toLowerCase());
+  context.IOUtils.stat = async (filePath) => ({ size: helperByteSizes.get(String(filePath).toLowerCase()) ?? 1024 });
+  const filteredWithByteCaps = await filterExistingOriginalImagesForImport({
+    images: [
+      normalizeOriginalImageForImport({ file_path: oversizedOriginalFile }, 0, helperOutputDir),
+      ...totalCapOriginalFiles.map((filePath, index) => normalizeOriginalImageForImport({ file_path: filePath }, index + 1, helperOutputDir)),
+    ],
+    omittedCount: 0,
+    invalidCount: 0,
+    overCapCount: 0,
+    maxImages: 10,
+  });
+  assert.strictEqual(filteredWithByteCaps.images.length, 7, "byte caps must keep only files inside per-file and total limits");
+  assert.strictEqual(filteredWithByteCaps.byteCapCount, 2, "byte caps must count per-file and total-limit skips");
+  assert.strictEqual(filteredWithByteCaps.omittedCount, 2, "byte-cap skips must add to omission count");
+  assert.strictEqual(filteredWithByteCaps.totalBytes, 140 * mb, "total byte count must reflect accepted originals only");
+  assert.strictEqual(filteredWithByteCaps.images[0].byteCount, 20 * mb, "accepted originals must carry stat byte size");
+
   context.IOUtils.exists = async (filePath) => existingFiles.has(String(filePath).toLowerCase());
   context.Zotero.Attachments.imported = [];
   const importResult = await importOriginalImages({
@@ -1806,11 +1911,84 @@ async function runAsyncAssertions() {
   });
   assert.strictEqual(importResult.count, 2, "missing helper files must not abort later valid imports");
   assert.strictEqual(importResult.missingCount, 1, "full import must report missing helper files");
+  assert.strictEqual(importResult.totalBytes, 2048, "full import must report stat bytes for accepted originals");
   assert.deepStrictEqual(
-    context.Zotero.Attachments.imported.map((entry) => entry.file),
+    importedImageFiles(),
     [existingOriginalFile, laterExistingOriginalFile],
     "full import must pass only existing helper files to Zotero import",
   );
+  const firstGeneratedOriginalIndexes = importedHTMLIndexes();
+  assert.strictEqual(firstGeneratedOriginalIndexes.length, 1, "successful original imports must create one synced HTML index");
+  assert.strictEqual(firstGeneratedOriginalIndexes[0].contentType, "text/html");
+  const firstGeneratedIndexHTML = context.Zotero.File.contents[firstGeneratedOriginalIndexes[0].file];
+  assert.ok(firstGeneratedIndexHTML.includes("original_image_key"), "generated original index must store original image keys");
+  assert.ok(firstGeneratedIndexHTML.includes("zotero://open-pdf/library/items/HTMLPDF1"), "generated original index must store source PDF links");
+
+  const duplicateOriginalRecord = normalizeOriginalImageForImport({
+    file_path: existingOriginalFile,
+    page_number: 2,
+    occurrence: 2,
+    sha256: "duplicate-sha",
+  }, 0, helperOutputDir);
+  duplicateOriginalRecord.originalImageKey = getOriginalImageKey(htmlAttachment, duplicateOriginalRecord);
+  const existingOriginalIndexHTML = buildOriginalImageIndexHTML({
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    images: [duplicateOriginalRecord],
+    scope: "page",
+  });
+  const existingOriginalIndexChild = stubItem(
+    { title: "Existing original image index" },
+    {
+      attachmentContentType: "text/html",
+      async getFilePathAsync() {
+        return "C:\\Temp\\existing-original-index.html";
+      },
+    },
+  );
+  const parentWithOriginalIndex = stubItem(
+    { title: "Parent with original index" },
+    {
+      getAttachments() {
+        return [701];
+      },
+    },
+  );
+  context.Zotero.Items = {
+    get(id) {
+      return id === 701 ? existingOriginalIndexChild : null;
+    },
+  };
+  context.Zotero.File = {
+    ...context.Zotero.File,
+    async getContentsAsync(filePath) {
+      if (filePath === "C:\\Temp\\existing-original-index.html") {
+        return existingOriginalIndexHTML;
+      }
+      return this.contents[filePath] || "";
+    },
+  };
+  context.Zotero.Attachments.imported = [];
+  const duplicateImportResult = await importOriginalImages({
+    report: {
+      output_dir: helperOutputDir,
+      images: [
+        { file_path: existingOriginalFile, page_number: 2, occurrence: 2, sha256: "duplicate-sha" },
+        { file_path: laterExistingOriginalFile, page_number: 3, occurrence: 3, sha256: "new-sha" },
+      ],
+    },
+    attachment: htmlAttachment,
+    parentItem: parentWithOriginalIndex,
+    scope: "page",
+  });
+  assert.strictEqual(duplicateImportResult.count, 1, "existing original-image keys must be skipped across reloads");
+  assert.strictEqual(duplicateImportResult.duplicateCount, 1, "duplicate original-image keys must be counted");
+  assert.deepStrictEqual(importedImageFiles(), [laterExistingOriginalFile], "duplicate original imports must not reach Zotero import");
+  const duplicateGeneratedIndexes = importedHTMLIndexes();
+  assert.strictEqual(duplicateGeneratedIndexes.length, 1, "non-duplicate original import must still create an index");
+  const duplicateGeneratedMetadata = extractMetadata(context.Zotero.File.contents[duplicateGeneratedIndexes[0].file]);
+  assert.strictEqual(duplicateGeneratedMetadata.images.length, 1, "duplicate skips must be excluded from new original index metadata");
+  assert.strictEqual(duplicateGeneratedMetadata.images[0].sha256, "new-sha");
 
   const importErrors = [];
   context.Zotero.logError = (error) => importErrors.push(error);
@@ -1839,10 +2017,11 @@ async function runAsyncAssertions() {
   assert.strictEqual(importFailureResult.omittedCount, 1, "failed Zotero imports must add to omission count");
   assert.strictEqual(importErrors.length, 1, "failed Zotero imports must be logged");
   assert.deepStrictEqual(
-    context.Zotero.Attachments.imported.map((entry) => entry.file),
+    importedImageFiles(),
     [existingOriginalFile, laterExistingOriginalFile],
     "failed Zotero imports must be omitted while later valid imports continue",
   );
+  assert.strictEqual(importedHTMLIndexes().length, 1, "partial original import success must still write one HTML index");
 
   const allFailureErrors = [];
   context.Zotero.logError = (error) => allFailureErrors.push(error);
