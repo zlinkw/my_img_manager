@@ -2597,8 +2597,14 @@ var PdfImageSaver = (() => {
   }
 
   function getPreviewDuplicateKey(attachment, preview) {
-    const bbox = preview.bboxNormalized.map((value) => value.toFixed(4)).join(",");
-    return `${attachment.libraryID}:${attachment.key}:${preview.pageIndex}:${preview.quality}:${bbox}`;
+    const libraryID = normalizeMetadataText(attachment?.libraryID, "library", 40);
+    const itemKey = normalizeItemKey(attachment?.key, "UNKNOWN");
+    const pageIndex = normalizePageIndex(preview?.pageIndex, 0);
+    const quality = normalizeQualityKey(preview?.quality);
+    const bbox = normalizeBBoxNormalized(preview?.bboxNormalized)
+      .map((value) => value.toFixed(4))
+      .join(",");
+    return `${libraryID}:${itemKey}:${pageIndex}:${quality}:${bbox}`;
   }
 
   function pruneRecentIndexSaves() {
@@ -2786,6 +2792,7 @@ var PdfImageSaver = (() => {
       getActiveReader,
       getContextPageIndex,
       getPDFViewerContextCandidate,
+      getPreviewDuplicateKey,
       importOriginalImages,
       limitOriginalImagesForImport,
       normalizeHelperSchemaText,

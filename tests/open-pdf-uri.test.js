@@ -87,6 +87,7 @@ const {
   getActiveReader,
   getContextPageIndex,
   getPDFViewerContextCandidate,
+  getPreviewDuplicateKey,
   getReaderJobKey,
   importOriginalImages,
   limitOriginalImagesForImport,
@@ -1101,6 +1102,15 @@ assert.strictEqual(
   getActiveReader({ Zotero_Tabs: {} }),
   null,
   "missing selected tab must not target an arbitrary open reader",
+);
+
+assert.strictEqual(
+  getPreviewDuplicateKey(
+    { libraryID: { bad: true }, key: { bad: true } },
+    { pageIndex: { bad: true }, quality: "constructor", bboxNormalized: { bad: true } },
+  ),
+  "library:UNKNOWN:0:medium:0.0000,0.0000,1.0000,1.0000",
+  "duplicate guard keys must normalize malformed attachment and preview fields",
 );
 
 async function runAsyncAssertions() {

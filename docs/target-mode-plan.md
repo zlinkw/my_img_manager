@@ -1544,6 +1544,26 @@ End batch validation checklist:
 - Code review: subagent rejected the initial stale candidate; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
 - Git commit records B51 implementation: `e288c89`.
 
+### B52 Preview Duplicate Key Normalization
+
+Status: in progress.
+
+Plan:
+
+- Normalize duplicate-guard key inputs inside `getPreviewDuplicateKey()` so malformed preview or attachment values cannot throw or leak object text into the recent-save cache.
+- Keep rendered preview output and saved HTML index behavior unchanged.
+- Add behavior/static checks proving duplicate keys normalize library ID, attachment key, page index, quality, and bbox values before string construction.
+
+Pre batch validation:
+
+- Git worktree clean at B52 start commit `75efb8c`.
+- B52 local planning pass found `getPreviewDuplicateKey()` trusts `preview.bboxNormalized.map()`, `attachment.libraryID`, `attachment.key`, `preview.pageIndex`, and `preview.quality` directly; recorded as `FAIL-20260706-113`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3258,6 +3278,19 @@ End batch validation checklist:
 - Close condition: `npm.cmd run check` passes while still guarding raw `options.scope` and `...options` spellings.
 - Closure: raw original confirmation options guards now use `-cmatch`, so `safeOptions` passes while lowercase raw `options.scope` and `...options` remain rejected.
 
+### FAIL-20260706-113
+
+- Batch: B52
+- Environment: in-session duplicate guard key generation
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `getPreviewDuplicateKey()` calls `preview.bboxNormalized.map()` and interpolates raw attachment/preview fields.
+- Expected: duplicate guard keys should be compact normalized strings even if future callers pass malformed preview or attachment records.
+- Actual: malformed `bboxNormalized` can throw, and malformed attachment key/library/page/quality values can leak object text or invalid quality values into `recentIndexSaves`.
+- Validation update: normalize duplicate key inputs and add behavior/static checks.
+- Close condition: tests/static checks prove malformed duplicate-key inputs produce a stable normalized key and never use raw bbox map or raw attachment key interpolation.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3368,6 +3401,7 @@ End batch validation checklist:
 - Check reader toast message and level inputs are normalized before document toast and fallback alert output.
 - Check optional original confirmation normalizes malformed options before scope use and save delegation.
 - Check raw original confirmation options static guards are case-sensitive and do not reject `safeOptions`.
+- Check preview duplicate guard keys normalize malformed preview and attachment fields.
 
 ## Real Commit Log
 

@@ -373,6 +373,9 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*savePagePreviewIndex") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getReaderJobKey") {
   throw "Reader job key helper must remain exported for regression tests"
 }
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getPreviewDuplicateKey") {
+  throw "Preview duplicate key helper must remain exported for regression tests"
+}
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*renderCanvasPreview") {
   throw "Canvas preview renderer must remain exported for regression tests"
 }
@@ -727,6 +730,31 @@ if ($renderCanvasPreviewEntry.Value -notmatch "quality:\s*normalizedQualityKey")
 }
 if ($renderCanvasPreviewEntry.Value -match "QUALITY\[qualityKey\]\s*\|\|\s*QUALITY\.medium") {
   throw "Canvas preview renderer must not rely on raw quality fallback"
+}
+$duplicateKeyEntry = [regex]::Match($mainJS, "function\s+getPreviewDuplicateKey\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+pruneRecentIndexSaves")
+if (!$duplicateKeyEntry.Success) {
+  throw "Preview duplicate key helper function block not found"
+}
+if ($duplicateKeyEntry.Value -notmatch "const\s+libraryID\s*=\s*normalizeMetadataText\(attachment\?\.libraryID,\s*`"library`",\s*40\)") {
+  throw "Preview duplicate key must normalize library ID"
+}
+if ($duplicateKeyEntry.Value -notmatch "const\s+itemKey\s*=\s*normalizeItemKey\(attachment\?\.key,\s*`"UNKNOWN`"\)") {
+  throw "Preview duplicate key must normalize attachment key"
+}
+if ($duplicateKeyEntry.Value -notmatch "const\s+pageIndex\s*=\s*normalizePageIndex\(preview\?\.pageIndex,\s*0\)") {
+  throw "Preview duplicate key must normalize page index"
+}
+if ($duplicateKeyEntry.Value -notmatch "const\s+quality\s*=\s*normalizeQualityKey\(preview\?\.quality\)") {
+  throw "Preview duplicate key must normalize quality"
+}
+if ($duplicateKeyEntry.Value -notmatch "const\s+bbox\s*=\s*normalizeBBoxNormalized\(preview\?\.bboxNormalized\)[\s\S]*\.map\(\(value\)\s*=>\s*value\.toFixed\(4\)\)") {
+  throw "Preview duplicate key must normalize bbox before formatting"
+}
+if ($duplicateKeyEntry.Value -match "preview\.bboxNormalized\.map") {
+  throw "Preview duplicate key must not map raw bbox"
+}
+if ($duplicateKeyEntry.Value -cmatch "\$\{attachment\.key\}") {
+  throw "Preview duplicate key must not interpolate raw attachment key"
 }
 $originalSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveOriginalImagesFromReader\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+importOriginalImages")
 if (!$originalSaveEntry.Success) {
