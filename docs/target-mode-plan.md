@@ -1211,6 +1211,28 @@ End batch validation checklist:
 - Code review: passed after separating unreadable helper files from missing files and adding full import behavior coverage.
 - Git commit records B39 implementation: `e5401c2`.
 
+### B40 Optional Original Per Image Import Failure Isolation
+
+Status: in progress.
+
+Plan:
+
+- Isolate `Zotero.Attachments.importFromFile` failures per original helper image.
+- Continue importing later valid original images after one image import fails.
+- Report import failures separately from malformed, missing, unreadable, and over-cap helper records.
+- Keep the default reader preview index workflow unchanged.
+
+Pre batch validation:
+
+- Git worktree clean at B40 start commit `2d489d8`.
+- B40 planning pass found `importOriginalImages()` still wraps the whole import loop, so one existing but unimportable helper image can abort later valid original-image imports; recorded as `FAIL-20260706-088`.
+- B40 code review found all per-image imports can fail and still return as a non-fatal warning instead of surfacing a system-level import failure; recorded as `FAIL-20260706-089`.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -2575,6 +2597,32 @@ End batch validation checklist:
 - Close condition: tests prove only existing helper files are imported and missing helper files do not abort the import loop.
 - Closure: `importOriginalImages()` is exported for regression tests, and behavior tests prove only existing helper files are sent to Zotero import.
 
+### FAIL-20260706-088
+
+- Batch: B40
+- Environment: optional original image Zotero attachment import loop
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: one existing helper image that fails during `Zotero.Attachments.importFromFile` aborts the remaining original-image import loop.
+- Expected: failed individual original imports are counted and later valid images still import.
+- Actual: the import loop throws out to the reader-level catch, so later valid images are not imported.
+- Validation update: isolate per-image import failures and add behavior/static checks for continuing after one import failure.
+- Close condition: tests prove a failing existing image increments `importErrorCount`, is omitted from imported files, and later valid files still import.
+
+### FAIL-20260706-089
+
+- Batch: B40
+- Environment: optional original image Zotero attachment import loop systemic failures
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: all `Zotero.Attachments.importFromFile` calls can fail and still return as a non-fatal warning result.
+- Expected: partial import failures are counted, but all attempted original imports failing is surfaced as an overall import error.
+- Actual: user feedback can show `Saved 0` with warnings even when the Zotero import path is systemically broken.
+- Validation update: throw a clear overall error when every attempted original import fails and add behavior/static checks.
+- Close condition: tests prove partial failures continue but all attempted import failures reject with a clear error.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2660,6 +2708,8 @@ End batch validation checklist:
 - Check optional original helper import skips missing output files without aborting remaining valid imports.
 - Check optional original helper existence-check errors are reported separately from missing files.
 - Check optional original helper import behavior dynamically skips missing files before `Zotero.Attachments.importFromFile`.
+- Check optional original helper import continues after one existing helper file fails Zotero attachment import.
+- Check optional original helper import reports an overall error when every attempted Zotero attachment import fails.
 
 ## Real Commit Log
 

@@ -1252,26 +1252,36 @@ var PdfImageSaver = (() => {
   async function importOriginalImages({ report, attachment, parentItem, scope }) {
     const parentID = attachment.parentID || undefined;
     let count = 0;
+    let importErrorCount = 0;
     const limited = limitOriginalImagesForImport(report, scope);
     const prepared = await filterExistingOriginalImagesForImport(limited);
     try {
       for (const image of prepared.images) {
-        await Zotero.Attachments.importFromFile({
-          file: image.filePath,
-          parentItemID: parentID,
-          libraryID: parentID ? undefined : attachment.libraryID,
-          title: buildOriginalImageTitle(parentItem, attachment, image),
-          contentType: image.contentType,
-        });
-        count += 1;
+        try {
+          await Zotero.Attachments.importFromFile({
+            file: image.filePath,
+            parentItemID: parentID,
+            libraryID: parentID ? undefined : attachment.libraryID,
+            title: buildOriginalImageTitle(parentItem, attachment, image),
+            contentType: image.contentType,
+          });
+          count += 1;
+        } catch (error) {
+          importErrorCount += 1;
+          logError(error);
+        }
+      }
+      if (prepared.images.length && !count && importErrorCount === prepared.images.length) {
+        throw new Error(`All ${importErrorCount} Zotero original image imports failed.`);
       }
       return {
         count,
-        omittedCount: prepared.omittedCount,
+        omittedCount: prepared.omittedCount + importErrorCount,
         invalidCount: prepared.invalidCount,
         overCapCount: prepared.overCapCount,
         missingCount: prepared.missingCount,
         errorCount: prepared.errorCount,
+        importErrorCount: importErrorCount,
         maxImages: prepared.maxImages,
       };
     } finally {
@@ -1377,6 +1387,9 @@ var PdfImageSaver = (() => {
     }
     if (importResult.errorCount) {
       parts.push(`skipped ${importResult.errorCount} unreadable helper file${importResult.errorCount === 1 ? "" : "s"}`);
+    }
+    if (importResult.importErrorCount) {
+      parts.push(`skipped ${importResult.importErrorCount} failed Zotero import${importResult.importErrorCount === 1 ? "" : "s"}`);
     }
     if (importResult.overCapCount) {
       parts.push(`skipped ${importResult.overCapCount} over safety cap ${importResult.maxImages}`);

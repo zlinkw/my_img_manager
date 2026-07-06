@@ -759,9 +759,11 @@ async function runAsyncAssertions() {
   const missingOriginalFile = `${helperOutputDir}\\missing.jpg`;
   const laterExistingOriginalFile = `${helperOutputDir}\\later-existing.jpg`;
   const unreadableOriginalFile = `${helperOutputDir}\\unreadable.jpg`;
+  const failingImportOriginalFile = `${helperOutputDir}\\failing-import.jpg`;
   const existingFiles = new Set([
     existingOriginalFile.toLowerCase(),
     laterExistingOriginalFile.toLowerCase(),
+    failingImportOriginalFile.toLowerCase(),
   ]);
   context.IOUtils.exists = async (filePath) => existingFiles.has(String(filePath).toLowerCase());
   const filteredOriginalImages = await filterExistingOriginalImagesForImport({
@@ -827,6 +829,63 @@ async function runAsyncAssertions() {
     [existingOriginalFile, laterExistingOriginalFile],
     "full import must pass only existing helper files to Zotero import",
   );
+
+  const importErrors = [];
+  context.Zotero.logError = (error) => importErrors.push(error);
+  context.Zotero.Attachments.imported = [];
+  context.Zotero.Attachments.importFromFile = async function importFromFile(options) {
+    if (options.file === failingImportOriginalFile) {
+      throw new Error("zotero import failed");
+    }
+    this.imported.push(options);
+  };
+  const importFailureResult = await importOriginalImages({
+    report: {
+      output_dir: helperOutputDir,
+      images: [
+        { file_path: existingOriginalFile, page_number: 1, occurrence: 1 },
+        { file_path: failingImportOriginalFile, page_number: 2, occurrence: 2 },
+        { file_path: laterExistingOriginalFile, page_number: 3, occurrence: 3 },
+      ],
+    },
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    scope: "page",
+  });
+  assert.strictEqual(importFailureResult.count, 2, "one failed Zotero import must not abort later valid imports");
+  assert.strictEqual(importFailureResult.importErrorCount, 1, "failed Zotero imports must be counted separately");
+  assert.strictEqual(importFailureResult.omittedCount, 1, "failed Zotero imports must add to omission count");
+  assert.strictEqual(importErrors.length, 1, "failed Zotero imports must be logged");
+  assert.deepStrictEqual(
+    context.Zotero.Attachments.imported.map((entry) => entry.file),
+    [existingOriginalFile, laterExistingOriginalFile],
+    "failed Zotero imports must be omitted while later valid imports continue",
+  );
+
+  const allFailureErrors = [];
+  context.Zotero.logError = (error) => allFailureErrors.push(error);
+  context.Zotero.Attachments.imported = [];
+  context.Zotero.Attachments.importFromFile = async () => {
+    throw new Error("zotero storage unavailable");
+  };
+  await assert.rejects(
+    () => importOriginalImages({
+      report: {
+        output_dir: helperOutputDir,
+        images: [
+          { file_path: existingOriginalFile, page_number: 1, occurrence: 1 },
+          { file_path: laterExistingOriginalFile, page_number: 2, occurrence: 2 },
+        ],
+      },
+      attachment: htmlAttachment,
+      parentItem: htmlParent,
+      scope: "page",
+    }),
+    /All 2 Zotero original image imports failed/,
+    "all failed Zotero imports must be surfaced as an overall error",
+  );
+  assert.strictEqual(allFailureErrors.length, 2, "all failed Zotero imports must log each failed import");
+  assert.deepStrictEqual(context.Zotero.Attachments.imported, [], "all failed Zotero imports must not record imports");
 }
 
 runAsyncAssertions()

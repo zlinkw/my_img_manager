@@ -271,6 +271,30 @@ if ($mainJS -notmatch "missingCount:\s*prepared\.missingCount") {
 if ($mainJS -notmatch "errorCount:\s*prepared\.errorCount") {
   throw "Original image import result must expose helper file existence-check error count"
 }
+if ($mainJS -notmatch "let\s+importErrorCount\s*=\s*0") {
+  throw "Original image import must count per-image Zotero import failures"
+}
+if ($mainJS -notmatch "importErrorCount\s*\+=\s*1") {
+  throw "Original image import must increment per-image Zotero import failures"
+}
+if ($mainJS -notmatch "importErrorCount:\s*importErrorCount") {
+  throw "Original image import result must expose Zotero import failure count"
+}
+if ($mainJS -notmatch "omittedCount:\s*prepared\.omittedCount\s*\+\s*importErrorCount") {
+  throw "Original image import result must add Zotero import failures to omission count"
+}
+if ($mainJS -notmatch "skipped\s+\$\{importResult\.importErrorCount\}\s+failed Zotero import") {
+  throw "Original helper import toast must expose failed Zotero imports separately"
+}
+if ($mainJS -notmatch "try\s*\{\s*\r?\n\s*await\s+Zotero\.Attachments\.importFromFile") {
+  throw "Original image import must isolate each Zotero import call"
+}
+if ($mainJS -notmatch "prepared\.images\.length\s*&&\s*!count\s*&&\s*importErrorCount\s*===\s*prepared\.images\.length") {
+  throw "Original image import must detect all attempted Zotero imports failing"
+}
+if ($mainJS -notmatch "All\s+\$\{importErrorCount\}\s+Zotero original image imports failed") {
+  throw "Original image import must throw a clear all-imports-failed error"
+}
 if ($mainJS -notmatch "omittedCount:\s*\(limited\.omittedCount\s*\|\|\s*0\)\s*\+\s*missingCount\s*\+\s*errorCount") {
   throw "Original image existence filter must add missing and unreadable files to omission count"
 }
