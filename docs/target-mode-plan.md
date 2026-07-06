@@ -1091,6 +1091,37 @@ End batch validation checklist:
 - Code review: local review passed after fixing null/boolean/array page-target coercion; review-agent retry failed twice due 429/503 service availability.
 - Git commit records B35: `aae8cb8`.
 
+### B36 HTML Preview Scalar Metadata Normalization
+
+Status: complete.
+
+Plan:
+
+- Normalize preview scalar dimensions and byte counts before visible HTML and metadata output.
+- Recompute `byte_count` from the normalized preview data URL instead of trusting entry input.
+- Normalize compact text scalar fields (`id`, `mode`, `detector`, `page_label`) to short strings or safe defaults.
+- Normalize `detection_area` to a finite `0..1` number or `null`.
+- Make malformed preview entries produce concise unknown/null metadata rather than `NaN`, `undefined`, `[object Object]`, or complex objects.
+
+Pre batch validation:
+
+- Git worktree clean at B36 start commit `a3195ff`.
+- B36 planning agent found `byteCount/renderedWidth/renderedHeight` are trusted and can produce `NaN MB, undefined x [object Object]px`; recorded as `FAIL-20260706-074`.
+- B36 planning agent found `id/mode/detector/pageLabel/detectionArea` can emit objects or `[object Object]` in synced HTML/metadata; recorded as `FAIL-20260706-075`.
+- B36 review found fractional dimensions below 1 can normalize to `0px`; recorded as `FAIL-20260706-076` before code changes.
+- B36 review found base64 padding is not subtracted from recomputed preview byte counts; recorded as `FAIL-20260706-077` before code changes.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `8e62fee6574bf9e5f6881763a6f5282ba230eafbfc97965c3413401b5d3b6c12`, bytes `27576`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 3, temp children 0.
+- Code review: initial review found fractional-dimension and base64-padding gaps; both were recorded and fixed. Final review agent was unavailable after interruption, and local final review plus static checks passed.
+- Git commit records B36: pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -1930,7 +1961,7 @@ End batch validation checklist:
 - Environment: copied profile XPI fallback followed by Zotero launch
 - Zotero version target: 9.0.5
 - Severity: P1
-- Status: open
+- Status: closed
 - Symptom: after `npm run install:xpi` successfully copied the profile XPI and cleared rescan prefs, launching Zotero produced no confirmation popup and follow-up runtime diagnostics showed the profile XPI absent and registration false.
 - Expected: copied profile XPI remains in `extensions`, Zotero scans it, and the add-on becomes registered or reports a clear rejection reason.
 - Actual: profile XPI is gone after launch, `extensions.lastAppBuildId` and `extensions.lastAppVersion` are back in `prefs.js`, startup cache raw-byte add-on hint is false, and `extensions.json` has no registered add-on entry.
@@ -2259,6 +2290,62 @@ End batch validation checklist:
 - Close condition: regression tests prove `null` page indexes do not override valid page numbers and non-string/non-number values fall back safely.
 - Closure: page-target numeric coercion now accepts only finite numbers and nonempty strings, tests cover null, boolean, and array rejection plus null pageIndex preserving a valid pageNumber.
 
+### FAIL-20260706-074
+
+- Batch: B36
+- Environment: synced HTML preview index creation from malformed preview size fields
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `buildIndexHTML()` passes `entry.byteCount`, `entry.renderedWidth`, and `entry.renderedHeight` directly to visible HTML and metadata.
+- Expected: byte count and rendered dimensions are finite concise scalar values; malformed values do not appear as `NaN`, `Infinity`, `undefined`, or object text.
+- Actual: malformed size fields can render as `NaN MB, undefined x [object Object]px` and can store complex values in metadata.
+- Validation update: normalize preview byte and dimension fields during HTML index build.
+- Close condition: regression tests prove malformed size fields produce a recomputed byte count and `null` dimensions without `NaN`, `undefined`, or `[object Object]`; static checks assert scalar normalization is used.
+- Closure: `buildIndexHTML()` normalizes dimensions and recomputes byte count from normalized data URLs before visible and metadata output; regression/static checks cover malformed scalar values.
+
+### FAIL-20260706-075
+
+- Batch: B36
+- Environment: synced HTML preview index creation from malformed preview text and ratio fields
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: closed
+- Symptom: `buildIndexHTML()` emits `id`, `mode`, `detector`, `pageLabel`, and `detectionArea` without scalar normalization.
+- Expected: synced metadata remains compact and simple, with short strings or `null` and a finite normalized detection area.
+- Actual: objects can appear in metadata or visible HTML as `[object Object]`.
+- Validation update: normalize compact preview scalar fields during HTML index build.
+- Close condition: regression tests prove malformed scalar fields do not emit object text and metadata contains only string, number, or null values for those fields.
+- Closure: preview `id`, `mode`, `detector`, `page_label`, and `detection_area` are normalized to compact scalar values before output; regression tests reject object text.
+
+### FAIL-20260706-076
+
+- Batch: B36
+- Environment: rendered dimension normalization for synced HTML preview entries
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: closed
+- Symptom: `normalizePositiveInteger()` floors finite values after checking only `number <= 0`.
+- Expected: rendered dimensions smaller than 1 pixel are malformed and should become `null`.
+- Actual: `0.5` can become `0`, producing `0px` in visible HTML and `0` in metadata.
+- Validation update: require positive integer-normalized dimensions to be at least 1 before output.
+- Close condition: regression tests prove fractional subpixel dimensions become `null` and visible HTML uses `unknown size`.
+- Closure: positive integer normalization now rejects values below one pixel, and regression/static checks cover subpixel dimensions.
+
+### FAIL-20260706-077
+
+- Batch: B36
+- Environment: recomputed preview byte count from normalized base64 data URLs
+- Zotero version target: 9.0.5
+- Severity: P4
+- Status: closed
+- Symptom: `estimateDataURLBytes()` estimates `(base64.length * 3) / 4` without subtracting base64 padding.
+- Expected: byte count reflects the decoded preview payload length.
+- Actual: padded base64 such as `AA==` is over-counted.
+- Validation update: subtract trailing base64 padding from decoded byte estimates.
+- Close condition: regression tests prove `data:image/jpeg;base64,AA==` yields `byte_count: 1`.
+- Closure: preview byte estimates now subtract base64 padding, and regression/static checks cover padded base64 data URLs.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2329,6 +2416,10 @@ End batch validation checklist:
 - Check HTML preview page links and metadata are derived from normalized page targets.
 - Check reader current-page and context-menu page targeting accept numeric strings and reject invalid values safely.
 - Check page target normalizers reject null, boolean, and array values instead of numeric coercion.
+- Check synced HTML preview scalar metadata cannot emit `NaN`, `Infinity`, `undefined`, `[object Object]`, or complex objects.
+- Check synced HTML preview byte count is recomputed from the normalized data URL before metadata output.
+- Check synced HTML preview rendered dimensions below one pixel become `null`.
+- Check synced HTML preview byte count subtracts base64 padding.
 
 ## Real Commit Log
 

@@ -1046,11 +1046,20 @@ var PdfImageSaver = (() => {
     const entriesHTML = entries
       .map((entry, index) => {
         const pageTarget = normalizeEntryPageTarget(entry);
+        const fallbackID = `preview-${index + 1}`;
+        entry.id = normalizePreviewText(entry.id, fallbackID);
+        entry.mode = normalizePreviewText(entry.mode, "reader_canvas_preview");
+        entry.detector = normalizePreviewText(entry.detector, "unknown");
         entry.pageIndex = pageTarget.pageIndex;
         entry.pageNumber = pageTarget.pageNumber;
+        entry.pageLabel = normalizePreviewText(entry.pageLabel, null);
         entry.quality = normalizeQualityKey(entry.quality);
         entry.qualityEstimate = QUALITY[entry.quality].estimate;
         entry.dataURL = normalizePreviewDataURL(entry.dataURL);
+        entry.byteCount = estimateDataURLBytes(entry.dataURL);
+        entry.renderedWidth = normalizePositiveInteger(entry.renderedWidth, null);
+        entry.renderedHeight = normalizePositiveInteger(entry.renderedHeight, null);
+        entry.detectionArea = normalizeUnitNumber(entry.detectionArea, null);
         entry.bboxNormalized = normalizeBBoxNormalized(entry.bboxNormalized);
         entry.annotationKey = normalizeAnnotationKey(entry.annotationKey);
         entry.sourceRegion = buildSourceRegion(entry.bboxNormalized);
@@ -1071,7 +1080,7 @@ var PdfImageSaver = (() => {
             <dl>
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
               <div><dt>Quality</dt><dd>${escapeHTML(QUALITY[entry.quality].label)} (${escapeHTML(entry.qualityEstimate)})</dd></div>
-              <div><dt>Actual</dt><dd>${formatBytes(entry.byteCount)}, ${entry.renderedWidth} x ${entry.renderedHeight}px</dd></div>
+              <div><dt>Actual</dt><dd>${formatBytes(entry.byteCount)}, ${formatPreviewDimensions(entry.renderedWidth, entry.renderedHeight)}</dd></div>
               <div><dt>Source</dt><dd>${escapeHTML(entry.detector)}</dd></div>
               <div><dt>Region</dt><dd>${escapeHTML(sourceRegionLabel)}</dd></div>
               <div><dt>BBox</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
@@ -2100,6 +2109,43 @@ var PdfImageSaver = (() => {
     return Object.prototype.hasOwnProperty.call(QUALITY, value) ? value : "medium";
   }
 
+  function normalizePreviewText(value, fallback, maxLength = 120) {
+    let text = "";
+    if (typeof value === "string") {
+      text = value.trim();
+    } else if (typeof value === "number" && Number.isFinite(value)) {
+      text = String(value);
+    }
+    if (!text) {
+      return fallback === null ? null : String(fallback).slice(0, maxLength);
+    }
+    return text.slice(0, maxLength);
+  }
+
+  function normalizePositiveInteger(value, fallback = null) {
+    const number = toFiniteNumber(value);
+    if (number === null || number < 1) {
+      return fallback;
+    }
+    return Math.floor(number);
+  }
+
+  function normalizeNonNegativeNumber(value, fallback = 0) {
+    const number = toFiniteNumber(value);
+    if (number === null || number < 0) {
+      return fallback;
+    }
+    return number;
+  }
+
+  function normalizeUnitNumber(value, fallback = null) {
+    const number = toFiniteNumber(value);
+    if (number === null || number < 0 || number > 1) {
+      return fallback;
+    }
+    return round6(number);
+  }
+
   function normalizeEntryPageTarget(entry) {
     const pageIndex = normalizePageIndex(entry?.pageIndex, null);
     if (pageIndex !== null) {
@@ -2266,7 +2312,8 @@ var PdfImageSaver = (() => {
 
   function estimateDataURLBytes(dataURL) {
     const base64 = String(dataURL).split(",")[1] || "";
-    return Math.round((base64.length * 3) / 4);
+    const padding = base64.match(/=+$/)?.[0].length || 0;
+    return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
   }
 
   function estimateUTF8Bytes(value) {
@@ -2277,13 +2324,21 @@ var PdfImageSaver = (() => {
   }
 
   function formatBytes(bytes) {
-    if (bytes < 1024) {
-      return `${bytes} B`;
+    const value = normalizeNonNegativeNumber(bytes, 0);
+    if (value < 1024) {
+      return `${Math.round(value)} B`;
     }
-    if (bytes < 1024 * 1024) {
-      return `${Math.round(bytes / 102.4) / 10} KB`;
+    if (value < 1024 * 1024) {
+      return `${Math.round(value / 102.4) / 10} KB`;
     }
-    return `${Math.round(bytes / 104857.6) / 10} MB`;
+    return `${Math.round(value / 104857.6) / 10} MB`;
+  }
+
+  function formatPreviewDimensions(width, height) {
+    if (width === null || height === null) {
+      return "unknown size";
+    }
+    return `${width} x ${height}px`;
   }
 
   function round6(value) {

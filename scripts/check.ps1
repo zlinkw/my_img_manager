@@ -273,6 +273,54 @@ if ($mainJS -notmatch "entry\.qualityEstimate\s*=\s*QUALITY\[entry\.quality\]\.e
 if ($mainJS -notmatch "quality_estimate:\s*entry\.qualityEstimate") {
   throw "HTML preview metadata must include normalized quality_estimate"
 }
+if ($mainJS -notmatch "entry\.id\s*=\s*normalizePreviewText\(entry\.id,\s*fallbackID\)") {
+  throw "HTML preview entries must normalize IDs before metadata output"
+}
+if ($mainJS -notmatch 'entry\.mode\s*=\s*normalizePreviewText\(entry\.mode,\s*"reader_canvas_preview"\)') {
+  throw "HTML preview entries must normalize mode before metadata output"
+}
+if ($mainJS -notmatch 'entry\.detector\s*=\s*normalizePreviewText\(entry\.detector,\s*"unknown"\)') {
+  throw "HTML preview entries must normalize detector before metadata output"
+}
+if ($mainJS -notmatch "entry\.pageLabel\s*=\s*normalizePreviewText\(entry\.pageLabel,\s*null\)") {
+  throw "HTML preview entries must normalize page labels before output"
+}
+if ($mainJS -notmatch "entry\.byteCount\s*=\s*estimateDataURLBytes\(entry\.dataURL\)") {
+  throw "HTML preview byte count must be recomputed from normalized data URL"
+}
+if ($mainJS -notmatch "entry\.renderedWidth\s*=\s*normalizePositiveInteger\(entry\.renderedWidth,\s*null\)") {
+  throw "HTML preview rendered width must be normalized before output"
+}
+if ($mainJS -notmatch "entry\.renderedHeight\s*=\s*normalizePositiveInteger\(entry\.renderedHeight,\s*null\)") {
+  throw "HTML preview rendered height must be normalized before output"
+}
+if ($mainJS -notmatch "entry\.detectionArea\s*=\s*normalizeUnitNumber\(entry\.detectionArea,\s*null\)") {
+  throw "HTML preview detection area must be normalized before metadata output"
+}
+if ($mainJS -notmatch "function\s+normalizePreviewText\s*\(") {
+  throw "HTML preview scalar text normalizer missing"
+}
+if ($mainJS -notmatch "function\s+normalizePositiveInteger\s*\(") {
+  throw "HTML preview positive integer normalizer missing"
+}
+if ($mainJS -notmatch "number\s+===\s+null\s*\|\|\s*number\s+<\s*1") {
+  throw "HTML preview positive integer normalizer must reject dimensions below one pixel"
+}
+if ($mainJS -notmatch "function\s+normalizeUnitNumber\s*\(") {
+  throw "HTML preview unit number normalizer missing"
+}
+if ($mainJS -notmatch "const\s+padding\s*=\s*base64\.match\(/=\+\$/\)\?\.\[0\]\.length\s*\|\|\s*0") {
+  throw "HTML preview byte estimator must count base64 padding"
+}
+if ($mainJS -notmatch "Math\.floor\(\(base64\.length\s*\*\s*3\)\s*/\s*4\)\s*-\s*padding") {
+  throw "HTML preview byte estimator must subtract base64 padding"
+}
+if ($mainJS -notmatch "function\s+formatPreviewDimensions\s*\(") {
+  throw "HTML preview dimension formatter missing"
+}
+if ($mainJS -notmatch "formatPreviewDimensions\(entry\.renderedWidth,\s*entry\.renderedHeight\)") {
+  throw "HTML preview actual size must use normalized dimension formatter"
+}
 if ($mainJS -notmatch "const\s+pageTarget\s*=\s*normalizeEntryPageTarget\(entry\)") {
   throw "HTML preview entries must normalize page targets before URI and metadata output"
 }

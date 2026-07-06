@@ -322,6 +322,61 @@ const nullPageIndexMetadata = extractMetadata(nullPageIndexHTML);
 assert.strictEqual(nullPageIndexMetadata.entries[0].page_index, 8);
 assert.strictEqual(nullPageIndexMetadata.entries[0].page_number, 9);
 
+const malformedScalarEntry = {
+  ...htmlEntry,
+  id: { bad: true },
+  mode: ["bad-mode"],
+  detector: { source: "bad" },
+  pageLabel: { label: "bad" },
+  byteCount: Number.NaN,
+  renderedWidth: 0.5,
+  renderedHeight: "0.5",
+  detectionArea: { area: 1 },
+  dataURL: "data:image/jpeg;base64,FFFF",
+  openPDFURI: "",
+};
+const malformedScalarHTML = buildIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  entries: [malformedScalarEntry],
+  scope: "clip",
+  qualityKey: "medium",
+});
+for (const forbiddenScalarText of ["NaN", "Infinity", "undefined", "[object Object]"]) {
+  assert.ok(
+    !malformedScalarHTML.includes(forbiddenScalarText),
+    `malformed scalar HTML must not contain ${forbiddenScalarText}`,
+  );
+}
+assert.ok(malformedScalarHTML.includes("3 B, unknown size"), "malformed scalar HTML must show concise actual size");
+const malformedScalarMetadata = extractMetadata(malformedScalarHTML);
+assert.strictEqual(malformedScalarMetadata.entries[0].id, "preview-1");
+assert.strictEqual(malformedScalarMetadata.entries[0].mode, "reader_canvas_preview");
+assert.strictEqual(malformedScalarMetadata.entries[0].detector, "unknown");
+assert.strictEqual(malformedScalarMetadata.entries[0].page_label, null);
+assert.strictEqual(malformedScalarMetadata.entries[0].byte_count, 3);
+assert.strictEqual(malformedScalarMetadata.entries[0].rendered_width, null);
+assert.strictEqual(malformedScalarMetadata.entries[0].rendered_height, null);
+assert.strictEqual(malformedScalarMetadata.entries[0].detection_area, null);
+
+const paddedByteEntry = {
+  ...htmlEntry,
+  id: "entry-padded-byte-count",
+  byteCount: 999,
+  dataURL: "data:image/jpeg;base64,AA==",
+  openPDFURI: "",
+};
+const paddedByteHTML = buildIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  entries: [paddedByteEntry],
+  scope: "clip",
+  qualityKey: "medium",
+});
+assert.ok(paddedByteHTML.includes("1 B, 120 x 80px"), "base64 padding must be subtracted from visible byte count");
+const paddedByteMetadata = extractMetadata(paddedByteHTML);
+assert.strictEqual(paddedByteMetadata.entries[0].byte_count, 1, "base64 padding must be subtracted from metadata byte count");
+
 assert.deepStrictEqual(
   Array.from(normalizeBBoxNormalized(["0.9", "bad", "0.2", "1.4"])),
   [0.2, 0, 0.9, 1],
