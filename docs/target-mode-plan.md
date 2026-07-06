@@ -1546,7 +1546,7 @@ End batch validation checklist:
 
 ### B52 Preview Duplicate Key Normalization
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1562,7 +1562,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `05097b654acf493ae72842c1f9802082aace2ad87573b41c659cdc14f7778f03`, bytes `30309`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent scan timed out and was closed; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
+- Git commit records B52 implementation: `8bb8096`.
 
 ## Current Validation Results
 
@@ -3284,12 +3290,13 @@ End batch validation checklist:
 - Environment: in-session duplicate guard key generation
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `getPreviewDuplicateKey()` calls `preview.bboxNormalized.map()` and interpolates raw attachment/preview fields.
 - Expected: duplicate guard keys should be compact normalized strings even if future callers pass malformed preview or attachment records.
 - Actual: malformed `bboxNormalized` can throw, and malformed attachment key/library/page/quality values can leak object text or invalid quality values into `recentIndexSaves`.
 - Validation update: normalize duplicate key inputs and add behavior/static checks.
 - Close condition: tests/static checks prove malformed duplicate-key inputs produce a stable normalized key and never use raw bbox map or raw attachment key interpolation.
+- Closure: `getPreviewDuplicateKey()` now normalizes library ID, attachment key, page index, quality, and bbox before building the cache key; tests/static checks cover malformed inputs and raw-field regressions.
 
 ## Revised Validation Checklist
 
@@ -3512,3 +3519,5 @@ End batch validation checklist:
 - B50 XPI SHA256 `0a7695c5634eb7cbb213c4a0f868b16216cdcd6b80c55c0bc419727229992339` was built in `outputs/` for manual Zotero add-on manager installation.
 - `e288c89` B51 guard original confirmation options.
 - B51 XPI SHA256 `ed5a6cec5a3cbbbee20498d463de5c68b23c73e4512c5d325d0d7a8968512df9` was built in `outputs/` for manual Zotero add-on manager installation.
+- `8bb8096` B52 normalize duplicate preview keys.
+- B52 XPI SHA256 `05097b654acf493ae72842c1f9802082aace2ad87573b41c659cdc14f7778f03` was built in `outputs/` for manual Zotero add-on manager installation.
