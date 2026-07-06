@@ -355,6 +355,9 @@ if ($mainJS -notmatch "normalized\.length\s*>=\s*4") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*formatHelperFailure") {
   throw "Helper failure formatter must remain exported for regression tests"
 }
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*formatDiagnosticsReport") {
+  throw "Diagnostics formatter must remain exported for regression tests"
+}
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveAutoDetectedPageImagePreviews") {
   throw "Auto-raster save entry must remain exported for regression tests"
 }
@@ -842,6 +845,43 @@ if ($mainJS -notmatch "function\s+normalizeToastMessage\s*\(\s*message\s*\)[\s\S
 }
 if ($mainJS -notmatch "function\s+normalizeToastLevel\s*\(\s*level\s*\)[\s\S]*\[`"info`",\s*`"success`",\s*`"warning`",\s*`"error`"\]\.includes\(text\)\s*\?\s*text\s*:\s*`"info`"") {
   throw "Reader toast level normalizer must allow only supported levels"
+}
+$diagnosticsReportEntry = [regex]::Match($mainJS, "function\s+formatDiagnosticsReport\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+normalizeDiagnosticText")
+if (!$diagnosticsReportEntry.Success) {
+  throw "Diagnostics report formatter function block not found"
+}
+if ($diagnosticsReportEntry.Value -notmatch "const\s+safeReport\s*=\s*normalizeOptionsObject\(report\)") {
+  throw "Diagnostics report formatter must normalize the report container"
+}
+if ($diagnosticsReportEntry.Value -notmatch "const\s+pdfAttachment\s*=\s*normalizeOptionsObject\(safeReport\.pdf_attachment\)") {
+  throw "Diagnostics report formatter must normalize PDF attachment container"
+}
+if ($diagnosticsReportEntry.Value -notmatch "const\s+warnings\s*=\s*normalizeDiagnosticWarningMessages\(safeReport\.warnings\)") {
+  throw "Diagnostics report formatter must normalize warning lines"
+}
+if ($diagnosticsReportEntry.Value -notmatch "normalizeQualityKey\(safeReport\.default_quality\)") {
+  throw "Diagnostics report formatter must normalize default quality"
+}
+if ($diagnosticsReportEntry.Value -notmatch "normalizeItemKey\(pdfAttachment\.key,\s*`"UNKNOWN`"\)") {
+  throw "Diagnostics report formatter must normalize PDF key"
+}
+if ($diagnosticsReportEntry.Value -notmatch "normalizePageNumber\(safeReport\.page_number,\s*1\)") {
+  throw "Diagnostics report formatter must normalize page number"
+}
+if ($diagnosticsReportEntry.Value -cmatch "report\.warnings\.map") {
+  throw "Diagnostics report formatter must not map raw warnings"
+}
+if ($diagnosticsReportEntry.Value -cmatch "report\.pdf_attachment") {
+  throw "Diagnostics report formatter must not read raw PDF attachment fields"
+}
+if ($mainJS -notmatch "function\s+normalizeDiagnosticText\s*\(\s*value[\s\S]*normalizeMetadataText\(value,\s*fallback,\s*maxLength\)") {
+  throw "Diagnostics text normalizer must use metadata text normalization"
+}
+if ($mainJS -notmatch "function\s+normalizeDiagnosticWarningMessages\s*\(\s*warnings\s*\)[\s\S]*normalizeDiagnosticText\(warning,\s*null,\s*220\)[\s\S]*normalized\.length\s*>=\s*6") {
+  throw "Diagnostics warnings must be scalar, length-limited, and count-limited"
+}
+if ($mainJS -notmatch "function\s+formatDiagnosticBoolean\s*\(\s*value\s*\)[\s\S]*value\s*===\s*true\s*\?\s*`"true`"\s*:\s*value\s*===\s*false\s*\?\s*`"false`"\s*:\s*`"unknown`"") {
+  throw "Diagnostics booleans must format to true, false, or unknown"
 }
 if ($mainJS -notmatch "function\s+showToastInDocument\s*\(\s*doc\s*,\s*message\s*,\s*level\s*\)[\s\S]*return\s+false;[\s\S]*doc\.body\.appendChild\(toast\)[\s\S]*return\s+true;") {
   throw "Reader toast document renderer must return whether toast display succeeded"

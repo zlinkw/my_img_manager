@@ -1570,6 +1570,27 @@ End batch validation checklist:
 - Code review: subagent scan timed out and was closed; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
 - Git commit records B52 implementation: `8bb8096`.
 
+### B53 Diagnostics Report Text Normalization
+
+Status: in progress.
+
+Plan:
+
+- Normalize diagnostics report text at `formatDiagnosticsReport()` so malformed runtime fields cannot render object text, `undefined`, `NaN`, or oversized warning lines in user-facing alerts.
+- Keep diagnostics content compact: plugin, Zotero, reader state, temp state, source PDF key/page/link, auto-raster availability, and capped warnings.
+- Add behavior/static checks proving report fields and warnings are normalized before alert text output.
+
+Pre batch validation:
+
+- Git worktree clean at B53 start commit `45b4388`.
+- B53 local planning pass found `formatDiagnosticsReport()` interpolates raw `report.*`, `report.pdf_attachment.*`, and `report.warnings.map(...)` values directly into the diagnostics alert; recorded as `FAIL-20260706-114`.
+- B53 validation found the raw diagnostics static guard used PowerShell case-insensitive `-match`, so it falsely matched `safeReport.pdf_attachment`; recorded as `FAIL-20260706-115`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3298,6 +3319,32 @@ End batch validation checklist:
 - Close condition: tests/static checks prove malformed duplicate-key inputs produce a stable normalized key and never use raw bbox map or raw attachment key interpolation.
 - Closure: `getPreviewDuplicateKey()` now normalizes library ID, attachment key, page index, quality, and bbox before building the cache key; tests/static checks cover malformed inputs and raw-field regressions.
 
+### FAIL-20260706-114
+
+- Batch: B53
+- Environment: runtime diagnostics alert text
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `formatDiagnosticsReport()` interpolates raw diagnostics fields and maps raw warnings directly into the alert body.
+- Expected: diagnostics text should be compact scalar output with normalized booleans, counts, source identifiers, page target, links, and capped warning lines.
+- Actual: malformed runtime fields can produce `[object Object]`, `undefined`, `NaN`, invalid quality text, or oversized warnings in a user-facing alert.
+- Validation update: normalize diagnostics report fields at output boundary and add behavior/static checks.
+- Close condition: tests/static checks prove malformed diagnostics input produces compact normalized alert text and does not map raw warnings.
+
+### FAIL-20260706-115
+
+- Batch: B53
+- Environment: B53 static validation for diagnostics report text
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the raw `report.pdf_attachment` static guard uses PowerShell case-insensitive matching, so it matches `safeReport.pdf_attachment`.
+- Expected: static guards should reject only raw lowercase `report` field access in `formatDiagnosticsReport()`.
+- Actual: `npm.cmd run check` fails even when the implementation uses `safeReport`.
+- Validation update: make the raw diagnostics static guards case-sensitive.
+- Close condition: `npm.cmd run check` passes while still guarding raw `report.warnings.map` and `report.pdf_attachment` spellings.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3409,6 +3456,8 @@ End batch validation checklist:
 - Check optional original confirmation normalizes malformed options before scope use and save delegation.
 - Check raw original confirmation options static guards are case-sensitive and do not reject `safeOptions`.
 - Check preview duplicate guard keys normalize malformed preview and attachment fields.
+- Check runtime diagnostics alert text normalizes malformed report fields and warning lines.
+- Check raw diagnostics static guards are case-sensitive and do not reject `safeReport`.
 
 ## Real Commit Log
 

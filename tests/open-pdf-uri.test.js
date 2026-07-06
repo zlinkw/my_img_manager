@@ -83,6 +83,7 @@ const {
   cleanupSelectionOverlay,
   confirmAndSaveOriginalImagesFromReader,
   filterExistingOriginalImagesForImport,
+  formatDiagnosticsReport,
   formatHelperFailure,
   getActiveReader,
   getContextPageIndex,
@@ -1112,6 +1113,48 @@ assert.strictEqual(
   "library:UNKNOWN:0:medium:0.0000,0.0000,1.0000,1.0000",
   "duplicate guard keys must normalize malformed attachment and preview fields",
 );
+
+const noisyDiagnostics = formatDiagnosticsReport({
+  plugin: { bad: true },
+  zotero: ["9.0.5"],
+  started: { bad: true },
+  reader_count: { bad: true },
+  active_pdf_reader: true,
+  default_quality: "constructor",
+  auto_cap: { bad: true },
+  max_index: undefined,
+  temp_dir: { bad: true },
+  temp_leftovers: { bad: true },
+  temp_bytes: Number.NaN,
+  pdf_attachment: {
+    key: { bad: true },
+    parent_id: { bad: true },
+  },
+  library_prefix: { bad: true },
+  page_number: "bad",
+  page_label: { bad: true },
+  open_pdf_uri: { bad: true },
+  auto_raster_available: { bad: true },
+  warnings: [
+    { bad: true },
+    "x".repeat(260),
+    "ok",
+    ["bad"],
+  ],
+});
+for (const forbiddenDiagnosticsText of ["[object Object]", "undefined", "NaN", "Infinity", "x".repeat(221)]) {
+  assert.ok(
+    !noisyDiagnostics.includes(forbiddenDiagnosticsText),
+    `diagnostics text must not contain ${forbiddenDiagnosticsText}`,
+  );
+}
+assert.ok(noisyDiagnostics.includes("Plugin: unknown"), "diagnostics plugin must normalize malformed text");
+assert.ok(noisyDiagnostics.includes("Started: unknown"), "diagnostics booleans must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Default quality: medium"), "diagnostics quality must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("PDF key: UNKNOWN"), "diagnostics PDF key must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Parent item: none"), "diagnostics parent item must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Page: 1"), "diagnostics page target must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("- ok"), "diagnostics warnings must keep valid compact warning text");
 
 async function runAsyncAssertions() {
   context.Services.prompt.confirms = [];

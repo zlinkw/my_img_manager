@@ -332,32 +332,60 @@ var PdfImageSaver = (() => {
   }
 
   function formatDiagnosticsReport(report) {
+    const safeReport = normalizeOptionsObject(report);
+    const pdfAttachment = normalizeOptionsObject(safeReport.pdf_attachment);
+    const pageNumber = normalizePageNumber(safeReport.page_number, 1);
+    const pageLabel = normalizeDiagnosticText(safeReport.page_label, null, 80);
+    const warnings = normalizeDiagnosticWarningMessages(safeReport.warnings);
     const lines = [
-      `Plugin: ${report.plugin}`,
-      `Zotero: ${report.zotero}`,
-      `Started: ${report.started}`,
-      `Reader count: ${report.reader_count}`,
-      `Active PDF reader: ${report.active_pdf_reader}`,
-      `Default quality: ${report.default_quality}`,
-      `Auto preview cap: ${report.auto_cap}`,
-      `Max HTML index: ${report.max_index}`,
-      `Temp dir: ${report.temp_dir}`,
-      `Temp leftovers: ${report.temp_leftovers} (${formatBytes(report.temp_bytes || 0)})`,
+      `Plugin: ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}`,
+      `Zotero: ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
+      `Started: ${formatDiagnosticBoolean(safeReport.started)}`,
+      `Reader count: ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}`,
+      `Active PDF reader: ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
+      `Default quality: ${normalizeQualityKey(safeReport.default_quality)}`,
+      `Auto preview cap: ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}`,
+      `Max HTML index: ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
+      `Temp dir: ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 240)}`,
+      `Temp leftovers: ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)})`,
     ];
-    if (report.pdf_attachment) {
+    if (safeReport.pdf_attachment) {
       lines.push(
-        `PDF key: ${report.pdf_attachment.key}`,
-        `Library: ${report.library_prefix}`,
-        `Parent item: ${report.pdf_attachment.parent_id || "none"}`,
-        `Page: ${report.page_number}${report.page_label ? ` (${report.page_label})` : ""}`,
-        `Open PDF URI: ${report.open_pdf_uri}`,
-        `Auto raster available: ${report.auto_raster_available}`,
+        `PDF key: ${normalizeItemKey(pdfAttachment.key, "UNKNOWN")}`,
+        `Library: ${normalizeDiagnosticText(safeReport.library_prefix, "library", 80)}`,
+        `Parent item: ${normalizeDiagnosticText(pdfAttachment.parent_id, "none", 80)}`,
+        `Page: ${pageNumber}${pageLabel ? ` (${pageLabel})` : ""}`,
+        `Open PDF URI: ${normalizeDiagnosticText(safeReport.open_pdf_uri, "unavailable", 240)}`,
+        `Auto raster available: ${formatDiagnosticBoolean(safeReport.auto_raster_available)}`,
       );
     }
-    if (report.warnings?.length) {
-      lines.push("", "Warnings:", ...report.warnings.map((warning) => `- ${warning}`));
+    if (warnings.length) {
+      lines.push("", "Warnings:", ...warnings.map((warning) => `- ${warning}`));
     }
     return lines.join("\n");
+  }
+
+  function normalizeDiagnosticText(value, fallback = "unknown", maxLength = 220) {
+    return normalizeMetadataText(value, fallback, maxLength);
+  }
+
+  function normalizeDiagnosticWarningMessages(warnings) {
+    const values = Array.isArray(warnings) ? warnings : [];
+    const normalized = [];
+    for (const warning of values) {
+      const text = normalizeDiagnosticText(warning, null, 220);
+      if (text) {
+        normalized.push(text);
+      }
+      if (normalized.length >= 6) {
+        break;
+      }
+    }
+    return normalized;
+  }
+
+  function formatDiagnosticBoolean(value) {
+    return value === true ? "true" : value === false ? "false" : "unknown";
   }
 
   async function startClipFromReader(reader, qualityKey, explicitPageIndex) {
@@ -2507,6 +2535,10 @@ var PdfImageSaver = (() => {
     return number;
   }
 
+  function normalizeNonNegativeInteger(value, fallback = 0) {
+    return Math.floor(normalizeNonNegativeNumber(value, fallback));
+  }
+
   function normalizeUnitNumber(value, fallback = null) {
     const number = toFiniteNumber(value);
     if (number === null || number < 0 || number > 1) {
@@ -2788,6 +2820,7 @@ var PdfImageSaver = (() => {
       cleanupSelectionOverlay,
       confirmAndSaveOriginalImagesFromReader,
       filterExistingOriginalImagesForImport,
+      formatDiagnosticsReport,
       formatHelperFailure,
       getActiveReader,
       getContextPageIndex,
