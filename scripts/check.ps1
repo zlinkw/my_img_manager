@@ -90,7 +90,8 @@ foreach ($requiredRule in @(
   "Every batch marked complete must replace ``Pending`` with real validation output",
   "Fixes that reveal follow-up faults must record the new fault before changing that behavior",
   "Every B62+ batch must declare a ``Regression guard:`` line naming prior ``FAIL-*`` IDs or ``validation family:`` names",
-  "For B65+ batches, default to larger grouped batches up to roughly three times the earlier micro-batch size by combining related fixes or improvements that share a validation surface before testing, unless isolation is required",
+  "For B69+ batches, treat roughly three times the earlier micro-batch size as the default batch target before testing; combine related fixes or improvements that share a validation surface, do not split only to avoid temporary local breakage, and rely on git history for rollback",
+  "Every B69+ batch must declare a ``Batch size guard:`` line explaining whether the batch used the 3x grouped-batch target or why isolation was required",
   "``scripts/check.ps1`` must enforce these plan-state invariants"
 )) {
   if ($targetPlan -notmatch [regex]::Escape($requiredRule)) {
@@ -142,6 +143,21 @@ foreach ($section in $batchSections) {
     $hasValidationFamily = $validationFamilyMatch.Success -and $validationFamilyMatch.Groups[1].Value.Trim() -notmatch '(?i)^\s*(pending|todo|tbd)\.?\s*$'
     if (!$hasFailureReference -and !$hasValidationFamily) {
       throw "Target plan B62+ batch regression guard lacks prior-fault or validation reference: $batchTitle"
+    }
+  }
+  if ($batchNumber -ge 69) {
+    $batchSizeGuard = [regex]::Match($body, '(?m)^-\s+Batch size guard:\s*(.+?)\s*$')
+    if (!$batchSizeGuard.Success) {
+      throw "Target plan B69+ batch lacks batch size guard: $batchTitle"
+    }
+    $batchSizeText = $batchSizeGuard.Groups[1].Value.Trim()
+    if ($batchSizeText -match '(?i)^\s*(pending|todo|tbd)\.?\s*$') {
+      throw "Target plan B69+ batch has pending batch size guard: $batchTitle"
+    }
+    $usesGroupedTarget = $batchSizeText -match '(?i)\b(3x|three times|roughly three times)\b'
+    $hasIsolationReason = $batchSizeText -match '(?i)\bisolat(e|ed|ion)\b'
+    if (!$usesGroupedTarget -and !$hasIsolationReason) {
+      throw "Target plan B69+ batch size guard must mention 3x grouping or isolation reason: $batchTitle"
     }
   }
 }

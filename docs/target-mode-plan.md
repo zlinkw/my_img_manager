@@ -104,7 +104,8 @@ Each preview entry includes:
 - Every batch marked complete must replace `Pending` with real validation output.
 - Fixes that reveal follow-up faults must record the new fault before changing that behavior.
 - Every B62+ batch must declare a `Regression guard:` line naming prior `FAIL-*` IDs or `validation family:` names that its changes could affect.
-- For B65+ batches, default to larger grouped batches up to roughly three times the earlier micro-batch size by combining related fixes or improvements that share a validation surface before testing, unless isolation is required.
+- For B69+ batches, treat roughly three times the earlier micro-batch size as the default batch target before testing; combine related fixes or improvements that share a validation surface, do not split only to avoid temporary local breakage, and rely on git history for rollback. Isolation is required only when fault boundaries, ownership, or validation surfaces differ.
+- Every B69+ batch must declare a `Batch size guard:` line explaining whether the batch used the 3x grouped-batch target or why isolation was required.
 - `scripts/check.ps1` must enforce these plan-state invariants so a future patch cannot silently reopen old risks or close a fault without evidence.
 
 ## Preview Quality
@@ -2026,6 +2027,27 @@ End batch validation checklist:
 - `npm.cmd run package:manual`: passed, XPI SHA256 `5cf967a54f51cb642ac44201b1f2b9dcc0b3214e8e9311a5d6feac0e1ff8837a`, bytes `32887`.
 - `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
 - Git commit records B68 implementation: `58dd3c9`.
+
+### B69 Batch Size Constraint Guard
+
+Status: in progress.
+
+Plan:
+
+- Upgrade the grouped-batch rule from an allowed B65+ preference into a B69+ default target.
+- Require every B69+ batch to document a `Batch size guard:` line, so small batches need an explicit isolation reason.
+- Add static checks that keep the target-plan rule and per-batch size guard from being removed.
+
+Pre batch validation:
+
+- Git worktree clean at B69 start commit `c571b5b`.
+- B69 user review found recent batches were too small, causing excessive iteration with more residual issues; recorded as `FAIL-20260706-154`.
+- Regression guard: protect `FAIL-20260706-125`, `FAIL-20260706-128`, and validation family: target-plan regression-loop controls.
+- Batch size guard: this batch is intentionally isolated because it changes only the plan-control invariant and its static guard; future B69+ implementation batches must default to roughly 3x grouped work when validation surfaces match.
+
+End batch validation checklist:
+
+- Pending.
 
 ## Current Validation Results
 
@@ -4315,6 +4337,19 @@ End batch validation checklist:
 - Close condition: `npm.cmd run check` passes while asserting README mentions `source_region_key` and `preview_index_key`.
 - Closure: README runtime smoke checklist now mentions `source_region_key` and `preview_index_key`, and `npm.cmd run check` enforces both.
 
+### FAIL-20260706-154
+
+- Batch: B69
+- Environment: target-mode batch planning cadence
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: recent batches were too small, causing many iterations while residual issues remained.
+- Expected: B69+ implementation batches should group roughly three times the earlier micro-batch amount before testing when changes share a validation surface, using git history for rollback instead of splitting only to avoid temporary local breakage.
+- Actual: the plan only stated a softer B65+ grouped-batch preference and did not force every future batch to document whether it met the 3x grouping rule or had a real isolation reason.
+- Validation update: strengthen the global grouped-batch rule, require a `Batch size guard:` line for B69+ batches, and add static checks that reject missing or placeholder size guards.
+- Close condition: `npm.cmd run check` passes while enforcing the strengthened B69+ grouped-batch rule and per-batch size guard.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -4443,7 +4478,8 @@ End batch validation checklist:
 - Check B62+ regression guards cite prior `FAIL-*` IDs or explicit `validation family:` entries rather than broad generic words.
 - Check target-plan batch parsing stops before the next top-level section.
 - Check reader save entries normalize null, array, and scalar option objects before reading fields.
-- Check B65+ batches default to grouped changes up to roughly three times the prior micro-batch size when fixes share a validation surface.
+- Check B69+ batches default to roughly three times the prior micro-batch amount when fixes share a validation surface.
+- Check B69+ batches include a non-placeholder `Batch size guard:` line that says the batch used the 3x grouped target or gives a real isolation reason.
 - Check save-entry static guards reject raw `options` dot, bracket, spread, and destructuring reads.
 - Check save-entry static guards reject raw optional-chain reads, multiline destructuring, and computed bracket reads from `options`.
 - Check context menu exposes explicit page and whole-PDF optional original extraction actions with max attachment counts.
