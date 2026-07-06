@@ -2003,7 +2003,7 @@ End batch validation checklist:
 
 ### B68 Preview Metadata Schema Sync
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -2021,7 +2021,11 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run check`: passed and now asserts current preview-index schema fields plus README compact identity wording.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `5cf967a54f51cb642ac44201b1f2b9dcc0b3214e8e9311a5d6feac0e1ff8837a`, bytes `32887`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
+- Git commit records B68 implementation: `58dd3c9`.
 
 ## Current Validation Results
 
@@ -4275,12 +4279,13 @@ End batch validation checklist:
 - Environment: target-plan preview-index metadata schema
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: target-plan metadata schema lists top-level `source`, `request`, `helper`, and `warnings` for saved preview-index metadata.
 - Expected: preview-index schema docs should list only fields actually emitted by `buildIndexHTML()` metadata JSON.
 - Actual: schema docs imply non-emitted fields exist, making validation and future refactors misleading.
 - Validation update: update schema docs and add static checks rejecting removed top-level preview-index fields.
 - Close condition: `npm.cmd run check` passes while asserting target-plan schema omits those removed fields.
+- Closure: target-plan preview-index schema now matches emitted top-level metadata and omits stale `source`, `request`, `helper`, `warnings`, and `qualityEstimate`; `npm.cmd run check` passes.
 
 ### FAIL-20260706-152
 
@@ -4288,12 +4293,13 @@ End batch validation checklist:
 - Environment: target-plan preview-index metadata schema after B66/B67
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: metadata schema omits `preview_index_key`, `preview_index_fingerprint`, and `source_region_key`.
 - Expected: schema docs should include the persisted duplicate key, short fingerprint, and per-entry source-region identity fields.
 - Actual: docs lag behind the current saved HTML metadata and can let future changes drop these fields without plan visibility.
 - Validation update: add these fields to the schema docs and static checks.
 - Close condition: `npm.cmd run check` passes while asserting target-plan schema lists these fields.
+- Closure: target-plan schema now lists `preview_index_key`, `preview_index_fingerprint`, `source_region_key`, and `quality_estimate`; `npm.cmd run check` passes.
 
 ### FAIL-20260706-153
 
@@ -4301,12 +4307,13 @@ End batch validation checklist:
 - Environment: README runtime smoke checklist
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: README says the HTML preview shows `source_region` and `annotation_key` but omits `source_region_key` and `preview_index_key`.
 - Expected: smoke checklist should mention the compact identity metadata used for source lookup and duplicate prevention.
 - Actual: manual smoke can miss whether B66/B67 metadata is present in a saved index.
 - Validation update: update README smoke wording and static checks.
 - Close condition: `npm.cmd run check` passes while asserting README mentions `source_region_key` and `preview_index_key`.
+- Closure: README runtime smoke checklist now mentions `source_region_key` and `preview_index_key`, and `npm.cmd run check` enforces both.
 
 ## Revised Validation Checklist
 
@@ -4593,3 +4600,5 @@ End batch validation checklist:
 - B66 XPI SHA256 `84c0ced82e50b9b4f6947a6bbe19e58eff18fc823358969f17ea00b9c75ededf` was built in `outputs/` for manual Zotero add-on manager installation.
 - `2b7de9b` B67 keep open-pdf links compatible.
 - B67 XPI SHA256 `071e00bfee69d46d7c841d2401a865a8f26692110c0fd8f9faf96ebce8146157` was built in `outputs/` for manual Zotero add-on manager installation.
+- `58dd3c9` B68 sync preview metadata schema.
+- B68 XPI SHA256 `5cf967a54f51cb642ac44201b1f2b9dcc0b3214e8e9311a5d6feac0e1ff8837a` was built in `outputs/` for manual Zotero add-on manager installation.
