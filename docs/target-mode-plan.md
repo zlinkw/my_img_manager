@@ -1439,7 +1439,7 @@ End batch validation checklist:
 
 ### B48 Save Entry Quality Key Normalization
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1455,7 +1455,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `711864fcc57e00ca87c2ae66215d889845d222a0b3c97c4943a08401d1c692d4`, bytes `30055`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent review unavailable due thread/rate limits; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
+- Git commit records B48 implementation: `831577c`.
 
 ## Current Validation Results
 
@@ -3107,12 +3113,13 @@ End batch validation checklist:
 - Environment: clip and page preview save quality handling
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `saveClipPreviewIndex()` and `savePagePreviewIndex()` pass raw `options.qualityKey` into preview rendering, duplicate keys, and index creation.
 - Expected: save entry boundaries normalize quality keys so rendered preview quality, duplicate keys, visible HTML, and metadata all use one quality value.
 - Actual: missing or malformed quality keys render as Medium through `QUALITY[qualityKey] || QUALITY.medium`, but the preview record and duplicate key can carry raw or `undefined` quality before HTML normalizes it later.
 - Validation update: normalize clip/page save entry `qualityKey` before `renderCanvasPreview()` and `createIndexHTML()`, then add behavior/static checks.
 - Close condition: tests/static checks prove clip/page save entries call `normalizeQualityKey()` before rendering and index creation.
+- Closure: clip and page save entries now normalize `qualityKey` before rendering, duplicate-key generation, and index creation; static checks scope this to each save entry and renderer tests verify Medium quality output.
 
 ## Revised Validation Checklist
 
@@ -3322,3 +3329,5 @@ End batch validation checklist:
 - B46 XPI SHA256 `603eaf0f0d4985e3ad339cdac83ad89c6d00b1684a58f597137ce19de7c43b45` was built in `outputs/` for manual Zotero add-on manager installation.
 - `4d44b8b` B47 speed up reader toast fallback.
 - B47 XPI SHA256 `4de6c08e391d4a482f038fb50a92fdc807417e7fb8130e3803d0404b68084e20` was built in `outputs/` for manual Zotero add-on manager installation.
+- `831577c` B48 normalize save entry quality keys.
+- B48 XPI SHA256 `711864fcc57e00ca87c2ae66215d889845d222a0b3c97c4943a08401d1c692d4` was built in `outputs/` for manual Zotero add-on manager installation.
