@@ -31,6 +31,9 @@ const context = {
       get(key) {
         return this.values[key];
       },
+      set(key, value) {
+        this.values[key] = value;
+      },
     },
     debug() {},
     logError(error) {
@@ -103,6 +106,7 @@ const {
   imageCoordinatesToCandidates,
   importOriginalImages,
   limitOriginalImagesForImport,
+  onRenderToolbar,
   onCreateViewContextMenu,
   normalizeBBoxNormalized,
   normalizeHelperFilePath,
@@ -243,6 +247,53 @@ function createFakeToastDocument() {
     },
     bodyChildren,
     headChildren,
+  };
+}
+
+function createFakeElement(tagName) {
+  const listeners = Object.create(null);
+  const children = [];
+  return {
+    tagName,
+    id: "",
+    className: "",
+    title: "",
+    textContent: "",
+    value: "",
+    type: "",
+    disabled: false,
+    selected: false,
+    children,
+    appendChild(element) {
+      children.push(element);
+      return element;
+    },
+    append(...elements) {
+      children.push(...elements);
+    },
+    addEventListener(type, handler) {
+      listeners[type] = handler;
+    },
+    dispatch(type, event = {}) {
+      listeners[type]?.({
+        preventDefault() {},
+        stopPropagation() {},
+        ...event,
+      });
+    },
+  };
+}
+
+function createFakeToolbarDocument() {
+  const elementsByID = new Map();
+  return {
+    createElement(tagName) {
+      return createFakeElement(tagName);
+    },
+    getElementById(id) {
+      return elementsByID.get(id) || null;
+    },
+    elementsByID,
   };
 }
 
@@ -1203,6 +1254,53 @@ assert.strictEqual(
   "Auto-detect embedded raster previews on the current page. Selected: High, 180-750 KB/image.",
   "available auto-raster state must restore selected quality tooltip",
 );
+
+async function flushAsyncToolbarState() {
+  await Promise.resolve();
+  await new Promise((resolve) => setImmediate(resolve));
+}
+
+async function assertToolbarUnavailableStateSurvivesQualityChange() {
+  const toolbarDoc = createFakeToolbarDocument();
+  const toolbarChildren = [];
+  const toolbarReader = {
+    type: "pdf",
+    _iframeWindow: {
+      document: {},
+      PDFViewerApplication: {
+        pdfViewer: {
+          currentPageNumber: 1,
+          getPageView() {
+            return { pdfPage: {} };
+          },
+        },
+      },
+    },
+  };
+  onRenderToolbar({
+    reader: toolbarReader,
+    doc: toolbarDoc,
+    append(element) {
+      toolbarChildren.push(element);
+    },
+  });
+  await flushAsyncToolbarState();
+  assert.strictEqual(toolbarChildren.length, 1, "toolbar render must append one control group");
+  const [toolbarSelect, , toolbarAutoButton] = toolbarChildren[0].children;
+  assert.strictEqual(toolbarAutoButton.disabled, true, "unsupported auto-raster toolbar button must be disabled");
+  assert.ok(
+    toolbarAutoButton.title.includes("unavailable"),
+    "unsupported auto-raster toolbar button must explain unavailable state",
+  );
+  toolbarSelect.value = "high";
+  toolbarSelect.dispatch("change");
+  await flushAsyncToolbarState();
+  assert.strictEqual(toolbarAutoButton.disabled, true, "quality change must preserve disabled auto-raster state");
+  assert.ok(
+    toolbarAutoButton.title.includes("unavailable"),
+    "quality change must preserve unavailable auto-raster explanation",
+  );
+}
 const autoCandidatePage = {
   getBoundingClientRect: () => ({ left: 100, top: 50, width: 1000, height: 800 }),
 };
@@ -1235,6 +1333,8 @@ assert.deepStrictEqual(
   "auto-raster smaller candidate must survive after larger duplicate filtering",
 );
 context.Zotero.Prefs.values["extensions.pdfImageSaver.defaultQuality"] = "high";
+context.Zotero.Prefs.values["extensions.pdfImageSaver.maxPageImages"] = 12;
+context.Zotero.Prefs.values["extensions.pdfImageSaver.maxDocumentImages"] = 34;
 const contextMenuItems = [];
 onCreateViewContextMenu({
   reader: { type: "pdf" },
@@ -1255,6 +1355,14 @@ assert.ok(
   !contextMenuItems.some((item) => item.label === "Save current page preview index (Medium)"),
   "context menu page-preview label must not hardcode Medium",
 );
+assert.ok(
+  contextMenuItems.some((item) => item.label === "Optional: save original embedded images from this page (up to 12 images)"),
+  "context menu page-original label must show the page max image count",
+);
+assert.ok(
+  contextMenuItems.some((item) => item.label === "Optional: save original embedded images from whole PDF (up to 34 images)"),
+  "context menu document-original label must show the document max image count",
+);
 const contextMenuCalls = [];
 const testReader = { type: "pdf", itemID: 123 };
 const commandActions = buildContextMenuActions(testReader, { pageIndex: 2 }, {
@@ -1264,10 +1372,19 @@ const commandActions = buildContextMenuActions(testReader, { pageIndex: 2 }, {
   savePage(reader, options) {
     contextMenuCalls.push({ action: "page", reader, options });
   },
+  saveOriginal(reader, options) {
+    contextMenuCalls.push({ action: "original", reader, options });
+  },
+  diagnostics(reader) {
+    contextMenuCalls.push({ action: "diagnostics", reader });
+  },
 });
 commandActions.find((item) => item.label.startsWith("Try auto raster"))?.onCommand();
 commandActions.find((item) => item.label.startsWith("Save current page preview"))?.onCommand();
-assert.strictEqual(contextMenuCalls.length, 2, "context menu commands must call auto and page handlers");
+commandActions.find((item) => item.label.startsWith("Optional: save original embedded images from this page"))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Optional: save original embedded images from whole PDF"))?.onCommand();
+commandActions.find((item) => item.label === "PDF Image Saver diagnostics")?.onCommand();
+assert.strictEqual(contextMenuCalls.length, 5, "context menu commands must call auto, page, original, and diagnostics handlers");
 assert.strictEqual(contextMenuCalls[0].action, "auto", "first default-quality command must be auto-raster");
 assert.strictEqual(contextMenuCalls[0].reader, testReader, "auto-raster command must receive the reader");
 assert.strictEqual(contextMenuCalls[0].options.qualityKey, "high", "auto-raster command must pass default quality");
@@ -1276,9 +1393,25 @@ assert.strictEqual(contextMenuCalls[1].action, "page", "second default-quality c
 assert.strictEqual(contextMenuCalls[1].reader, testReader, "page-preview command must receive the reader");
 assert.strictEqual(contextMenuCalls[1].options.qualityKey, "high", "page-preview command must pass default quality");
 assert.strictEqual(contextMenuCalls[1].options.pageIndex, 2, "page-preview command must pass context page index");
+assert.strictEqual(contextMenuCalls[2].action, "original", "third command must be page original extraction");
+assert.strictEqual(contextMenuCalls[2].reader, testReader, "page-original command must receive the reader");
+assert.strictEqual(contextMenuCalls[2].options.scope, "page", "page-original command must pass page scope");
+assert.strictEqual(contextMenuCalls[2].options.pageIndex, 2, "page-original command must pass context page index");
+assert.strictEqual(contextMenuCalls[3].action, "original", "fourth command must be document original extraction");
+assert.strictEqual(contextMenuCalls[3].reader, testReader, "document-original command must receive the reader");
+assert.strictEqual(contextMenuCalls[3].options.scope, "document", "document-original command must pass document scope");
+assert.ok(
+  !Object.prototype.hasOwnProperty.call(contextMenuCalls[3].options, "pageIndex"),
+  "document-original command must not pass a page index",
+);
+assert.strictEqual(contextMenuCalls[4].action, "diagnostics", "diagnostics command must call diagnostics handler");
+assert.strictEqual(contextMenuCalls[4].reader, testReader, "diagnostics command must receive the reader");
 context.Zotero.Prefs.values["extensions.pdfImageSaver.defaultQuality"] = "medium";
+context.Zotero.Prefs.values["extensions.pdfImageSaver.maxPageImages"] = 10;
+delete context.Zotero.Prefs.values["extensions.pdfImageSaver.maxDocumentImages"];
 
 async function runAsyncAssertions() {
+  await assertToolbarUnavailableStateSurvivesQualityChange();
   context.Services.prompt.confirms = [];
   context.Services.prompt.alerts = [];
   context.Services.prompt.confirmResult = false;

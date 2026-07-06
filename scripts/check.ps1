@@ -240,6 +240,9 @@ if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>
 if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*updateQualityTooltips\(\)") {
   throw "Reader toolbar must refresh tooltips when quality selection changes"
 }
+if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*const\s+qualityKey\s*=\s*normalizeQualityKey\(select\.value\)[\s\S]*updateQualityTooltips\(\)[\s\S]*updateAutoRasterButtonState\(reader,\s*autoButton,\s*qualityKey\)") {
+  throw "Reader toolbar quality changes must reapply auto-raster availability state"
+}
 if ($toolbarEntry.Value -notmatch "updateQualityTooltips\(\)[\s\S]*updateAutoRasterButtonState") {
   throw "Reader toolbar must initialize quality tooltips before auto-raster state update"
 }
@@ -267,6 +270,15 @@ if ($contextMenuEntry.Value -notmatch "Try auto raster image previews:\s*\$\{def
 }
 if ($contextMenuEntry.Value -notmatch "Save current page preview index:\s*\$\{defaultQuality\.label\}\s*\(\$\{defaultQuality\.estimate\}\)[\s\S]*qualityKey:\s*defaultQualityKey") {
   throw "Context menu page-preview action must show and use the default quality estimate"
+}
+if ($contextMenuEntry.Value -notmatch "pageOriginalMaxImages\s*=\s*getHelperMaxImages\(`"page`"\)[\s\S]*documentOriginalMaxImages\s*=\s*getHelperMaxImages\(`"document`"\)") {
+  throw "Context menu original actions must compute page and document image caps"
+}
+if ($contextMenuEntry.Value -notmatch "Optional: save original embedded images from this page \(up to \$\{pageOriginalMaxImages\} images\)[\s\S]*scope:\s*`"page`"[\s\S]*pageIndex:\s*getContextPageIndex\(params\)") {
+  throw "Context menu page-original action must show cap and pass page scope"
+}
+if ($contextMenuEntry.Value -notmatch "Optional: save original embedded images from whole PDF \(up to \$\{documentOriginalMaxImages\} images\)[\s\S]*scope:\s*`"document`"") {
+  throw "Context menu whole-PDF original action must show cap and pass document scope"
 }
 if ($contextMenuEntry.Value -match "Save current page preview index \(Medium\)|qualityKey:\s*`"medium`"") {
   throw "Context menu page-preview action must not hardcode Medium quality"
@@ -532,6 +544,9 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildContextMenuActions") {
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*onCreateViewContextMenu") {
   throw "Reader context menu handler must remain exported for regression tests"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*onRenderToolbar") {
+  throw "Reader toolbar render handler must remain exported for regression tests"
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveAutoDetectedPageImagePreviews") {
   throw "Auto-raster save entry must remain exported for regression tests"

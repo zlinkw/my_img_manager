@@ -1882,6 +1882,33 @@ End batch validation checklist:
 - Code review: first review found no blockers and suggested stronger raw-options static guard; final review found no blockers after optional-chain, multiline destructuring, and bracket-access guards were added.
 - Git commit records B63 implementation: `a5d1fa3`.
 
+### B64 Context Menu And Toolbar UI Guard
+
+Status: in progress.
+
+Plan:
+
+- Add an explicit context-menu action for optional original embedded image extraction from the whole PDF.
+- Show page/document original-image caps in context-menu labels before users enter the confirmation dialog.
+- Keep the Auto Raster toolbar button's unavailable/help tooltip consistent when preview quality changes.
+
+Pre batch validation:
+
+- Git worktree clean at B64 start commit `5f0c1f0`.
+- B64 local review found the context menu exposes page-scoped optional originals but no explicit whole-PDF original extraction action, despite the target plan requiring whole-PDF actions to be explicit; recorded as `FAIL-20260706-135`.
+- B64 local review found original-image context-menu labels do not show max attachment counts before confirmation; recorded as `FAIL-20260706-136`.
+- B64 local review found toolbar quality changes refresh the Auto Raster tooltip directly and can overwrite the unavailable-state explanation; recorded as `FAIL-20260706-137`.
+- B64 validation found the new context-menu cap test assumed default helper caps after earlier tests had changed helper cap prefs; recorded as `FAIL-20260706-138`.
+- B64 code review found the toolbar quality-state fix only had static coverage, not a behavior test for the unavailable state after changing quality; recorded as `FAIL-20260706-139`.
+- B64 validation found the first toolbar behavior test did not wait for the unawaited async availability update to finish; recorded as `FAIL-20260706-140`.
+- B64 validation found the fake Zotero prefs object lacked `set()`, so rendered-toolbar preference writes were not testable; recorded as `FAIL-20260706-141`.
+- Regression guard: protect `FAIL-20260706-050`, `FAIL-20260706-108`, `FAIL-20260706-119`, `FAIL-20260706-120`, `FAIL-20260706-138`, `FAIL-20260706-139`, `FAIL-20260706-140`, `FAIL-20260706-141`, and validation family: context menu command labels plus toolbar quality state.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3904,6 +3931,97 @@ End batch validation checklist:
 - Close condition: `npm.cmd run check` passes with current save entries using only `safeOptions`, and the guard patterns include optional-chain, multiline destructuring, and bracket variants.
 - Closure: save-entry static guards now reject `options?.`, multiline raw destructuring, and any raw `options[...]` bracket access; `npm.cmd run check` passes with all save entries using `safeOptions`.
 
+### FAIL-20260706-135
+
+- Batch: B64
+- Environment: reader context menu optional original extraction actions
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: the context menu exposes optional original extraction for the current page but not for the whole PDF.
+- Expected: whole-PDF original extraction should be available only through an explicit context-menu action because it can create many Zotero attachments.
+- Actual: `buildContextMenuActions()` only adds a page-scoped original action.
+- Validation update: add a whole-PDF original action that calls confirmation with `scope: "document"` and add behavior/static checks.
+- Close condition: tests prove the context menu exposes page and whole-PDF original actions and their commands pass `scope: "page"` and `scope: "document"` respectively.
+
+### FAIL-20260706-136
+
+- Batch: B64
+- Environment: reader context menu optional original extraction labels
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: original-image context-menu labels do not show the attachment-count cap before the confirmation dialog.
+- Expected: disk-risky original extraction actions should show page/document max image counts at the menu level.
+- Actual: the page-scoped original action label only says `Optional: save original embedded images from this page`.
+- Validation update: include `up to N` counts in page and whole-PDF original action labels and test the labels.
+- Close condition: tests/static checks prove page and document original-action labels include the configured helper caps.
+
+### FAIL-20260706-137
+
+- Batch: B64
+- Environment: reader toolbar Auto Raster unavailable tooltip
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: when Auto Raster is unavailable, changing preview quality can overwrite the unavailable explanation with a normal selected-quality tooltip.
+- Expected: quality changes should refresh Auto Raster state through the same availability helper so disabled/unavailable messaging remains consistent.
+- Actual: the toolbar `change` handler calls `updateQualityTooltips()` only.
+- Validation update: call `updateAutoRasterButtonState()` after quality changes and add a static check for the handler.
+- Close condition: `npm.cmd run check` proves the select-change handler updates quality tooltips and then reapplies Auto Raster availability state.
+
+### FAIL-20260706-138
+
+- Batch: B64
+- Environment: context-menu original cap regression test setup
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the first B64 context-menu cap test expected default page/document caps even though earlier tests had changed helper cap preferences.
+- Expected: context-menu label tests should set their own helper cap prefs so failures represent label behavior, not inherited test order state.
+- Actual: `npm.cmd run test` failed because the current test process prefs no longer matched default cap values.
+- Validation update: set explicit helper cap prefs before context-menu label assertions and assert the labels use those values.
+- Close condition: `npm.cmd run test` passes and proves context-menu labels reflect configured helper caps.
+
+### FAIL-20260706-139
+
+- Batch: B64
+- Environment: toolbar Auto Raster unavailable-state behavior test
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the B64 toolbar quality-state fix had static coverage but no behavior test that unavailable messaging survives a quality change.
+- Expected: when the PDF.js image-coordinate capability is unavailable, changing preview quality should leave Auto Raster disabled with the unavailable explanation.
+- Actual: tests only checked the lower-level state helper and the static shape of the change handler.
+- Validation update: export `onRenderToolbar()` for tests and add a behavior test that changes quality on a toolbar rendered against an unsupported PDF reader.
+- Close condition: `npm.cmd run test` proves changing quality leaves Auto Raster disabled with unavailable text in its title.
+
+### FAIL-20260706-140
+
+- Batch: B64
+- Environment: toolbar Auto Raster async behavior test
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the first toolbar behavior test asserted the Auto Raster button state before the unawaited async availability check completed.
+- Expected: behavior tests for toolbar state should wait for the async state update started by `onRenderToolbar()` and the select change handler.
+- Actual: `npm.cmd run test` failed because only microtasks were flushed before checking `button.disabled`.
+- Validation update: use a macrotask flush for the toolbar availability update before assertions.
+- Close condition: `npm.cmd run test` passes while proving disabled/unavailable state after initial render and quality change.
+
+### FAIL-20260706-141
+
+- Batch: B64
+- Environment: rendered-toolbar preference-write regression test
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the rendered-toolbar behavior test failed because the fake `Zotero.Prefs` object had `get()` but no `set()`.
+- Expected: toolbar change-handler tests should cover default-quality preference writes without throwing on the test double.
+- Actual: `npm.cmd run test` threw `TypeError: Zotero.Prefs.set is not a function`.
+- Validation update: add `Zotero.Prefs.set()` to the VM test double and keep the rendered-toolbar test on the real change handler.
+- Close condition: `npm.cmd run test` passes through the toolbar change handler without fake-pref TypeErrors.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -4035,6 +4153,10 @@ End batch validation checklist:
 - Check B63+ batches can group up to three related fixes or improvements when they share a validation surface.
 - Check save-entry static guards reject raw `options` dot, bracket, spread, and destructuring reads.
 - Check save-entry static guards reject raw optional-chain reads, multiline destructuring, and computed bracket reads from `options`.
+- Check context menu exposes explicit page and whole-PDF optional original extraction actions with max attachment counts.
+- Check context menu original extraction commands pass page/document scopes distinctly.
+- Check toolbar quality changes reapply Auto Raster availability state instead of overwriting unavailable messaging.
+- Check toolbar rendered behavior leaves Auto Raster disabled with unavailable text after quality changes when PDF.js image coordinates are unsupported.
 
 ## Real Commit Log
 

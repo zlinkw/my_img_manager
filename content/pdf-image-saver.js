@@ -197,8 +197,10 @@ var PdfImageSaver = (() => {
       autoButton.title = buildToolbarActionTooltip("Auto-detect embedded raster previews on the current page", qualityKey);
     };
     select.addEventListener("change", () => {
-      setStringPref("defaultQuality", normalizeQualityKey(select.value));
+      const qualityKey = normalizeQualityKey(select.value);
+      setStringPref("defaultQuality", qualityKey);
       updateQualityTooltips();
+      void updateAutoRasterButtonState(reader, autoButton, qualityKey);
     });
     updateQualityTooltips();
     updateAutoRasterButtonState(reader, autoButton, normalizeQualityKey(select.value));
@@ -226,6 +228,8 @@ var PdfImageSaver = (() => {
     const actions = [];
     const defaultQualityKey = getDefaultQualityKey();
     const defaultQuality = QUALITY[defaultQualityKey];
+    const pageOriginalMaxImages = getHelperMaxImages("page");
+    const documentOriginalMaxImages = getHelperMaxImages("document");
 
     for (const key of ["low", "medium", "high"]) {
       const quality = QUALITY[key];
@@ -258,11 +262,20 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: "Optional: save original embedded images from this page",
+      label: `Optional: save original embedded images from this page (up to ${pageOriginalMaxImages} images)`,
       onCommand() {
         void saveOriginal(reader, {
           scope: "page",
           pageIndex: getContextPageIndex(params),
+        });
+      },
+    });
+
+    actions.push({
+      label: `Optional: save original embedded images from whole PDF (up to ${documentOriginalMaxImages} images)`,
+      onCommand() {
+        void saveOriginal(reader, {
+          scope: "document",
         });
       },
     });
@@ -2909,6 +2922,7 @@ var PdfImageSaver = (() => {
       getPreviewDuplicateKey,
       importOriginalImages,
       limitOriginalImagesForImport,
+      onRenderToolbar,
       onCreateViewContextMenu,
       normalizeHelperSchemaText,
       normalizeHelperStatusText,
