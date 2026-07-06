@@ -894,3 +894,5 @@ End batch validation checklist:
 - B9 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `596dbc8` B10 diagnose Zotero extension rescan.
 - B10 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `bb7e227` B11 clear Zotero extension rescan cache.
+- B11 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
