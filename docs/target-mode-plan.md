@@ -105,7 +105,8 @@ Each preview entry includes:
 - Every batch marked complete must replace `Pending` with real validation output.
 - Fixes that reveal follow-up faults must record the new fault before changing that behavior.
 - Every B62+ batch must declare a `Regression guard:` line naming prior `FAIL-*` IDs or `validation family:` names that its changes could affect.
-- For B69+ batches, treat roughly three times the earlier micro-batch size as the default batch target before testing; combine related fixes or improvements that share a validation surface, do not split only to avoid temporary local breakage, and rely on git history for rollback. Isolation is required only when fault boundaries, ownership, or validation surfaces differ.
+- For B69+ batches, treat roughly three times the earlier micro-batch size as the minimum default batch target before testing; combine related fixes or improvements that share a validation surface, do not split only to avoid temporary local breakage, and rely on git history for rollback. Isolation is required only when fault boundaries, ownership, or validation surfaces differ.
+- For all future implementation batches, prefer larger coherent batches over repeated tiny loops: update the plan once, modify the full same-surface final version, then run the relevant validation suite; git commits provide rollback, so fear of temporary breakage is not a valid reason to shrink the batch.
 - Every B69+ batch must declare a `Batch size guard:` line explaining whether the batch used the 3x grouped-batch target or why isolation was required.
 - `scripts/check.ps1` must enforce these plan-state invariants so a future patch cannot silently reopen old risks or close a fault without evidence.
 
@@ -2176,6 +2177,51 @@ End batch validation checklist:
 - `npm.cmd run package:manual`: passed, XPI SHA256 `7f4983c2e9f5b61ef8e939acc96f2d0ffabeee3d117ca392cdc893aca62fa05b`, bytes `34435`.
 - `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
 - Git commit records B73 implementation: `52ef9c5`.
+
+### B74 Optional Original Import Safety And Sync Info
+
+Status: complete; manual Zotero install and reader smoke pending user action.
+
+Plan:
+
+- Enforce JS-side per-file and total byte limits before importing optional original image attachments.
+- Add persistent `original_image_key` generation and skip already-imported original images across reloads.
+- Ensure `original_image_key` fallback identity includes occurrence when helper records lack hash, xref, or bbox evidence, preventing same-page collisions.
+- Create a lightweight HTML original-image index when optional originals are imported, recording source PDF links, page, bbox, byte count, and short image identity.
+- Treat original-image HTML index creation as best-effort after image imports: log/report index failure without claiming successfully imported image attachments failed.
+- Run duplicate filtering before per-run image and byte caps so already-saved originals do not consume capacity for new originals.
+- Scan same-library original-image indexes for standalone PDF attachments when no parent item exists.
+- Strengthen optional-original confirmation text with worst-case sync byte risk.
+- Clean helper temp output when a successful helper report contains no importable images.
+- Update the VM test harness for original-image HTML index creation so new index imports are validated separately from original image imports.
+- Add behavior/static checks for byte limits, duplicate original import skipping before caps, standalone PDF duplicate scanning, original index metadata, best-effort index failure handling, key fallback collision resistance, risk text, zero-image cleanup, and index-import test harness coverage.
+
+Pre batch validation:
+
+- Git worktree clean at B74 start commit `d5dfb3e`.
+- B74 plan review found JS import side only checks helper output file existence, so malformed helper reports or oversized files can bypass helper byte caps; recorded as `FAIL-20260707-007`.
+- B74 plan review found optional originals have no persistent duplicate key, so repeated helper runs can import the same original image again after reload; recorded as `FAIL-20260707-008`.
+- B74 plan review found imported original image attachments lack a synced lightweight index with source PDF link, bbox, byte count, and image identity; recorded as `FAIL-20260707-009`.
+- B74 plan review found optional-original menu/confirmation text shows only image count and not worst-case sync byte risk; recorded as `FAIL-20260707-010`.
+- B74 local review found successful helper reports with zero images return before `importOriginalImages()` and leave the helper output directory cleanup to stale-temp startup; recorded as `FAIL-20260707-011`.
+- B74 implementation review found the VM test harness lacks `Zotero.File` write/create-directory and `Zotero.Utilities.randomString` stubs for the new original-image HTML index path, and old import assertions can accidentally count the index attachment as an original image; recorded as `FAIL-20260707-012`.
+- B74 implementation review found `original_image_key` fallback can collide for multiple images on the same page when helper records lack hash, xref, and bbox metadata; recorded as `FAIL-20260707-013`.
+- B74 self review found original images can be successfully imported and then the follow-up HTML index write/import can fail, causing the whole save to surface as an error and encouraging a retry that lacks persistent duplicate metadata; recorded as `FAIL-20260707-014`.
+- B74 code review found duplicate original records are filtered after file stat and byte caps, so existing duplicates can consume total byte capacity and make later new images look over the 150 MB cap; recorded as `FAIL-20260707-015`.
+- B74 code review found standalone PDF attachments have no `parentItem`, so original-image duplicate scanning returns empty even though original images and indexes are imported as same-library top-level attachments; recorded as `FAIL-20260707-016`.
+- B74 code review found a PowerShell static guard for byte-cap omission only matches `missingCount + errorCount` and does not prove `byteCapCount` remains in `omittedCount`; recorded as `FAIL-20260707-017`.
+- Regression guard: protect `FAIL-20260706-038`, `FAIL-20260706-039`, `FAIL-20260706-088`, `FAIL-20260706-089`, and validation family: optional original import safety plus synced source metadata.
+- Batch size guard: uses the B69+ 3x grouped minimum by combining eleven related optional-original safety, duplicate-before-cap, standalone duplicate, metadata, index-failure, cleanup, key identity, static-guard, and test-harness fixes that share the helper/import validation surface.
+
+End batch validation checklist:
+
+- `npm.cmd run test`: passed and covers original import byte caps, duplicate-before-cap behavior, standalone duplicate scanning, best-effort index failure handling, HTML index metadata, confirmation byte-risk text, weak-key fallback, and zero-image cleanup guard coverage.
+- `npm.cmd run check`: passed and now enforces original import byte caps, duplicate-before-cap order, standalone same-library duplicate scanning, index failure warning behavior, original-index metadata, byte-cap omission counts, and strengthened 3x batch-size plan rules.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `f73ba083aacf1d85c8bc8ed41bccdbc84873a6c5c128ff5959eb456569d1412e`, bytes `36564`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
+- Code review: subagent found P1/P2 issues in index failure handling, duplicate-before-cap order, standalone duplicate scanning, and byte-cap static guard; all were recorded as `FAIL-20260707-014` through `FAIL-20260707-017` before code changes and covered by tests/static checks.
+- Git commit records B74 implementation: `9be58fb`, `3c5891f`.
 
 ## Current Validation Results
 
@@ -4647,6 +4693,160 @@ End batch validation checklist:
 - Close condition: tests and static checks prove mixed duplicate plus byte-cap/oversized no-preview cases mention both duplicate and storage-cap causes.
 - Closure: `formatAutoDuplicateSkipReason()` now accepts duplicate, byte-limit, and oversized counters and reports mixed causes together; tests/static checks cover persisted duplicate plus byte-cap and session duplicate plus oversized cases.
 
+### FAIL-20260707-007
+
+- Batch: B74
+- Environment: optional original image JS-side import byte limits
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: original image import checks helper output existence but not the actual file byte size before Zotero import.
+- Expected: JS import side should enforce per-file and total original-image byte limits even if a malformed helper report points to oversized files.
+- Actual: `filterExistingOriginalImagesForImport()` only checks existence and can pass oversized files to `Zotero.Attachments.importFromFile`.
+- Validation update: stat helper files before import, enforce per-file and total byte caps, and count skipped oversized files.
+- Close condition: tests/static checks prove oversized helper files are skipped before Zotero import and included in omitted counts.
+- Closure: `filterExistingOriginalImagesForImport()` now stats helper files, enforces 25 MB per file and 150 MB per run after dedupe/max-cap ordering, returns `byteCapCount`, and tests/static checks cover per-file and total-byte skips.
+
+### FAIL-20260707-008
+
+- Batch: B74
+- Environment: optional original image duplicate import after reload
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: repeated optional-original runs can import the same embedded original image again after reload.
+- Expected: optional-original imports should carry a stable `original_image_key` and skip existing child attachments or indexes with the same key.
+- Actual: import titles contain only source title, page, and occurrence, and import code does not scan child metadata for duplicates.
+- Validation update: generate `original_image_key`, include it in titles/index metadata, scan existing original index metadata, and skip duplicates before import.
+- Close condition: tests/static checks prove existing original-image keys skip duplicate imports across reloads.
+- Closure: original imports now compute `original_image_key`, include compact fingerprints in titles and HTML index metadata, scan existing original-image index metadata, and tests/static checks prove duplicate keys are skipped.
+
+### FAIL-20260707-009
+
+- Batch: B74
+- Environment: optional original image synced source metadata
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: imported original image attachments do not create a compact synced index with source PDF page links and helper metadata.
+- Expected: optional originals should be accompanied by a lightweight HTML child index recording original image keys, source PDF links, page, bbox, byte count, and short hash.
+- Actual: `Zotero.Attachments.importFromFile` receives only file, title, content type, and parent fields for each original image.
+- Validation update: create one HTML original-image index after successful original imports and include compact source metadata.
+- Close condition: tests/static checks prove original imports create a text/html index with source links and original identity fields.
+- Closure: successful original imports now create a synced text/html original-image index with source PDF links, page, bbox, byte count, content type, hash, and original image key metadata; behavior/static tests cover the generated index.
+
+### FAIL-20260707-010
+
+- Batch: B74
+- Environment: optional original extraction user risk confirmation
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: closed
+- Symptom: optional-original menu and confirmation copy show only image count caps, not worst-case sync byte risk.
+- Expected: risky original extraction should state the maximum Zotero storage impact before the user confirms.
+- Actual: confirmation text says up to N original image attachments but omits the per-image and total byte caps.
+- Validation update: add worst-case sync byte text to confirmation and keep context menu count text concise.
+- Close condition: tests/static checks prove confirmation text includes image and byte-cap risk.
+- Closure: original extraction confirmation now states max image count plus 25 MB per-image and 150 MB total safety limits; tests/static checks cover the text.
+
+### FAIL-20260707-011
+
+- Batch: B74
+- Environment: optional helper successful zero-image cleanup
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: a successful helper report with zero images returns before `importOriginalImages()` and can leave the helper output directory until stale-temp cleanup.
+- Expected: helper output dirs should be cleaned immediately even when no original images match.
+- Actual: `saveOriginalImagesFromReader()` returns after the no-images toast without calling `removeDirectoryIfExists(report.output_dir)`.
+- Validation update: clean helper output for no-image reports and add static/behavior checks.
+- Close condition: tests/static checks prove zero-image helper reports trigger immediate safe cleanup.
+- Closure: zero-image successful helper reports now call `removeDirectoryIfExists(report.output_dir)` before returning; static checks guard the cleanup path.
+
+### FAIL-20260707-012
+
+- Batch: B74
+- Environment: optional original image HTML index validation harness
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: original-image import tests do not model the new HTML index write/import path and can count the generated index attachment as an original image import.
+- Expected: tests should provide Zotero file/write/temp stubs, assert the HTML index attachment separately, and keep original image import assertions scoped to image content types.
+- Actual: the harness originally only covered image file imports and had no `Zotero.File.putContentsAsync`, `Zotero.File.createDirectoryIfMissingAsync`, or `Zotero.Utilities.randomString` stubs.
+- Validation update: add VM stubs and behavior/static checks for original-image index creation without weakening image import assertions.
+- Close condition: tests/static checks prove image imports, generated text/html original index imports, and index metadata are validated as separate outcomes.
+- Closure: the VM harness now stubs `Zotero.File` write/create-directory and `Zotero.Utilities.randomString`, and tests separate image imports from generated text/html index imports.
+
+### FAIL-20260707-013
+
+- Batch: B74
+- Environment: optional original image duplicate identity fallback
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: multiple original image records on the same page can receive the same `original_image_key` when helper output lacks `sha256`, `xref`, and bbox metadata.
+- Expected: fallback identity should remain stable enough for repeated runs while distinguishing same-page occurrences when stronger helper identity fields are absent.
+- Actual: fallback identity currently becomes `xref0:0.0000,0.0000,0.0000,0.0000` for all such records on the same attachment page.
+- Validation update: include normalized occurrence in weak fallback identity and add behavior/static checks for two same-page weak records producing different keys.
+- Close condition: tests/static checks prove same-page weak original-image records do not share an `original_image_key`.
+- Closure: weak `original_image_key` fallback now uses normalized occurrence when no stronger hash/xref identity exists; tests/static checks prove two same-page weak records differ.
+
+### FAIL-20260707-014
+
+- Batch: B74
+- Environment: optional original image index failure after successful imports
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: after original image attachments are saved, a failure while writing/importing the synced HTML index can make the whole save action report an error even though image files were already imported.
+- Expected: index creation should be best-effort after image imports; failures should be logged, reported as a warning, and not cause users to retry already-imported images as if nothing was saved.
+- Actual: `createOriginalImageIndexAttachment()` runs after image imports without a local catch, so a metadata-index error rejects `importOriginalImages()`.
+- Validation update: catch/log index creation errors, return `indexErrorCount`, surface warning text, and add tests/static checks.
+- Close condition: tests/static checks prove successful image imports still return success when index creation fails, with index failure separately reported.
+- Closure: HTML index creation failures are caught, logged, returned as `indexErrorCount`, and shown as warning text while preserving successful image imports; tests/static checks cover this path.
+
+### FAIL-20260707-015
+
+- Batch: B74
+- Environment: optional original image duplicate filtering versus byte/max caps
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: already-saved original records are statted and counted toward per-run total bytes before duplicate filtering, so later new images can be skipped as over cap.
+- Expected: existing duplicate original-image keys should be removed before max-image and total-byte capacity decisions.
+- Actual: `filterExistingOriginalImagesForImport()` runs before `existingOriginalKeys.has(...)`.
+- Validation update: dedupe normalized helper records before max/byte caps and add behavior/static checks proving duplicates do not consume capacity.
+- Close condition: tests/static checks prove duplicate originals are skipped before max-image and byte-cap filtering.
+- Closure: original import flow now normalizes records, scans existing keys, removes duplicates, then applies max-image and byte caps; tests/static checks prove duplicates do not consume max or byte capacity.
+
+### FAIL-20260707-016
+
+- Batch: B74
+- Environment: standalone PDF optional original duplicate scanning
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: repeated optional-original runs for a standalone PDF can import duplicates because there is no parent item to scan for child HTML indexes.
+- Expected: when no parent item exists, the plugin should scan same-library HTML original-image indexes when the Zotero item cache API is available.
+- Actual: `getExistingOriginalImageKeys()` returns an empty set when `parentItem` is null.
+- Validation update: add guarded same-library HTML index scanning for standalone attachments and behavior/static checks.
+- Close condition: tests/static checks prove standalone duplicate original-image keys are skipped when an existing same-library original-image index is present.
+- Closure: standalone original imports now use guarded `Zotero.Items.getAll(libraryID)` scanning for same-library HTML original-image indexes when no parent item exists; tests/static checks cover duplicate skips.
+
+### FAIL-20260707-017
+
+- Batch: B74
+- Environment: optional original byte-cap static guard
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: static validation can pass even if `byteCapCount` is removed from `omittedCount`, because a regex only proves missing and read-error counts are added.
+- Expected: static checks should explicitly require byte-cap skips to contribute to omission counts.
+- Actual: the regex is not anchored to the full expression and can match a prefix without `+ byteCapCount`.
+- Validation update: strengthen the check to require `missingCount + errorCount + byteCapCount`.
+- Close condition: static checks fail if byte-cap skips stop contributing to omitted counts.
+- Closure: `scripts/check.ps1` now explicitly requires `byteCapCount` in the omission-count expression, so byte-cap skip reporting cannot be silently removed.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -4734,6 +4934,16 @@ End batch validation checklist:
 - Check optional original helper import behavior dynamically skips missing files before `Zotero.Attachments.importFromFile`.
 - Check optional original helper import continues after one existing helper file fails Zotero attachment import.
 - Check optional original helper import reports an overall error when every attempted Zotero attachment import fails.
+- Check optional original helper import enforces JS-side per-file and total byte caps before Zotero import.
+- Check optional original helper import skips existing original-image keys across reloads.
+- Check optional original duplicate filtering happens before max-image and byte caps.
+- Check standalone PDF optional-original import scans same-library original-image indexes when no parent item exists.
+- Check optional original helper import creates a lightweight synced HTML original-image index with source PDF links and compact identity metadata.
+- Check optional original helper import treats synced HTML original-image index failures as logged warnings rather than failed image imports.
+- Check optional original image weak identity fallback includes occurrence so same-page missing-metadata records do not collide.
+- Check optional original extraction confirmation states image count and worst-case byte risk.
+- Check optional helper successful zero-image reports clean their temp output immediately.
+- Check optional original image import tests validate generated text/html index attachments separately from original image file attachments.
 - Check optional helper failure messages normalize status and warning details before reader toast output.
 - Check optional helper candidate failure aggregation normalizes helper status before warning output.
 - Check optional helper warning aggregation handles malformed warning containers without throwing.
@@ -4957,3 +5167,6 @@ End batch validation checklist:
 - B72 XPI SHA256 `f932ec6e4d242dff651740e9a1520b4fabab8a8cca44d53de2eec05e07324563` was built in `outputs/` for manual Zotero add-on manager installation.
 - `52ef9c5` B73 fix source region duplicate feedback.
 - B73 XPI SHA256 `7f4983c2e9f5b61ef8e939acc96f2d0ffabeee3d117ca392cdc893aca62fa05b` was built in `outputs/` for manual Zotero add-on manager installation.
+- `9be58fb` B74 harden optional original imports.
+- `3c5891f` B74 fix original duplicate edge cases.
+- B74 XPI SHA256 `f73ba083aacf1d85c8bc8ed41bccdbc84873a6c5c128ff5959eb456569d1412e` was built in `outputs/` for manual Zotero add-on manager installation.
