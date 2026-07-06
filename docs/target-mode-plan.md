@@ -1708,7 +1708,7 @@ End batch validation checklist:
 
 ### B58 Auto Raster Candidate Coordinate Coverage
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1725,7 +1725,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `095d9a6f34ba54ccb72ab29f994ceef01bef0d2811d96490693a853e585fc119`, bytes `31231`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent read-only review found separate recursive-delete boundary fault; recorded as `FAIL-20260706-124` for B59. B58 local targeted rerun found no P0-P2 blockers in coordinate coverage.
+- Git commit records B58 implementation: `dd5022c`.
 
 ## Current Validation Results
 
@@ -3587,12 +3593,13 @@ End batch validation checklist:
 - Environment: auto-raster PDF.js image-coordinate conversion
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `imageCoordinatesToCandidates()` converts PDF.js recorded image coordinates into source selection rectangles, filters tiny images, dedupes overlaps, and sorts by area, but there is no direct behavior regression test for that precision-critical path.
 - Expected: tests should prove coordinate-to-selection math, tiny-candidate filtering, overlap dedupe, and largest-first ordering.
 - Actual: current coverage reaches auto-raster behavior only indirectly through static checks and save-entry guards.
 - Validation update: export the converter under `__test__`, add targeted behavior tests, and add static checks for export and candidate ordering path.
 - Close condition: tests/static checks prove normalized coordinates produce the expected page-relative candidate rectangles and sorted/deduped output.
+- Closure: `imageCoordinatesToCandidates()` is exported for regression tests; behavior tests cover normalized coordinate mapping, tiny filtering, overlap dedupe, largest-first ordering, page index, and detector metadata; static checks lock export and candidate ordering.
 
 ### FAIL-20260706-124
 
@@ -3851,3 +3858,5 @@ End batch validation checklist:
 - B56 XPI SHA256 `e565f6f81be2f21abb09130cd9dd264a0e9f41862920ee1516b53b323e4689c6` was built in `outputs/` for manual Zotero add-on manager installation.
 - `adaccce` B57 sync context menu default quality.
 - B57 XPI SHA256 `21a24105cac3893e90fa9ad06daf0d41a725cb815e8b81da4fc4719046ec15fa` was built in `outputs/` for manual Zotero add-on manager installation.
+- `dd5022c` B58 cover auto raster coordinates.
+- B58 XPI SHA256 `095d9a6f34ba54ccb72ab29f994ceef01bef0d2811d96490693a853e585fc119` was built in `outputs/` for manual Zotero add-on manager installation.
