@@ -100,6 +100,7 @@ Each preview entry includes:
 - Every closed fault added from B60 onward must keep `Close condition` and `Closure` evidence.
 - Every batch marked complete must replace `Pending` with real validation output.
 - Fixes that reveal follow-up faults must record the new fault before changing that behavior.
+- Every B62+ batch must declare a `Regression guard:` line naming prior fault IDs or validation families that its changes could affect.
 - `scripts/check.ps1` must enforce these plan-state invariants so a future patch cannot silently reopen old risks or close a fault without evidence.
 
 ## Preview Quality
@@ -1818,6 +1819,29 @@ End batch validation checklist:
 - `git diff --check`: passed with LF-to-CRLF warnings only.
 - Code review: subagent read-only review confirmed the same helper temp creation ordering fault; local targeted rerun found no P0-P2 blockers.
 - Git commit records B61 implementation: `6dff38d`.
+
+### B62 Plan Update Regression Guard
+
+Status: in progress.
+
+Plan:
+
+- Add a global regression-loop rule requiring B62+ batches to declare the prior fault IDs or validation families protected by the batch.
+- Extend `scripts/check.ps1` so completed B62+ batches cannot omit or leave pending regression-guard evidence.
+- Keep this batch scoped to plan integrity; no plugin runtime behavior change.
+
+Pre batch validation:
+
+- Git worktree clean at B62 start commit `3a94444`.
+- User requested plan updates explicitly prevent bug1 to bug2 to bug1 or bug3 loops; recorded as `FAIL-20260706-128`.
+- Regression guard: protect `FAIL-20260706-125` and `FAIL-20260706-126` by keeping existing unique-fault, close-evidence, and no-pending checks while adding the B62+ guard declaration check.
+- B62 validation found the first pending-guard detector falsely rejects guard text containing `no-pending`; recorded as `FAIL-20260706-129`.
+- Planning agent found a separate malformed-options save-entry fault; recorded as `FAIL-20260706-130` for the next runtime batch.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
 
 ## Current Validation Results
 
@@ -3743,6 +3767,45 @@ End batch validation checklist:
 - Close condition: static checks prove `runHelperExtraction()` gets Python commands and helper script path before calling `createTempDirectory()`, while no-Python fallback still returns `output_dir: null`.
 - Closure: `runHelperExtraction()` now discovers Python commands and loads the bundled helper script before creating temp output; no-Python fallback returns `output_dir: null` without cleanup work, and static checks lock the ordering.
 
+### FAIL-20260706-128
+
+- Batch: B62
+- Environment: target-mode plan update loop
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: plan updates can record new fixes without explicitly naming the older faults or validation families that must stay protected.
+- Expected: every plan-updating batch should state which prior failure checks are protected, so a bug1 fix cannot silently cause bug2, then reintroduce bug1 or create bug3 in an endless loop.
+- Actual: current `Regression Loop Control` rules enforce IDs, closure evidence, and pending validation, but do not require a per-batch regression guard.
+- Validation update: add a B62+ `Regression guard:` rule and a static check that blocks completed batches without non-pending guard evidence.
+- Close condition: `npm.cmd run check` fails if a completed B62+ batch lacks a non-pending `Regression guard:` line, while existing `FAIL-20260706-125` and `FAIL-20260706-126` protections still pass.
+
+### FAIL-20260706-129
+
+- Batch: B62
+- Environment: B62 target-plan regression guard static check
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `npm.cmd run check` rejects B62 because its regression guard says `no-pending checks`.
+- Expected: the pending-placeholder detector should reject placeholder guard text, not normal phrases that mention an existing no-pending validation family.
+- Actual: the detector matches the word `pending` anywhere in the guard line.
+- Validation update: narrow placeholder detection to guard text that is only `pending`, `todo`, or `tbd`.
+- Close condition: `npm.cmd run check` passes with the B62 `no-pending checks` regression-guard text.
+
+### FAIL-20260706-130
+
+- Batch: B63 candidate
+- Environment: reader save entry option normalization
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: save entries default only `options = {}` and can still throw raw TypeErrors for `null`, array, or scalar option values.
+- Expected: malformed direct or future menu calls should normalize options before reading `pageIndex`, `qualityKey`, or `scope`, then report a compact reader error.
+- Actual: `saveClipPreviewIndex`, `saveAutoDetectedPageImagePreviews`, `savePagePreviewIndex`, and `saveOriginalImagesFromReader` can read raw `options.*`.
+- Validation update: next runtime batch should add null/scalar/array options regression tests and static checks requiring `normalizeOptionsObject(options)` inside each save entry.
+- Close condition: tests prove the four save entries do not reject with raw TypeErrors for malformed options, and static checks prove no raw `options.*` reads remain in those blocks.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3866,6 +3929,9 @@ End batch validation checklist:
 - Check auto-raster PDF.js image-coordinate conversion is behavior-tested for rectangle math, tiny-candidate filtering, overlap dedupe, and largest-first ordering.
 - Check recursive cleanup only removes paths under the normalized plugin temp root.
 - Check optional-helper temp output directories are created only after Python and helper script prerequisites are available.
+- Check B62+ completed batches declare non-pending regression guards for prior failures or validation families affected by their changes.
+- Check B62+ regression-guard placeholder detection does not reject legitimate `no-pending` guard text.
+- Check reader save entries normalize null, array, and scalar option objects before reading fields.
 
 ## Real Commit Log
 
