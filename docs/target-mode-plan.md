@@ -1626,7 +1626,7 @@ End batch validation checklist:
 
 ### B55 Toolbar Quality Tooltip Synchronization
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1643,7 +1643,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `c6658bae5891fb12ff358a4917ed5cb833462732ff77816b08c0e9d7c86d1a54`, bytes `30915`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent unavailable due local proxy quota; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
+- Git commit records B55 implementation: `85d058a`.
 
 ## Current Validation Results
 
@@ -3435,12 +3441,13 @@ End batch validation checklist:
 - Environment: reader toolbar UI quality feedback
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the `Clip Figure` toolbar button title is hardcoded to Medium quality and `60-220 KB/image`.
 - Expected: toolbar action text should show the selected quality and estimated per-image sync size so the user can make storage-conscious choices.
 - Actual: after selecting Low or High, the button tooltip still claims Medium quality and the wrong estimate.
 - Validation update: centralize toolbar quality tooltip text and update it when the quality selector changes.
 - Close condition: behavior/static checks prove toolbar tooltip text is generated from normalized quality metadata and hardcoded Medium tooltip text is gone.
+- Closure: toolbar select, Clip Figure, and Auto Raster tooltips now use normalized selected quality metadata; change events refresh tooltip text and behavior/static checks prevent returning to the hardcoded Medium tooltip.
 
 ## Revised Validation Checklist
 
@@ -3674,3 +3681,5 @@ End batch validation checklist:
 - B53 XPI SHA256 `dd280e38e6355e64d591e4c7e0d0dcace4639547b8a7a6a85e05fb1308207cc7` was built in `outputs/` for manual Zotero add-on manager installation.
 - `700a334` B54 normalize shared error messages.
 - B54 XPI SHA256 `030530099ff6afc05b95d997a74fceba99b93c9bf21883c22670167c90139e0f` was built in `outputs/` for manual Zotero add-on manager installation.
+- `85d058a` B55 sync toolbar quality tooltips.
+- B55 XPI SHA256 `c6658bae5891fb12ff358a4917ed5cb833462732ff77816b08c0e9d7c86d1a54` was built in `outputs/` for manual Zotero add-on manager installation.
