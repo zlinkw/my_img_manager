@@ -400,6 +400,32 @@ End batch validation checklist:
 - `npm run install:global`: passed.
 - `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
 
+### B10 Zotero Registration Repair
+
+Status: implementation complete; runtime registration pending user closing Zotero and rerunning install.
+
+Plan:
+
+- Treat Zotero restart with `registered: false` as a new runtime install failure, not as pending smoke.
+- Inspect profile `extensions` proxy, `extensions.json`, Zotero logs, manifest, and install script behavior.
+- Fix install packaging/proxy assumptions or add diagnostics that identify the exact extension manager rejection reason.
+- Keep default plugin runtime independent and do not restart Zotero automatically.
+
+Pre batch validation:
+
+- Git worktree clean at B10 start commit `1f4f557`.
+- `npm run runtime:status` shows Zotero processes started at `2026-07-06T08:36:53`, after prior installs, but `registration.registered` is still `false`.
+- Extension proxy exists, points to the workspace, and has no BOM.
+- Temp directory has no leftovers.
+
+End batch validation checklist:
+
+- `npm run check`: passed.
+- `npm run build`: passed, XPI SHA256 `c1c33619883c4f4e9e6a24c40f6942a747f6adbc1b91d795566a10cbc14f1ffa`.
+- `npm run install:global`: passed and reported rescan pending because Zotero is running.
+- `npm run runtime:status`: passed and now reports `rescan.needsRescan`, the exact `extensions.lastAppBuildId` and `extensions.lastAppVersion` prefs, and the required action.
+- Current session registration remains false because Zotero is running and the installer does not edit live profile prefs.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -436,6 +462,10 @@ End batch validation checklist:
 - B9 `npm run build`: passed, XPI SHA256 `c1c33619883c4f4e9e6a24c40f6942a747f6adbc1b91d795566a10cbc14f1ffa`.
 - B9 `npm run install:global`: passed.
 - B9 `npm run runtime:status`: passed; proxy installed, no BOM, temp child count 0, current Zotero session not yet registered.
+- B10 `npm run check`: passed.
+- B10 `npm run build`: passed, XPI SHA256 `c1c33619883c4f4e9e6a24c40f6942a747f6adbc1b91d795566a10cbc14f1ffa`.
+- B10 `npm run install:global`: passed and reported extension rescan pending because Zotero is running.
+- B10 `npm run runtime:status`: passed and reports `rescan.needsRescan: true` with the exact last-app prefs blocking proxy discovery.
 
 ## New Failures
 
@@ -766,6 +796,20 @@ End batch validation checklist:
 - Close condition: XPI payload check passes while still blocking absolute machine-specific paths.
 - Closure: `scripts/check-xpi.ps1` now blocks absolute user/workspace path patterns, permits generic optional helper discovery strings, and B8 payload validation passed.
 
+### FAIL-20260706-025
+
+- Batch: B10
+- Environment: Zotero 9.0.5 restarted after extension proxy install
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: closed
+- Symptom: after Zotero process restart, `runtime:status` still reports `pdf-image-saver@zlk.local` is not registered in `extensions.json`.
+- Expected: after restart, Zotero extension manager registers the extension proxy target or reports a clear install/load error.
+- Actual: proxy exists and has no BOM, but `registration.registered` remains false.
+- Validation update: inspect profile extension manager state and logs, then fix proxy/install/manifest assumptions or surface the rejection reason in diagnostics.
+- Close condition: plugin registers after reload/restart, or diagnostics identify a concrete Zotero extension-manager rejection that can be acted on.
+- Closure: diagnostics now identify Zotero extension scan cache prefs as the blocker; install script clears them when Zotero is closed, and README documents the required close plus rerun install step.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -794,6 +838,7 @@ End batch validation checklist:
 - Check plugin code does not create Zotero annotations by default.
 - Check XPI payload validation failures propagate to `npm run check`.
 - Check XPI payload scan blocks absolute machine-specific paths without blocking optional helper discovery strings.
+- Check Zotero restart after proxy install registers the plugin or runtime diagnostics expose the rejection reason.
 
 ## Real Commit Log
 

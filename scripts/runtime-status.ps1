@@ -63,6 +63,29 @@ function Get-ExtensionRegistration {
   }
 }
 
+function Get-ExtensionRescanInfo {
+  param([string]$ProfilePath)
+  $prefsPath = Join-Path $ProfilePath "prefs.js"
+  $lastAppPrefs = @()
+  if (Test-Path -LiteralPath $prefsPath) {
+    $lastAppPrefs = @(Select-String -Encoding UTF8 -LiteralPath $prefsPath -Pattern '^\s*user_pref\("extensions\.lastApp(BuildId|Version)"' | ForEach-Object {
+      $_.Line.Trim()
+    })
+  }
+  return [ordered]@{
+    prefsPath = $prefsPath
+    lastAppPrefsPresent = [bool]$lastAppPrefs.Count
+    lastAppPrefs = $lastAppPrefs
+    needsRescan = [bool]$lastAppPrefs.Count
+    action = if ($lastAppPrefs.Count) {
+      "Close Zotero and rerun npm run install:global once so install script can clear extension scan cache prefs."
+    }
+    else {
+      "Extension scan cache prefs are clear for next Zotero launch."
+    }
+  }
+}
+
 $profiles = @()
 if (Test-Path -LiteralPath $profileRoot) {
   foreach ($profile in Get-ChildItem -LiteralPath $profileRoot -Directory) {
@@ -71,6 +94,7 @@ if (Test-Path -LiteralPath $profileRoot) {
       path = $profile.FullName
       proxy = Get-ProxyInfo -ProfilePath $profile.FullName
       registration = Get-ExtensionRegistration -ProfilePath $profile.FullName
+      rescan = Get-ExtensionRescanInfo -ProfilePath $profile.FullName
     }
   }
 }
