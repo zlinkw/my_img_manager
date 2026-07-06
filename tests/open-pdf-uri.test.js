@@ -29,7 +29,7 @@ const context = {
 vm.createContext(context);
 vm.runInContext(source, context, { filename: "pdf-image-saver.js" });
 
-const { buildOpenPDFURI, buildSourceRegion, normalizeAnnotationKey } = context.PdfImageSaver.__test__;
+const { buildOpenPDFURI, buildSourceRegion, calculateCanvasCrop, normalizeAnnotationKey } = context.PdfImageSaver.__test__;
 const userAttachment = { libraryID: 1, key: "ABCDEF12" };
 const groupAttachment = { libraryID: 2, key: "GROUP123" };
 
@@ -69,5 +69,58 @@ assert.strictEqual(region.bottom, 0.6);
 assert.strictEqual(region.width, 0.3);
 assert.strictEqual(region.height, 0.4);
 assert.ok(region.label.includes("x 10.0%-40.0%"));
+
+const pageRect = { left: 10, top: 20, width: 100, height: 200 };
+const canvasRect = { left: 20, top: 40, width: 80, height: 160 };
+const marginCrop = calculateCanvasCrop({
+  selectionRect: { left: 0, top: 0, width: 60, height: 100 },
+  pageRect,
+  canvasRect,
+  canvasWidth: 800,
+  canvasHeight: 1600,
+});
+assert.deepStrictEqual(
+  Array.from(marginCrop.bboxNormalized),
+  [0.1, 0.1, 0.6, 0.5],
+  "metadata bbox must describe actual canvas intersection, not original page selection",
+);
+assert.strictEqual(marginCrop.sourceX, 0);
+assert.strictEqual(marginCrop.sourceY, 0);
+assert.strictEqual(marginCrop.sourceWidth, 500);
+assert.strictEqual(marginCrop.sourceHeight, 800);
+
+const rightEdgeCrop = calculateCanvasCrop({
+  selectionRect: { left: 70, top: 150, width: 50, height: 80 },
+  pageRect,
+  canvasRect,
+  canvasWidth: 800,
+  canvasHeight: 1600,
+});
+assert.deepStrictEqual(
+  Array.from(rightEdgeCrop.bboxNormalized),
+  [0.7, 0.75, 0.9, 0.9],
+  "metadata bbox must clamp to rendered canvas and page bounds",
+);
+assert.strictEqual(rightEdgeCrop.sourceX, 600);
+assert.strictEqual(rightEdgeCrop.sourceY, 1300);
+assert.strictEqual(rightEdgeCrop.sourceWidth, 200);
+assert.strictEqual(rightEdgeCrop.sourceHeight, 300);
+
+const fractionalCrop = calculateCanvasCrop({
+  selectionRect: { left: 2.5, top: 3.5, width: 31.2, height: 42.4 },
+  pageRect: { left: 0, top: 0, width: 100, height: 100 },
+  canvasRect: { left: 1.25, top: 2.75, width: 97.5, height: 94.5 },
+  canvasWidth: 333,
+  canvasHeight: 251,
+});
+assert.strictEqual(fractionalCrop.sourceX, 4);
+assert.strictEqual(fractionalCrop.sourceY, 1);
+assert.strictEqual(fractionalCrop.sourceWidth, 107);
+assert.strictEqual(fractionalCrop.sourceHeight, 114);
+assert.deepStrictEqual(
+  Array.from(fractionalCrop.bboxNormalized),
+  [0.024212, 0.031265, 0.3375, 0.460468],
+  "metadata bbox must be projected from rounded drawImage source pixels",
+);
 
 console.log("open-pdf uri tests ok");

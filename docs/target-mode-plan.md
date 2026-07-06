@@ -643,6 +643,31 @@ End batch validation checklist:
 - `npm run build`: passed, XPI SHA256 `0278efa14ba1e7b99f9c88298af808988e6c0c757d53e7ca2a248d13b5720d8a`.
 - `npm run install:global`: passed after build and reported rescan pending because Zotero is running.
 
+### B19 Crop Metadata Precision
+
+Status: complete; runtime registration pending user-controlled Zotero close, reinstall, and launch.
+
+Plan:
+
+- Make preview metadata bbox reflect the actual canvas crop used to generate preview pixels.
+- Clamp source pixel crop to the rendered canvas bounds after rounding.
+- Add Node regression tests for selections that overlap page margins or extend beyond the canvas.
+- Keep saved HTML source-region map and `open_pdf_uri` page links consistent with the actual preview pixels.
+
+Pre batch validation:
+
+- Git worktree clean at B19 start commit `dd01624`.
+- Zotero is still running, so runtime registration smoke remains pending.
+- Code review found `renderCanvasPreview()` intersects selection with the canvas for image pixels but records `bboxNormalized` from the original page selection, which can disagree when the canvas does not exactly fill the page element or the selection extends outside the canvas.
+
+End batch validation checklist:
+
+- `npm run check`: passed and includes crop metadata tests.
+- `npm run build`: passed, XPI SHA256 `bb4ef2e01449900e89e7ebf5a1db8de9ee6bcbd0253fa129c4e5301c3320bc7c`.
+- `npm run install:global`: passed without restarting Zotero and reported rescan pending because Zotero is running.
+- `npm run runtime:status`: passed after B19 final fix; XPI SHA256 `bb4ef2e01449900e89e7ebf5a1db8de9ee6bcbd0253fa129c4e5301c3320bc7c`, temp child count 0, registration false, `rescan.needsRescan: true`.
+- B19 review agent found source-pixel rounding mismatch and insufficient fractional tests; both were folded into this batch before commit.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -727,6 +752,13 @@ End batch validation checklist:
 - B18 `npm run runtime:status`: passed; development proxy valid, profile XPI source absent, registration false, `rescan.needsRescan: true`, temp child count 0.
 - B18 `npm run build`: passed, XPI SHA256 `0278efa14ba1e7b99f9c88298af808988e6c0c757d53e7ca2a248d13b5720d8a`.
 - B18 `npm run install:global`: passed after build and reported rescan pending because Zotero is running.
+- B19 first `npm run check`: failed because crop helper assumed rect `right`/`bottom`; recorded as FAIL-041 before fixing.
+- B19 second `npm run check`: failed because VM realm arrays made `deepStrictEqual` unreliable; recorded as FAIL-042 before fixing.
+- B19 review agent reported source-pixel rounding mismatch; recorded as FAIL-043 before fixing.
+- B19 third `npm run check`: failed because fractional test hand expectation was off by one; recorded as FAIL-044 before fixing.
+- B19 `npm run check`: passed after crop helper and tests were corrected.
+- B19 `npm run build`: passed, XPI SHA256 `bb4ef2e01449900e89e7ebf5a1db8de9ee6bcbd0253fa129c4e5301c3320bc7c`.
+- B19 `npm run install:global`: passed and reported rescan pending because Zotero is running.
 
 ## New Failures
 
@@ -736,7 +768,7 @@ End batch validation checklist:
 - Environment: Windows, Zotero profile `aalpald9.default`, Python 3.12.4
 - Zotero version target: 9.0.5
 - Severity: P1
-- Status: open
+- Status: closed
 - Symptom: local Python does not provide `fitz`, so original embedded image extraction cannot run through PyMuPDF.
 - Expected: helper can import PyMuPDF and extract image xrefs.
 - Actual: `ModuleNotFoundError: No module named 'fitz'`.
@@ -1266,6 +1298,76 @@ End batch validation checklist:
 - Close condition: `npm run check` passes and still catches missing guarded return.
 - Closure: guardrail regex now uses a single-quoted pattern, and `npm run check` passes.
 
+### FAIL-20260706-040
+
+- Batch: B19
+- Environment: manual clip or auto raster preview when the rendered canvas does not exactly match the page element rectangle
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: preview pixels are cropped from the intersection of the user selection and rendered canvas, but metadata `bbox_normalized` is computed from the original selection relative to the page element.
+- Expected: `bbox_normalized` and source region map describe the actual preview pixels that were saved.
+- Actual: selecting into page margins or any page/canvas offset can make saved metadata point to a larger or shifted source region than the preview.
+- Validation update: compute a reusable canvas crop model that returns clamped source pixels and normalized page bbox from the actual crop client rectangle.
+- Close condition: tests prove actual bbox matches canvas intersection, not original out-of-canvas selection.
+- Closure: `calculateCanvasCrop()` now drives both `drawImage()` source pixels and metadata bbox, and tests cover canvas/page offset plus page-edge clipping.
+
+### FAIL-20260706-041
+
+- Batch: B19
+- Environment: `npm run check` crop metadata regression test
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: crop helper assumes `canvasRect.right` and `canvasRect.bottom` are present.
+- Expected: helper works with any rectangle carrying `left`, `top`, `width`, and `height`, matching test fixtures and non-DOM callers.
+- Actual: missing `right`/`bottom` produces `NaN` crop edges and bbox fallback values `[0.1, 0.1, 1, 1]`.
+- Validation update: normalize rectangles to include right and bottom before intersection.
+- Close condition: crop metadata regression tests pass.
+- Closure: `rectWithEdges()` normalizes test and DOM rectangles before intersection, and crop metadata tests pass.
+
+### FAIL-20260706-042
+
+- Batch: B19
+- Environment: Node VM regression tests
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `assert.deepStrictEqual()` reports identical bbox arrays as unequal.
+- Expected: regression test compares values, not VM realm array prototypes.
+- Actual: arrays returned from the VM context have a different prototype from the host test context.
+- Validation update: convert VM arrays with `Array.from()` before deep equality assertions.
+- Close condition: crop metadata regression tests compare values and pass.
+- Closure: crop tests now use `Array.from()` for VM-returned arrays, and `npm run check` passes.
+
+### FAIL-20260706-043
+
+- Batch: B19
+- Environment: non-integer rendered canvas scale or fractional user selection
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `bbox_normalized` is computed from the floating client rectangle before source pixel rounding, while `drawImage` uses floored/ceiled source pixels.
+- Expected: metadata bbox describes the exact source pixel rectangle used by `drawImage`.
+- Actual: saved preview pixels can expand by up to one source pixel on each edge, while bbox records the narrower pre-rounded crop.
+- Validation update: compute bbox from final `sourceX/sourceY/sourceRight/sourceBottom` projected back into page coordinates.
+- Close condition: regression tests include a fractional/non-integer scale case proving bbox follows rounded source pixels.
+- Closure: bbox is now projected from rounded `drawImage()` source pixels, and fractional scale regression test asserts the rounded source-pixel bbox.
+
+### FAIL-20260706-044
+
+- Batch: B19
+- Environment: fractional crop regression test
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: fractional crop test expected `sourceHeight` 115 but helper returned 114.
+- Expected: test expectation matches the ceil/floor source-pixel math.
+- Actual: hand-calculated expectation was off by one.
+- Validation update: correct expected source height and projected bbox values from actual source pixel boundaries.
+- Close condition: fractional crop regression test passes.
+- Closure: fractional crop expected source height and projected bbox values were corrected, and `npm run check` passes.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1308,6 +1410,7 @@ End batch validation checklist:
 - Check install scripts expose a copied-XPI fallback for independent profile installation.
 - Check install scripts reject live source switching in both directions.
 - Check XPI install mode does not tell the user to rerun proxy install.
+- Check preview bbox metadata reflects the actual rendered canvas crop.
 
 ## Real Commit Log
 

@@ -727,24 +727,16 @@ var PdfImageSaver = (() => {
     const quality = QUALITY[qualityKey] || QUALITY.medium;
     const canvasRect = canvas.getBoundingClientRect();
     const pageRect = pageElement.getBoundingClientRect();
-    const selectionClientRect = {
-      left: pageRect.left + selectionRect.left,
-      top: pageRect.top + selectionRect.top,
-      right: pageRect.left + selectionRect.left + selectionRect.width,
-      bottom: pageRect.top + selectionRect.top + selectionRect.height,
-    };
-    const cropClient = intersectRects(selectionClientRect, canvasRect);
-    if (cropClient.width <= 0 || cropClient.height <= 0) {
-      throw new Error("Selection does not overlap the rendered page canvas.");
-    }
-
-    const sourceX = Math.round(((cropClient.left - canvasRect.left) / canvasRect.width) * canvas.width);
-    const sourceY = Math.round(((cropClient.top - canvasRect.top) / canvasRect.height) * canvas.height);
-    const sourceWidth = Math.max(1, Math.round((cropClient.width / canvasRect.width) * canvas.width));
-    const sourceHeight = Math.max(1, Math.round((cropClient.height / canvasRect.height) * canvas.height));
-    const scale = Math.min(1, quality.maxWidth / sourceWidth);
-    const targetWidth = Math.max(1, Math.round(sourceWidth * scale));
-    const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
+    const crop = calculateCanvasCrop({
+      selectionRect,
+      pageRect,
+      canvasRect,
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+    });
+    const scale = Math.min(1, quality.maxWidth / crop.sourceWidth);
+    const targetWidth = Math.max(1, Math.round(crop.sourceWidth * scale));
+    const targetHeight = Math.max(1, Math.round(crop.sourceHeight * scale));
     const outputCanvas = canvas.ownerDocument.createElement("canvas");
     outputCanvas.width = targetWidth;
     outputCanvas.height = targetHeight;
@@ -753,22 +745,17 @@ var PdfImageSaver = (() => {
     context.imageSmoothingQuality = qualityKey === "high" ? "high" : "medium";
     context.drawImage(
       canvas,
-      sourceX,
-      sourceY,
-      sourceWidth,
-      sourceHeight,
+      crop.sourceX,
+      crop.sourceY,
+      crop.sourceWidth,
+      crop.sourceHeight,
       0,
       0,
       targetWidth,
       targetHeight,
     );
     const dataURL = outputCanvas.toDataURL("image/jpeg", quality.jpegQuality);
-    const bboxNormalized = [
-      round6(selectionRect.left / pageRect.width),
-      round6(selectionRect.top / pageRect.height),
-      round6((selectionRect.left + selectionRect.width) / pageRect.width),
-      round6((selectionRect.top + selectionRect.height) / pageRect.height),
-    ];
+    const bboxNormalized = crop.bboxNormalized;
     const sourceRegion = buildSourceRegion(bboxNormalized);
     return {
       id: `preview-p${pageIndex + 1}-${Date.now().toString(36)}`,
@@ -785,11 +772,90 @@ var PdfImageSaver = (() => {
       renderedHeight: targetHeight,
       sourceCanvasWidth: canvas.width,
       sourceCanvasHeight: canvas.height,
+      sourceX: crop.sourceX,
+      sourceY: crop.sourceY,
+      sourceWidth: crop.sourceWidth,
+      sourceHeight: crop.sourceHeight,
       bboxNormalized,
       sourceRegion,
       annotationKey: null,
       detectionArea: detectionArea || round6(selectionRect.width * selectionRect.height / Math.max(1, pageRect.width * pageRect.height)),
       openPDFURI: "",
+    };
+  }
+
+  function calculateCanvasCrop({ selectionRect, pageRect, canvasRect, canvasWidth, canvasHeight }) {
+    if (!pageRect?.width || !pageRect?.height || !canvasRect?.width || !canvasRect?.height) {
+      throw new Error("Rendered PDF page geometry is unavailable.");
+    }
+    const normalizedPageRect = rectWithEdges(pageRect);
+    const normalizedCanvasRect = rectWithEdges(canvasRect);
+    const selectionClientRect = {
+      left: normalizedPageRect.left + selectionRect.left,
+      top: normalizedPageRect.top + selectionRect.top,
+      right: normalizedPageRect.left + selectionRect.left + selectionRect.width,
+      bottom: normalizedPageRect.top + selectionRect.top + selectionRect.height,
+    };
+    const cropClient = intersectRects(selectionClientRect, normalizedCanvasRect);
+    if (cropClient.width <= 0 || cropClient.height <= 0) {
+      throw new Error("Selection does not overlap the rendered page canvas.");
+    }
+
+    const sourceX = clampInteger(
+      Math.floor(((cropClient.left - normalizedCanvasRect.left) / normalizedCanvasRect.width) * canvasWidth),
+      0,
+      Math.max(0, canvasWidth - 1),
+    );
+    const sourceY = clampInteger(
+      Math.floor(((cropClient.top - normalizedCanvasRect.top) / normalizedCanvasRect.height) * canvasHeight),
+      0,
+      Math.max(0, canvasHeight - 1),
+    );
+    const sourceRight = clampInteger(
+      Math.ceil(((cropClient.right - normalizedCanvasRect.left) / normalizedCanvasRect.width) * canvasWidth),
+      sourceX + 1,
+      Math.max(1, canvasWidth),
+    );
+    const sourceBottom = clampInteger(
+      Math.ceil(((cropClient.bottom - normalizedCanvasRect.top) / normalizedCanvasRect.height) * canvasHeight),
+      sourceY + 1,
+      Math.max(1, canvasHeight),
+    );
+    const roundedClient = {
+      left: normalizedCanvasRect.left + (sourceX / canvasWidth) * normalizedCanvasRect.width,
+      top: normalizedCanvasRect.top + (sourceY / canvasHeight) * normalizedCanvasRect.height,
+      right: normalizedCanvasRect.left + (sourceRight / canvasWidth) * normalizedCanvasRect.width,
+      bottom: normalizedCanvasRect.top + (sourceBottom / canvasHeight) * normalizedCanvasRect.height,
+    };
+    const bboxNormalized = [
+      round6(clampNormalized((roundedClient.left - normalizedPageRect.left) / normalizedPageRect.width, 0)),
+      round6(clampNormalized((roundedClient.top - normalizedPageRect.top) / normalizedPageRect.height, 0)),
+      round6(clampNormalized((roundedClient.right - normalizedPageRect.left) / normalizedPageRect.width, 1)),
+      round6(clampNormalized((roundedClient.bottom - normalizedPageRect.top) / normalizedPageRect.height, 1)),
+    ];
+    return {
+      sourceX,
+      sourceY,
+      sourceWidth: sourceRight - sourceX,
+      sourceHeight: sourceBottom - sourceY,
+      bboxNormalized,
+      cropClient,
+      roundedClient,
+    };
+  }
+
+  function rectWithEdges(rect) {
+    const left = Number(rect?.left) || 0;
+    const top = Number(rect?.top) || 0;
+    const width = Number(rect?.width) || 0;
+    const height = Number(rect?.height) || 0;
+    return {
+      left,
+      top,
+      width,
+      height,
+      right: Number.isFinite(Number(rect?.right)) ? Number(rect.right) : left + width,
+      bottom: Number.isFinite(Number(rect?.bottom)) ? Number(rect.bottom) : top + height,
     };
   }
 
@@ -2060,6 +2126,10 @@ var PdfImageSaver = (() => {
     return Math.min(Math.max(value, min), max);
   }
 
+  function clampInteger(value, min, max) {
+    return Math.min(Math.max(Number.isFinite(value) ? value : min, min), max);
+  }
+
   function clampNormalized(value, fallback) {
     const number = Number(value);
     return clamp(Number.isFinite(number) ? number : fallback, 0, 1);
@@ -2112,6 +2182,7 @@ var PdfImageSaver = (() => {
     __test__: {
       buildOpenPDFURI,
       buildSourceRegion,
+      calculateCanvasCrop,
       normalizeAnnotationKey,
     },
     get started() {
