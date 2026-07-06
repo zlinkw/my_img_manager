@@ -1795,7 +1795,7 @@ End batch validation checklist:
 
 ### B61 Optional Helper Temp Creation Ordering
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1811,7 +1811,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `2d8252f42ffa35d53674369a8958732280ac52c1cff228d057258fc560ca6364`, bytes `31409`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent read-only review confirmed the same helper temp creation ordering fault; local targeted rerun found no P0-P2 blockers.
+- Git commit records B61 implementation: `6dff38d`.
 
 ## Current Validation Results
 
@@ -3729,12 +3735,13 @@ End batch validation checklist:
 - Environment: optional-helper temp output creation
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `runHelperExtraction()` creates a temp output directory before Python command discovery and bundled helper script loading complete.
 - Expected: optional-helper temp output directories should be created only after prerequisites are available, so discovery/helper-script failures cannot create avoidable temp churn or leave output directories.
 - Actual: `createTempDirectory()` runs before `getPythonCommands()` and `ensureHelperScriptPath()`.
 - Validation update: move prerequisite discovery before temp directory creation and add static checks for the ordering.
 - Close condition: static checks prove `runHelperExtraction()` gets Python commands and helper script path before calling `createTempDirectory()`, while no-Python fallback still returns `output_dir: null`.
+- Closure: `runHelperExtraction()` now discovers Python commands and loads the bundled helper script before creating temp output; no-Python fallback returns `output_dir: null` without cleanup work, and static checks lock the ordering.
 
 ## Revised Validation Checklist
 
@@ -3987,3 +3994,5 @@ End batch validation checklist:
 - B59 XPI SHA256 `fb661947359cc1dbaba3da693fca5f07b5dccc4d9d378c45bfe0856ef8cee69b` was built in `outputs/` for manual Zotero add-on manager installation.
 - `7cdfba2` B60 guard target plan regression loop.
 - B60 XPI SHA256 `fb661947359cc1dbaba3da693fca5f07b5dccc4d9d378c45bfe0856ef8cee69b` was built in `outputs/` for manual Zotero add-on manager installation; plugin payload unchanged from B59.
+- `6dff38d` B61 delay helper temp creation.
+- B61 XPI SHA256 `2d8252f42ffa35d53674369a8958732280ac52c1cff228d057258fc560ca6364` was built in `outputs/` for manual Zotero add-on manager installation.
