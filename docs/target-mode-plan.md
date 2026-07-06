@@ -1354,6 +1354,30 @@ End batch validation checklist:
 - Code review: subagent review was unavailable due 429 retry limit; local read-only review passed with no P0-P2 blockers found.
 - Git commit records B44 implementation: `534954c`.
 
+### B45 Remaining Save Entry Guards
+
+Status: in progress.
+
+Plan:
+
+- Make clip-preview and optional-original save entry points tolerate missing option objects.
+- Move clip/original page-target and job-key setup inside the existing error-handling path.
+- Ensure duplicate active-job checks in clip/original paths do not delete another in-flight job.
+- Add regression/static checks for missing options, guarded cleanup, and normalized job scopes across save entry helpers.
+
+Pre batch validation:
+
+- Git worktree clean at B45 start commit `72db93c`.
+- B45 planning pass found `saveClipPreviewIndex()` reads `options.pageIndex` before its `try/catch` and unconditionally deletes the active job; recorded as `FAIL-20260706-101`.
+- B45 planning pass found `confirmAndSaveOriginalImagesFromReader()` and `saveOriginalImagesFromReader()` read `options.scope/pageIndex` before robust defaulting and guarded handling; recorded as `FAIL-20260706-102`.
+- B45 planning pass found `getReaderJobKey()` reads raw `options.scope` and can throw on missing options or emit noisy object scopes; recorded as `FAIL-20260706-103`.
+- B45 code review found the original-image normalized-scope static check scans the whole plugin and can cross from confirmation into save function code; recorded as `FAIL-20260706-104`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -2900,6 +2924,58 @@ End batch validation checklist:
 - Close condition: regression tests fail if either save entry does not log the guarded page/canvas error.
 - Closure: `tests/open-pdf-uri.test.js` now calls each reader save entry without options and asserts each call logs its own guarded page/canvas error without rejecting.
 
+### FAIL-20260706-101
+
+- Batch: B45
+- Environment: clip-preview save entry error handling
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `saveClipPreviewIndex()` reads `options.pageIndex` before entering its `try/catch` and always deletes the computed active-job key.
+- Expected: missing option objects should be handled through the reader error feedback path, and duplicate-running calls must not delete another in-flight clip save.
+- Actual: malformed internal calls can reject before local error handling, and future duplicate-return paths can clear a job that the current call did not add.
+- Validation update: default options to `{}`, move setup into the guarded block, and only clear active jobs added by the current call.
+- Close condition: tests/static checks prove missing options do not reject and clip active-job cleanup is guarded.
+
+### FAIL-20260706-102
+
+- Batch: B45
+- Environment: optional original-image save entry error handling
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `confirmAndSaveOriginalImagesFromReader()` and `saveOriginalImagesFromReader()` read `options.scope/pageIndex` before robust defaulting and guarded handling.
+- Expected: optional original extraction should default malformed option objects to the current-page scope or report a normal reader error, without unhandled rejections.
+- Actual: missing options can throw before confirmation or before the save entry reaches its local catch block.
+- Validation update: default options to `{}`, normalize original extraction scope, move setup into guarded blocks, and add behavior/static coverage.
+- Close condition: tests/static checks prove missing options do not reject and original active-job cleanup is guarded.
+
+### FAIL-20260706-103
+
+- Batch: B45
+- Environment: reader active-job key generation
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `getReaderJobKey()` reads raw `options.scope` and `options.pageIndex`.
+- Expected: job keys should tolerate missing option objects and use compact normalized known scopes.
+- Actual: missing options can throw, and object or unknown scopes can produce noisy duplicate keys.
+- Validation update: default `options` to `{}`, normalize scope through `normalizeScope()`, and test malformed scope fallback.
+- Close condition: tests/static checks prove missing options and malformed scope values produce stable compact job keys.
+
+### FAIL-20260706-104
+
+- Batch: B45
+- Environment: B45 original-image static scope guard
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: the normalized-scope static check scans the whole plugin and can match `normalizeOriginalScope()` in the confirmation helper plus `getReaderJobKey()` in the save helper.
+- Expected: static checks prove `saveOriginalImagesFromReader()` itself normalizes scope before job-key generation.
+- Actual: a future save-function regression can pass if another function still contains the normalization call.
+- Validation update: scope the normalized-scope check to the extracted original save function block.
+- Close condition: static checks fail if `saveOriginalImagesFromReader()` stops normalizing scope before calling `getReaderJobKey()`.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2998,6 +3074,10 @@ End batch validation checklist:
 - Check reader page and auto-raster save entry points handle missing options inside guarded error paths.
 - Check each reader save entry has independently scoped active-job cleanup static coverage.
 - Check each reader save entry has independent missing-options regression coverage.
+- Check clip-preview and optional-original save entry points handle missing options inside guarded error paths.
+- Check all save entry active-job cleanup paths only delete jobs added by the current call.
+- Check reader active-job keys normalize malformed scopes and tolerate missing option objects.
+- Check original-image normalized-scope static coverage is scoped to `saveOriginalImagesFromReader()`.
 
 ## Real Commit Log
 

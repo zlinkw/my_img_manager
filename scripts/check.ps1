@@ -358,8 +358,17 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*formatHelperFailure") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveAutoDetectedPageImagePreviews") {
   throw "Auto-raster save entry must remain exported for regression tests"
 }
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveClipPreviewIndex") {
+  throw "Clip-preview save entry must remain exported for regression tests"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveOriginalImagesFromReader") {
+  throw "Original-image save entry must remain exported for regression tests"
+}
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*savePagePreviewIndex") {
   throw "Page-preview save entry must remain exported for regression tests"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getReaderJobKey") {
+  throw "Reader job key helper must remain exported for regression tests"
 }
 if ($mainJS -notmatch "omittedCount:\s*\(limited\.omittedCount\s*\|\|\s*0\)\s*\+\s*missingCount\s*\+\s*errorCount") {
   throw "Original image existence filter must add missing and unreadable files to omission count"
@@ -633,6 +642,22 @@ if ($mainJS -notmatch "async\s+function\s+saveAutoDetectedPageImagePreviews\s*\(
 if ($mainJS -notmatch "async\s+function\s+savePagePreviewIndex\s*\(\s*reader\s*,\s*options\s*=\s*\{\}\s*\)") {
   throw "Page-preview save entry must default missing options"
 }
+if ($mainJS -notmatch "async\s+function\s+saveClipPreviewIndex\s*\(\s*reader\s*,\s*options\s*=\s*\{\}\s*\)") {
+  throw "Clip-preview save entry must default missing options"
+}
+if ($mainJS -notmatch "async\s+function\s+saveOriginalImagesFromReader\s*\(\s*reader\s*,\s*options\s*=\s*\{\}\s*\)") {
+  throw "Original-image save entry must default missing options"
+}
+if ($mainJS -notmatch "async\s+function\s+confirmAndSaveOriginalImagesFromReader\s*\(\s*reader\s*,\s*options\s*=\s*\{\}\s*\)") {
+  throw "Original-image confirmation entry must default missing options"
+}
+$clipSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveClipPreviewIndex\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+saveAutoDetectedPageImagePreviews")
+if (!$clipSaveEntry.Success) {
+  throw "Clip-preview save entry function block not found"
+}
+if ($clipSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
+  throw "Clip-preview save entry must only clear active jobs added by the current call"
+}
 $autoSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveAutoDetectedPageImagePreviews\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+savePagePreviewIndex")
 if (!$autoSaveEntry.Success) {
   throw "Auto-raster save entry function block not found"
@@ -646,6 +671,22 @@ if (!$pageSaveEntry.Success) {
 }
 if ($pageSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
   throw "Page-preview save entry must only clear active jobs added by the current call"
+}
+$originalSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveOriginalImagesFromReader\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+importOriginalImages")
+if (!$originalSaveEntry.Success) {
+  throw "Original-image save entry function block not found"
+}
+if ($originalSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
+  throw "Original-image save entry must only clear active jobs added by the current call"
+}
+if ($mainJS -notmatch 'function\s+getReaderJobKey\s*\(\s*reader\s*,\s*options\s*=\s*\{\}\s*\)[\s\S]*const\s+scope\s*=\s*normalizeScope\(options\?\.scope\)[\s\S]*return\s+`\$\{itemID\}:\$\{scope\}:\$\{page\}`') {
+  throw "Reader job keys must default missing options and normalize scope"
+}
+if ($mainJS -notmatch "function\s+normalizeOriginalScope\s*\(\s*value\s*\)") {
+  throw "Original-image save scope normalizer missing"
+}
+if ($originalSaveEntry.Value -notmatch "const\s+scope\s*=\s*normalizeOriginalScope\(options\.scope\)[\s\S]*getReaderJobKey\(reader,\s*\{\s*scope,\s*pageIndex\s*\}\)") {
+  throw "Original-image save entry must normalize scope before job key generation"
 }
 if ($mainJS -notmatch "const\s+contextPageIndex\s*=\s*normalizePageIndex\(params\?\.pageIndexFromContextMenu,\s*null\)") {
   throw "Context menu page targeting must normalize page-index strings"

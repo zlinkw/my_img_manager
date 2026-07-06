@@ -489,20 +489,24 @@ var PdfImageSaver = (() => {
     });
   }
 
-  async function saveClipPreviewIndex(reader, options) {
-    const jobKey = getReaderJobKey(reader, {
-      scope: "clip",
-      pageIndex: options.pageIndex,
-    });
-    if (activeJobs.has(jobKey)) {
-      showReaderToast(reader, "Save already running for this page.", "warning");
-      return;
-    }
-    activeJobs.add(jobKey);
+  async function saveClipPreviewIndex(reader, options = {}) {
+    let jobKey = null;
+    let jobAdded = false;
     try {
+      const pageIndex = normalizePageIndex(options.pageIndex, 0);
+      jobKey = getReaderJobKey(reader, {
+        scope: "clip",
+        pageIndex,
+      });
+      if (activeJobs.has(jobKey)) {
+        showReaderToast(reader, "Save already running for this page.", "warning");
+        return;
+      }
+      activeJobs.add(jobKey);
+      jobAdded = true;
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
-      const preview = renderCanvasPreview(options);
+      const preview = renderCanvasPreview({ ...options, pageIndex });
       const duplicateKey = getPreviewDuplicateKey(attachment, preview);
       if (getBoolPref("duplicateGuard", true) && recentIndexSaves.has(duplicateKey)) {
         showReaderToast(reader, "This preview was already saved in this Zotero session.", "warning");
@@ -520,7 +524,7 @@ var PdfImageSaver = (() => {
         parentItem,
         indexPath,
         scope: "clip",
-        pageIndex: options.pageIndex,
+        pageIndex,
       });
       showReaderToast(
         reader,
@@ -535,7 +539,9 @@ var PdfImageSaver = (() => {
       showReaderToast(reader, getErrorMessage(error), "error");
       return null;
     } finally {
-      activeJobs.delete(jobKey);
+      if (jobAdded) {
+        activeJobs.delete(jobKey);
+      }
     }
   }
 
@@ -1201,46 +1207,51 @@ var PdfImageSaver = (() => {
     return `${base} - image index ${target}`;
   }
 
-  async function confirmAndSaveOriginalImagesFromReader(reader, options) {
+  async function confirmAndSaveOriginalImagesFromReader(reader, options = {}) {
     const win = Zotero.getMainWindow?.();
-    const scope = options.scope === "document" ? "whole document" : "current page";
-    const maxImages = options.scope === "document"
+    const scope = normalizeOriginalScope(options.scope);
+    const scopeLabel = scope === "document" ? "whole document" : "current page";
+    const maxImages = scope === "document"
       ? getHelperMaxImages("document")
       : getHelperMaxImages("page");
     const ok = Services.prompt.confirm(
       win,
       "PDF Image Saver",
-      `Save original embedded images from the ${scope}? This can store up to ${maxImages} original image attachments in Zotero. Preview clipping is safer for sync storage.`,
+      `Save original embedded images from the ${scopeLabel}? This can store up to ${maxImages} original image attachments in Zotero. Preview clipping is safer for sync storage.`,
     );
     if (!ok) {
       showReaderToast(reader, "Original extraction cancelled.", "warning");
       return;
     }
-    await saveOriginalImagesFromReader(reader, options);
+    await saveOriginalImagesFromReader(reader, { ...options, scope });
   }
 
-  async function saveOriginalImagesFromReader(reader, options) {
-    const jobKey = getReaderJobKey(reader, options);
-    if (activeJobs.has(jobKey)) {
-      showReaderToast(reader, "Original extraction already running for this target.", "warning");
-      return;
-    }
-
-    activeJobs.add(jobKey);
+  async function saveOriginalImagesFromReader(reader, options = {}) {
+    let jobKey = null;
+    let jobAdded = false;
     try {
+      const scope = normalizeOriginalScope(options.scope);
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
-      const pdfPath = await getAttachmentPath(attachment);
       const pageIndex =
-        options.scope === "page"
+        scope === "page"
           ? await getCurrentPageIndex(reader, options.pageIndex)
           : null;
+      jobKey = getReaderJobKey(reader, { scope, pageIndex });
+      if (activeJobs.has(jobKey)) {
+        showReaderToast(reader, "Original extraction already running for this target.", "warning");
+        return;
+      }
+
+      activeJobs.add(jobKey);
+      jobAdded = true;
+      const pdfPath = await getAttachmentPath(attachment);
       showReaderToast(reader, "Trying optional original-image helper...", "info");
       const report = await runHelperExtraction({
         attachment,
         pdfPath,
         pageIndex,
-        scope: options.scope,
+        scope,
       });
       if (report.status !== "ok") {
         showReaderToast(reader, `${formatHelperFailure(report)} Default clip mode still works.`, "warning");
@@ -1254,7 +1265,7 @@ var PdfImageSaver = (() => {
         report,
         attachment,
         parentItem,
-        scope: options.scope,
+        scope,
       });
       const skippedText = importResult.omittedCount
         ? buildOriginalImportSkippedText(importResult)
@@ -1268,7 +1279,9 @@ var PdfImageSaver = (() => {
       logError(error);
       showReaderToast(reader, getErrorMessage(error), "error");
     } finally {
-      activeJobs.delete(jobKey);
+      if (jobAdded) {
+        activeJobs.delete(jobKey);
+      }
     }
   }
 
@@ -1966,11 +1979,12 @@ var PdfImageSaver = (() => {
     return typeof type === "string" ? type.toLowerCase() : "";
   }
 
-  function getReaderJobKey(reader, options) {
+  function getReaderJobKey(reader, options = {}) {
     const itemID = reader?._item?.id || reader?.itemID || "unknown";
-    const pageIndex = normalizePageIndex(options.pageIndex, null);
+    const scope = normalizeScope(options?.scope);
+    const pageIndex = normalizePageIndex(options?.pageIndex, null);
     const page = pageIndex === null ? "current" : pageIndex;
-    return `${itemID}:${options.scope}:${page}`;
+    return `${itemID}:${scope}:${page}`;
   }
 
   function showReaderToast(reader, message, level) {
@@ -2336,6 +2350,10 @@ var PdfImageSaver = (() => {
   function normalizeScope(value) {
     const text = normalizeMetadataText(value, "unknown", 40);
     return ["clip", "page", "auto-page", "document"].includes(text) ? text : "unknown";
+  }
+
+  function normalizeOriginalScope(value) {
+    return value === "document" ? "document" : "page";
   }
 
   function getNumberPref(key, fallback) {
@@ -2709,7 +2727,10 @@ var PdfImageSaver = (() => {
       normalizeOriginalImageForImport,
       normalizePageIndex,
       normalizePageNumber,
+      getReaderJobKey,
       saveAutoDetectedPageImagePreviews,
+      saveClipPreviewIndex,
+      saveOriginalImagesFromReader,
       savePagePreviewIndex,
       isPDFReader,
       normalizeAnnotationKey,

@@ -76,6 +76,7 @@ const {
   getActiveReader,
   getContextPageIndex,
   getPDFViewerContextCandidate,
+  getReaderJobKey,
   importOriginalImages,
   limitOriginalImagesForImport,
   normalizeBBoxNormalized,
@@ -88,6 +89,8 @@ const {
   normalizePageIndex,
   normalizePageNumber,
   saveAutoDetectedPageImagePreviews,
+  saveClipPreviewIndex,
+  saveOriginalImagesFromReader,
   savePagePreviewIndex,
   isPDFReader,
   normalizeAnnotationKey,
@@ -143,6 +146,17 @@ assert.strictEqual(normalizePageIndex(true, null), null, "boolean page indexes m
 assert.strictEqual(normalizePageIndex([], null), null, "array page indexes must be rejected");
 assert.strictEqual(normalizePageNumber("2", 1), 2, "numeric page-number strings must be accepted");
 assert.strictEqual(normalizePageNumber("bad", 1), 1, "invalid page numbers must fall back");
+assert.strictEqual(getReaderJobKey({ itemID: 12 }, null), "12:unknown:current", "missing job options must not throw");
+assert.strictEqual(
+  getReaderJobKey({ _item: { id: 7 } }, { scope: { bad: true }, pageIndex: "2" }),
+  "7:unknown:2",
+  "malformed job scopes must normalize to a compact unknown scope",
+);
+assert.strictEqual(
+  getReaderJobKey({ _item: { id: 7 } }, { scope: "page", pageIndex: "2" }),
+  "7:page:2",
+  "valid job scopes and numeric page strings must be preserved",
+);
 assert.strictEqual(getContextPageIndex({ pageIndex: "4" }), 4, "context pageIndex strings must be accepted");
 assert.strictEqual(
   getContextPageIndex({ pageIndex: "-1", pageIndexFromContextMenu: "2" }),
@@ -1039,6 +1053,24 @@ async function runAsyncAssertions() {
   assert.ok(
     String(readerEntryErrors[1]?.message || readerEntryErrors[1]).includes("Rendered PDF page canvas was not found"),
     "page-preview missing-options failure must reach guarded page/canvas error handling",
+  );
+  await assert.doesNotReject(
+    () => saveClipPreviewIndex(null),
+    "clip-preview save entry must handle missing options inside its guarded error path",
+  );
+  assert.strictEqual(readerEntryErrors.length, 3, "clip-preview save entry must log its own guarded error");
+  assert.ok(
+    String(readerEntryErrors[2]?.message || readerEntryErrors[2]).includes("Active reader item is not a PDF attachment"),
+    "clip-preview missing-options failure must reach guarded reader error handling",
+  );
+  await assert.doesNotReject(
+    () => saveOriginalImagesFromReader(null),
+    "original-image save entry must handle missing options inside its guarded error path",
+  );
+  assert.strictEqual(readerEntryErrors.length, 4, "original-image save entry must log its own guarded error");
+  assert.ok(
+    String(readerEntryErrors[3]?.message || readerEntryErrors[3]).includes("Active reader item is not a PDF attachment"),
+    "original-image missing-options failure must reach guarded reader error handling",
   );
 }
 
