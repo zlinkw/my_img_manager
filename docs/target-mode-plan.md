@@ -1917,7 +1917,7 @@ End batch validation checklist:
 
 ### B65 Windows Manual Handoff Command Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1938,7 +1938,11 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run check`: passed and now enforces the grouped-batch rule plus Windows-safe PowerShell handoff commands.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `cc99aa9bdfb12901a93bd6ed607afe2da394e23c6653067180e25cf23dc9155e`, bytes `31500`, and printed `npm.cmd run ...` verification commands.
+- `npm.cmd run verify:manual`: passed after package completion; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
+- Git commit records B65 implementation: `fe2c2d0`.
 
 ### B66 Saved Index Identity And Duplicate Guard
 
@@ -4087,12 +4091,13 @@ End batch validation checklist:
 - Environment: manual package post-install command output on Windows PowerShell
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `scripts/package-manual.ps1` prints `npm run verify:manual` and related commands.
 - Expected: PowerShell handoff output should use `npm.cmd run ...`, matching the validated command path in this session.
 - Actual: users can copy `npm run ...` and hit blocked `npm.ps1` execution-policy behavior.
 - Validation update: print `npm.cmd run ...` commands and add static checks.
 - Close condition: `npm.cmd run check` proves package-manual output uses `npm.cmd run` for verification commands.
+- Closure: `scripts/package-manual.ps1` now prints `npm.cmd run verify:manual`, `smoke:wait`, `smoke:preflight`, and `runtime:status`; `npm.cmd run check` and `npm.cmd run package:manual` passed.
 
 ### FAIL-20260706-143
 
@@ -4100,12 +4105,13 @@ End batch validation checklist:
 - Environment: manual verifier next-action command output on Windows PowerShell
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `scripts/verify-manual-install.ps1` prints `next: run npm run smoke:preflight`.
 - Expected: verifier next-action output should use `npm.cmd run smoke:preflight`.
 - Actual: the copied command can resolve to blocked `npm.ps1`.
 - Validation update: print `npm.cmd run smoke:preflight` in the ready-state next action and add a static check.
 - Close condition: `npm.cmd run check` proves verifier next-action output uses `npm.cmd run`.
+- Closure: `scripts/verify-manual-install.ps1` now prints `npm.cmd run smoke:preflight` in the ready next action, and `npm.cmd run verify:manual` passed after packaging.
 
 ### FAIL-20260706-144
 
@@ -4113,12 +4119,13 @@ End batch validation checklist:
 - Environment: README PowerShell command examples
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: README PowerShell command blocks and inline rerun guidance use `npm run ...`.
 - Expected: Windows PowerShell examples should use `npm.cmd run ...` to match the working validation commands.
 - Actual: users following README examples can hit `npm.ps1` execution-policy failures.
 - Validation update: update README PowerShell examples and static checks to prefer `npm.cmd run`.
 - Close condition: `npm.cmd run check` proves README documents `npm.cmd run package:manual` and `npm.cmd run verify:manual`.
+- Closure: README PowerShell command blocks and inline smoke/runtime guidance now use `npm.cmd run ...`, and `npm.cmd run check` rejects README `npm run` command guidance.
 
 ### FAIL-20260706-145
 
@@ -4126,12 +4133,13 @@ End batch validation checklist:
 - Environment: PowerShell diagnostic script command guidance
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: related scripts can still print `npm run ...` guidance for install, build, smoke, or runtime commands.
 - Expected: user-facing PowerShell guidance should use `npm.cmd run ...` consistently for commands this project asks users to copy.
 - Actual: Windows users can still copy commands that resolve to blocked `npm.ps1`.
 - Validation update: update the related script guidance and add static checks rejecting `npm run ...` in those handoff strings.
 - Close condition: `npm.cmd run check` proves the selected handoff scripts use `npm.cmd run ...` and do not print `npm run ...`.
+- Closure: `install-global.ps1`, `runtime-status.ps1`, and `smoke-preflight.ps1` now print `npm.cmd run ...` for copied PowerShell commands, and `npm.cmd run check` rejects `npm run ...` in the selected handoff scripts.
 
 ### FAIL-20260706-146
 
@@ -4448,3 +4456,5 @@ End batch validation checklist:
 - B63 XPI SHA256 `b2393da8f3edfbebfa56323bee47264eb5abe8035867cdf3e3a472d68c409d72` was built in `outputs/` for manual Zotero add-on manager installation.
 - `0965738` B64 improve context menu original actions.
 - B64 XPI SHA256 `e86385c0dbff434408161129e204f9edc175de94ce7b83460d52d6cb55d03430` was built in `outputs/` for manual Zotero add-on manager installation.
+- `fe2c2d0` B65 use npm.cmd in PowerShell handoff.
+- B65 XPI SHA256 `cc99aa9bdfb12901a93bd6ed607afe2da394e23c6653067180e25cf23dc9155e` was built in `outputs/` for manual Zotero add-on manager installation.
