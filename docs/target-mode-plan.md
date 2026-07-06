@@ -1122,6 +1122,36 @@ End batch validation checklist:
 - Code review: initial review found fractional-dimension and base64-padding gaps; both were recorded and fixed. Final review agent was unavailable after interruption, and local final review plus static checks passed.
 - Git commit records B36: `a3837cc`.
 
+### B37 HTML Source Metadata Scalar Normalization
+
+Status: complete.
+
+Plan:
+
+- Normalize source title used by synced HTML `<title>` and `<h1>`.
+- Normalize `parent_item` and `pdf_attachment` metadata fields to short strings or `null`.
+- Normalize metadata `scope` to a compact known value and prevent object/array scope output.
+- Normalize index attachment titles so malformed Zotero item fields cannot produce `[object Object]`.
+- Preserve normal HTML preview output and Zotero link behavior unchanged.
+
+Pre batch validation:
+
+- Git worktree clean at B37 start commit `a202059`.
+- B37 planning agent found `sourceTitle`, `serializeItem()`, and `serializeAttachment()` trust raw Zotero item fields and can emit `[object Object]` or complex metadata; recorded as `FAIL-20260706-078`.
+- B37 planning agent found raw `scope` can be written into metadata and index-title target paths; recorded as `FAIL-20260706-079`.
+- B37 regression test found `buildOpenPDFURI()` still writes raw attachment keys into source links, allowing `[object Object]`; recorded as `FAIL-20260706-080` before code changes.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `598d34659209be680a6c2a372144bb53a891b49159a80995ad2f27d9d0a2ed02`, bytes `27870`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 3, temp children 0.
+- Code review: passed; only documentation closure remained and is now resolved.
+- Git commit records B37: pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -2346,6 +2376,48 @@ End batch validation checklist:
 - Close condition: regression tests prove `data:image/jpeg;base64,AA==` yields `byte_count: 1`.
 - Closure: preview byte estimates now subtract base64 padding, and regression/static checks cover padded base64 data URLs.
 
+### FAIL-20260706-078
+
+- Batch: B37
+- Environment: synced HTML preview source title plus `parent_item` and `pdf_attachment` metadata
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `sourceTitle`, `serializeItem()`, and `serializeAttachment()` trust raw item keys and `getField()` values.
+- Expected: source metadata is compact and scalar, with short strings or `null`.
+- Actual: malformed Zotero field values can appear as `[object Object]` in HTML or complex objects in metadata.
+- Validation update: normalize source title and serialized item/attachment fields before HTML and metadata output.
+- Close condition: regression tests prove malformed source fields do not emit `[object Object]`, `undefined`, arrays, or objects, and static checks reject raw `getField()` serialization.
+- Closure: source title, parent item metadata, and PDF attachment metadata are normalized to short strings or `null`, and regression/static checks cover malformed fields.
+
+### FAIL-20260706-079
+
+- Batch: B37
+- Environment: synced HTML preview scope metadata and generated index attachment titles
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: closed
+- Symptom: `buildIndexHTML()` writes raw `scope` to metadata, and title generation can use raw scope/page target values.
+- Expected: metadata scope and attachment title target are short known strings.
+- Actual: malformed scope values can be stored as objects or noisy text in synced metadata/title paths.
+- Validation update: normalize index scope and title target values.
+- Close condition: regression tests prove object/unknown scope becomes `unknown` in metadata/title paths and static checks assert scope normalization is used.
+- Closure: HTML metadata scope and generated index-title targets now use normalized known scope values, with malformed scope falling back to `unknown`.
+
+### FAIL-20260706-080
+
+- Batch: B37
+- Environment: Zotero `open-pdf` URI generation from malformed attachment keys
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `buildOpenPDFURI()` interpolates `attachment.key` directly into source links.
+- Expected: source links use a compact item-key scalar and never emit object text.
+- Actual: malformed attachment keys can produce `zotero://open-pdf/.../[object Object]?...` in visible HTML and metadata.
+- Validation update: normalize attachment keys before building open-pdf URIs.
+- Close condition: regression tests prove malformed attachment keys do not emit `[object Object]`, and static checks assert open-pdf URI key normalization.
+- Closure: `buildOpenPDFURI()` normalizes attachment keys and falls back to `UNKNOWN` for malformed keys; regression/static checks cover source link output.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2420,6 +2492,9 @@ End batch validation checklist:
 - Check synced HTML preview byte count is recomputed from the normalized data URL before metadata output.
 - Check synced HTML preview rendered dimensions below one pixel become `null`.
 - Check synced HTML preview byte count subtracts base64 padding.
+- Check synced HTML preview source item metadata is scalar and compact.
+- Check synced HTML preview scope metadata and generated titles are normalized.
+- Check Zotero `open-pdf` source links normalize attachment keys before URI output.
 
 ## Real Commit Log
 

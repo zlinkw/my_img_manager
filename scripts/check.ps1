@@ -240,6 +240,12 @@ if ($mainJS -match "getLibraryPrefix") {
 if ($mainJS -notmatch "const\s+page\s*=\s*normalizePageNumber\(pageNumber,\s*1\)") {
   throw "open-pdf URI builder must normalize page numbers"
 }
+if ($mainJS -notmatch "const\s+itemKey\s*=\s*normalizeItemKey\(attachment\.key,\s*`"UNKNOWN`"\)") {
+  throw "open-pdf URI builder must normalize attachment keys"
+}
+if ($mainJS -match 'items/\$\{attachment\.key\}') {
+  throw "open-pdf URI builder must not write raw attachment keys"
+}
 if ($mainJS -notmatch "annotation=\$\{encodeURIComponent\(normalizedAnnotationKey\)\}") {
   throw "open-pdf URI builder must append encoded annotation parameter"
 }
@@ -248,6 +254,30 @@ if ($mainJS -notmatch "source_region:\s*entry\.sourceRegion") {
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexHTML") {
   throw "buildIndexHTML must remain exported for regression tests"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexTitle") {
+  throw "buildIndexTitle must remain exported for regression tests"
+}
+if ($mainJS -notmatch "const\s+sourceTitle\s*=\s*getSourceTitle\(parentItem,\s*attachment\)") {
+  throw "HTML preview source title must be normalized"
+}
+if ($mainJS -notmatch "const\s+normalizedScope\s*=\s*normalizeScope\(scope\)") {
+  throw "HTML preview scope must be normalized before metadata output"
+}
+if ($mainJS -notmatch "scope:\s*normalizedScope") {
+  throw "HTML preview metadata must use normalized scope"
+}
+if ($mainJS -notmatch "function\s+serializeItem\s*\(\s*item\s*\)[\s\S]*key:\s*normalizeMetadataText\(item\.key,\s*null\)[\s\S]*title:\s*normalizeMetadataText\(getItemField\(item,\s*`"title`"\),\s*null\)[\s\S]*date:\s*normalizeMetadataText\(getItemField\(item,\s*`"date`"\),\s*null\)[\s\S]*doi:\s*normalizeMetadataText\(getItemField\(item,\s*`"DOI`"\),\s*null\)") {
+  throw "Parent item metadata must normalize key, title, date, and DOI"
+}
+if ($mainJS -notmatch "function\s+serializeAttachment\s*\(\s*item\s*\)[\s\S]*key:\s*normalizeMetadataText\(item\?\.key,\s*null\)[\s\S]*title:\s*normalizeMetadataText\(getItemField\(item,\s*`"title`"\),\s*null\)[\s\S]*content_type:\s*normalizeMetadataText\(item\?\.attachmentContentType,\s*null\)") {
+  throw "Attachment metadata must normalize key, title, and content type"
+}
+if ($mainJS -notmatch "function\s+normalizeMetadataText\s*\(") {
+  throw "Source metadata text normalizer missing"
+}
+if ($mainJS -notmatch "function\s+normalizeScope\s*\(") {
+  throw "Scope normalizer missing"
 }
 if ($mainJS -notmatch "function\s+normalizePreviewDataURL\s*\(\s*value\s*\)") {
   throw "HTML preview index must validate preview data URLs"

@@ -1041,7 +1041,8 @@ var PdfImageSaver = (() => {
 
   function buildIndexHTML({ attachment, parentItem, entries, scope, qualityKey }) {
     const createdAt = new Date().toISOString();
-    const sourceTitle = parentItem?.getField("title") || attachment.getField("title") || "PDF";
+    const sourceTitle = getSourceTitle(parentItem, attachment);
+    const normalizedScope = normalizeScope(scope);
     const previewQualityKey = normalizeQualityKey(qualityKey);
     const entriesHTML = entries
       .map((entry, index) => {
@@ -1094,7 +1095,7 @@ var PdfImageSaver = (() => {
       created_at: createdAt,
       plugin: { id: config.id, version: config.version },
       storage_mode: "reader_preview_index",
-      scope,
+      scope: normalizedScope,
       preview_quality: previewQualityKey,
       zotero_version: Zotero.version,
       parent_item: serializeItem(parentItem),
@@ -1171,8 +1172,9 @@ var PdfImageSaver = (() => {
   }
 
   function buildIndexTitle(parentItem, attachment, scope, pageIndex) {
-    const base = sanitizeTitle(parentItem?.getField("title") || attachment.getField("title") || "PDF");
-    const target = pageIndex === null || pageIndex === undefined ? scope : `p${pageIndex + 1}`;
+    const base = sanitizeTitle(getSourceTitle(parentItem, attachment));
+    const targetPage = normalizePageIndex(pageIndex, null);
+    const target = targetPage === null ? normalizeScope(scope) : `p${targetPage + 1}`;
     return `${base} - image index ${target}`;
   }
 
@@ -1936,8 +1938,9 @@ var PdfImageSaver = (() => {
 
   function buildOpenPDFURI(attachment, pageNumber, annotationKey) {
     const libraryPath = getLibraryURIPath(attachment.libraryID);
+    const itemKey = normalizeItemKey(attachment.key, "UNKNOWN");
     const page = normalizePageNumber(pageNumber, 1);
-    let uri = `zotero://open-pdf/${libraryPath}/items/${attachment.key}?page=${encodeURIComponent(String(page))}`;
+    let uri = `zotero://open-pdf/${libraryPath}/items/${itemKey}?page=${encodeURIComponent(String(page))}`;
     const normalizedAnnotationKey = normalizeAnnotationKey(annotationKey);
     if (normalizedAnnotationKey) {
       uri += `&annotation=${encodeURIComponent(normalizedAnnotationKey)}`;
@@ -2002,8 +2005,15 @@ var PdfImageSaver = (() => {
   }
 
   function normalizeAnnotationKey(value) {
-    const key = String(value || "").trim();
-    return /^[A-Za-z0-9]+$/.test(key) ? key : null;
+    return normalizeItemKey(value, null);
+  }
+
+  function normalizeItemKey(value, fallback = null) {
+    if (typeof value !== "string" && !(typeof value === "number" && Number.isFinite(value))) {
+      return fallback;
+    }
+    const key = String(value).trim();
+    return /^[A-Za-z0-9]+$/.test(key) ? key : fallback;
   }
 
   function serializeItem(item) {
@@ -2011,18 +2021,18 @@ var PdfImageSaver = (() => {
       return null;
     }
     return {
-      key: item.key,
-      title: item.getField("title"),
-      date: item.getField("date"),
-      doi: item.getField("DOI"),
+      key: normalizeMetadataText(item.key, null),
+      title: normalizeMetadataText(getItemField(item, "title"), null),
+      date: normalizeMetadataText(getItemField(item, "date"), null),
+      doi: normalizeMetadataText(getItemField(item, "DOI"), null),
     };
   }
 
   function serializeAttachment(item) {
     return {
-      key: item.key,
-      title: item.getField("title"),
-      content_type: item.attachmentContentType,
+      key: normalizeMetadataText(item?.key, null),
+      title: normalizeMetadataText(getItemField(item, "title"), null),
+      content_type: normalizeMetadataText(item?.attachmentContentType, null),
     };
   }
 
@@ -2053,6 +2063,42 @@ var PdfImageSaver = (() => {
 
   function sanitizeTitle(value) {
     return String(value || "PDF image").replace(/\s+/g, " ").trim().slice(0, 90);
+  }
+
+  function getSourceTitle(parentItem, attachment) {
+    return (
+      normalizeMetadataText(getItemField(parentItem, "title"), null) ||
+      normalizeMetadataText(getItemField(attachment, "title"), null) ||
+      "PDF"
+    );
+  }
+
+  function getItemField(item, fieldName) {
+    if (!item || typeof item.getField !== "function") {
+      return "";
+    }
+    try {
+      return item.getField(fieldName);
+    } catch (error) {
+      logError(error);
+      return "";
+    }
+  }
+
+  function normalizeMetadataText(value, fallback = null, maxLength = 240) {
+    if (typeof value !== "string" && !(typeof value === "number" && Number.isFinite(value))) {
+      return fallback;
+    }
+    const text = String(value).replace(/\s+/g, " ").trim();
+    if (!text) {
+      return fallback;
+    }
+    return text.slice(0, maxLength);
+  }
+
+  function normalizeScope(value) {
+    const text = normalizeMetadataText(value, "unknown", 40);
+    return ["clip", "page", "auto-page", "document"].includes(text) ? text : "unknown";
   }
 
   function getNumberPref(key, fallback) {
@@ -2404,6 +2450,7 @@ var PdfImageSaver = (() => {
     removeFromWindow,
     __test__: {
       buildIndexHTML,
+      buildIndexTitle,
       buildOpenPDFURI,
       buildSourceRegion,
       calculateCanvasCrop,

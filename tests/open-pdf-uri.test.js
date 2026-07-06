@@ -44,6 +44,7 @@ context.PdfImageSaver.init({
 
 const {
   buildIndexHTML,
+  buildIndexTitle,
   buildOpenPDFURI,
   buildSourceRegion,
   calculateCanvasCrop,
@@ -213,6 +214,14 @@ const htmlParent = stubItem(
   { title: "Paper <script>alert(1)</script>", date: "2026", DOI: "10.0000/test" },
   { key: "PARENT1" },
 );
+const noisyAttachment = stubItem(
+  { title: { nested: true } },
+  { libraryID: 1, key: { bad: true }, attachmentContentType: ["application/pdf"] },
+);
+const noisyParent = stubItem(
+  { title: { nested: true }, date: ["2026"], DOI: { value: "10.bad" } },
+  { key: { bad: true } },
+);
 const htmlEntry = {
   id: "entry-1",
   mode: "reader_canvas_preview",
@@ -265,6 +274,45 @@ assert.strictEqual(metadata.entries[0].open_pdf_uri, "zotero://open-pdf/library/
 assert.strictEqual(metadata.entries[0].quality_estimate, "60-220 KB/image");
 assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normalized_page_rect");
 assert.strictEqual(metadata.entries[0].annotation_key, null);
+
+const noisySourceHTML = buildIndexHTML({
+  attachment: noisyAttachment,
+  parentItem: noisyParent,
+  entries: [{
+    ...htmlEntry,
+    dataURL: "data:image/jpeg;base64,GGGG",
+    openPDFURI: "",
+  }],
+  scope: { bad: true },
+  qualityKey: "medium",
+});
+for (const forbiddenSourceText of ["[object Object]", "undefined"]) {
+  assert.ok(!noisySourceHTML.includes(forbiddenSourceText), `source metadata HTML must not contain ${forbiddenSourceText}`);
+}
+assert.ok(noisySourceHTML.includes("<h1>PDF</h1>"), "malformed source title must fall back to PDF");
+const noisySourceMetadata = extractMetadata(noisySourceHTML);
+assert.strictEqual(noisySourceMetadata.scope, "unknown", "malformed scope must be normalized");
+assert.strictEqual(
+  noisySourceMetadata.entries[0].open_pdf_uri,
+  "zotero://open-pdf/library/items/UNKNOWN?page=5",
+  "malformed attachment keys must use a safe URI fallback",
+);
+assert.deepStrictEqual(noisySourceMetadata.parent_item, {
+  key: null,
+  title: null,
+  date: null,
+  doi: null,
+});
+assert.deepStrictEqual(noisySourceMetadata.pdf_attachment, {
+  key: null,
+  title: null,
+  content_type: null,
+});
+assert.strictEqual(
+  buildIndexTitle(noisyParent, noisyAttachment, { bad: true }, { page: 1 }),
+  "PDF - image index unknown",
+  "index title must normalize malformed title, scope, and page target",
+);
 
 const malformedPageEntry = {
   ...htmlEntry,
