@@ -1347,3 +1347,6 @@ End batch validation checklist:
 - B15 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `45defcc` B16 harden runtime diagnostics checks.
 - B16 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `64dd171` docs record B16 validation.
+- `439179e` B18 guard Zotero install source switches.
+- B17/B18 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
