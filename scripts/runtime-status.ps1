@@ -42,6 +42,210 @@ function Get-ProxyInfo {
   }
 }
 
+function Get-FileStatus {
+  param([string]$Path)
+  if (!(Test-Path -LiteralPath $Path)) {
+    return [ordered]@{ exists = $false; path = $Path; bytes = 0; lastWriteTime = "" }
+  }
+  $item = Get-Item -LiteralPath $Path -Force
+  return [ordered]@{
+    exists = $true
+    path = $item.FullName
+    bytes = if ($item.PSIsContainer) { 0 } else { $item.Length }
+    lastWriteTime = $item.LastWriteTime.ToString("s")
+  }
+}
+
+function Test-BinaryFileContainsText {
+  param(
+    [string]$Path,
+    [string]$Needle
+  )
+  if (!(Test-Path -LiteralPath $Path)) {
+    return $false
+  }
+  $bytes = [IO.File]::ReadAllBytes($Path)
+  if (!$bytes.Length) {
+    return $false
+  }
+  return [Text.Encoding]::UTF8.GetString($bytes).Contains($Needle)
+}
+
+function Get-WebExtensionUUIDInfo {
+  param([string]$ProfilePath)
+  $prefsPath = Join-Path $ProfilePath "prefs.js"
+  $uuid = ""
+  $present = $false
+  if (Test-Path -LiteralPath $prefsPath) {
+    $line = Select-String -Encoding UTF8 -LiteralPath $prefsPath -Pattern '^\s*user_pref\("extensions\.webextensions\.uuids"' | Select-Object -First 1
+    if ($line -and $line.Line -match '\\\"pdf-image-saver@zlk\.local\\\":\\\"([^\\\"]+)\\\"') {
+      $present = $true
+      $uuid = $Matches[1]
+    }
+  }
+  return [ordered]@{
+    present = $present
+    uuid = $uuid
+  }
+}
+
+function Get-DirectoryManifestInfo {
+  param([string]$SourcePath)
+  $expectedPayload = @(
+    "manifest.json",
+    "bootstrap.js",
+    "prefs.js",
+    "preferences.xhtml",
+    "content\pdf-image-saver.js",
+    "content\preferences.js",
+    "content\helper\pdf_image_extract.py",
+    "content\icons\pdf-image-saver.svg",
+    "defaults\preferences\prefs.js"
+  )
+  $missingPayload = @()
+  foreach ($relativePath in $expectedPayload) {
+    if (!(Test-Path -LiteralPath (Join-Path $SourcePath $relativePath))) {
+      $missingPayload += $relativePath
+    }
+  }
+
+  $manifestPath = Join-Path $SourcePath "manifest.json"
+  $manifestReadable = $false
+  $manifestError = ""
+  $id = ""
+  $version = ""
+  $strictMinVersion = ""
+  $strictMaxVersion = ""
+  $description = ""
+  if (Test-Path -LiteralPath $manifestPath) {
+    try {
+      $manifest = Get-Content -Encoding UTF8 -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+      $manifestReadable = $true
+      $id = [string]$manifest.applications.zotero.id
+      $version = [string]$manifest.version
+      $strictMinVersion = [string]$manifest.applications.zotero.strict_min_version
+      $strictMaxVersion = [string]$manifest.applications.zotero.strict_max_version
+      $description = [string]$manifest.description
+    }
+    catch {
+      $manifestError = $_.Exception.Message
+    }
+  }
+  else {
+    $manifestError = "manifest.json missing"
+  }
+
+  return [ordered]@{
+    exists = [bool](Test-Path -LiteralPath $SourcePath)
+    path = $SourcePath
+    manifestPath = $manifestPath
+    manifestReadable = $manifestReadable
+    manifestError = $manifestError
+    id = $id
+    idMatches = $id -eq $addonID
+    version = $version
+    strictMinVersion = $strictMinVersion
+    strictMaxVersion = $strictMaxVersion
+    strictMaxVersionExpected = $strictMaxVersion -eq "9.0.*"
+    description = $description
+    missingPayload = $missingPayload
+  }
+}
+
+function Get-XPIManifestInfo {
+  param([string]$SourcePath)
+  $status = Get-FileStatus -Path $SourcePath
+  $manifestReadable = $false
+  $manifestError = ""
+  $id = ""
+  $version = ""
+  $strictMaxVersion = ""
+  if ($status.exists) {
+    try {
+      Add-Type -AssemblyName System.IO.Compression.FileSystem
+      $archive = [System.IO.Compression.ZipFile]::OpenRead($SourcePath)
+      try {
+        $entry = $archive.GetEntry("manifest.json")
+        if (!$entry) {
+          $manifestError = "manifest.json missing"
+        }
+        else {
+          $stream = $entry.Open()
+          try {
+            $reader = [System.IO.StreamReader]::new($stream, [System.Text.Encoding]::UTF8, $true)
+            $manifest = $reader.ReadToEnd() | ConvertFrom-Json
+            $manifestReadable = $true
+            $id = [string]$manifest.applications.zotero.id
+            $version = [string]$manifest.version
+            $strictMaxVersion = [string]$manifest.applications.zotero.strict_max_version
+          }
+          finally {
+            $stream.Dispose()
+          }
+        }
+      }
+      finally {
+        $archive.Dispose()
+      }
+    }
+    catch {
+      $manifestError = $_.Exception.Message
+    }
+  }
+  return [ordered]@{
+    exists = $status.exists
+    path = $SourcePath
+    bytes = $status.bytes
+    lastWriteTime = $status.lastWriteTime
+    manifestReadable = $manifestReadable
+    manifestError = $manifestError
+    id = $id
+    idMatches = $id -eq $addonID
+    version = $version
+    strictMaxVersion = $strictMaxVersion
+    strictMaxVersionExpected = $strictMaxVersion -eq "9.0.*"
+  }
+}
+
+function Get-ExtensionSourceInfo {
+  param(
+    [string]$ProfilePath,
+    $ProxyInfo
+  )
+  $xpiPath = Join-Path $ProfilePath "extensions\$addonID.xpi"
+  $proxyTargetManifest = if ($ProxyInfo.exists -and (Test-Path -LiteralPath $ProxyInfo.target -PathType Container)) {
+    Get-DirectoryManifestInfo -SourcePath $ProxyInfo.target
+  }
+  else {
+    [ordered]@{
+      exists = $false
+      path = $ProxyInfo.target
+      manifestPath = ""
+      manifestReadable = $false
+      manifestError = if ($ProxyInfo.exists) { "proxy target is not an existing directory" } else { "proxy file missing" }
+      id = ""
+      idMatches = $false
+      version = ""
+      strictMinVersion = ""
+      strictMaxVersion = ""
+      strictMaxVersionExpected = $false
+      description = ""
+      missingPayload = @()
+    }
+  }
+  return [ordered]@{
+    developmentProxy = [ordered]@{
+      exists = $ProxyInfo.exists
+      target = $ProxyInfo.target
+      targetExists = [bool]($ProxyInfo.exists -and (Test-Path -LiteralPath $ProxyInfo.target))
+      targetIsDirectory = [bool]($ProxyInfo.exists -and (Test-Path -LiteralPath $ProxyInfo.target -PathType Container))
+      hasBOM = $ProxyInfo.hasBOM
+      manifest = $proxyTargetManifest
+    }
+    xpiInstall = Get-XPIManifestInfo -SourcePath $xpiPath
+  }
+}
+
 function Get-ExtensionRegistration {
   param([string]$ProfilePath)
   $extensionsJSON = Join-Path $ProfilePath "extensions.json"
@@ -89,12 +293,20 @@ function Get-ExtensionRescanInfo {
 $profiles = @()
 if (Test-Path -LiteralPath $profileRoot) {
   foreach ($profile in Get-ChildItem -LiteralPath $profileRoot -Directory) {
+    $proxyInfo = Get-ProxyInfo -ProfilePath $profile.FullName
+    $addonStartupPath = Join-Path $profile.FullName "addonStartup.json.lz4"
     $profiles += [ordered]@{
       name = $profile.Name
       path = $profile.FullName
-      proxy = Get-ProxyInfo -ProfilePath $profile.FullName
+      proxy = $proxyInfo
       registration = Get-ExtensionRegistration -ProfilePath $profile.FullName
       rescan = Get-ExtensionRescanInfo -ProfilePath $profile.FullName
+      source = Get-ExtensionSourceInfo -ProfilePath $profile.FullName -ProxyInfo $proxyInfo
+      webExtensionUUID = Get-WebExtensionUUIDInfo -ProfilePath $profile.FullName
+      startupCache = [ordered]@{
+        addonStartup = Get-FileStatus -Path $addonStartupPath
+        containsAddonID = Test-BinaryFileContainsText -Path $addonStartupPath -Needle $addonID
+      }
     }
   }
 }

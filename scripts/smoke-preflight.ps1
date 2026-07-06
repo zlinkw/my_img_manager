@@ -43,6 +43,39 @@ foreach ($profile in $status.profiles) {
 
   if (!$profile.registration.registered) {
     $failures.Add("Plugin is not registered in profile $($profile.name): $($profile.registration.reason)")
+    if ($profile.source -and $profile.source.developmentProxy) {
+      $devProxy = $profile.source.developmentProxy
+      if (!$devProxy.exists) {
+        $failures.Add("Development proxy source is missing in profile $($profile.name).")
+      }
+      elseif (!$devProxy.targetExists) {
+        $failures.Add("Development proxy target is missing in profile $($profile.name): $($devProxy.target)")
+      }
+      elseif (!$devProxy.targetIsDirectory) {
+        $failures.Add("Development proxy target is not a directory in profile $($profile.name): $($devProxy.target)")
+      }
+      elseif ($devProxy.manifest) {
+        if (!$devProxy.manifest.manifestReadable) {
+          $failures.Add("Proxy target manifest is unreadable in profile $($profile.name): $($devProxy.manifest.manifestError)")
+        }
+        elseif (!$devProxy.manifest.idMatches) {
+          $failures.Add("Proxy target manifest id mismatch in profile $($profile.name): $($devProxy.manifest.id)")
+        }
+        elseif (!$devProxy.manifest.strictMaxVersionExpected) {
+          $failures.Add("Proxy target manifest strict_max_version is unexpected in profile $($profile.name): $($devProxy.manifest.strictMaxVersion)")
+        }
+        $missingPayload = @($devProxy.manifest.missingPayload)
+        if ($missingPayload.Count) {
+          $failures.Add("Proxy target payload missing in profile $($profile.name): $($missingPayload -join ', ')")
+        }
+      }
+    }
+    if ($profile.webExtensionUUID -and $profile.webExtensionUUID.present) {
+      $failures.Add("Profile has WebExtension UUID for plugin but extensions.json registration is missing in profile $($profile.name).")
+    }
+    if ($profile.startupCache -and $profile.startupCache.addonStartup.exists -and !$profile.startupCache.containsAddonID) {
+      $failures.Add("Zotero startup cache does not contain plugin id in profile $($profile.name).")
+    }
   }
   elseif (!$profile.registration.active) {
     $failures.Add("Plugin is registered but inactive in profile $($profile.name).")

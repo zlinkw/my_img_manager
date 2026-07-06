@@ -49,7 +49,7 @@ npm run smoke:wait
 ```
 
 The global install script writes a Zotero extension proxy file into each detected Zotero profile. Restart Zotero to load a newly installed plugin.
-`runtime:status` reports whether the proxy is installed, whether Zotero has registered the add-on in the current session, and whether temp files remain.
+`runtime:status` reports whether the proxy is installed, whether the proxy target manifest is readable, whether expected payload files exist, whether Zotero has registered the add-on in the current session, whether startup cache/UUID hints exist, and whether temp files remain.
 If `runtime:status` reports `rescan.needsRescan: true`, close Zotero and run `npm run install:global` once more. The installer will then clear Zotero's extension scan cache prefs so the proxy is registered on the next Zotero launch.
 
 ## Runtime Smoke Checklist

@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "PDF Image Saver",
   "version": "0.1.0",
-  "description": "Save original embedded images from the Zotero PDF reader with trace metadata.",
+  "description": "Save lightweight synced figure preview indexes from the Zotero PDF reader with trace metadata.",
   "author": "ZLK",
   "homepage_url": "https://local.invalid/pdf-image-saver",
   "icons": {

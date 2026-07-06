@@ -29,6 +29,20 @@ if ($manifest.applications.zotero.id -ne "pdf-image-saver@zlk.local") {
 if ($manifest.applications.zotero.strict_max_version -ne "9.0.*") {
   throw "Zotero strict_max_version must be 9.0.*"
 }
+if ($manifest.description -notmatch "preview indexes") {
+  throw "Manifest description must describe preview index default workflow"
+}
+
+$targetPlan = Get-Content -Encoding UTF8 -Raw -LiteralPath .\docs\target-mode-plan.md
+if ($targetPlan -notmatch 'Target Zotero range: `7\.0` to `9\.0\.\*`') {
+  throw "Target plan must document Zotero range 7.0 to 9.0.*"
+}
+if ($targetPlan -notmatch "Use Zotero reader rendered canvas for default preview index extraction") {
+  throw "Target plan must document reader canvas default extraction"
+}
+if ($targetPlan -match "(?m)^- Use local Python and PyMuPDF for original embedded image extraction\.$") {
+  throw "Target plan must not present local Python helper as required"
+}
 
 $package = Get-Content -Encoding UTF8 -Raw -LiteralPath .\package.json | ConvertFrom-Json
 if (!$package.scripts.'runtime:status') {

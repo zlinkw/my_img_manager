@@ -19,7 +19,6 @@ Priority order:
 - Default to a lightweight Zotero synced HTML index attachment with embedded previews and source PDF links.
 - Save original extracted image files only when explicitly requested.
 - Save minimal metadata with bibliographic, PDF, page, bbox, image size, preview quality, and Zotero link fields.
-- Use local Python and PyMuPDF for original embedded image extraction.
 - Must run independently without a machine specific Python or conda environment.
 - Use Zotero reader rendered canvas for default preview index extraction.
 - Use local Python and PyMuPDF only as an optional enhancement for original embedded image extraction.
@@ -44,7 +43,7 @@ Priority order:
 
 - Plugin ID: `pdf-image-saver@zlk.local`
 - Version: `0.1.0`
-- Target Zotero range: `7.0` to `9.*`
+- Target Zotero range: `7.0` to `9.0.*`
 - Primary runtime: Zotero 9.0.5
 - Extraction helper schema: `zotero-pdf-image-saver/v1`
 - Default scope: current PDF page
@@ -505,7 +504,7 @@ End batch validation checklist:
 
 ### B14 Smoke Preflight Process Detection
 
-Status: in progress.
+Status: complete; runtime registration pending user-controlled Zotero close, reinstall, and launch.
 
 Plan:
 
@@ -532,6 +531,37 @@ End batch validation checklist:
 - `npm run runtime:status`: passed; Zotero running, proxy installed, no BOM, temp child count 0, registration false, and `rescan.needsRescan: true`.
 - Manifest uses `strict_max_version: 9.0.*` and static checks assert it.
 - B14 post implementation review agent did not return before timeout and was closed; local static checks passed.
+
+### B15 Runtime Registration Diagnostics And Independent Contract
+
+Status: complete; runtime registration pending user-controlled Zotero close, reinstall, and launch.
+
+Plan:
+
+- Keep default runtime fully Zotero-contained: reader canvas previews plus synced HTML child attachments, no Python, conda, PyMuPDF, local output directory, or machine-specific path required.
+- Keep original embedded image extraction explicitly optional until a bundled pure-JS or Zotero-native extraction path exists.
+- Add runtime diagnostics for manifest readability, expected payload files, WebExtension UUID prefs, startup cache hints, and current profile extension source state.
+- Do not modify live Zotero profile prefs while Zotero is running.
+- Preserve current blocked state: user must close Zotero, then `npm run install:global`, then start Zotero before registration can be validated.
+
+Pre batch validation:
+
+- Git worktree clean at B15 start commit `98bc1ba`.
+- `npm run runtime:status`: Zotero running with process count 3, proxy installed, no BOM, registration false, `rescan.needsRescan: true`.
+- `extensions.json` does not contain `pdf-image-saver@zlk.local`.
+- Profile extension dir contains a development proxy file `pdf-image-saver@zlk.local`, but no copied XPI for this add-on.
+- `prefs.js` contains a WebExtension UUID mapping for `pdf-image-saver@zlk.local`, which means profile state may contain partial prior discovery even while `extensions.json` lacks registration.
+- `addonStartup.json.lz4` exists and can be scanned for add-on-id hints without decompressing or mutating the profile.
+
+End batch validation checklist:
+
+- `npm run runtime:status`: passed and now reports proxy target manifest readability, id match, `strictMaxVersion: 9.0.*`, missing payload list, profile XPI-source absence, WebExtension UUID hint, startup cache hint, and temp child count 0.
+- `npm run smoke:preflight`: expected failure because Zotero is running with rescan pending and registration false; output now includes the WebExtension UUID versus missing `extensions.json` registration hint.
+- `npm run check`: passed, including manifest description and target plan contract checks.
+- `npm run build`: passed, XPI SHA256 `bcdd8fcf42017e06eff5b3523225200f1ac90237a93d3ce08b9cf8a948d80a8f`.
+- `npm run install:global`: passed and reported rescan pending because Zotero is running.
+- `npm run runtime:status`: passed after install; temp child count 0, manifest diagnostics valid, registration still false until user-controlled close and launch.
+- B15 review agent reported docs/manifest target inconsistencies and optional-helper independence risk; those were folded into this batch.
 
 ## Current Validation Results
 
@@ -593,6 +623,12 @@ End batch validation checklist:
 - B14 `npm run build`: passed, XPI SHA256 `d1e8d232b74dfb148e57e9cec1ae0dc99a91270c9673fd77503172940df7fbdf`.
 - B14 `npm run install:global`: passed and reported extension rescan pending because Zotero is running.
 - B14 `npm run runtime:status`: passed; Zotero running, registration false, and `rescan.needsRescan: true`.
+- B15 `npm run runtime:status`: passed and reports proxy target manifest readability, payload completeness, WebExtension UUID hint, startup cache hint, and temp child count 0.
+- B15 `npm run smoke:preflight`: expected failure because extension rescan is pending and plugin is not registered; output includes WebExtension UUID versus missing `extensions.json` registration hint.
+- B15 `npm run check`: passed.
+- B15 `npm run build`: passed, XPI SHA256 `bcdd8fcf42017e06eff5b3523225200f1ac90237a93d3ce08b9cf8a948d80a8f`.
+- B15 `npm run install:global`: passed and reported rescan pending because Zotero is running.
+- B15 `npm run runtime:status` after install: passed; Zotero running, registration false, `rescan.needsRescan: true`, temp child count 0.
 
 ## New Failures
 
@@ -964,6 +1000,34 @@ End batch validation checklist:
 - Validation update: fix manifest `strict_max_version` from `9.*` to `9.0.*`, matching Zotero's documented `x.x.*` compatibility format, and assert this in static checks.
 - Close condition: plugin registers on the next user-controlled Zotero launch after manifest fix and rescan clear.
 
+### FAIL-20260706-028
+
+- Batch: B15
+- Environment: target plan and public manifest text after B14
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: plan and manifest text still imply the primary feature is original embedded image extraction and target range is `9.*`.
+- Expected: execution docs and add-on metadata match the implemented independent default path: reader-canvas preview index, Zotero-synced HTML child attachment, target max `9.0.*`, optional helper only for explicit original extraction.
+- Actual: plan scope had conflicting local-Python language, plugin contract still said `9.*`, and manifest description still says "Save original embedded images".
+- Validation update: align target plan, manifest description, and README wording with the independent default runtime contract.
+- Close condition: static checks assert manifest description and target plan contract match `9.0.*` and preview-index default wording.
+- Closure: target plan now documents `7.0` to `9.0.*`, removes required local-Python wording, manifest description names lightweight synced preview indexes, and `npm run check` asserts these contracts.
+
+### FAIL-20260706-029
+
+- Batch: B15
+- Environment: `npm run runtime:status` while Zotero registration is false
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: closed
+- Symptom: runtime status reports registration false but does not expose enough profile state to distinguish manifest rejection, proxy target problems, startup cache hints, or partial WebExtension UUID discovery.
+- Expected: runtime diagnostics expose installed source state, manifest readability, expected payload files, WebExtension UUID prefs, and startup cache add-on-id hints.
+- Actual: runtime status only reports proxy, `extensions.json` registration, rescan prefs, Zotero processes, XPI hash, and temp dir state.
+- Validation update: extend runtime diagnostics and smoke preflight failure output before the next user-controlled Zotero restart.
+- Close condition: `runtime:status` and `smoke:preflight` expose actionable manifest/source/cache hints without mutating the live profile.
+- Closure: `runtime:status` now reports source manifest details, payload completeness, profile XPI-source state, WebExtension UUID presence, and startup cache add-on-id hint; preflight includes UUID versus missing registration hints.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -997,6 +1061,8 @@ End batch validation checklist:
 - Check runtime smoke wait times out clearly while preserving the last preflight failure.
 - Check smoke preflight reports Zotero-not-running when `runtime:status` has no Zotero processes.
 - Check manifest Zotero compatibility max version uses `x.x.*`.
+- Check manifest and plan wording make reader preview index the independent default and original extraction optional.
+- Check runtime diagnostics include installed source state, manifest readability, expected payload files, WebExtension UUID prefs, and startup cache add-on-id hints.
 
 ## Real Commit Log
 
