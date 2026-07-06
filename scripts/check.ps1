@@ -174,6 +174,28 @@ if (!(Test-Path -LiteralPath .\prefs.js)) {
 }
 
 $mainJS = Get-Content -Encoding UTF8 -Raw -LiteralPath .\content\pdf-image-saver.js
+$toolbarEntry = [regex]::Match($mainJS, "function\s+onRenderToolbar\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+onCreateViewContextMenu")
+if (!$toolbarEntry.Success) {
+  throw "Reader toolbar render function block not found"
+}
+if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip a figure preview`",\s*qualityKey\)[\s\S]*autoButton\.title\s*=\s*buildToolbarActionTooltip") {
+  throw "Reader toolbar tooltips must be built from selected quality metadata"
+}
+if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*updateQualityTooltips\(\)") {
+  throw "Reader toolbar must refresh tooltips when quality selection changes"
+}
+if ($toolbarEntry.Value -notmatch "updateQualityTooltips\(\)[\s\S]*updateAutoRasterButtonState") {
+  throw "Reader toolbar must initialize quality tooltips before auto-raster state update"
+}
+if ($mainJS -notmatch "function\s+buildToolbarActionTooltip\s*\(\s*action\s*,\s*qualityKey\s*\)[\s\S]*getQualityLabelWithEstimate\(qualityKey\)") {
+  throw "Toolbar tooltip helper must use quality label and estimate"
+}
+if ($mainJS -notmatch "function\s+getQualityLabelWithEstimate\s*\(\s*qualityKey\s*\)[\s\S]*const\s+normalizedQualityKey\s*=\s*normalizeQualityKey\(qualityKey\)[\s\S]*quality\.estimate") {
+  throw "Toolbar quality label helper must normalize quality and include estimate"
+}
+if ($mainJS -match "Default:\s*Medium,\s*60-220 KB/image") {
+  throw "Reader toolbar tooltip must not hardcode Medium quality"
+}
 if ($mainJS -notmatch "(?m)^\s*const\s+HARD_MAX_AUTO_PREVIEW_BYTES_MB\s*=\s*8\s*;") {
   throw "Auto preview hard cap changed unexpectedly"
 }
@@ -360,6 +382,9 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*formatDiagnosticsReport") {
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getErrorMessage") {
   throw "Error message helper must remain exported for regression tests"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildToolbarActionTooltip") {
+  throw "Toolbar tooltip helper must remain exported for regression tests"
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveAutoDetectedPageImagePreviews") {
   throw "Auto-raster save entry must remain exported for regression tests"

@@ -1624,6 +1624,27 @@ End batch validation checklist:
 - Code review: subagent confirmed the issue and local read-only review plus targeted `test/check` rerun found no P0-P2 blockers.
 - Git commit records B54 implementation: `700a334`.
 
+### B55 Toolbar Quality Tooltip Synchronization
+
+Status: in progress.
+
+Plan:
+
+- Make reader toolbar tooltip text reflect the currently selected preview quality and estimated Zotero sync size.
+- Keep toolbar behavior unchanged: selected quality still drives clip and auto-raster saves.
+- Add behavior/static checks proving toolbar tooltip text uses normalized quality metadata instead of hardcoded Medium text.
+
+Pre batch validation:
+
+- Git worktree clean at B55 start commit `0d78a19`.
+- B55 subagent scan failed due local proxy quota, so local read-only planning selected the next UI correctness issue.
+- B55 local planning pass found the `Clip Figure` toolbar button title is hardcoded to `Default: Medium, 60-220 KB/image`, so Low/High selections still show the wrong expected storage size; recorded as `FAIL-20260706-118`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3408,6 +3429,19 @@ End batch validation checklist:
 - Close condition: `npm.cmd run check` passes while still asserting `undefined`, `null`, and `[object Object]` rejection.
 - Closure: the noisy-string static guard now matches actual `[object Object]` source text without literal backslashes and `npm.cmd run check` passes.
 
+### FAIL-20260706-118
+
+- Batch: B55
+- Environment: reader toolbar UI quality feedback
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the `Clip Figure` toolbar button title is hardcoded to Medium quality and `60-220 KB/image`.
+- Expected: toolbar action text should show the selected quality and estimated per-image sync size so the user can make storage-conscious choices.
+- Actual: after selecting Low or High, the button tooltip still claims Medium quality and the wrong estimate.
+- Validation update: centralize toolbar quality tooltip text and update it when the quality selector changes.
+- Close condition: behavior/static checks prove toolbar tooltip text is generated from normalized quality metadata and hardcoded Medium tooltip text is gone.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3523,6 +3557,7 @@ End batch validation checklist:
 - Check raw diagnostics static guards are case-sensitive and do not reject `safeReport`.
 - Check shared error message formatting normalizes object, array, null, undefined, empty, and oversized values.
 - Check noisy error string static guard matches actual `[object Object]` source text without literal backslashes.
+- Check reader toolbar tooltips follow the selected preview quality estimate.
 
 ## Real Commit Log
 

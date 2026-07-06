@@ -87,6 +87,7 @@ const {
   formatHelperFailure,
   getErrorMessage,
   getActiveReader,
+  buildToolbarActionTooltip,
   getContextPageIndex,
   getPDFViewerContextCandidate,
   getPreviewDuplicateKey,
@@ -1168,6 +1169,16 @@ for (const noisyErrorValue of [{ bad: true }, ["bad"], null, undefined, new Erro
   );
 }
 assert.strictEqual(getErrorMessage("x".repeat(400)).length, 320, "oversized error messages must be capped");
+assert.strictEqual(
+  buildToolbarActionTooltip("Clip a figure preview", "high"),
+  "Clip a figure preview. Selected: High, 180-750 KB/image.",
+  "toolbar tooltip must show selected high quality estimate",
+);
+assert.strictEqual(
+  buildToolbarActionTooltip("Clip a figure preview", "constructor"),
+  "Clip a figure preview. Selected: Medium, 60-220 KB/image.",
+  "toolbar tooltip must normalize malformed quality to medium",
+);
 
 async function runAsyncAssertions() {
   context.Services.prompt.confirms = [];

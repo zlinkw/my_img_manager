@@ -157,14 +157,10 @@ var PdfImageSaver = (() => {
       option.selected = key === getDefaultQualityKey();
       select.appendChild(option);
     }
-    select.addEventListener("change", () => {
-      setStringPref("defaultQuality", normalizeQualityKey(select.value));
-    });
 
     const button = doc.createElement("button");
     button.type = "button";
     button.className = "pdf-image-saver-toolbar-button";
-    button.title = "Clip a figure preview. Default: Medium, 60-220 KB/image.";
     button.textContent = "Clip Figure";
     button.addEventListener("click", (domEvent) => {
       domEvent.preventDefault();
@@ -180,7 +176,6 @@ var PdfImageSaver = (() => {
     const autoButton = doc.createElement("button");
     autoButton.type = "button";
     autoButton.className = "pdf-image-saver-toolbar-button";
-    autoButton.title = "Try to auto-detect embedded raster images on the current page and save one synced preview index.";
     autoButton.textContent = "Auto Raster";
     autoButton.addEventListener("click", (domEvent) => {
       domEvent.preventDefault();
@@ -195,6 +190,17 @@ var PdfImageSaver = (() => {
         void updateAutoRasterButtonState(reader, autoButton);
       });
     });
+    const updateQualityTooltips = () => {
+      const qualityKey = normalizeQualityKey(select.value);
+      select.title = `Preview quality: ${getQualityLabelWithEstimate(qualityKey)}`;
+      button.title = buildToolbarActionTooltip("Clip a figure preview", qualityKey);
+      autoButton.title = buildToolbarActionTooltip("Auto-detect embedded raster previews on the current page", qualityKey);
+    };
+    select.addEventListener("change", () => {
+      setStringPref("defaultQuality", normalizeQualityKey(select.value));
+      updateQualityTooltips();
+    });
+    updateQualityTooltips();
     updateAutoRasterButtonState(reader, autoButton);
     group.append(select, button, autoButton);
     append(group);
@@ -2506,6 +2512,17 @@ var PdfImageSaver = (() => {
     return Object.prototype.hasOwnProperty.call(QUALITY, value) ? value : "medium";
   }
 
+  function getQualityLabelWithEstimate(qualityKey) {
+    const normalizedQualityKey = normalizeQualityKey(qualityKey);
+    const quality = QUALITY[normalizedQualityKey];
+    return `${quality.label}, ${quality.estimate}`;
+  }
+
+  function buildToolbarActionTooltip(action, qualityKey) {
+    const actionText = normalizeMetadataText(action, "Save preview", 80);
+    return `${actionText}. Selected: ${getQualityLabelWithEstimate(qualityKey)}.`;
+  }
+
   function normalizePreviewText(value, fallback, maxLength = 120) {
     let text = "";
     if (typeof value === "string") {
@@ -2837,6 +2854,7 @@ var PdfImageSaver = (() => {
       getActiveReader,
       getContextPageIndex,
       getPDFViewerContextCandidate,
+      buildToolbarActionTooltip,
       getPreviewDuplicateKey,
       importOriginalImages,
       limitOriginalImagesForImport,
