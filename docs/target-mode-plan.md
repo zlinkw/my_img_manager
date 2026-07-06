@@ -1793,6 +1793,26 @@ End batch validation checklist:
 - Code review: local targeted review found the first broad closure-evidence guard caused historical-plan churn; recorded and fixed as `FAIL-20260706-126`.
 - Git commit records B60 implementation: `7cdfba2`.
 
+### B61 Optional Helper Temp Creation Ordering
+
+Status: in progress.
+
+Plan:
+
+- Move Python command discovery and bundled helper script validation before optional-helper temp directory creation.
+- Preserve normal helper output cleanup and no-Python fallback behavior.
+- Add static checks proving `runHelperExtraction()` does not create an output directory before helper prerequisites are known.
+
+Pre batch validation:
+
+- Git worktree clean at B61 start commit `e12d985`.
+- B61 local planning found `runHelperExtraction()` creates a temp output directory before `getPythonCommands()` and `ensureHelperScriptPath()`, so helper discovery/script failures can create unnecessary temp churn or leave an output directory if helper script loading throws; recorded as `FAIL-20260706-127`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3703,6 +3723,19 @@ End batch validation checklist:
 - Close condition: `npm.cmd run check` passes and still enforces closure evidence for `FAIL-20260706-125` and later.
 - Closure: the close-evidence guard now applies from `FAIL-20260706-125` onward, preserving historical plan records while enforcing the stricter template for B60 and later; `npm.cmd run check` passes.
 
+### FAIL-20260706-127
+
+- Batch: B61
+- Environment: optional-helper temp output creation
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `runHelperExtraction()` creates a temp output directory before Python command discovery and bundled helper script loading complete.
+- Expected: optional-helper temp output directories should be created only after prerequisites are available, so discovery/helper-script failures cannot create avoidable temp churn or leave output directories.
+- Actual: `createTempDirectory()` runs before `getPythonCommands()` and `ensureHelperScriptPath()`.
+- Validation update: move prerequisite discovery before temp directory creation and add static checks for the ordering.
+- Close condition: static checks prove `runHelperExtraction()` gets Python commands and helper script path before calling `createTempDirectory()`, while no-Python fallback still returns `output_dir: null`.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3825,6 +3858,7 @@ End batch validation checklist:
 - Check VM-backed command payload tests assert scalar behavior fields rather than cross-context object prototype equality.
 - Check auto-raster PDF.js image-coordinate conversion is behavior-tested for rectangle math, tiny-candidate filtering, overlap dedupe, and largest-first ordering.
 - Check recursive cleanup only removes paths under the normalized plugin temp root.
+- Check optional-helper temp output directories are created only after Python and helper script prerequisites are available.
 
 ## Real Commit Log
 

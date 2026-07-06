@@ -1526,11 +1526,8 @@ var PdfImageSaver = (() => {
   }
 
   async function runHelperExtraction({ attachment, pdfPath, pageIndex, scope }) {
-    const outputDir = await createTempDirectory();
-    const reportPath = PathUtils.join(outputDir, "report.json");
     const pythonCommands = await getPythonCommands();
     if (!pythonCommands.length) {
-      await removeDirectoryIfExists(outputDir);
       return {
         schema_version: HELPER_SCHEMA_VERSION,
         status: "no_python",
@@ -1541,6 +1538,8 @@ var PdfImageSaver = (() => {
     }
 
     const helperScriptPath = await ensureHelperScriptPath();
+    const outputDir = await createTempDirectory();
+    const reportPath = PathUtils.join(outputDir, "report.json");
     const argsBase = [
       helperScriptPath,
       pdfPath,

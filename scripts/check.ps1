@@ -314,6 +314,16 @@ if ($mainJS -notmatch "exit_code:\s*exitCode") {
 if ($mainJS -notmatch "return\s+process\.exitValue;") {
   throw "runProcess must return helper process exit code"
 }
+$helperExtractionEntry = [regex]::Match($mainJS, "async\s+function\s+runHelperExtraction\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+ensureHelperScriptPath")
+if (!$helperExtractionEntry.Success) {
+  throw "Optional helper extraction function block not found"
+}
+if ($helperExtractionEntry.Value -notmatch "const\s+pythonCommands\s*=\s*await\s+getPythonCommands\(\);[\s\S]*if\s*\(\s*!pythonCommands\.length\s*\)[\s\S]*output_dir:\s*null[\s\S]*const\s+helperScriptPath\s*=\s*await\s+ensureHelperScriptPath\(\);[\s\S]*const\s+outputDir\s*=\s*await\s+createTempDirectory\(\)") {
+  throw "Optional helper must validate Python and bundled helper script before creating temp output"
+}
+if ($helperExtractionEntry.Value -match "const\s+outputDir\s*=\s*await\s+createTempDirectory\(\);\s*\r?\n\s*const\s+reportPath\s*=\s*PathUtils\.join\(outputDir,\s*`"report\.json`"\);\s*\r?\n\s*const\s+pythonCommands\s*=") {
+  throw "Optional helper must not create temp output before Python discovery"
+}
 $helperMaxCallCount = ([regex]::Matches($mainJS, "getHelperMaxImages\(")).Count
 if ($helperMaxCallCount -lt 3) {
   throw "Confirmation text and helper args must call getHelperMaxImages()"
