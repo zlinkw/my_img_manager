@@ -690,6 +690,22 @@ if ($pageSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\
 if ($pageSaveEntry.Value -notmatch "const\s+qualityKey\s*=\s*normalizeQualityKey\(options\.qualityKey\)[\s\S]*qualityKey,\s*\r?\n\s*pageLabel[\s\S]*qualityKey,") {
   throw "Page-preview save entry must normalize quality before rendering and index metadata"
 }
+$renderCanvasPreviewEntry = [regex]::Match($mainJS, "function\s+renderCanvasPreview\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+calculateCanvasCrop")
+if (!$renderCanvasPreviewEntry.Success) {
+  throw "Canvas preview renderer function block not found"
+}
+if ($renderCanvasPreviewEntry.Value -notmatch "const\s+normalizedQualityKey\s*=\s*normalizeQualityKey\(qualityKey\)[\s\S]*const\s+quality\s*=\s*QUALITY\[normalizedQualityKey\]") {
+  throw "Canvas preview renderer must normalize quality before QUALITY lookup"
+}
+if ($renderCanvasPreviewEntry.Value -notmatch "imageSmoothingQuality\s*=\s*normalizedQualityKey\s*===\s*`"high`"\s*\?\s*`"high`"\s*:\s*`"medium`"") {
+  throw "Canvas preview renderer smoothing must use normalized quality"
+}
+if ($renderCanvasPreviewEntry.Value -notmatch "quality:\s*normalizedQualityKey") {
+  throw "Canvas preview renderer metadata must use normalized quality"
+}
+if ($renderCanvasPreviewEntry.Value -match "QUALITY\[qualityKey\]\s*\|\|\s*QUALITY\.medium") {
+  throw "Canvas preview renderer must not rely on raw quality fallback"
+}
 $originalSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveOriginalImagesFromReader\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+importOriginalImages")
 if (!$originalSaveEntry.Success) {
   throw "Original-image save entry function block not found"

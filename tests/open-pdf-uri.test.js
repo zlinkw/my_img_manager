@@ -404,6 +404,20 @@ assert.strictEqual(mediumPreview.qualityEstimate, "60-220 KB/image", "medium pre
 assert.strictEqual(qualityCanvas.outputCanvases[0].width, 480, "medium preview must use medium max width");
 assert.strictEqual(qualityCanvas.outputCanvases[0].encodedQuality, 0.78, "medium preview must use medium JPEG quality");
 
+const malformedQualityCanvas = createFakeCanvas();
+const malformedQualityPreview = renderCanvasPreview({
+  canvas: malformedQualityCanvas,
+  pageElement: qualityPage,
+  pageIndex: 2,
+  qualityKey: "constructor",
+  selectionRect: { left: 0, top: 0, width: 1200, height: 900 },
+});
+assert.strictEqual(malformedQualityPreview.quality, "medium", "renderer must normalize malformed quality keys");
+assert.strictEqual(malformedQualityPreview.qualityEstimate, "60-220 KB/image", "renderer malformed quality must use medium estimate");
+assert.strictEqual(malformedQualityCanvas.outputCanvases[0].width, 480, "renderer malformed quality must use medium max width");
+assert.strictEqual(malformedQualityCanvas.outputCanvases[0].encodedQuality, 0.78, "renderer malformed quality must use medium JPEG quality");
+assert.strictEqual(malformedQualityCanvas.outputCanvases[0].context.imageSmoothingQuality, "medium", "renderer malformed quality must use medium smoothing");
+
 function stubItem(fields, extra = {}) {
   return {
     ...extra,

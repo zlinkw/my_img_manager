@@ -1463,6 +1463,26 @@ End batch validation checklist:
 - Code review: subagent review unavailable due thread/rate limits; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
 - Git commit records B48 implementation: `831577c`.
 
+### B49 Render Preview Quality Self Normalization
+
+Status: in progress.
+
+Plan:
+
+- Normalize preview quality inside `renderCanvasPreview()` so the renderer is safe even if future call sites pass malformed quality keys.
+- Keep save-entry boundary normalization from B48 as a first-line guard.
+- Add behavior/static checks proving malformed renderer quality falls back to Medium consistently for pixels, metadata, and smoothing quality.
+
+Pre batch validation:
+
+- Git worktree clean at B49 start commit `9c5be3a`.
+- B49 planning pass found `renderCanvasPreview()` still reads `QUALITY[qualityKey] || QUALITY.medium` and returns raw `qualityKey` in the preview record, so a future unnormalized call can render Medium pixels while storing invalid quality metadata; recorded as `FAIL-20260706-109`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3121,6 +3141,19 @@ End batch validation checklist:
 - Close condition: tests/static checks prove clip/page save entries call `normalizeQualityKey()` before rendering and index creation.
 - Closure: clip and page save entries now normalize `qualityKey` before rendering, duplicate-key generation, and index creation; static checks scope this to each save entry and renderer tests verify Medium quality output.
 
+### FAIL-20260706-109
+
+- Batch: B49
+- Environment: canvas preview renderer quality handling
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `renderCanvasPreview()` falls back to Medium pixels for malformed `qualityKey` but returns the raw malformed value in preview metadata.
+- Expected: the renderer itself should normalize quality so preview pixels, `preview.quality`, `qualityEstimate`, and smoothing behavior agree.
+- Actual: direct or future unnormalized renderer calls can create a preview with Medium pixels but invalid quality metadata until later HTML normalization.
+- Validation update: normalize `qualityKey` at renderer entry and add behavior/static checks.
+- Close condition: tests/static checks prove malformed renderer quality becomes Medium before pixel sizing, JPEG quality, smoothing, and preview metadata.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3227,6 +3260,7 @@ End batch validation checklist:
 - Check reader toast fallback does not wait for PDF context when no reader is available.
 - Check reader toast fallback uses alert rather than main-window DOM toast when no PDF reader is available.
 - Check clip/page save entries normalize quality keys before rendering, duplicate-key generation, and index metadata.
+- Check canvas preview renderer self-normalizes malformed quality keys before pixels and metadata.
 
 ## Real Commit Log
 

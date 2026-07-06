@@ -772,7 +772,8 @@ var PdfImageSaver = (() => {
     detector,
     detectionArea,
   }) {
-    const quality = QUALITY[qualityKey] || QUALITY.medium;
+    const normalizedQualityKey = normalizeQualityKey(qualityKey);
+    const quality = QUALITY[normalizedQualityKey];
     const canvasRect = canvas.getBoundingClientRect();
     const pageRect = pageElement.getBoundingClientRect();
     const crop = calculateCanvasCrop({
@@ -790,7 +791,7 @@ var PdfImageSaver = (() => {
     outputCanvas.height = targetHeight;
     const context = outputCanvas.getContext("2d");
     context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = qualityKey === "high" ? "high" : "medium";
+    context.imageSmoothingQuality = normalizedQualityKey === "high" ? "high" : "medium";
     context.drawImage(
       canvas,
       crop.sourceX,
@@ -812,7 +813,7 @@ var PdfImageSaver = (() => {
       pageIndex,
       pageNumber: pageIndex + 1,
       pageLabel: pageLabel || null,
-      quality: qualityKey,
+      quality: normalizedQualityKey,
       qualityEstimate: quality.estimate,
       dataURL,
       byteCount: estimateDataURLBytes(dataURL),
