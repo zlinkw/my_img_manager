@@ -1677,6 +1677,29 @@ End batch validation checklist:
 - Code review: local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
 - Git commit records B56 implementation: `05e10d7`.
 
+### B57 Context Menu Default Quality Consistency
+
+Status: in progress.
+
+Plan:
+
+- Make context menu default-quality actions use one normalized `getDefaultQualityKey()` value.
+- Show the selected default quality and estimated sync size for auto-raster and full-page preview context actions.
+- Add behavior/static checks proving the full-page context action no longer hardcodes Medium.
+- Add behavior checks that execute context menu commands and prove they pass the displayed default quality.
+
+Pre batch validation:
+
+- Git worktree clean at B57 start commit `b77e584`.
+- B57 local planning pass found the context menu full-page preview action is hardcoded to `Medium`, so default-quality changes are not reflected in the action label or save command; recorded as `FAIL-20260706-120`.
+- B57 review found the first regression test only checked context menu labels and did not execute `onCommand`, so label/behavior drift could still pass; recorded as `FAIL-20260706-121`.
+- B57 validation found the command-path regression test used `deepStrictEqual()` on objects created inside the VM context, so equal fields could still fail because prototypes differ; recorded as `FAIL-20260706-122`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3489,6 +3512,45 @@ End batch validation checklist:
 - Close condition: tests/static checks prove unavailable state disables the button and available state re-enables it with the selected quality estimate.
 - Closure: `applyAutoRasterButtonState()` now handles both unavailable and available states; `updateAutoRasterButtonState()` passes the selected quality key, behavior tests cover disable/re-enable transitions, and static checks lock the recovery path.
 
+### FAIL-20260706-120
+
+- Batch: B57
+- Environment: reader context menu default-quality preview actions
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the context menu full-page preview action is labeled `Save current page preview index (Medium)` and passes `qualityKey: "medium"` even when the default preview quality is Low or High.
+- Expected: context menu default-quality actions should reflect the current normalized default quality and show the estimated sync size.
+- Actual: users can set a non-Medium default quality but still see and trigger a Medium-only full-page preview action from the context menu.
+- Validation update: compute one default quality key for the context menu, reuse it for labels and command arguments, and add behavior/static checks.
+- Close condition: tests/static checks prove Auto Raster and full-page preview context labels show default quality estimates and page preview passes the default quality key.
+
+### FAIL-20260706-121
+
+- Batch: B57
+- Environment: reader context menu default-quality command validation
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the B57 regression test checks Auto Raster and page-preview context menu labels but does not execute their `onCommand` handlers.
+- Expected: behavior tests should prove the clicked context menu action passes the same normalized default quality shown in the label.
+- Actual: the UI label could show High while the command still saves Medium and the test would pass.
+- Validation update: make context menu action creation directly testable and execute Auto Raster/Page Preview command handlers with stub save functions.
+- Close condition: tests prove context menu Auto Raster and page-preview `onCommand` handlers pass the normalized default quality key.
+
+### FAIL-20260706-122
+
+- Batch: B57
+- Environment: Node VM regression tests for context menu command payloads
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the command-path regression test fails even when the actual and expected payload fields are identical.
+- Expected: tests should compare behavior fields and not fail on cross-context object prototypes.
+- Actual: `assert.deepStrictEqual()` compares objects created inside the VM realm against host-realm object literals and fails with a misleading diff.
+- Validation update: assert command count, action names, reader identity, and option scalar fields directly.
+- Close condition: `npm.cmd run test` passes while still proving Auto Raster and page-preview command handlers pass `qualityKey: "high"` and `pageIndex: 2`.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3606,6 +3668,9 @@ End batch validation checklist:
 - Check noisy error string static guard matches actual `[object Object]` source text without literal backslashes.
 - Check reader toolbar tooltips follow the selected preview quality estimate.
 - Check Auto Raster button state recovers from unavailable to available with the selected quality tooltip.
+- Check context menu default-quality actions show the normalized default quality estimate and do not hardcode Medium for full-page preview.
+- Check context menu default-quality action commands pass the same normalized quality key shown in their labels.
+- Check VM-backed command payload tests assert scalar behavior fields rather than cross-context object prototype equality.
 
 ## Real Commit Log
 

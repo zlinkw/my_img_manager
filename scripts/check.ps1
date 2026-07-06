@@ -196,6 +196,25 @@ if ($mainJS -notmatch "function\s+getQualityLabelWithEstimate\s*\(\s*qualityKey\
 if ($mainJS -match "Default:\s*Medium,\s*60-220 KB/image") {
   throw "Reader toolbar tooltip must not hardcode Medium quality"
 }
+$contextMenuEntry = [regex]::Match($mainJS, "function\s+onCreateViewContextMenu\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+startClipFromActiveReader")
+if (!$contextMenuEntry.Success) {
+  throw "Reader context menu function block not found"
+}
+if ($contextMenuEntry.Value -notmatch "const\s+defaultQualityKey\s*=\s*getDefaultQualityKey\(\);\s*\r?\n\s*const\s+defaultQuality\s*=\s*QUALITY\[defaultQualityKey\]") {
+  throw "Context menu must compute one normalized default quality"
+}
+if ($contextMenuEntry.Value -notmatch "function\s+buildContextMenuActions\s*\(\s*reader\s*,\s*params\s*,\s*commands\s*=\s*\{\s*\}\s*\)") {
+  throw "Context menu actions must be built by a testable helper"
+}
+if ($contextMenuEntry.Value -notmatch "Try auto raster image previews:\s*\$\{defaultQuality\.label\}\s*\(\$\{defaultQuality\.estimate\}\)[\s\S]*qualityKey:\s*defaultQualityKey") {
+  throw "Context menu auto-raster action must show and use the default quality estimate"
+}
+if ($contextMenuEntry.Value -notmatch "Save current page preview index:\s*\$\{defaultQuality\.label\}\s*\(\$\{defaultQuality\.estimate\}\)[\s\S]*qualityKey:\s*defaultQualityKey") {
+  throw "Context menu page-preview action must show and use the default quality estimate"
+}
+if ($contextMenuEntry.Value -match "Save current page preview index \(Medium\)|qualityKey:\s*`"medium`"") {
+  throw "Context menu page-preview action must not hardcode Medium quality"
+}
 $autoRasterStateEntry = [regex]::Match($mainJS, "async\s+function\s+updateAutoRasterButtonState\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+applyAutoRasterButtonState")
 if (!$autoRasterStateEntry.Success) {
   throw "Auto-raster button state updater function block not found"
@@ -408,6 +427,12 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildToolbarActionTooltip") {
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*applyAutoRasterButtonState") {
   throw "Auto-raster button state helper must remain exported for regression tests"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildContextMenuActions") {
+  throw "Reader context menu action helper must remain exported for regression tests"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*onCreateViewContextMenu") {
+  throw "Reader context menu handler must remain exported for regression tests"
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveAutoDetectedPageImagePreviews") {
   throw "Auto-raster save entry must remain exported for regression tests"

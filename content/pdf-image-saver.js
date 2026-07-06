@@ -211,53 +211,69 @@ var PdfImageSaver = (() => {
     if (!isPDFReader(reader) || typeof append !== "function") {
       return;
     }
+    for (const action of buildContextMenuActions(reader, params)) {
+      append(action);
+    }
+  }
+
+  function buildContextMenuActions(reader, params, commands = {}) {
+    const handlers = normalizeOptionsObject(commands);
+    const startClip = typeof handlers.startClip === "function" ? handlers.startClip : startClipFromReader;
+    const saveAuto = typeof handlers.saveAuto === "function" ? handlers.saveAuto : saveAutoDetectedPageImagePreviews;
+    const savePage = typeof handlers.savePage === "function" ? handlers.savePage : savePagePreviewIndex;
+    const saveOriginal = typeof handlers.saveOriginal === "function" ? handlers.saveOriginal : confirmAndSaveOriginalImagesFromReader;
+    const diagnostics = typeof handlers.diagnostics === "function" ? handlers.diagnostics : showReaderDiagnostics;
+    const actions = [];
+    const defaultQualityKey = getDefaultQualityKey();
+    const defaultQuality = QUALITY[defaultQualityKey];
 
     for (const key of ["low", "medium", "high"]) {
       const quality = QUALITY[key];
-      append({
+      actions.push({
         label: `Clip figure preview: ${quality.label} (${quality.estimate})`,
         onCommand() {
-          void startClipFromReader(reader, key, getContextPageIndex(params));
+          void startClip(reader, key, getContextPageIndex(params));
         },
       });
     }
 
-    append({
-      label: `Try auto raster image previews (${QUALITY[getDefaultQualityKey()].label})`,
+    actions.push({
+      label: `Try auto raster image previews: ${defaultQuality.label} (${defaultQuality.estimate})`,
       onCommand() {
-        void saveAutoDetectedPageImagePreviews(reader, {
-          qualityKey: getDefaultQualityKey(),
+        void saveAuto(reader, {
+          qualityKey: defaultQualityKey,
           pageIndex: getContextPageIndex(params),
         });
       },
     });
 
-    append({
-      label: "Save current page preview index (Medium)",
+    actions.push({
+      label: `Save current page preview index: ${defaultQuality.label} (${defaultQuality.estimate})`,
       onCommand() {
-        void savePagePreviewIndex(reader, {
-          qualityKey: "medium",
+        void savePage(reader, {
+          qualityKey: defaultQualityKey,
           pageIndex: getContextPageIndex(params),
         });
       },
     });
 
-    append({
+    actions.push({
       label: "Optional: save original embedded images from this page",
       onCommand() {
-        void confirmAndSaveOriginalImagesFromReader(reader, {
+        void saveOriginal(reader, {
           scope: "page",
           pageIndex: getContextPageIndex(params),
         });
       },
     });
 
-    append({
+    actions.push({
       label: "PDF Image Saver diagnostics",
       onCommand() {
-        void showReaderDiagnostics(reader);
+        void diagnostics(reader);
       },
     });
+    return actions;
   }
 
   async function startClipFromActiveReader(win, qualityKey) {
@@ -2867,10 +2883,12 @@ var PdfImageSaver = (() => {
       getContextPageIndex,
       getPDFViewerContextCandidate,
       applyAutoRasterButtonState,
+      buildContextMenuActions,
       buildToolbarActionTooltip,
       getPreviewDuplicateKey,
       importOriginalImages,
       limitOriginalImagesForImport,
+      onCreateViewContextMenu,
       normalizeHelperSchemaText,
       normalizeHelperStatusText,
       normalizeHelperWarningMessages,

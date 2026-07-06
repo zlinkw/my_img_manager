@@ -79,6 +79,7 @@ const {
   buildOriginalImageTitle,
   buildOpenPDFURI,
   buildSourceRegion,
+  buildContextMenuActions,
   calculateCanvasCrop,
   cleanupSelectionOverlay,
   confirmAndSaveOriginalImagesFromReader,
@@ -95,6 +96,7 @@ const {
   getReaderJobKey,
   importOriginalImages,
   limitOriginalImagesForImport,
+  onCreateViewContextMenu,
   normalizeBBoxNormalized,
   normalizeHelperFilePath,
   normalizeImageContentType,
@@ -1194,6 +1196,49 @@ assert.strictEqual(
   "Auto-detect embedded raster previews on the current page. Selected: High, 180-750 KB/image.",
   "available auto-raster state must restore selected quality tooltip",
 );
+context.Zotero.Prefs.values["extensions.pdfImageSaver.defaultQuality"] = "high";
+const contextMenuItems = [];
+onCreateViewContextMenu({
+  reader: { type: "pdf" },
+  params: { pageIndex: 2 },
+  append(item) {
+    contextMenuItems.push(item);
+  },
+});
+assert.ok(
+  contextMenuItems.some((item) => item.label === "Try auto raster image previews: High (180-750 KB/image)"),
+  "context menu auto-raster label must show the default quality estimate",
+);
+assert.ok(
+  contextMenuItems.some((item) => item.label === "Save current page preview index: High (180-750 KB/image)"),
+  "context menu page-preview label must show the default quality estimate",
+);
+assert.ok(
+  !contextMenuItems.some((item) => item.label === "Save current page preview index (Medium)"),
+  "context menu page-preview label must not hardcode Medium",
+);
+const contextMenuCalls = [];
+const testReader = { type: "pdf", itemID: 123 };
+const commandActions = buildContextMenuActions(testReader, { pageIndex: 2 }, {
+  saveAuto(reader, options) {
+    contextMenuCalls.push({ action: "auto", reader, options });
+  },
+  savePage(reader, options) {
+    contextMenuCalls.push({ action: "page", reader, options });
+  },
+});
+commandActions.find((item) => item.label.startsWith("Try auto raster"))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Save current page preview"))?.onCommand();
+assert.strictEqual(contextMenuCalls.length, 2, "context menu commands must call auto and page handlers");
+assert.strictEqual(contextMenuCalls[0].action, "auto", "first default-quality command must be auto-raster");
+assert.strictEqual(contextMenuCalls[0].reader, testReader, "auto-raster command must receive the reader");
+assert.strictEqual(contextMenuCalls[0].options.qualityKey, "high", "auto-raster command must pass default quality");
+assert.strictEqual(contextMenuCalls[0].options.pageIndex, 2, "auto-raster command must pass context page index");
+assert.strictEqual(contextMenuCalls[1].action, "page", "second default-quality command must be page preview");
+assert.strictEqual(contextMenuCalls[1].reader, testReader, "page-preview command must receive the reader");
+assert.strictEqual(contextMenuCalls[1].options.qualityKey, "high", "page-preview command must pass default quality");
+assert.strictEqual(contextMenuCalls[1].options.pageIndex, 2, "page-preview command must pass context page index");
+context.Zotero.Prefs.values["extensions.pdfImageSaver.defaultQuality"] = "medium";
 
 async function runAsyncAssertions() {
   context.Services.prompt.confirms = [];
