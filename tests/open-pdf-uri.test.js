@@ -208,6 +208,7 @@ const metadataText = html.match(/<pre>([\s\S]*?)<\/pre>/)[1]
 const metadata = JSON.parse(metadataText);
 assert.strictEqual(metadata.schema_version, "zotero-pdf-image-saver/v1");
 assert.strictEqual(metadata.storage_mode, "reader_preview_index");
+assert.strictEqual(metadata.preview_quality, "medium");
 assert.strictEqual(metadata.plugin.id, "pdf-image-saver@zlk.local");
 assert.strictEqual(metadata.plugin.version, "0.1.0-test");
 assert.strictEqual(metadata.zotero_version, "9.0.5-test");
@@ -263,7 +264,7 @@ assert.strictEqual(staleRegionMetadata.entries[0].source_region.left, 0.2);
 const invalidQualityEntry = {
   ...htmlEntry,
   id: "entry-invalid-quality",
-  quality: "oversized",
+  quality: "constructor",
   qualityEstimate: "unsafe",
   dataURL: "data:image/jpeg;base64,BBBB",
   openPDFURI: "",
@@ -273,7 +274,7 @@ const invalidQualityHTML = buildIndexHTML({
   parentItem: htmlParent,
   entries: [invalidQualityEntry],
   scope: "clip",
-  qualityKey: "medium",
+  qualityKey: "constructor",
 });
 assert.ok(invalidQualityHTML.includes("Medium (60-220 KB/image)"), "invalid entry quality must fall back to Medium");
 assert.strictEqual(invalidQualityEntry.quality, "medium", "invalid entry quality must be normalized on the entry");
@@ -285,6 +286,7 @@ const invalidQualityMetadataText = invalidQualityHTML.match(/<pre>([\s\S]*?)<\/p
   .replace(/&gt;/g, ">")
   .replace(/&#39;/g, "'");
 const invalidQualityMetadata = JSON.parse(invalidQualityMetadataText);
+assert.strictEqual(invalidQualityMetadata.preview_quality, "medium", "invalid request quality must be normalized");
 assert.strictEqual(invalidQualityMetadata.entries[0].quality, "medium");
 assert.strictEqual(invalidQualityMetadata.entries[0].quality_estimate, "60-220 KB/image");
 

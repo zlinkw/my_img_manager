@@ -1042,6 +1042,7 @@ var PdfImageSaver = (() => {
   function buildIndexHTML({ attachment, parentItem, entries, scope, qualityKey }) {
     const createdAt = new Date().toISOString();
     const sourceTitle = parentItem?.getField("title") || attachment.getField("title") || "PDF";
+    const previewQualityKey = normalizeQualityKey(qualityKey);
     const entriesHTML = entries
       .map((entry, index) => {
         entry.quality = normalizeQualityKey(entry.quality);
@@ -1082,7 +1083,7 @@ var PdfImageSaver = (() => {
       plugin: { id: config.id, version: config.version },
       storage_mode: "reader_preview_index",
       scope,
-      preview_quality: qualityKey,
+      preview_quality: previewQualityKey,
       zotero_version: Zotero.version,
       parent_item: serializeItem(parentItem),
       pdf_attachment: serializeAttachment(attachment),
@@ -2092,7 +2093,7 @@ var PdfImageSaver = (() => {
   }
 
   function normalizeQualityKey(value) {
-    return QUALITY[value] ? value : "medium";
+    return Object.prototype.hasOwnProperty.call(QUALITY, value) ? value : "medium";
   }
 
   function normalizePreviewDataURL(value) {

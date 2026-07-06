@@ -258,11 +258,23 @@ if ($mainJS -notmatch '<img src="\$\{escapeHTML\(entry\.dataURL\)\}"') {
 if ($mainJS -notmatch "entry\.quality\s*=\s*normalizeQualityKey\(entry\.quality\)") {
   throw "HTML preview entries must normalize quality before output"
 }
+if ($mainJS -notmatch "Object\.prototype\.hasOwnProperty\.call\(QUALITY,\s*value\)") {
+  throw "Quality normalization must accept only own QUALITY keys"
+}
 if ($mainJS -notmatch "entry\.qualityEstimate\s*=\s*QUALITY\[entry\.quality\]\.estimate") {
   throw "HTML preview entries must normalize quality estimates"
 }
 if ($mainJS -notmatch "quality_estimate:\s*entry\.qualityEstimate") {
   throw "HTML preview metadata must include normalized quality_estimate"
+}
+if ($mainJS -notmatch "const\s+previewQualityKey\s*=\s*normalizeQualityKey\(qualityKey\)") {
+  throw "HTML preview request quality must be normalized before metadata output"
+}
+if ($mainJS -notmatch "preview_quality:\s*previewQualityKey") {
+  throw "HTML preview metadata must use normalized request quality"
+}
+if ($mainJS -match "preview_quality:\s*qualityKey") {
+  throw "HTML preview metadata must not write raw request quality"
 }
 if ($mainJS -notmatch "function\s+normalizeBBoxNormalized\s*\(\s*bboxNormalized\s*\)") {
   throw "HTML preview index must normalize bbox values"

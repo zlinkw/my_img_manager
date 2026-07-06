@@ -1031,6 +1031,35 @@ End batch validation checklist:
 - Code review: passed; only plan closure remained.
 - Git commit records B33: `7565942`.
 
+### B34 HTML Preview Quality Metadata Normalization
+
+Status: complete.
+
+Plan:
+
+- Normalize the request-level `qualityKey` used by `buildIndexHTML()`.
+- Keep top-level `metadata.preview_quality` consistent with normalized per-entry preview quality.
+- Add regression tests for malformed request quality keys.
+- Harden `normalizeQualityKey()` so only own `QUALITY` keys are accepted.
+- Preserve normal reader canvas preview quality output unchanged.
+
+Pre batch validation:
+
+- Git worktree clean at B34 start commit `65ecbc6`.
+- `buildIndexHTML()` writes top-level `preview_quality: qualityKey` without normalization; recorded as `FAIL-20260706-068`.
+- B34 review found `normalizeQualityKey()` accepts inherited object keys such as `constructor`; recorded as `FAIL-20260706-069` before code changes.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `028a3ea08679efccaa0f55ffae695110201f64028b7ea6509327361745dd0109`, bytes `26995`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 3, temp children 0.
+- Code review: passed after fixing inherited quality-key acceptance; final review only found unsynced documentation closure, now resolved.
+- Git commit records B34: pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -1549,7 +1578,7 @@ End batch validation checklist:
 - Environment: Zotero extension manager scanning plugin manifest
 - Zotero version target: 9.0.5
 - Severity: P1
-- Status: open
+- Status: closed
 - Symptom: after clearing extension scan cache and launching Zotero, `pdf-image-saver@zlk.local` still does not appear in `extensions.json`.
 - Expected: Zotero registers the extension proxy source directory.
 - Actual: Zotero scans extensions, rewrites last-app prefs, but the plugin remains absent from `extensions.json`.
@@ -2115,6 +2144,34 @@ End batch validation checklist:
 - Close condition: `npm.cmd run test` passes while still proving the stale label is absent.
 - Closure: the test now uses `OBSOLETE_REGION_LABEL`, and `npm.cmd run test` passes while still checking stale label removal.
 
+### FAIL-20260706-068
+
+- Batch: B34
+- Environment: synced HTML preview index metadata JSON with malformed request quality
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: closed
+- Symptom: `buildIndexHTML()` writes top-level `metadata.preview_quality` from raw `qualityKey`.
+- Expected: request-level preview quality is normalized with the same quality vocabulary as preview entries.
+- Actual: malformed `qualityKey` can leave top-level metadata inconsistent with normalized entry quality.
+- Validation update: normalize request-level quality before metadata output.
+- Close condition: regression tests prove invalid request quality becomes Medium and static checks assert normalized preview quality metadata.
+- Closure: `buildIndexHTML()` normalizes request-level quality before metadata output, and regression/static checks prove invalid request quality falls back to Medium.
+
+### FAIL-20260706-069
+
+- Batch: B34
+- Environment: preview quality normalization for request-level and entry-level quality keys
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `normalizeQualityKey()` uses `QUALITY[value]` truthiness.
+- Expected: only own `QUALITY` keys `low`, `medium`, and `high` are valid.
+- Actual: inherited object keys such as `constructor`, `toString`, or `__proto__` can pass normalization and leak invalid preview quality metadata or undefined quality estimates.
+- Validation update: harden `normalizeQualityKey()` with an own-key check.
+- Close condition: regression tests prove prototype-key quality input falls back to Medium, and static checks assert an own-key guard is used.
+- Closure: `normalizeQualityKey()` now accepts only own `QUALITY` keys, and regression/static checks prove `constructor` falls back to Medium for both request and entry quality.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2179,6 +2236,8 @@ End batch validation checklist:
 - Check synced HTML preview metadata includes normalized `quality_estimate`.
 - Check synced HTML preview index normalizes bbox values before visible and JSON output.
 - Check synced HTML preview source region is rebuilt from the normalized bbox.
+- Check synced HTML preview top-level `preview_quality` is normalized.
+- Check preview quality normalization rejects inherited object prototype keys for both request and entry quality.
 
 ## Real Commit Log
 
