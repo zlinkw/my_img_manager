@@ -70,6 +70,7 @@ foreach ($requiredMetadataField in @(
   "zotero_version",
   "source_region",
   "source_region_key",
+  "preview_duplicate_key",
   "annotation_key",
   "quality_estimate",
   "open_pdf_uri"
@@ -234,10 +235,13 @@ foreach ($requiredReadmeCommand in @(
 if ($readme -match '(?m)^\s*npm run\s+' -or $readme -match '`npm run\s+') {
   throw "README PowerShell command guidance must use npm.cmd run"
 }
-foreach ($requiredReadmeMetadata in @("source_region_key", "preview_index_key")) {
+foreach ($requiredReadmeMetadata in @("source_region_key", "preview_index_key", "preview_duplicate_key")) {
   if ($readme -notmatch [regex]::Escape($requiredReadmeMetadata)) {
     throw "README smoke checklist must mention compact metadata key: $requiredReadmeMetadata"
   }
+}
+if ($readme -notmatch "collapsed metadata") {
+  throw "README smoke checklist must mention collapsed metadata UI"
 }
 if ($readme -notmatch "Install Add-on From File") {
   throw "README must document Zotero manual add-on installation"
@@ -771,11 +775,26 @@ if ($mainJS -notmatch "source_region:\s*entry\.sourceRegion") {
 if ($mainJS -notmatch "source_region_key:\s*entry\.sourceRegionKey") {
   throw "metadata must include source_region_key"
 }
+if ($mainJS -notmatch "preview_duplicate_key:\s*entry\.previewDuplicateKey") {
+  throw "metadata must include preview_duplicate_key"
+}
 if ($mainJS -notmatch "preview_index_key:\s*previewIndexKey") {
   throw "metadata must include preview_index_key"
 }
 if ($mainJS -notmatch "preview_index_fingerprint:\s*getPreviewIndexFingerprint\(previewIndexKey\)") {
   throw "metadata must include preview_index_fingerprint"
+}
+if ($mainJS -notmatch "entry\.previewDuplicateKey\s*=\s*getPreviewDuplicateKey\(attachment,\s*entry\)") {
+  throw "HTML preview entries must persist normalized duplicate keys"
+}
+if ($mainJS -notmatch "<details>[\s\S]*<summary>Metadata JSON</summary>[\s\S]*<pre>\$\{escapeHTML\(JSON\.stringify\(metadata,\s*null,\s*2\)\)\}</pre>[\s\S]*</details>") {
+  throw "HTML preview metadata JSON must be collapsed in a details block"
+}
+if ($mainJS -match "<details\s+open") {
+  throw "HTML preview metadata details must not be open by default"
+}
+if ($mainJS -notmatch "Index\s+\$\{escapeHTML\(getPreviewIndexFingerprint\(previewIndexKey\)\s*\|\|\s*`"unknown`"\)") {
+  throw "HTML preview header must expose compact index fingerprint"
 }
 if ($mainJS -notmatch 'data-source-region-key="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
   throw "HTML preview links must carry source region keys"
@@ -1113,14 +1132,35 @@ if ($duplicateKeyEntry.Value -cmatch "\$\{attachment\.key\}") {
 if ($mainJS -notmatch 'function\s+getPreviewIndexKey\s*\(\s*attachment,\s*entries,\s*scope,\s*qualityKey\s*\)[\s\S]*hashTextToken\(entryKeys\.join\("\|"\)\)') {
   throw "Preview index key must use a stable compact hash of normalized entry keys"
 }
-if ($mainJS -notmatch "async\s+function\s+hasExistingPreviewIndexAttachment\s*\(\s*parentItem,\s*indexKey\s*\)") {
+if ($mainJS -notmatch "async\s+function\s+hasExistingPreviewIndexAttachment\s*\(\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\]\s*\)") {
   throw "Persisted duplicate guard must scan existing child index attachments"
 }
 if ($mainJS -notmatch "parentItem\.getAttachments\(\)") {
   throw "Persisted duplicate guard must inspect parent child attachments"
 }
-if ($mainJS -notmatch "readPreviewIndexKeyFromAttachment\(child\)") {
-  throw "Persisted duplicate guard must read preview_index_key from existing index attachments"
+if ($mainJS -notmatch "readPreviewIndexMetadataFromAttachment\(child\)") {
+  throw "Persisted duplicate guard must read preview index metadata from existing index attachments"
+}
+if ($mainJS -match "!childIndexKey\s*\|\|\s*childIndexKey\s*===\s*normalizedIndexKey") {
+  throw "Persisted duplicate guard must not treat unreadable child indexes as duplicates"
+}
+if ($mainJS -notmatch "function\s+isPreviewIndexAttachmentCandidate\s*\(\s*item\s*\)[\s\S]*attachmentContentType[\s\S]*text/html") {
+  throw "Persisted duplicate guard must scan renamed text/html child index attachments"
+}
+if ($mainJS -notmatch "function\s+getExistingPreviewIndexIdentities\s*\(\s*parentItem\s*\)") {
+  throw "Persisted duplicate guard must collect existing index and entry identities"
+}
+if ($mainJS -notmatch "getPreviewDuplicateKeysFromMetadata\(metadata\)") {
+  throw "Persisted duplicate guard must read per-entry duplicate keys from metadata"
+}
+if ($mainJS -notmatch "identities\.entryKeys\.has\(memoryKey\)") {
+  throw "Persisted duplicate guard must compare requested memory keys with existing entry keys"
+}
+if ($mainJS -notmatch "existingIndexIdentities\.entryKeys\.has\(duplicateKey\)") {
+  throw "Auto-page duplicate filtering must skip persisted per-entry duplicates before saving"
+}
+if ($mainJS -notmatch "function\s+extractPreviewIndexMetadataFromHTML\s*\(\s*html\s*\)[\s\S]*JSON\.parse\(unescapeHTMLEntities\(preMatch\[1\]\)\.trim\(\)\)") {
+  throw "Persisted duplicate guard must parse escaped metadata JSON from saved HTML"
 }
 if ($mainJS -notmatch "async\s+function\s+isDuplicatePreviewIndexSave\s*\(\s*\{\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\]\s*\}\s*\)") {
   throw "Duplicate guard must combine in-session and persisted index checks"

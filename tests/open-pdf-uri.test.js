@@ -603,7 +603,11 @@ assert.strictEqual(metadata.entries[0].open_pdf_uri, htmlEntry.openPDFURI);
 assert.strictEqual(metadata.entries[0].quality_estimate, "60-220 KB/image");
 assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normalized_page_rect");
 assert.strictEqual(metadata.entries[0].source_region_key, htmlEntry.sourceRegionKey);
+assert.strictEqual(metadata.entries[0].preview_duplicate_key, getPreviewDuplicateKey(htmlAttachment, htmlEntry));
 assert.strictEqual(metadata.entries[0].annotation_key, null);
+assert.ok(html.includes("<details>"), "full JSON metadata must be in a details block");
+assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
+assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
 
 const samePageLeft = {
   ...htmlEntry,
@@ -1486,8 +1490,27 @@ async function runAsyncAssertions() {
   const existingIndexChild = stubItem(
     { title: singleIndexTitle },
     {
+      attachmentContentType: "text/html",
       async getFilePathAsync() {
         return "C:\\Temp\\existing-index.html";
+      },
+    },
+  );
+  const unreadableIndexChild = stubItem(
+    { title: singleIndexTitle },
+    {
+      attachmentContentType: "text/html",
+      async getFilePathAsync() {
+        return "";
+      },
+    },
+  );
+  const renamedIndexChild = stubItem(
+    { title: "User renamed saved figure" },
+    {
+      attachmentContentType: "text/html",
+      async getFilePathAsync() {
+        return "C:\\Temp\\renamed-index.html";
       },
     },
   );
@@ -1499,14 +1522,37 @@ async function runAsyncAssertions() {
       },
     },
   );
+  const parentWithUnreadableIndex = stubItem(
+    { title: "Parent with unreadable index" },
+    {
+      getAttachments() {
+        return [502];
+      },
+    },
+  );
+  const parentWithRenamedIndex = stubItem(
+    { title: "Parent with renamed index" },
+    {
+      getAttachments() {
+        return [503];
+      },
+    },
+  );
   context.Zotero.Items = {
     get(id) {
-      return id === 501 ? existingIndexChild : null;
+      return {
+        501: existingIndexChild,
+        502: unreadableIndexChild,
+        503: renamedIndexChild,
+      }[id] || null;
     },
   };
   context.Zotero.File = {
     async getContentsAsync(filePath) {
-      assert.strictEqual(filePath, "C:\\Temp\\existing-index.html");
+      assert.ok(
+        ["C:\\Temp\\existing-index.html", "C:\\Temp\\renamed-index.html"].includes(filePath),
+        "duplicate scanner must only read known HTML candidates",
+      );
       return duplicateIndexHTML;
     },
   };
@@ -1519,6 +1565,34 @@ async function runAsyncAssertions() {
     await isDuplicatePreviewIndexSave({ parentItem: parentWithExistingIndex, indexKey: singleIndexKey }),
     true,
     "duplicate save guard must skip an existing child index attachment after reload",
+  );
+  assert.strictEqual(
+    await hasExistingPreviewIndexAttachment(parentWithUnreadableIndex, singleIndexKey),
+    false,
+    "unreadable child index candidate must not be treated as duplicate without metadata evidence",
+  );
+  assert.strictEqual(
+    await hasExistingPreviewIndexAttachment(parentWithRenamedIndex, singleIndexKey),
+    true,
+    "renamed text/html child index with matching metadata must still be detected",
+  );
+  assert.strictEqual(
+    await hasExistingPreviewIndexAttachment(
+      parentWithRenamedIndex,
+      multiIndexKey,
+      [getPreviewDuplicateKey(htmlAttachment, htmlEntry)],
+    ),
+    true,
+    "persisted entry duplicate keys must detect partial overlap when full index key differs",
+  );
+  assert.strictEqual(
+    await isDuplicatePreviewIndexSave({
+      parentItem: parentWithRenamedIndex,
+      indexKey: multiIndexKey,
+      memoryKeys: [getPreviewDuplicateKey(htmlAttachment, htmlEntry)],
+    }),
+    true,
+    "duplicate save guard entry point must use persisted per-entry duplicate keys",
   );
   assert.strictEqual(
     await hasExistingPreviewIndexAttachment(parentWithExistingIndex, multiIndexKey),
