@@ -1356,7 +1356,7 @@ End batch validation checklist:
 
 ### B45 Remaining Save Entry Guards
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1376,7 +1376,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `4d509d996d12f04d8bd5945d155dab8e60b60d81b32f48c1a3f95a89b0940b3b`, bytes `29769`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent found `FAIL-20260706-104`; fixed and revalidated. Local review found no remaining P0-P2 blockers.
+- Git commit records B45 implementation: `d4d3b1d`.
 
 ## Current Validation Results
 
@@ -2930,12 +2936,13 @@ End batch validation checklist:
 - Environment: clip-preview save entry error handling
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `saveClipPreviewIndex()` reads `options.pageIndex` before entering its `try/catch` and always deletes the computed active-job key.
 - Expected: missing option objects should be handled through the reader error feedback path, and duplicate-running calls must not delete another in-flight clip save.
 - Actual: malformed internal calls can reject before local error handling, and future duplicate-return paths can clear a job that the current call did not add.
 - Validation update: default options to `{}`, move setup into the guarded block, and only clear active jobs added by the current call.
 - Close condition: tests/static checks prove missing options do not reject and clip active-job cleanup is guarded.
+- Closure: `saveClipPreviewIndex()` now defaults missing options, computes job setup inside `try`, and clears active jobs only when the current call added the job; behavior and static checks cover the path.
 
 ### FAIL-20260706-102
 
@@ -2943,12 +2950,13 @@ End batch validation checklist:
 - Environment: optional original-image save entry error handling
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `confirmAndSaveOriginalImagesFromReader()` and `saveOriginalImagesFromReader()` read `options.scope/pageIndex` before robust defaulting and guarded handling.
 - Expected: optional original extraction should default malformed option objects to the current-page scope or report a normal reader error, without unhandled rejections.
 - Actual: missing options can throw before confirmation or before the save entry reaches its local catch block.
 - Validation update: default options to `{}`, normalize original extraction scope, move setup into guarded blocks, and add behavior/static coverage.
 - Close condition: tests/static checks prove missing options do not reject and original active-job cleanup is guarded.
+- Closure: original extraction confirmation and save entries now default missing options, normalize scope, handle missing reader through the guarded error path, and use guarded active-job cleanup.
 
 ### FAIL-20260706-103
 
@@ -2956,12 +2964,13 @@ End batch validation checklist:
 - Environment: reader active-job key generation
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `getReaderJobKey()` reads raw `options.scope` and `options.pageIndex`.
 - Expected: job keys should tolerate missing option objects and use compact normalized known scopes.
 - Actual: missing options can throw, and object or unknown scopes can produce noisy duplicate keys.
 - Validation update: default `options` to `{}`, normalize scope through `normalizeScope()`, and test malformed scope fallback.
 - Close condition: tests/static checks prove missing options and malformed scope values produce stable compact job keys.
+- Closure: `getReaderJobKey()` now defaults options, normalizes scopes through the known scope vocabulary, and regression tests cover missing options plus malformed scope fallback.
 
 ### FAIL-20260706-104
 
@@ -2969,12 +2978,13 @@ End batch validation checklist:
 - Environment: B45 original-image static scope guard
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: the normalized-scope static check scans the whole plugin and can match `normalizeOriginalScope()` in the confirmation helper plus `getReaderJobKey()` in the save helper.
 - Expected: static checks prove `saveOriginalImagesFromReader()` itself normalizes scope before job-key generation.
 - Actual: a future save-function regression can pass if another function still contains the normalization call.
 - Validation update: scope the normalized-scope check to the extracted original save function block.
 - Close condition: static checks fail if `saveOriginalImagesFromReader()` stops normalizing scope before calling `getReaderJobKey()`.
+- Closure: the original-image normalized-scope static assertion now runs against the extracted `saveOriginalImagesFromReader()` block instead of the full plugin text.
 
 ## Revised Validation Checklist
 
@@ -3174,3 +3184,5 @@ End batch validation checklist:
 - B43 XPI SHA256 `8eb72ca65d77bdcf9cbeb36d3d6f4760805673f605f816af36c01a41db66c718` was built in `outputs/` for manual Zotero add-on manager installation.
 - `534954c` B44 guard reader save entry options.
 - B44 XPI SHA256 `54a31be2fbad818d908d33ecd4953cf853cf7de4e0301df9cce8c497d1d5aa2b` was built in `outputs/` for manual Zotero add-on manager installation.
+- `d4d3b1d` B45 guard remaining save entry options.
+- B45 XPI SHA256 `4d509d996d12f04d8bd5945d155dab8e60b60d81b32f48c1a3f95a89b0940b3b` was built in `outputs/` for manual Zotero add-on manager installation.
