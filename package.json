@@ -9,6 +9,7 @@
     "build": "powershell -ExecutionPolicy Bypass -File scripts/build.ps1",
     "install:global": "powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1",
     "runtime:status": "powershell -ExecutionPolicy Bypass -File scripts/runtime-status.ps1",
-    "smoke:preflight": "powershell -ExecutionPolicy Bypass -File scripts/smoke-preflight.ps1"
+    "smoke:preflight": "powershell -ExecutionPolicy Bypass -File scripts/smoke-preflight.ps1",
+    "smoke:wait": "powershell -ExecutionPolicy Bypass -File scripts/smoke-wait.ps1"
   }
 }
