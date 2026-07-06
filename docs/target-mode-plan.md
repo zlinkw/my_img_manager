@@ -1185,7 +1185,7 @@ End batch validation checklist:
 
 ### B39 Optional Original Helper File Existence Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1204,7 +1204,12 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `c6fb88604d8535896616b0248591d0fb3dc65503e4d3afa980566f69308fb932`, bytes `29206`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 3, temp children 0.
+- Code review: passed after separating unreadable helper files from missing files and adding full import behavior coverage.
+- Git commit records B39 implementation: `e5401c2`.
 
 ## Current Validation Results
 
@@ -2534,12 +2539,13 @@ End batch validation checklist:
 - Environment: optional original helper file import after report normalization
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `importOriginalImages()` passes normalized helper file paths to Zotero import without checking that the files still exist.
 - Expected: missing helper output files are skipped and counted so remaining valid original images can still be imported.
 - Actual: a missing helper output file can throw inside `Zotero.Attachments.importFromFile` and abort the whole optional original import.
 - Validation update: add an async file-existence filter before import and regression/static checks for missing-file counts.
 - Close condition: tests prove missing helper files are omitted, valid files are preserved, and import iteration uses the existence-filtered image list.
+- Closure: `importOriginalImages()` now iterates existence-filtered `prepared.images`; behavior tests prove missing files are not imported and later valid files still import.
 
 ### FAIL-20260706-086
 
@@ -2547,12 +2553,13 @@ End batch validation checklist:
 - Environment: optional original helper file existence check errors
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: helper file existence check exceptions can be counted as missing files.
 - Expected: permission, invalid path, or I/O errors are exposed separately from ordinary missing helper files.
 - Actual: `IOUtils.exists()` exceptions can be logged and converted to `false`, making them look like missing files in user feedback.
 - Validation update: classify existence check errors separately and keep them visible in import results and toast text.
 - Close condition: tests prove an existence-check exception increments `errorCount`, does not increment `missingCount`, and keeps valid files importable.
+- Closure: `getHelperImageFileStatus()` now returns a separate error state, import results expose `errorCount`, toast reports unreadable files, and tests cover error/missing separation.
 
 ### FAIL-20260706-087
 
@@ -2560,12 +2567,13 @@ End batch validation checklist:
 - Environment: optional original image import behavior-level regression coverage
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: tests cover the existence filter but not full `importOriginalImages()` behavior.
 - Expected: regression coverage proves missing helper files are not passed to `Zotero.Attachments.importFromFile` and do not abort later valid imports.
 - Actual: full import behavior relies mainly on static regex checks.
 - Validation update: export and test `importOriginalImages()` with stubbed `Zotero.Attachments.importFromFile`.
 - Close condition: tests prove only existing helper files are imported and missing helper files do not abort the import loop.
+- Closure: `importOriginalImages()` is exported for regression tests, and behavior tests prove only existing helper files are sent to Zotero import.
 
 ## Revised Validation Checklist
 
@@ -2736,3 +2744,5 @@ End batch validation checklist:
 - B37 XPI SHA256 `598d34659209be680a6c2a372144bb53a891b49159a80995ad2f27d9d0a2ed02` was built in `outputs/` for manual Zotero add-on manager installation.
 - `a0b4754` B38 normalize original helper import.
 - B38 XPI SHA256 `d80ac0fb7af750e2543ff647edaa87dd2c324d856093516d6c8af92c2c2bc991` was built in `outputs/` for manual Zotero add-on manager installation.
+- `e5401c2` B39 guard original helper file imports.
+- B39 XPI SHA256 `c6fb88604d8535896616b0248591d0fb3dc65503e4d3afa980566f69308fb932` was built in `outputs/` for manual Zotero add-on manager installation.
