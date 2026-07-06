@@ -540,6 +540,33 @@ assert.throws(
   () => buildIndexHTML({
     attachment: htmlAttachment,
     parentItem: htmlParent,
+    entries: [{
+      ...htmlEntry,
+      id: "entry-bad-base64-length",
+      dataURL: "data:image/jpeg;base64,A",
+    }],
+    scope: "clip",
+    qualityKey: "medium",
+  }),
+  /Preview image data URL is invalid/,
+  "preview data URL base64 payload length must be canonical before byte counting",
+);
+const canonicalBase64HTML = buildIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  entries: [{
+    ...htmlEntry,
+    id: "entry-canonical-base64",
+    dataURL: "data:image/jpeg;base64,AA==",
+  }],
+  scope: "clip",
+  qualityKey: "medium",
+});
+assert.ok(canonicalBase64HTML.includes("1 B, 120 x 80px"), "canonical padded preview data URLs must still pass");
+assert.throws(
+  () => buildIndexHTML({
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
     entries: null,
     scope: "clip",
     qualityKey: "medium",

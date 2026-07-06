@@ -2467,7 +2467,8 @@ var PdfImageSaver = (() => {
 
   function normalizePreviewDataURL(value) {
     const text = String(value || "").trim();
-    if (/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(text)) {
+    const match = text.match(/^data:image\/(?:jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/i);
+    if (match?.[1]?.length % 4 === 0) {
       return text;
     }
     throw new Error("Preview image data URL is invalid.");

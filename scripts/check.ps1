@@ -489,6 +489,12 @@ if ($mainJS -notmatch "function\s+normalizeScope\s*\(") {
 if ($mainJS -notmatch "function\s+normalizePreviewDataURL\s*\(\s*value\s*\)") {
   throw "HTML preview index must validate preview data URLs"
 }
+if ($mainJS -notmatch "const\s+match\s*=\s*text\.match\(\s*/\^data:image") {
+  throw "HTML preview data URL validation must capture the base64 payload"
+}
+if ($mainJS -notmatch "match\?\.\[1\]\?\.length\s*%\s*4\s*===\s*0") {
+  throw "HTML preview data URL validation must reject non-canonical base64 lengths"
+}
 if ($mainJS -notmatch "entry\.dataURL\s*=\s*normalizePreviewDataURL\(entry\.dataURL\)") {
   throw "HTML preview index must normalize entry data URLs before output"
 }

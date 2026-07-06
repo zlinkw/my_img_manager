@@ -1297,6 +1297,27 @@ End batch validation checklist:
 - Code review: local read-only review passed with no P0-P2 blockers; subagent review unavailable twice due local proxy HTTP 503.
 - Git commit records B42 implementation: `a7abc73`.
 
+### B43 HTML Preview Data URL Base64 Canonical Validation
+
+Status: in progress.
+
+Plan:
+
+- Tighten synced HTML preview data URL validation to reject malformed base64 payload lengths.
+- Preserve normal canvas-generated `data:image/jpeg;base64,...` output unchanged.
+- Keep byte-count metadata derived only from validated canonical base64 payloads.
+- Add regression and static checks so malformed preview payloads cannot render as broken previews with incorrect byte counts.
+
+Pre batch validation:
+
+- Git worktree clean at B43 start commit `5cc1a9c`.
+- B43 planning pass found `normalizePreviewDataURL()` accepts base64 payloads whose length is not divisible by four, such as `data:image/jpeg;base64,A`, which can create broken preview images and `0 B` metadata instead of a clear validation error; recorded as `FAIL-20260706-097`.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -2787,6 +2808,19 @@ End batch validation checklist:
 - Close condition: tests/static checks prove non-array entry lists fail clearly and scalar/null entries are normalized before data URL validation.
 - Closure: `buildIndexHTML()` now uses `normalizePreviewEntries()` before field mutation; tests cover non-array, empty, null, and scalar entry containers; static checks block raw `entries.map()` output paths.
 
+### FAIL-20260706-097
+
+- Batch: B43
+- Environment: synced HTML preview data URL validation
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `normalizePreviewDataURL()` accepts base64 payloads with invalid canonical length.
+- Expected: preview data URLs must contain canonical image base64 payloads before HTML output and byte-count metadata generation.
+- Actual: malformed payloads such as `data:image/jpeg;base64,A` can pass validation, render as broken previews, and produce misleading `0 B` metadata.
+- Validation update: require base64 payload length to be divisible by four after the existing MIME/character validation and add regression/static checks.
+- Close condition: tests/static checks prove malformed base64 lengths are rejected before HTML output while normal canvas-style payloads still pass.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2881,6 +2915,7 @@ End batch validation checklist:
 - Check optional helper failure formatter handles missing or malformed helper reports without throwing.
 - Check B41 raw-status static guard is scoped to the helper failure formatter.
 - Check synced HTML preview entry lists and entry containers are normalized before field mutation.
+- Check synced HTML preview data URL base64 payloads use canonical lengths before byte-count metadata output.
 
 ## Real Commit Log
 
