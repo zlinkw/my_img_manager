@@ -1651,6 +1651,26 @@ End batch validation checklist:
 - Code review: subagent unavailable due local proxy quota; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
 - Git commit records B55 implementation: `85d058a`.
 
+### B56 Auto Raster Button State Recovery
+
+Status: in progress.
+
+Plan:
+
+- Make `updateAutoRasterButtonState()` restore Auto Raster enabled state and selected-quality tooltip when PDF.js image coordinate support is available.
+- Preserve unavailable-runtime feedback when PDF.js lacks `recordImages` support.
+- Add behavior/static checks proving the button does not remain disabled with an unavailable tooltip after support becomes available.
+
+Pre batch validation:
+
+- Git worktree clean at B56 start commit `ad69cb9`.
+- B56 local planning pass found `updateAutoRasterButtonState()` only disables the Auto Raster button when unsupported and never restores `disabled=false` or the selected-quality tooltip when support is available later; recorded as `FAIL-20260706-119`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3449,6 +3469,19 @@ End batch validation checklist:
 - Close condition: behavior/static checks prove toolbar tooltip text is generated from normalized quality metadata and hardcoded Medium tooltip text is gone.
 - Closure: toolbar select, Clip Figure, and Auto Raster tooltips now use normalized selected quality metadata; change events refresh tooltip text and behavior/static checks prevent returning to the hardcoded Medium tooltip.
 
+### FAIL-20260706-119
+
+- Batch: B56
+- Environment: reader toolbar Auto Raster button availability state
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `updateAutoRasterButtonState()` disables Auto Raster and writes an unavailable tooltip when PDF.js lacks image coordinate support, but does not restore enabled state or the quality tooltip when support is available later.
+- Expected: Auto Raster button state should reflect the current reader/page support and selected quality.
+- Actual: a previous unsupported state can leave the button disabled or with stale unavailable text even after support is available.
+- Validation update: centralize Auto Raster button state application and add behavior/static checks.
+- Close condition: tests/static checks prove unavailable state disables the button and available state re-enables it with the selected quality estimate.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3565,6 +3598,7 @@ End batch validation checklist:
 - Check shared error message formatting normalizes object, array, null, undefined, empty, and oversized values.
 - Check noisy error string static guard matches actual `[object Object]` source text without literal backslashes.
 - Check reader toolbar tooltips follow the selected preview quality estimate.
+- Check Auto Raster button state recovers from unavailable to available with the selected quality tooltip.
 
 ## Real Commit Log
 

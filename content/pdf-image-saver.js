@@ -187,7 +187,7 @@ var PdfImageSaver = (() => {
       })).finally(() => {
         autoButton.disabled = false;
         autoButton.textContent = "Auto Raster";
-        void updateAutoRasterButtonState(reader, autoButton);
+        void updateAutoRasterButtonState(reader, autoButton, normalizeQualityKey(select.value));
       });
     });
     const updateQualityTooltips = () => {
@@ -201,7 +201,7 @@ var PdfImageSaver = (() => {
       updateQualityTooltips();
     });
     updateQualityTooltips();
-    updateAutoRasterButtonState(reader, autoButton);
+    updateAutoRasterButtonState(reader, autoButton, normalizeQualityKey(select.value));
     group.append(select, button, autoButton);
     append(group);
   }
@@ -1048,19 +1048,31 @@ var PdfImageSaver = (() => {
       .slice(0, maxCount);
   }
 
-  async function updateAutoRasterButtonState(reader, button) {
+  async function updateAutoRasterButtonState(reader, button, qualityKey = "medium") {
     try {
       const pageIndex = await getCurrentPageIndex(reader);
       const context = await getPDFViewerContext(reader);
       const pageView = getPageView(context, pageIndex);
       const pdfPage = pageView?.pdfPage || await context?.app?.pdfDocument?.getPage?.(pageIndex + 1);
-      if (pdfPage && !supportsPDFJSImageCoordinates(pdfPage)) {
-        button.disabled = true;
-        button.title = "Auto raster detection is unavailable in this Zotero PDF.js runtime. Use Clip Figure.";
+      if (pdfPage) {
+        applyAutoRasterButtonState(button, supportsPDFJSImageCoordinates(pdfPage), qualityKey);
       }
     } catch (error) {
       logError(error);
     }
+  }
+
+  function applyAutoRasterButtonState(button, isAvailable, qualityKey = "medium") {
+    if (!button) {
+      return;
+    }
+    if (isAvailable) {
+      button.disabled = false;
+      button.title = buildToolbarActionTooltip("Auto-detect embedded raster previews on the current page", qualityKey);
+      return;
+    }
+    button.disabled = true;
+    button.title = "Auto raster detection is unavailable in this Zotero PDF.js runtime. Use Clip Figure.";
   }
 
   function supportsPDFJSImageCoordinates(pdfPage) {
@@ -2854,6 +2866,7 @@ var PdfImageSaver = (() => {
       getActiveReader,
       getContextPageIndex,
       getPDFViewerContextCandidate,
+      applyAutoRasterButtonState,
       buildToolbarActionTooltip,
       getPreviewDuplicateKey,
       importOriginalImages,

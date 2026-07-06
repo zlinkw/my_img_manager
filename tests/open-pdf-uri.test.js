@@ -87,6 +87,7 @@ const {
   formatHelperFailure,
   getErrorMessage,
   getActiveReader,
+  applyAutoRasterButtonState,
   buildToolbarActionTooltip,
   getContextPageIndex,
   getPDFViewerContextCandidate,
@@ -1178,6 +1179,20 @@ assert.strictEqual(
   buildToolbarActionTooltip("Clip a figure preview", "constructor"),
   "Clip a figure preview. Selected: Medium, 60-220 KB/image.",
   "toolbar tooltip must normalize malformed quality to medium",
+);
+const autoRasterStateButton = { disabled: false, title: "" };
+applyAutoRasterButtonState(autoRasterStateButton, false, "high");
+assert.strictEqual(autoRasterStateButton.disabled, true, "unavailable auto-raster state must disable the button");
+assert.ok(
+  autoRasterStateButton.title.includes("unavailable"),
+  "unavailable auto-raster state must explain fallback to Clip Figure",
+);
+applyAutoRasterButtonState(autoRasterStateButton, true, "high");
+assert.strictEqual(autoRasterStateButton.disabled, false, "available auto-raster state must re-enable the button");
+assert.strictEqual(
+  autoRasterStateButton.title,
+  "Auto-detect embedded raster previews on the current page. Selected: High, 180-750 KB/image.",
+  "available auto-raster state must restore selected quality tooltip",
 );
 
 async function runAsyncAssertions() {

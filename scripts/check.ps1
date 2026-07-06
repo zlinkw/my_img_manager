@@ -196,6 +196,26 @@ if ($mainJS -notmatch "function\s+getQualityLabelWithEstimate\s*\(\s*qualityKey\
 if ($mainJS -match "Default:\s*Medium,\s*60-220 KB/image") {
   throw "Reader toolbar tooltip must not hardcode Medium quality"
 }
+$autoRasterStateEntry = [regex]::Match($mainJS, "async\s+function\s+updateAutoRasterButtonState\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+applyAutoRasterButtonState")
+if (!$autoRasterStateEntry.Success) {
+  throw "Auto-raster button state updater function block not found"
+}
+if ($autoRasterStateEntry.Value -notmatch "qualityKey\s*=\s*`"medium`"") {
+  throw "Auto-raster state updater must accept a quality key fallback"
+}
+if ($autoRasterStateEntry.Value -notmatch "applyAutoRasterButtonState\(button,\s*supportsPDFJSImageCoordinates\(pdfPage\),\s*qualityKey\)") {
+  throw "Auto-raster state updater must apply both available and unavailable states"
+}
+$autoRasterApplyEntry = [regex]::Match($mainJS, "function\s+applyAutoRasterButtonState\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+supportsPDFJSImageCoordinates")
+if (!$autoRasterApplyEntry.Success) {
+  throw "Auto-raster button state apply helper function block not found"
+}
+if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*button\.disabled\s*=\s*false[\s\S]*buildToolbarActionTooltip\(`"Auto-detect embedded raster previews on the current page`",\s*qualityKey\)") {
+  throw "Auto-raster available state must re-enable button and restore quality tooltip"
+}
+if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto raster detection is unavailable") {
+  throw "Auto-raster unavailable state must disable button with fallback tooltip"
+}
 if ($mainJS -notmatch "(?m)^\s*const\s+HARD_MAX_AUTO_PREVIEW_BYTES_MB\s*=\s*8\s*;") {
   throw "Auto preview hard cap changed unexpectedly"
 }
@@ -385,6 +405,9 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getErrorMessage") {
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildToolbarActionTooltip") {
   throw "Toolbar tooltip helper must remain exported for regression tests"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*applyAutoRasterButtonState") {
+  throw "Auto-raster button state helper must remain exported for regression tests"
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveAutoDetectedPageImagePreviews") {
   throw "Auto-raster save entry must remain exported for regression tests"
