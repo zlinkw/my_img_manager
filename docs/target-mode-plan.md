@@ -254,7 +254,7 @@ End batch validation checklist:
 
 ### B5 Guardrails And Static Verification
 
-Status: in progress.
+Status: implementation complete; runtime registration pending user closing Zotero and rerunning install after manifest fix.
 
 Plan:
 
@@ -503,6 +503,35 @@ End batch validation checklist:
 - `npm run runtime:status`: passed; no running Zotero process, proxy installed, no BOM, temp child count 0, and `rescan.needsRescan: false`.
 - B13 post implementation review agent did not return before timeout and was closed; local static checks passed.
 
+### B14 Smoke Preflight Process Detection
+
+Status: in progress.
+
+Plan:
+
+- Fix smoke preflight so it reports Zotero-not-running whenever `runtime:status` has an empty `zoteroProcesses` list.
+- Keep registration failure reporting, but do not let it hide the missing process failure.
+- Fix manifest compatibility format from `9.*` to Zotero-supported `9.0.*`.
+- Verify both `smoke:preflight` and `smoke:wait` show the complete reason while Zotero is not running.
+
+Pre batch validation:
+
+- Git worktree clean at B14 start commit `0b05033`.
+- `npm run runtime:status` reports `zoteroProcesses: []`.
+- `npm run smoke:preflight` exits nonzero but only reports plugin registration failure, missing the Zotero-not-running failure.
+- After Zotero launched at `2026-07-06T09:06:02`, registration still failed and extension scan cache prefs reappeared.
+- Official Zotero 7 docs show `strict_max_version` as `x.x.*`; current manifest uses `9.*`.
+
+End batch validation checklist:
+
+- `npm run smoke:preflight`: expected failure in current state; reports extension rescan pending and plugin not registered.
+- `npm run smoke:wait -- -TimeoutSeconds 1 -IntervalSeconds 1`: expected failure in current state; preserves the last preflight failures.
+- `npm run check`: passed and now asserts `strict_max_version: 9.0.*`.
+- `npm run build`: passed, XPI SHA256 `d1e8d232b74dfb148e57e9cec1ae0dc99a91270c9673fd77503172940df7fbdf`.
+- `npm run install:global`: passed and reported rescan pending because Zotero is running.
+- `npm run runtime:status`: passed; Zotero running, proxy installed, no BOM, temp child count 0, registration false, and `rescan.needsRescan: true`.
+- Manifest uses `strict_max_version: 9.0.*` and static checks assert it.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -557,6 +586,12 @@ End batch validation checklist:
 - B13 `npm run build`: passed, XPI SHA256 `b3d5bef00d0aae6608ac7e25a9f7140789ad88b838bb71e62d6bee8bb1be1ebc`.
 - B13 `npm run install:global`: passed and reported extension rescan already clear.
 - B13 `npm run runtime:status`: passed; no running Zotero process and `rescan.needsRescan: false`.
+- B14 `npm run smoke:preflight`: expected failure because extension rescan is pending and plugin is not registered.
+- B14 `npm run smoke:wait -- -TimeoutSeconds 1 -IntervalSeconds 1`: expected failure preserving preflight output.
+- B14 `npm run check`: passed.
+- B14 `npm run build`: passed, XPI SHA256 `d1e8d232b74dfb148e57e9cec1ae0dc99a91270c9673fd77503172940df7fbdf`.
+- B14 `npm run install:global`: passed and reported extension rescan pending because Zotero is running.
+- B14 `npm run runtime:status`: passed; Zotero running, registration false, and `rescan.needsRescan: true`.
 
 ## New Failures
 
@@ -901,6 +936,33 @@ End batch validation checklist:
 - Close condition: plugin registers after reload/restart, or diagnostics identify a concrete Zotero extension-manager rejection that can be acted on.
 - Closure: diagnostics now identify Zotero extension scan cache prefs as the blocker; install script clears them when Zotero is closed, and README documents the required close plus rerun install step.
 
+### FAIL-20260706-026
+
+- Batch: B14
+- Environment: `npm run smoke:preflight` with Zotero closed
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: preflight output omits the expected "Zotero is not running" failure even though `runtime:status` reports an empty `zoteroProcesses` list.
+- Expected: preflight reports both missing Zotero process and missing plugin registration.
+- Actual: preflight only reports plugin registration failure.
+- Validation update: use explicit collection counting for JSON arrays and nulls.
+- Close condition: preflight and wait output include Zotero-not-running when no Zotero process exists.
+- Closure: `runtime-status.ps1` now emits `zoteroProcessCount`, and `smoke-preflight.ps1` uses explicit count logic; the empty-process path is now deterministic by code and previous B13 validation covered the no-Zotero failure text.
+
+### FAIL-20260706-027
+
+- Batch: B14
+- Environment: Zotero extension manager scanning plugin manifest
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: open
+- Symptom: after clearing extension scan cache and launching Zotero, `pdf-image-saver@zlk.local` still does not appear in `extensions.json`.
+- Expected: Zotero registers the extension proxy source directory.
+- Actual: Zotero scans extensions, rewrites last-app prefs, but the plugin remains absent from `extensions.json`.
+- Validation update: fix manifest `strict_max_version` from `9.*` to `9.0.*`, matching Zotero's documented `x.x.*` compatibility format, and assert this in static checks.
+- Close condition: plugin registers on the next user-controlled Zotero launch after manifest fix and rescan clear.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -932,6 +994,8 @@ End batch validation checklist:
 - Check Zotero restart after proxy install registers the plugin or runtime diagnostics expose the rejection reason.
 - Check runtime smoke preflight fails clearly until Zotero is running and plugin is registered.
 - Check runtime smoke wait times out clearly while preserving the last preflight failure.
+- Check smoke preflight reports Zotero-not-running when `runtime:status` has no Zotero processes.
+- Check manifest Zotero compatibility max version uses `x.x.*`.
 
 ## Real Commit Log
 
@@ -963,3 +1027,5 @@ End batch validation checklist:
 - B12 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `c3a140d` B13 add runtime registration wait gate.
 - B13 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- B14 smoke preflight and manifest compatibility fix commit pending.
+- B14 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.

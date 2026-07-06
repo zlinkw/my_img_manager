@@ -111,12 +111,15 @@ if (Test-Path -LiteralPath $tempRoot) {
   }
 }
 
+$zoteroProcesses = @(Get-Process -Name Zotero -ErrorAction SilentlyContinue | ForEach-Object {
+  [ordered]@{ id = $_.Id; startTime = $_.StartTime.ToString("s"); path = $_.Path }
+})
+
 $status = [ordered]@{
   addonID = $addonID
   workspace = $root
-  zoteroProcesses = @(Get-Process -Name Zotero -ErrorAction SilentlyContinue | ForEach-Object {
-    [ordered]@{ id = $_.Id; startTime = $_.StartTime.ToString("s"); path = $_.Path }
-  })
+  zoteroProcessCount = $zoteroProcesses.Count
+  zoteroProcesses = $zoteroProcesses
   xpi = [ordered]@{
     path = $xpiPath
     exists = [bool](Test-Path -LiteralPath $xpiPath)

@@ -26,6 +26,9 @@ $manifest = Get-Content -Encoding UTF8 -Raw -LiteralPath .\manifest.json | Conve
 if ($manifest.applications.zotero.id -ne "pdf-image-saver@zlk.local") {
   throw "Unexpected plugin id"
 }
+if ($manifest.applications.zotero.strict_max_version -ne "9.0.*") {
+  throw "Zotero strict_max_version must be 9.0.*"
+}
 
 $package = Get-Content -Encoding UTF8 -Raw -LiteralPath .\package.json | ConvertFrom-Json
 if (!$package.scripts.'runtime:status') {

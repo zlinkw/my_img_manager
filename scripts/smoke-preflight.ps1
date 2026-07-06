@@ -12,8 +12,17 @@ function Invoke-Status {
 
 $status = Invoke-Status
 $failures = New-Object System.Collections.Generic.List[string]
+$zoteroProcessCount = if ($null -ne $status.zoteroProcessCount) {
+  [int]$status.zoteroProcessCount
+}
+elseif ($null -eq $status.zoteroProcesses) {
+  0
+}
+else {
+  @($status.zoteroProcesses).Count
+}
 
-if (!$status.zoteroProcesses -or $status.zoteroProcesses.Count -eq 0) {
+if ($zoteroProcessCount -eq 0) {
   $failures.Add("Zotero is not running. Start Zotero before reader smoke.")
 }
 
