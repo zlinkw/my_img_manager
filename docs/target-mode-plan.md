@@ -563,6 +563,35 @@ End batch validation checklist:
 - `npm run runtime:status`: passed after install; temp child count 0, manifest diagnostics valid, registration still false until user-controlled close and launch.
 - B15 review agent reported docs/manifest target inconsistencies and optional-helper independence risk; those were folded into this batch.
 
+### B16 Review Fixes For Runtime Diagnostics
+
+Status: complete; runtime registration pending user-controlled Zotero close, reinstall, and launch.
+
+Plan:
+
+- Keep optional helper out of required runtime payload checks; missing helper may be reported as optional info but must not fail preflight.
+- Rename startup cache add-on-id scan to a weak raw-bytes hint and remove preflight failure behavior based on that hint.
+- Let smoke preflight accept either a valid development proxy source or a valid profile XPI source, preparing for future XPI fallback installs.
+- Complete real commit log entries for B14/B15 before the next commit.
+
+Pre batch validation:
+
+- Git worktree has uncommitted target plan commit-log additions after B15 main commit `1ef08d1`.
+- B15 review agent reported four P2 issues: optional helper treated as required payload, compressed startup cache treated as semantic text, preflight hard requiring development proxy while ignoring XPI install, and missing real commit log entries.
+- `npm run check` passed before B16 changes.
+
+End batch validation checklist:
+
+- `npm run runtime:status`: passed and separates required `missingPayload` from optional `optionalMissingPayload`.
+- `npm run smoke:preflight`: expected failure because Zotero is running with rescan pending and registration false; output no longer reports optional helper or startup cache as failures.
+- `npm run smoke:preflight` source validation now uses proxy-or-XPI validity logic.
+- Startup cache add-on-id value is named `rawBytesContainAddonID`, includes a weak-hint note, and is not used as a hard preflight failure.
+- `npm run check`: passed.
+- `npm run build`: passed, XPI SHA256 `bcdd8fcf42017e06eff5b3523225200f1ac90237a93d3ce08b9cf8a948d80a8f`.
+- `npm run install:global`: passed and reported rescan pending because Zotero is running.
+- `npm run runtime:status`: passed after install; temp child count 0.
+- B16 post implementation review agent did not return before timeout and was closed; local static checks passed.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -629,6 +658,12 @@ End batch validation checklist:
 - B15 `npm run build`: passed, XPI SHA256 `bcdd8fcf42017e06eff5b3523225200f1ac90237a93d3ce08b9cf8a948d80a8f`.
 - B15 `npm run install:global`: passed and reported rescan pending because Zotero is running.
 - B15 `npm run runtime:status` after install: passed; Zotero running, registration false, `rescan.needsRescan: true`, temp child count 0.
+- B16 `npm run check`: passed.
+- B16 `npm run runtime:status`: passed and reports required/optional payload split plus raw startup-cache hint.
+- B16 `npm run smoke:preflight`: expected failure because extension rescan is pending and plugin is not registered; output does not include optional helper or startup-cache hard failures.
+- B16 `npm run build`: passed, XPI SHA256 `bcdd8fcf42017e06eff5b3523225200f1ac90237a93d3ce08b9cf8a948d80a8f`.
+- B16 `npm run install:global`: passed and reported rescan pending because Zotero is running.
+- B16 `npm run runtime:status` after install: passed; Zotero running, registration false, `rescan.needsRescan: true`, temp child count 0.
 
 ## New Failures
 
@@ -993,7 +1028,7 @@ End batch validation checklist:
 - Environment: Zotero extension manager scanning plugin manifest
 - Zotero version target: 9.0.5
 - Severity: P1
-- Status: open
+- Status: closed
 - Symptom: after clearing extension scan cache and launching Zotero, `pdf-image-saver@zlk.local` still does not appear in `extensions.json`.
 - Expected: Zotero registers the extension proxy source directory.
 - Actual: Zotero scans extensions, rewrites last-app prefs, but the plugin remains absent from `extensions.json`.
@@ -1027,6 +1062,62 @@ End batch validation checklist:
 - Validation update: extend runtime diagnostics and smoke preflight failure output before the next user-controlled Zotero restart.
 - Close condition: `runtime:status` and `smoke:preflight` expose actionable manifest/source/cache hints without mutating the live profile.
 - Closure: `runtime:status` now reports source manifest details, payload completeness, profile XPI-source state, WebExtension UUID presence, and startup cache add-on-id hint; preflight includes UUID versus missing registration hints.
+
+### FAIL-20260706-030
+
+- Batch: B16
+- Environment: B15 runtime diagnostics source payload check
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: optional `content\helper\pdf_image_extract.py` is included in the source missing-payload list that preflight treats as a registration-blocking failure.
+- Expected: default preview-index runtime does not require Python helper files; helper presence may be reported as optional diagnostics only.
+- Actual: missing helper would populate `missingPayload` and trigger `Proxy target payload missing`.
+- Validation update: split required and optional source payload checks.
+- Close condition: `smoke:preflight` does not fail solely due to missing optional helper.
+- Closure: runtime status now reports `optionalMissingPayload` separately, and preflight only hard-fails required `missingPayload`.
+
+### FAIL-20260706-031
+
+- Batch: B16
+- Environment: B15 startup cache diagnostics
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `addonStartup.json.lz4` is compressed, but diagnostics name a direct UTF-8 raw byte search result as `containsAddonID`.
+- Expected: diagnostics avoid implying reliable parsed semantics unless the cache is actually decompressed and parsed.
+- Actual: raw byte decoding can produce false negatives and preflight can report a hard failure.
+- Validation update: rename this field to a raw-bytes weak hint and do not fail preflight based on it.
+- Close condition: startup cache hint is clearly weak and not a preflight failure condition.
+- Closure: field renamed to `rawBytesContainAddonID`, runtime status includes a weak-hint note, and preflight no longer fails on startup cache raw-byte hints.
+
+### FAIL-20260706-032
+
+- Batch: B16
+- Environment: future profile XPI fallback or formal XPI installation
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: smoke preflight hard requires the development proxy and ignores `source.xpiInstall`.
+- Expected: a valid development proxy or a valid profile XPI install source should satisfy source diagnostics.
+- Actual: missing proxy would fail even if an XPI install source is valid.
+- Validation update: validate install source with proxy-or-XPI logic.
+- Close condition: preflight accepts either valid source and only reports source failure when both are invalid.
+- Closure: preflight now computes `devProxyValid` and `xpiInstallValid` and only reports invalid source when both are false.
+
+### FAIL-20260706-033
+
+- Batch: B16
+- Environment: target plan real commit log
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: real commit log omitted B14 documentation commits while later sections referenced `98bc1ba`.
+- Expected: real commit log is complete enough to audit batch state transitions.
+- Actual: `5b6efd0` and `98bc1ba` were missing from the real commit log at B15 review time.
+- Validation update: add missing commits and keep B15/B16 commits recorded.
+- Close condition: real commit log contains B14 validation and review-timeout docs commits plus B15 commit.
+- Closure: real commit log now includes `5b6efd0`, `98bc1ba`, and `1ef08d1`.
 
 ## Revised Validation Checklist
 
@@ -1063,6 +1154,10 @@ End batch validation checklist:
 - Check manifest Zotero compatibility max version uses `x.x.*`.
 - Check manifest and plan wording make reader preview index the independent default and original extraction optional.
 - Check runtime diagnostics include installed source state, manifest readability, expected payload files, WebExtension UUID prefs, and startup cache add-on-id hints.
+- Check optional helper diagnostics do not make the default runtime source invalid.
+- Check startup cache add-on-id scan is labeled as raw-byte weak hint unless decompressed parsing is implemented.
+- Check smoke preflight accepts valid development proxy or valid profile XPI source.
+- Check real commit log includes documentation-only batch commits.
 
 ## Real Commit Log
 
@@ -1095,4 +1190,8 @@ End batch validation checklist:
 - `c3a140d` B13 add runtime registration wait gate.
 - B13 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `5d54001` B14 fix manifest compatibility and preflight count.
+- `5b6efd0` docs record B14 validation.
+- `98bc1ba` docs record B14 review timeout.
 - B14 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `1ef08d1` B15 add runtime registration diagnostics.
+- B15 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.

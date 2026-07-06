@@ -91,21 +91,29 @@ function Get-WebExtensionUUIDInfo {
 
 function Get-DirectoryManifestInfo {
   param([string]$SourcePath)
-  $expectedPayload = @(
+  $requiredPayload = @(
     "manifest.json",
     "bootstrap.js",
     "prefs.js",
     "preferences.xhtml",
     "content\pdf-image-saver.js",
     "content\preferences.js",
-    "content\helper\pdf_image_extract.py",
     "content\icons\pdf-image-saver.svg",
     "defaults\preferences\prefs.js"
   )
+  $optionalPayload = @(
+    "content\helper\pdf_image_extract.py"
+  )
   $missingPayload = @()
-  foreach ($relativePath in $expectedPayload) {
+  foreach ($relativePath in $requiredPayload) {
     if (!(Test-Path -LiteralPath (Join-Path $SourcePath $relativePath))) {
       $missingPayload += $relativePath
+    }
+  }
+  $optionalMissingPayload = @()
+  foreach ($relativePath in $optionalPayload) {
+    if (!(Test-Path -LiteralPath (Join-Path $SourcePath $relativePath))) {
+      $optionalMissingPayload += $relativePath
     }
   }
 
@@ -149,6 +157,7 @@ function Get-DirectoryManifestInfo {
     strictMaxVersionExpected = $strictMaxVersion -eq "9.0.*"
     description = $description
     missingPayload = $missingPayload
+    optionalMissingPayload = $optionalMissingPayload
   }
 }
 
@@ -231,6 +240,7 @@ function Get-ExtensionSourceInfo {
       strictMaxVersionExpected = $false
       description = ""
       missingPayload = @()
+      optionalMissingPayload = @()
     }
   }
   return [ordered]@{
@@ -305,7 +315,8 @@ if (Test-Path -LiteralPath $profileRoot) {
       webExtensionUUID = Get-WebExtensionUUIDInfo -ProfilePath $profile.FullName
       startupCache = [ordered]@{
         addonStartup = Get-FileStatus -Path $addonStartupPath
-        containsAddonID = Test-BinaryFileContainsText -Path $addonStartupPath -Needle $addonID
+        rawBytesContainAddonID = Test-BinaryFileContainsText -Path $addonStartupPath -Needle $addonID
+        note = "Weak hint only; addonStartup.json.lz4 is compressed and is not parsed here."
       }
     }
   }

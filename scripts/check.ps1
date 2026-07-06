@@ -67,6 +67,25 @@ if (!(Test-Path -LiteralPath .\scripts\check-xpi.ps1)) {
   throw "check-xpi.ps1 missing"
 }
 
+$runtimeStatusScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\runtime-status.ps1
+if ($runtimeStatusScript -notmatch "optionalMissingPayload") {
+  throw "runtime status must report optional missing payload separately"
+}
+if ($runtimeStatusScript -notmatch "rawBytesContainAddonID") {
+  throw "startup cache add-on id scan must be labeled as a raw-byte hint"
+}
+if ($runtimeStatusScript -match "(?m)^\s*containsAddonID\s*=") {
+  throw "startup cache add-on id scan must not imply parsed cache semantics"
+}
+
+$preflightScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\smoke-preflight.ps1
+if ($preflightScript -notmatch "xpiInstallValid") {
+  throw "smoke preflight must accept a valid XPI install source"
+}
+if ($preflightScript -match "startupCache.*\.containsAddonID") {
+  throw "smoke preflight must not hard-fail on raw startup cache add-on id hints"
+}
+
 if (!(Test-Path -LiteralPath .\prefs.js)) {
   throw "Root prefs.js missing"
 }

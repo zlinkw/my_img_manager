@@ -27,14 +27,48 @@ if ($zoteroProcessCount -eq 0) {
 }
 
 foreach ($profile in $status.profiles) {
-  if (!$profile.proxy.exists) {
-    $failures.Add("Extension proxy missing in profile $($profile.name). Run npm run install:global.")
+  $devProxy = if ($profile.source) { $profile.source.developmentProxy } else { $null }
+  $xpiInstall = if ($profile.source) { $profile.source.xpiInstall } else { $null }
+  $devMissingPayload = if ($devProxy -and $devProxy.manifest -and $null -ne $devProxy.manifest.missingPayload) {
+    @($devProxy.manifest.missingPayload)
   }
-  elseif ($profile.proxy.hasBOM) {
-    $failures.Add("Extension proxy has BOM in profile $($profile.name). Run npm run install:global.")
+  else {
+    @()
   }
-  elseif ($profile.proxy.target -ne $status.workspace) {
-    $failures.Add("Extension proxy target mismatch in profile $($profile.name): $($profile.proxy.target)")
+  $devProxyValid = [bool](
+    $devProxy -and
+    $devProxy.exists -and
+    $devProxy.targetExists -and
+    $devProxy.targetIsDirectory -and
+    !$devProxy.hasBOM -and
+    $profile.proxy.target -eq $status.workspace -and
+    $devProxy.manifest -and
+    $devProxy.manifest.manifestReadable -and
+    $devProxy.manifest.idMatches -and
+    $devProxy.manifest.strictMaxVersionExpected -and
+    ($devMissingPayload.Count -eq 0)
+  )
+  $xpiInstallValid = [bool](
+    $xpiInstall -and
+    $xpiInstall.exists -and
+    $xpiInstall.manifestReadable -and
+    $xpiInstall.idMatches -and
+    $xpiInstall.strictMaxVersionExpected
+  )
+
+  if (!$devProxyValid -and !$xpiInstallValid) {
+    $failures.Add("No valid extension source in profile $($profile.name). Run npm run install:global or install the XPI.")
+    if (!$profile.proxy.exists -and !($xpiInstall -and $xpiInstall.exists)) {
+      $failures.Add("Extension proxy and XPI source are both missing in profile $($profile.name).")
+    }
+    elseif ($profile.proxy.exists) {
+      if ($profile.proxy.hasBOM) {
+        $failures.Add("Extension proxy has BOM in profile $($profile.name). Run npm run install:global.")
+      }
+      elseif ($profile.proxy.target -ne $status.workspace) {
+        $failures.Add("Extension proxy target mismatch in profile $($profile.name): $($profile.proxy.target)")
+      }
+    }
   }
 
   if ($profile.rescan.needsRescan) {
@@ -43,8 +77,7 @@ foreach ($profile in $status.profiles) {
 
   if (!$profile.registration.registered) {
     $failures.Add("Plugin is not registered in profile $($profile.name): $($profile.registration.reason)")
-    if ($profile.source -and $profile.source.developmentProxy) {
-      $devProxy = $profile.source.developmentProxy
+    if ($devProxy) {
       if (!$devProxy.exists) {
         $failures.Add("Development proxy source is missing in profile $($profile.name).")
       }
@@ -64,7 +97,7 @@ foreach ($profile in $status.profiles) {
         elseif (!$devProxy.manifest.strictMaxVersionExpected) {
           $failures.Add("Proxy target manifest strict_max_version is unexpected in profile $($profile.name): $($devProxy.manifest.strictMaxVersion)")
         }
-        $missingPayload = @($devProxy.manifest.missingPayload)
+        $missingPayload = if ($null -ne $devProxy.manifest.missingPayload) { @($devProxy.manifest.missingPayload) } else { @() }
         if ($missingPayload.Count) {
           $failures.Add("Proxy target payload missing in profile $($profile.name): $($missingPayload -join ', ')")
         }
@@ -72,9 +105,6 @@ foreach ($profile in $status.profiles) {
     }
     if ($profile.webExtensionUUID -and $profile.webExtensionUUID.present) {
       $failures.Add("Profile has WebExtension UUID for plugin but extensions.json registration is missing in profile $($profile.name).")
-    }
-    if ($profile.startupCache -and $profile.startupCache.addonStartup.exists -and !$profile.startupCache.containsAddonID) {
-      $failures.Add("Zotero startup cache does not contain plugin id in profile $($profile.name).")
     }
   }
   elseif (!$profile.registration.active) {
