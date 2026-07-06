@@ -30,9 +30,19 @@ const context = {
     logError(error) {
       throw error;
     },
+    Attachments: {
+      imported: [],
+      async importFromFile(options) {
+        this.imported.push(options);
+      },
+    },
   },
   Services: {
     appinfo: { OS: "WINNT" },
+  },
+  IOUtils: {
+    exists: async () => false,
+    remove: async () => {},
   },
 };
 
@@ -52,9 +62,11 @@ const {
   buildOpenPDFURI,
   buildSourceRegion,
   calculateCanvasCrop,
+  filterExistingOriginalImagesForImport,
   getActiveReader,
   getContextPageIndex,
   getPDFViewerContextCandidate,
+  importOriginalImages,
   limitOriginalImagesForImport,
   normalizeBBoxNormalized,
   normalizeHelperFilePath,
@@ -742,4 +754,86 @@ assert.strictEqual(
   "missing selected tab must not target an arbitrary open reader",
 );
 
-console.log("open-pdf uri tests ok");
+async function runAsyncAssertions() {
+  const existingOriginalFile = `${helperOutputDir}\\existing.jpg`;
+  const missingOriginalFile = `${helperOutputDir}\\missing.jpg`;
+  const laterExistingOriginalFile = `${helperOutputDir}\\later-existing.jpg`;
+  const unreadableOriginalFile = `${helperOutputDir}\\unreadable.jpg`;
+  const existingFiles = new Set([
+    existingOriginalFile.toLowerCase(),
+    laterExistingOriginalFile.toLowerCase(),
+  ]);
+  context.IOUtils.exists = async (filePath) => existingFiles.has(String(filePath).toLowerCase());
+  const filteredOriginalImages = await filterExistingOriginalImagesForImport({
+    images: [
+      normalizeOriginalImageForImport({ file_path: existingOriginalFile }, 0, helperOutputDir),
+      normalizeOriginalImageForImport({ file_path: missingOriginalFile }, 1, helperOutputDir),
+    ],
+    omittedCount: 2,
+    invalidCount: 1,
+    overCapCount: 1,
+    maxImages: 10,
+  });
+  assert.strictEqual(filteredOriginalImages.images.length, 1, "existing helper files must be preserved");
+  assert.strictEqual(filteredOriginalImages.images[0].filePath, existingOriginalFile);
+  assert.strictEqual(filteredOriginalImages.missingCount, 1, "missing helper files must be counted");
+  assert.strictEqual(filteredOriginalImages.invalidCount, 1, "malformed helper record count must be preserved");
+  assert.strictEqual(filteredOriginalImages.overCapCount, 1, "over-cap helper record count must be preserved");
+  assert.strictEqual(filteredOriginalImages.omittedCount, 3, "missing helper files must add to omission count");
+
+  const loggedErrors = [];
+  context.Zotero.logError = (error) => loggedErrors.push(error);
+  context.IOUtils.exists = async (filePath) => {
+    if (String(filePath).toLowerCase() === unreadableOriginalFile.toLowerCase()) {
+      throw new Error("permission denied");
+    }
+    return existingFiles.has(String(filePath).toLowerCase());
+  };
+  const filteredWithReadError = await filterExistingOriginalImagesForImport({
+    images: [
+      normalizeOriginalImageForImport({ file_path: unreadableOriginalFile }, 0, helperOutputDir),
+      normalizeOriginalImageForImport({ file_path: existingOriginalFile }, 1, helperOutputDir),
+    ],
+    omittedCount: 0,
+    invalidCount: 0,
+    overCapCount: 0,
+    maxImages: 10,
+  });
+  assert.strictEqual(filteredWithReadError.images.length, 1, "readable helper files must survive existence-check errors");
+  assert.strictEqual(filteredWithReadError.missingCount, 0, "existence-check errors must not count as missing files");
+  assert.strictEqual(filteredWithReadError.errorCount, 1, "existence-check errors must be counted separately");
+  assert.strictEqual(filteredWithReadError.omittedCount, 1, "existence-check errors must add to omission count");
+  assert.strictEqual(loggedErrors.length, 1, "existence-check errors must be logged");
+
+  context.IOUtils.exists = async (filePath) => existingFiles.has(String(filePath).toLowerCase());
+  context.Zotero.Attachments.imported = [];
+  const importResult = await importOriginalImages({
+    report: {
+      output_dir: helperOutputDir,
+      images: [
+        { file_path: missingOriginalFile, page_number: 1, occurrence: 1 },
+        { file_path: existingOriginalFile, page_number: 2, occurrence: 2 },
+        { file_path: laterExistingOriginalFile, page_number: 3, occurrence: 3 },
+      ],
+    },
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    scope: "page",
+  });
+  assert.strictEqual(importResult.count, 2, "missing helper files must not abort later valid imports");
+  assert.strictEqual(importResult.missingCount, 1, "full import must report missing helper files");
+  assert.deepStrictEqual(
+    context.Zotero.Attachments.imported.map((entry) => entry.file),
+    [existingOriginalFile, laterExistingOriginalFile],
+    "full import must pass only existing helper files to Zotero import",
+  );
+}
+
+runAsyncAssertions()
+  .then(() => {
+    console.log("open-pdf uri tests ok");
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });

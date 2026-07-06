@@ -244,11 +244,50 @@ if ($mainJS -notmatch "contentType:\s*image\.contentType") {
 if ($mainJS -match "contentType:\s*image\.content_type") {
   throw "Original image import must not use raw helper content_type"
 }
-if ($mainJS -notmatch "invalidCount:\s*limited\.invalidCount") {
+if ($mainJS -notmatch "invalidCount:\s*prepared\.invalidCount") {
   throw "Original image import result must expose malformed helper record count"
 }
-if ($mainJS -notmatch "overCapCount:\s*limited\.overCapCount") {
+if ($mainJS -notmatch "overCapCount:\s*prepared\.overCapCount") {
   throw "Original image import result must expose over-cap helper record count"
+}
+if ($mainJS -notmatch "const\s+prepared\s*=\s*await\s+filterExistingOriginalImagesForImport\(limited\)") {
+  throw "Original image import must filter missing helper files before Zotero import"
+}
+if ($mainJS -notmatch "for\s*\(\s*const\s+image\s+of\s+prepared\.images\s*\)") {
+  throw "Original image import must iterate existence-filtered images"
+}
+if ($mainJS -match "for\s*\(\s*const\s+image\s+of\s+limited\.images\s*\)") {
+  throw "Original image import must not iterate image records before existence filtering"
+}
+if ($mainJS -notmatch "function\s+filterExistingOriginalImagesForImport\s*\(\s*limited\s*\)") {
+  throw "Original image import missing helper file existence filter"
+}
+if ($mainJS -notmatch "const\s+status\s*=\s*await\s+getHelperImageFileStatus\(image\.filePath\)") {
+  throw "Original image existence filter must check each normalized helper file path"
+}
+if ($mainJS -notmatch "missingCount:\s*prepared\.missingCount") {
+  throw "Original image import result must expose missing helper file count"
+}
+if ($mainJS -notmatch "errorCount:\s*prepared\.errorCount") {
+  throw "Original image import result must expose helper file existence-check error count"
+}
+if ($mainJS -notmatch "omittedCount:\s*\(limited\.omittedCount\s*\|\|\s*0\)\s*\+\s*missingCount\s*\+\s*errorCount") {
+  throw "Original image existence filter must add missing and unreadable files to omission count"
+}
+if ($mainJS -notmatch "function\s+getHelperImageFileStatus\s*\(\s*filePath\s*\)") {
+  throw "Original helper file status checker missing"
+}
+if ($mainJS -notmatch "IOUtils\.exists\(filePath\)") {
+  throw "Original helper file existence checker must use IOUtils.exists"
+}
+if ($mainJS -notmatch "error:\s*true") {
+  throw "Original helper file status checker must expose IO errors separately"
+}
+if ($mainJS -notmatch "skipped\s+\$\{importResult\.errorCount\}\s+unreadable helper file") {
+  throw "Original helper import toast must expose unreadable helper files separately"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*importOriginalImages") {
+  throw "Original image import must remain exported for behavior regression tests"
 }
 if ($mainJS -notmatch "return\s+normalizedFile\.startsWith\(outputPrefix\)\s*\?\s*filePath\s*:\s*null") {
   throw "Original helper file paths must stay under the helper output directory"

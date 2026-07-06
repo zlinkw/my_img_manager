@@ -1253,8 +1253,9 @@ var PdfImageSaver = (() => {
     const parentID = attachment.parentID || undefined;
     let count = 0;
     const limited = limitOriginalImagesForImport(report, scope);
+    const prepared = await filterExistingOriginalImagesForImport(limited);
     try {
-      for (const image of limited.images) {
+      for (const image of prepared.images) {
         await Zotero.Attachments.importFromFile({
           file: image.filePath,
           parentItemID: parentID,
@@ -1266,13 +1267,50 @@ var PdfImageSaver = (() => {
       }
       return {
         count,
-        omittedCount: limited.omittedCount,
-        invalidCount: limited.invalidCount,
-        overCapCount: limited.overCapCount,
-        maxImages: limited.maxImages,
+        omittedCount: prepared.omittedCount,
+        invalidCount: prepared.invalidCount,
+        overCapCount: prepared.overCapCount,
+        missingCount: prepared.missingCount,
+        errorCount: prepared.errorCount,
+        maxImages: prepared.maxImages,
       };
     } finally {
       await removeDirectoryIfExists(report.output_dir);
+    }
+  }
+
+  async function filterExistingOriginalImagesForImport(limited) {
+    const images = [];
+    let missingCount = 0;
+    let errorCount = 0;
+    for (const image of limited.images || []) {
+      const status = await getHelperImageFileStatus(image.filePath);
+      if (status.exists) {
+        images.push(image);
+      } else if (status.error) {
+        errorCount += 1;
+      } else {
+        missingCount += 1;
+      }
+    }
+    return {
+      ...limited,
+      images,
+      missingCount,
+      errorCount,
+      omittedCount: (limited.omittedCount || 0) + missingCount + errorCount,
+    };
+  }
+
+  async function getHelperImageFileStatus(filePath) {
+    if (typeof filePath !== "string") {
+      return { exists: false, error: false };
+    }
+    try {
+      return { exists: !!(await IOUtils.exists(filePath)), error: false };
+    } catch (error) {
+      logError(error);
+      return { exists: false, error: true };
     }
   }
 
@@ -1333,6 +1371,12 @@ var PdfImageSaver = (() => {
     const parts = [];
     if (importResult.invalidCount) {
       parts.push(`skipped ${importResult.invalidCount} malformed helper record${importResult.invalidCount === 1 ? "" : "s"}`);
+    }
+    if (importResult.missingCount) {
+      parts.push(`skipped ${importResult.missingCount} missing helper file${importResult.missingCount === 1 ? "" : "s"}`);
+    }
+    if (importResult.errorCount) {
+      parts.push(`skipped ${importResult.errorCount} unreadable helper file${importResult.errorCount === 1 ? "" : "s"}`);
     }
     if (importResult.overCapCount) {
       parts.push(`skipped ${importResult.overCapCount} over safety cap ${importResult.maxImages}`);
@@ -2588,9 +2632,11 @@ var PdfImageSaver = (() => {
       buildOpenPDFURI,
       buildSourceRegion,
       calculateCanvasCrop,
+      filterExistingOriginalImagesForImport,
       getActiveReader,
       getContextPageIndex,
       getPDFViewerContextCandidate,
+      importOriginalImages,
       limitOriginalImagesForImport,
       normalizeBBoxNormalized,
       normalizeHelperFilePath,

@@ -1183,6 +1183,29 @@ End batch validation checklist:
 - Code review: passed after UNC path-root fix; final review found no findings.
 - Git commit records B38 implementation: `a0b4754`.
 
+### B39 Optional Original Helper File Existence Guard
+
+Status: in progress.
+
+Plan:
+
+- Check normalized optional helper image files still exist before Zotero attachment import.
+- Skip missing helper files instead of throwing and aborting the whole optional original import.
+- Report missing helper files separately from malformed helper records and over-cap records.
+- Keep the default reader preview index workflow unchanged.
+
+Pre batch validation:
+
+- Git worktree clean at B39 start commit `127fd27`.
+- B39 planning pass found `importOriginalImages()` trusts normalized helper file paths exist; a missing helper output file can throw inside `Zotero.Attachments.importFromFile` and abort remaining valid original-image imports; recorded as `FAIL-20260706-085`.
+- B39 code review found `IOUtils.exists()` exceptions are currently treated as missing files, hiding permission or I/O failures; recorded as `FAIL-20260706-086`.
+- B39 code review found dynamic tests cover the existence filter but not the full `importOriginalImages()` missing-file behavior; recorded as `FAIL-20260706-087`.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -2505,6 +2528,45 @@ End batch validation checklist:
 - Close condition: tests prove UNC helper output paths accept matching UNC children and reject single-root lookalikes.
 - Closure: helper path normalization preserves UNC server/share roots before segment normalization; regression/static checks cover matching UNC children and single-root lookalikes.
 
+### FAIL-20260706-085
+
+- Batch: B39
+- Environment: optional original helper file import after report normalization
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `importOriginalImages()` passes normalized helper file paths to Zotero import without checking that the files still exist.
+- Expected: missing helper output files are skipped and counted so remaining valid original images can still be imported.
+- Actual: a missing helper output file can throw inside `Zotero.Attachments.importFromFile` and abort the whole optional original import.
+- Validation update: add an async file-existence filter before import and regression/static checks for missing-file counts.
+- Close condition: tests prove missing helper files are omitted, valid files are preserved, and import iteration uses the existence-filtered image list.
+
+### FAIL-20260706-086
+
+- Batch: B39
+- Environment: optional original helper file existence check errors
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: helper file existence check exceptions can be counted as missing files.
+- Expected: permission, invalid path, or I/O errors are exposed separately from ordinary missing helper files.
+- Actual: `IOUtils.exists()` exceptions can be logged and converted to `false`, making them look like missing files in user feedback.
+- Validation update: classify existence check errors separately and keep them visible in import results and toast text.
+- Close condition: tests prove an existence-check exception increments `errorCount`, does not increment `missingCount`, and keeps valid files importable.
+
+### FAIL-20260706-087
+
+- Batch: B39
+- Environment: optional original image import behavior-level regression coverage
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: tests cover the existence filter but not full `importOriginalImages()` behavior.
+- Expected: regression coverage proves missing helper files are not passed to `Zotero.Attachments.importFromFile` and do not abort later valid imports.
+- Actual: full import behavior relies mainly on static regex checks.
+- Validation update: export and test `importOriginalImages()` with stubbed `Zotero.Attachments.importFromFile`.
+- Close condition: tests prove only existing helper files are imported and missing helper files do not abort the import loop.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2587,6 +2649,9 @@ End batch validation checklist:
 - Check optional original image attachment titles normalize source title, page number, and occurrence.
 - Check optional helper file path containment resolves `.` and `..` path segments before prefix comparison.
 - Check optional helper file path containment preserves Windows UNC root identity before prefix comparison.
+- Check optional original helper import skips missing output files without aborting remaining valid imports.
+- Check optional original helper existence-check errors are reported separately from missing files.
+- Check optional original helper import behavior dynamically skips missing files before `Zotero.Attachments.importFromFile`.
 
 ## Real Commit Log
 
