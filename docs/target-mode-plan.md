@@ -1572,7 +1572,7 @@ End batch validation checklist:
 
 ### B53 Diagnostics Report Text Normalization
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1589,7 +1589,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `dd280e38e6355e64d591e4c7e0d0dcace4639547b8a7a6a85e05fb1308207cc7`, bytes `30673`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent timed out and was closed; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
+- Git commit records B53 implementation: `2eb5c06`.
 
 ## Current Validation Results
 
@@ -3325,12 +3331,13 @@ End batch validation checklist:
 - Environment: runtime diagnostics alert text
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `formatDiagnosticsReport()` interpolates raw diagnostics fields and maps raw warnings directly into the alert body.
 - Expected: diagnostics text should be compact scalar output with normalized booleans, counts, source identifiers, page target, links, and capped warning lines.
 - Actual: malformed runtime fields can produce `[object Object]`, `undefined`, `NaN`, invalid quality text, or oversized warnings in a user-facing alert.
 - Validation update: normalize diagnostics report fields at output boundary and add behavior/static checks.
 - Close condition: tests/static checks prove malformed diagnostics input produces compact normalized alert text and does not map raw warnings.
+- Closure: `formatDiagnosticsReport()` now normalizes the report container, PDF attachment container, booleans, counts, quality, page target, source identifiers, byte display, and warning lines before alert output; tests/static checks cover malformed diagnostics input and raw-field regressions.
 
 ### FAIL-20260706-115
 
@@ -3338,12 +3345,13 @@ End batch validation checklist:
 - Environment: B53 static validation for diagnostics report text
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the raw `report.pdf_attachment` static guard uses PowerShell case-insensitive matching, so it matches `safeReport.pdf_attachment`.
 - Expected: static guards should reject only raw lowercase `report` field access in `formatDiagnosticsReport()`.
 - Actual: `npm.cmd run check` fails even when the implementation uses `safeReport`.
 - Validation update: make the raw diagnostics static guards case-sensitive.
 - Close condition: `npm.cmd run check` passes while still guarding raw `report.warnings.map` and `report.pdf_attachment` spellings.
+- Closure: raw diagnostics static guards now use `-cmatch`, so `safeReport` passes while lowercase raw `report.warnings.map` and `report.pdf_attachment` remain rejected.
 
 ## Revised Validation Checklist
 
@@ -3570,3 +3578,5 @@ End batch validation checklist:
 - B51 XPI SHA256 `ed5a6cec5a3cbbbee20498d463de5c68b23c73e4512c5d325d0d7a8968512df9` was built in `outputs/` for manual Zotero add-on manager installation.
 - `8bb8096` B52 normalize duplicate preview keys.
 - B52 XPI SHA256 `05097b654acf493ae72842c1f9802082aace2ad87573b41c659cdc14f7778f03` was built in `outputs/` for manual Zotero add-on manager installation.
+- `2eb5c06` B53 normalize diagnostics report text.
+- B53 XPI SHA256 `dd280e38e6355e64d591e4c7e0d0dcace4639547b8a7a6a85e05fb1308207cc7` was built in `outputs/` for manual Zotero add-on manager installation.
