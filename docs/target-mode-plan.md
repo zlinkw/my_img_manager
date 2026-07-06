@@ -1238,6 +1238,32 @@ End batch validation checklist:
 - Code review: passed after all-attempted import failure escalation was added.
 - Git commit records B40 implementation: `aa4e8e5`.
 
+### B41 Optional Helper Failure Message Scalar Normalization
+
+Status: in progress.
+
+Plan:
+
+- Normalize optional helper failure `status` and `warnings` before reader toast output.
+- Prevent `[object Object]`, `undefined`, arrays, and very long helper warning text in user-visible failure messages.
+- Cap helper warning detail count and length to keep UI concise.
+- Keep default reader preview index workflow unchanged.
+
+Pre batch validation:
+
+- Git worktree clean at B41 start commit `7cd3038`.
+- B41 planning pass found `formatHelperFailure()` joins raw helper `warnings` and raw `status`, allowing noisy or complex values in reader toast output; recorded as `FAIL-20260706-090`.
+- B41 code review found `runHelperExtraction()` still interpolates raw helper `report.status` into aggregated warning strings before formatter normalization; recorded as `FAIL-20260706-091`.
+- B41 code review found missing-PyMuPDF aggregation spreads raw `warnings`, so non-array warnings can throw before formatter normalization; recorded as `FAIL-20260706-092`.
+- B41 code review found helper schema mismatch errors stringify raw `schema_version`, allowing `[object Object]` into warning strings; recorded as `FAIL-20260706-093`.
+- B41 local review found `formatHelperFailure()` still reads raw `report.status` before optional normalization guards; malformed or missing reports can throw before fallback formatting; recorded as `FAIL-20260706-094`.
+- B41 validation found the new raw-status static guard scans the whole plugin and blocks legitimate helper report state branches outside `formatHelperFailure()`; recorded as `FAIL-20260706-095`.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -2630,6 +2656,84 @@ End batch validation checklist:
 - Close condition: tests prove partial failures continue but all attempted import failures reject with a clear error.
 - Closure: when every attempted Zotero original image import fails, the plugin throws a clear overall error; behavior/static checks cover all-failed escalation.
 
+### FAIL-20260706-090
+
+- Batch: B41
+- Environment: optional helper failure reader toast messages
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `formatHelperFailure()` joins raw helper `warnings` and raw `status`.
+- Expected: optional helper failure messages use compact scalar text and never show `[object Object]`, arrays, `undefined`, or very long helper details.
+- Actual: malformed helper reports can produce noisy user-visible toast text.
+- Validation update: normalize helper status and warning strings before formatting failure messages.
+- Close condition: tests prove malformed helper status and warnings produce concise scalar failure text, and static checks reject raw warning joins.
+
+### FAIL-20260706-091
+
+- Batch: B41
+- Environment: optional helper multi-candidate failure aggregation
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `runHelperExtraction()` interpolates raw helper `report.status` into aggregated failure warnings.
+- Expected: helper candidate failure aggregation normalizes status text before adding it to `warnings`.
+- Actual: malformed helper status can become `[object Object]` or array text in warning strings before `formatHelperFailure()` sees them.
+- Validation update: normalize helper report status at aggregation time and add regression/static checks.
+- Close condition: tests and static checks prove candidate failure aggregation uses normalized status text.
+
+### FAIL-20260706-092
+
+- Batch: B41
+- Environment: optional helper missing PyMuPDF warning aggregation
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: missing-PyMuPDF aggregation spreads raw `missingPyMuPDFReport.warnings`.
+- Expected: helper warning aggregation accepts malformed warning containers and normalizes them before output.
+- Actual: non-array `warnings` can throw before `formatHelperFailure()` normalizes the final message.
+- Validation update: use the helper warning normalizer during aggregation and add regression/static checks.
+- Close condition: tests/static checks prove malformed warning containers do not throw or leak object text.
+
+### FAIL-20260706-093
+
+- Batch: B41
+- Environment: optional helper schema mismatch error formatting
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: malformed helper `schema_version` values are interpolated directly into schema mismatch errors.
+- Expected: schema mismatch errors include a compact scalar schema value or `unknown`.
+- Actual: object schema values can become `[object Object]` in warning strings.
+- Validation update: normalize schema values before creating schema mismatch errors and add regression/static checks.
+- Close condition: tests/static checks prove malformed schema values do not leak object text.
+
+### FAIL-20260706-094
+
+- Batch: B41
+- Environment: optional helper failure formatter branch guards
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `formatHelperFailure()` checks raw `report.status` before optional normalization guards.
+- Expected: missing or malformed helper reports format to a compact fallback message without throwing.
+- Actual: missing reports can throw before the formatter reaches normalized fallback status and warnings.
+- Validation update: normalize helper status once at formatter entry and branch on normalized status.
+- Close condition: tests/static checks prove missing or malformed helper reports do not throw and do not leak object text.
+
+### FAIL-20260706-095
+
+- Batch: B41
+- Environment: B41 PowerShell static guard scope
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: the raw `report.status` formatter guard scans the whole plugin file.
+- Expected: the guard only rejects raw `report.status` branches inside `formatHelperFailure()`.
+- Actual: legitimate helper state checks in `runHelperExtraction()` fail `npm.cmd run check`.
+- Validation update: scope the raw-status branch guard to the formatter function and keep positive normalized-branch checks.
+- Close condition: `npm.cmd run check` passes while still blocking raw `report.status` branches in `formatHelperFailure()`.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2717,6 +2821,12 @@ End batch validation checklist:
 - Check optional original helper import behavior dynamically skips missing files before `Zotero.Attachments.importFromFile`.
 - Check optional original helper import continues after one existing helper file fails Zotero attachment import.
 - Check optional original helper import reports an overall error when every attempted Zotero attachment import fails.
+- Check optional helper failure messages normalize status and warning details before reader toast output.
+- Check optional helper candidate failure aggregation normalizes helper status before warning output.
+- Check optional helper warning aggregation handles malformed warning containers without throwing.
+- Check optional helper schema mismatch errors normalize schema values before warning output.
+- Check optional helper failure formatter handles missing or malformed helper reports without throwing.
+- Check B41 raw-status static guard is scoped to the helper failure formatter.
 
 ## Real Commit Log
 

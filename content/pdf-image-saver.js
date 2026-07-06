@@ -1456,7 +1456,7 @@ var PdfImageSaver = (() => {
         if (report.status === "missing_pymupdf") {
           missingPyMuPDFReport = report;
         }
-        failures.push(`${formatCommand(pythonCommand)}: ${report.status || "unknown"}`);
+        failures.push(`${formatCommand(pythonCommand)}: ${normalizeHelperStatusText(report.status)}`);
       } catch (error) {
         failures.push(`${formatCommand(pythonCommand)}: ${getErrorMessage(error)}`);
       }
@@ -1466,7 +1466,7 @@ var PdfImageSaver = (() => {
     if (missingPyMuPDFReport) {
       missingPyMuPDFReport.output_dir = null;
       missingPyMuPDFReport.warnings = [
-        ...(missingPyMuPDFReport.warnings || []),
+        ...normalizeHelperWarningMessages(missingPyMuPDFReport.warnings),
         ...failures,
       ];
       return missingPyMuPDFReport;
@@ -1670,7 +1670,7 @@ var PdfImageSaver = (() => {
     const raw = await Zotero.File.getContentsAsync(path);
     const report = JSON.parse(raw);
     if (report.schema_version !== HELPER_SCHEMA_VERSION) {
-      throw new Error(`Unexpected helper schema: ${report.schema_version}`);
+      throw new Error(`Unexpected helper schema: ${normalizeHelperSchemaText(report.schema_version)}`);
     }
     return report;
   }
@@ -2144,14 +2144,38 @@ var PdfImageSaver = (() => {
   }
 
   function formatHelperFailure(report) {
-    if (report.status === "missing_pymupdf") {
+    const status = normalizeHelperStatusText(report?.status);
+    if (status === "missing_pymupdf") {
       return "Optional PyMuPDF helper is unavailable.";
     }
-    if (report.status === "no_python") {
+    if (status === "no_python") {
       return "Optional Python helper was not found.";
     }
-    const details = (report.warnings || []).join("; ");
-    return `Optional original extraction failed: ${report.status || "unknown"}${details ? ` (${details})` : ""}`;
+    const details = normalizeHelperWarningMessages(report?.warnings).join("; ");
+    return `Optional original extraction failed: ${status}${details ? ` (${details})` : ""}`;
+  }
+
+  function normalizeHelperStatusText(status) {
+    return normalizeMetadataText(status, "unknown", 60);
+  }
+
+  function normalizeHelperSchemaText(schemaVersion) {
+    return normalizeMetadataText(schemaVersion, "unknown", 80);
+  }
+
+  function normalizeHelperWarningMessages(warnings) {
+    const values = Array.isArray(warnings) ? warnings : [];
+    const normalized = [];
+    for (const warning of values) {
+      const text = normalizeMetadataText(warning, null, 180);
+      if (text) {
+        normalized.push(text);
+      }
+      if (normalized.length >= 4) {
+        break;
+      }
+    }
+    return normalized;
   }
 
   function guessContentType(extension) {
@@ -2646,11 +2670,15 @@ var PdfImageSaver = (() => {
       buildSourceRegion,
       calculateCanvasCrop,
       filterExistingOriginalImagesForImport,
+      formatHelperFailure,
       getActiveReader,
       getContextPageIndex,
       getPDFViewerContextCandidate,
       importOriginalImages,
       limitOriginalImagesForImport,
+      normalizeHelperSchemaText,
+      normalizeHelperStatusText,
+      normalizeHelperWarningMessages,
       normalizeBBoxNormalized,
       normalizeHelperFilePath,
       normalizeImageContentType,

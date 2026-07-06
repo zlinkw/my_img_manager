@@ -295,6 +295,66 @@ if ($mainJS -notmatch "prepared\.images\.length\s*&&\s*!count\s*&&\s*importError
 if ($mainJS -notmatch "All\s+\$\{importErrorCount\}\s+Zotero original image imports failed") {
   throw "Original image import must throw a clear all-imports-failed error"
 }
+if ($mainJS -match "\(\s*report\.warnings\s*\|\|\s*\[\]\s*\)\.join") {
+  throw "Helper failure formatter must not join raw report warnings"
+}
+if ($mainJS -notmatch "const\s+details\s*=\s*normalizeHelperWarningMessages\(report\?\.warnings\)\.join") {
+  throw "Helper failure formatter must normalize warning details"
+}
+if ($mainJS -notmatch "const\s+status\s*=\s*normalizeHelperStatusText\(report\?\.status\)") {
+  throw "Helper failure formatter must normalize status text"
+}
+if ($mainJS -match "function\s+formatHelperFailure\s*\(\s*report\s*\)\s*\{[\s\S]{0,700}if\s*\(\s*report\.status\s*===") {
+  throw "Helper failure formatter must not branch on raw report.status"
+}
+if ($mainJS -notmatch "if\s*\(\s*status\s*===\s*`"missing_pymupdf`"\s*\)") {
+  throw "Helper failure formatter must branch on normalized missing_pymupdf status"
+}
+if ($mainJS -notmatch "if\s*\(\s*status\s*===\s*`"no_python`"\s*\)") {
+  throw "Helper failure formatter must branch on normalized no_python status"
+}
+if ($mainJS -notmatch "function\s+normalizeHelperStatusText\s*\(\s*status\s*\)") {
+  throw "Helper status normalizer missing"
+}
+if ($mainJS -notmatch "normalizeMetadataText\(status,\s*`"unknown`",\s*60\)") {
+  throw "Helper status normalizer must cap status text"
+}
+if ($mainJS -match "report\.status\s*\|\|\s*`"unknown`"") {
+  throw "Helper failure aggregation must not use raw report.status fallback"
+}
+if ($mainJS -notmatch "normalizeHelperStatusText\(report\.status\)") {
+  throw "Helper candidate failure aggregation must normalize report.status"
+}
+if ($mainJS -match "\.\.\.\(missingPyMuPDFReport\.warnings\s*\|\|\s*\[\]\)") {
+  throw "Missing-PyMuPDF warning aggregation must not spread raw warnings"
+}
+if ($mainJS -notmatch "\.\.\.normalizeHelperWarningMessages\(missingPyMuPDFReport\.warnings\)") {
+  throw "Missing-PyMuPDF warning aggregation must normalize existing warnings"
+}
+if ($mainJS -match "Unexpected helper schema:\s*\$\{report\.schema_version\}") {
+  throw "Helper schema mismatch errors must not interpolate raw schema_version"
+}
+if ($mainJS -notmatch "Unexpected helper schema:\s*\$\{normalizeHelperSchemaText\(report\.schema_version\)\}") {
+  throw "Helper schema mismatch errors must normalize schema_version"
+}
+if ($mainJS -notmatch "function\s+normalizeHelperSchemaText\s*\(\s*schemaVersion\s*\)") {
+  throw "Helper schema normalizer missing"
+}
+if ($mainJS -notmatch "normalizeMetadataText\(schemaVersion,\s*`"unknown`",\s*80\)") {
+  throw "Helper schema normalizer must cap schema text"
+}
+if ($mainJS -notmatch "function\s+normalizeHelperWarningMessages\s*\(\s*warnings\s*\)") {
+  throw "Helper warning normalizer missing"
+}
+if ($mainJS -notmatch "normalizeMetadataText\(warning,\s*null,\s*180\)") {
+  throw "Helper warning normalizer must cap warning text length"
+}
+if ($mainJS -notmatch "normalized\.length\s*>=\s*4") {
+  throw "Helper warning normalizer must cap warning detail count"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*formatHelperFailure") {
+  throw "Helper failure formatter must remain exported for regression tests"
+}
 if ($mainJS -notmatch "omittedCount:\s*\(limited\.omittedCount\s*\|\|\s*0\)\s*\+\s*missingCount\s*\+\s*errorCount") {
   throw "Original image existence filter must add missing and unreadable files to omission count"
 }

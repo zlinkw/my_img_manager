@@ -63,6 +63,7 @@ const {
   buildSourceRegion,
   calculateCanvasCrop,
   filterExistingOriginalImagesForImport,
+  formatHelperFailure,
   getActiveReader,
   getContextPageIndex,
   getPDFViewerContextCandidate,
@@ -71,6 +72,9 @@ const {
   normalizeBBoxNormalized,
   normalizeHelperFilePath,
   normalizeImageContentType,
+  normalizeHelperSchemaText,
+  normalizeHelperStatusText,
+  normalizeHelperWarningMessages,
   normalizeOriginalImageForImport,
   normalizePageIndex,
   normalizePageNumber,
@@ -663,6 +667,53 @@ assert.strictEqual(
   buildOriginalImageTitle(noisyParent, noisyAttachment, { page_number: { bad: true }, occurrence: ["bad"] }),
   "PDF - original p1 image 1",
   "original attachment title must normalize malformed source, page, and occurrence fields",
+);
+const noisyHelperWarnings = normalizeHelperWarningMessages([
+  { bad: true },
+  ["array"],
+  " ".repeat(4),
+  "a".repeat(240),
+  "second",
+  "third",
+  "fourth",
+  "fifth",
+]);
+assert.strictEqual(noisyHelperWarnings.length, 4, "helper warnings must be capped");
+assert.strictEqual(noisyHelperWarnings[0].length, 180, "helper warnings must be length-limited");
+assert.deepStrictEqual(JSON.parse(JSON.stringify(noisyHelperWarnings.slice(1))), ["second", "third", "fourth"]);
+const noisyHelperFailure = formatHelperFailure({
+  status: { bad: true },
+  warnings: [
+    { bad: true },
+    ["array"],
+    "bad <detail>",
+    "x".repeat(240),
+    "extra",
+  ],
+});
+for (const forbiddenHelperFailureText of ["[object Object]", "undefined", "array", "x".repeat(181)]) {
+  assert.ok(!noisyHelperFailure.includes(forbiddenHelperFailureText), `helper failure text must not contain ${forbiddenHelperFailureText}`);
+}
+assert.ok(noisyHelperFailure.includes("Optional original extraction failed: unknown"), "malformed helper status must fall back to unknown");
+assert.ok(noisyHelperFailure.includes("bad <detail>"), "scalar helper warning details must be preserved");
+assert.strictEqual(normalizeHelperStatusText(["array-status"]), "unknown", "helper status arrays must fall back to unknown");
+assert.strictEqual(normalizeHelperWarningMessages({ bad: true }).length, 0, "malformed helper warning containers must not throw");
+assert.strictEqual(normalizeHelperSchemaText({ bad: true }), "unknown", "helper schema objects must fall back to unknown");
+const aggregatedHelperFailure = formatHelperFailure({
+  status: "failed",
+  warnings: [
+    ...normalizeHelperWarningMessages({ bad: true }),
+    `python.exe: ${normalizeHelperStatusText({ bad: true })}`,
+    `schema: ${normalizeHelperSchemaText({ bad: true })}`,
+  ],
+});
+assert.ok(aggregatedHelperFailure.includes("python.exe: unknown"), "aggregated helper candidate status must be normalized");
+assert.ok(aggregatedHelperFailure.includes("schema: unknown"), "aggregated helper schema text must be normalized");
+assert.ok(!aggregatedHelperFailure.includes("[object Object]"), "aggregated helper candidate status must not leak object text");
+assert.strictEqual(
+  formatHelperFailure(null),
+  "Optional original extraction failed: unknown",
+  "missing helper reports must format to an unknown failure without throwing",
 );
 
 const directDoc = { nodeName: "#document" };
