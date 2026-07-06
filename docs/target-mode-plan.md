@@ -531,6 +531,7 @@ End batch validation checklist:
 - `npm run install:global`: passed and reported rescan pending because Zotero is running.
 - `npm run runtime:status`: passed; Zotero running, proxy installed, no BOM, temp child count 0, registration false, and `rescan.needsRescan: true`.
 - Manifest uses `strict_max_version: 9.0.*` and static checks assert it.
+- B14 post implementation review agent did not return before timeout and was closed; local static checks passed.
 
 ## Current Validation Results
 
