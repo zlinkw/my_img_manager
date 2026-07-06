@@ -1769,7 +1769,7 @@ End batch validation checklist:
 
 ### B60 Target Plan Regression Loop Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1786,7 +1786,12 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `fb661947359cc1dbaba3da693fca5f07b5dccc4d9d378c45bfe0856ef8cee69b`, bytes `31413`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: local targeted review found the first broad closure-evidence guard caused historical-plan churn; recorded and fixed as `FAIL-20260706-126`.
+- Git commit records B60 implementation: `7cdfba2`.
 
 ## Current Validation Results
 
@@ -3676,12 +3681,13 @@ End batch validation checklist:
 - Environment: target-mode planning and validation loop
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: the target plan documents many regressions and follow-up faults, but only one generic status/closure consistency rule is enforced.
 - Expected: plan-state checks should prevent duplicate fault IDs, completed batches with pending validation, and closed faults without close conditions or closure evidence.
 - Actual: a future batch could mark itself complete or close a fault without enough machine-checked evidence, increasing the risk of bug-fix loops.
 - Validation update: add explicit regression-loop control rules and enforce them in `scripts/check.ps1`.
 - Close condition: static checks fail on duplicate `FAIL-*` IDs, closed failures without `Close condition`/`Closure`, completed batches with pending validation, or a missing regression-loop-control plan section.
+- Closure: `Regression Loop Control` is now a plan-level section, and `scripts/check.ps1` enforces unique `FAIL-*` IDs, no open failure with closure evidence, B60-and-later closed-failure close condition/closure evidence, and no completed batch with pending validation.
 
 ### FAIL-20260706-126
 
@@ -3689,12 +3695,13 @@ End batch validation checklist:
 - Environment: target-plan consistency check over historical failure sections
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the first B60 check rejected `FAIL-20260706-001` because early historical failures predate the current `Closure` evidence template.
 - Expected: new plan-invariant checks should protect future batches without forcing unrelated historical metadata churn.
 - Actual: the broad closed-failure evidence check fails on old plan history before it can guard B60 and later work.
 - Validation update: enforce close-condition and closure evidence only for B60-and-later failure IDs, while keeping duplicate-ID and open-with-closure guards global.
 - Close condition: `npm.cmd run check` passes and still enforces closure evidence for `FAIL-20260706-125` and later.
+- Closure: the close-evidence guard now applies from `FAIL-20260706-125` onward, preserving historical plan records while enforcing the stricter template for B60 and later; `npm.cmd run check` passes.
 
 ## Revised Validation Checklist
 
@@ -3944,3 +3951,5 @@ End batch validation checklist:
 - B58 XPI SHA256 `095d9a6f34ba54ccb72ab29f994ceef01bef0d2811d96490693a853e585fc119` was built in `outputs/` for manual Zotero add-on manager installation.
 - `ea79d58` B59 guard recursive temp cleanup.
 - B59 XPI SHA256 `fb661947359cc1dbaba3da693fca5f07b5dccc4d9d378c45bfe0856ef8cee69b` was built in `outputs/` for manual Zotero add-on manager installation.
+- `7cdfba2` B60 guard target plan regression loop.
+- B60 XPI SHA256 `fb661947359cc1dbaba3da693fca5f07b5dccc4d9d378c45bfe0856ef8cee69b` was built in `outputs/` for manual Zotero add-on manager installation; plugin payload unchanged from B59.
