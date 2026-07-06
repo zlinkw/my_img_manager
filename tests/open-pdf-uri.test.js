@@ -93,6 +93,7 @@ const {
   normalizePageIndex,
   normalizePageNumber,
   prepareSelectionOverlayHost,
+  renderCanvasPreview,
   saveAutoDetectedPageImagePreviews,
   saveClipPreviewIndex,
   saveOriginalImagesFromReader,
@@ -350,6 +351,58 @@ assert.deepStrictEqual(
   [0.024212, 0.031265, 0.3375, 0.460468],
   "metadata bbox must be projected from rounded drawImage source pixels",
 );
+
+function createFakeCanvas(width = 1200, height = 900) {
+  const outputCanvases = [];
+  const ownerDocument = {
+    createElement(tagName) {
+      assert.strictEqual(tagName, "canvas", "preview rendering must create an output canvas");
+      const output = {
+        width: 0,
+        height: 0,
+        context: {
+          imageSmoothingEnabled: false,
+          imageSmoothingQuality: "",
+          drawImage() {},
+        },
+        getContext(type) {
+          assert.strictEqual(type, "2d");
+          return this.context;
+        },
+        toDataURL(type, quality) {
+          this.encodedType = type;
+          this.encodedQuality = quality;
+          return "data:image/jpeg;base64,AAAA";
+        },
+      };
+      outputCanvases.push(output);
+      return output;
+    },
+  };
+  return {
+    width,
+    height,
+    ownerDocument,
+    outputCanvases,
+    getBoundingClientRect() {
+      return { left: 0, top: 0, width, height };
+    },
+  };
+}
+
+const qualityCanvas = createFakeCanvas();
+const qualityPage = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 1200, height: 900 }) };
+const mediumPreview = renderCanvasPreview({
+  canvas: qualityCanvas,
+  pageElement: qualityPage,
+  pageIndex: 2,
+  qualityKey: "medium",
+  selectionRect: { left: 0, top: 0, width: 1200, height: 900 },
+});
+assert.strictEqual(mediumPreview.quality, "medium", "save entries must pass normalized quality into preview rendering");
+assert.strictEqual(mediumPreview.qualityEstimate, "60-220 KB/image", "medium preview must carry medium estimate");
+assert.strictEqual(qualityCanvas.outputCanvases[0].width, 480, "medium preview must use medium max width");
+assert.strictEqual(qualityCanvas.outputCanvases[0].encodedQuality, 0.78, "medium preview must use medium JPEG quality");
 
 function stubItem(fields, extra = {}) {
   return {

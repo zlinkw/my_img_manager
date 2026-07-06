@@ -1437,6 +1437,26 @@ End batch validation checklist:
 - Code review: subagent review failed due concurrency limit; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
 - Git commit records B47 implementation: `4d44b8b`.
 
+### B48 Save Entry Quality Key Normalization
+
+Status: in progress.
+
+Plan:
+
+- Normalize preview quality keys at clip and page save entry boundaries before rendering, duplicate-key generation, and index metadata creation.
+- Keep auto-raster behavior unchanged because it already normalizes `qualityKey` before use.
+- Add behavior/static checks proving malformed or missing clip/page save quality uses Medium consistently.
+
+Pre batch validation:
+
+- Git worktree clean at B48 start commit `98cc980`.
+- B48 planning pass found `saveClipPreviewIndex()` and `savePagePreviewIndex()` pass raw `options.qualityKey` into `renderCanvasPreview()` and `createIndexHTML()`, while duplicate keys use the raw preview quality before HTML metadata later normalizes entry quality; recorded as `FAIL-20260706-108`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3081,6 +3101,19 @@ End batch validation checklist:
 - Close condition: tests/static checks prove no-reader toast with a main-window document does not create a DOM toast and does show `Services.prompt.alert`.
 - Closure: the non-PDF fallback now runs before reader/main-window document toast attempts; tests cover a main-window document body and prove no DOM toast or style injection occurs.
 
+### FAIL-20260706-108
+
+- Batch: B48
+- Environment: clip and page preview save quality handling
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `saveClipPreviewIndex()` and `savePagePreviewIndex()` pass raw `options.qualityKey` into preview rendering, duplicate keys, and index creation.
+- Expected: save entry boundaries normalize quality keys so rendered preview quality, duplicate keys, visible HTML, and metadata all use one quality value.
+- Actual: missing or malformed quality keys render as Medium through `QUALITY[qualityKey] || QUALITY.medium`, but the preview record and duplicate key can carry raw or `undefined` quality before HTML normalizes it later.
+- Validation update: normalize clip/page save entry `qualityKey` before `renderCanvasPreview()` and `createIndexHTML()`, then add behavior/static checks.
+- Close condition: tests/static checks prove clip/page save entries call `normalizeQualityKey()` before rendering and index creation.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3186,6 +3219,7 @@ End batch validation checklist:
 - Check selection overlay replacement and cleanup restore the previous page host position.
 - Check reader toast fallback does not wait for PDF context when no reader is available.
 - Check reader toast fallback uses alert rather than main-window DOM toast when no PDF reader is available.
+- Check clip/page save entries normalize quality keys before rendering, duplicate-key generation, and index metadata.
 
 ## Real Commit Log
 

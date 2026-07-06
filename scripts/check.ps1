@@ -370,6 +370,9 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*savePagePreviewIndex") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getReaderJobKey") {
   throw "Reader job key helper must remain exported for regression tests"
 }
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*renderCanvasPreview") {
+  throw "Canvas preview renderer must remain exported for regression tests"
+}
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*prepareSelectionOverlayHost") {
   throw "Selection overlay host helper must remain exported for regression tests"
 }
@@ -667,6 +670,9 @@ if (!$clipSaveEntry.Success) {
 if ($clipSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
   throw "Clip-preview save entry must only clear active jobs added by the current call"
 }
+if ($clipSaveEntry.Value -notmatch "const\s+qualityKey\s*=\s*normalizeQualityKey\(options\.qualityKey\)[\s\S]*renderCanvasPreview\(\s*\{\s*\.\.\.options,\s*pageIndex,\s*qualityKey\s*\}\s*\)[\s\S]*qualityKey,") {
+  throw "Clip-preview save entry must normalize quality before rendering and index metadata"
+}
 $autoSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveAutoDetectedPageImagePreviews\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+savePagePreviewIndex")
 if (!$autoSaveEntry.Success) {
   throw "Auto-raster save entry function block not found"
@@ -680,6 +686,9 @@ if (!$pageSaveEntry.Success) {
 }
 if ($pageSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
   throw "Page-preview save entry must only clear active jobs added by the current call"
+}
+if ($pageSaveEntry.Value -notmatch "const\s+qualityKey\s*=\s*normalizeQualityKey\(options\.qualityKey\)[\s\S]*qualityKey,\s*\r?\n\s*pageLabel[\s\S]*qualityKey,") {
+  throw "Page-preview save entry must normalize quality before rendering and index metadata"
 }
 $originalSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveOriginalImagesFromReader\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+importOriginalImages")
 if (!$originalSaveEntry.Success) {

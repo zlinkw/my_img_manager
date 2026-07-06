@@ -514,6 +514,7 @@ var PdfImageSaver = (() => {
     let jobAdded = false;
     try {
       const pageIndex = normalizePageIndex(options.pageIndex, 0);
+      const qualityKey = normalizeQualityKey(options.qualityKey);
       jobKey = getReaderJobKey(reader, {
         scope: "clip",
         pageIndex,
@@ -526,7 +527,7 @@ var PdfImageSaver = (() => {
       jobAdded = true;
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
-      const preview = renderCanvasPreview({ ...options, pageIndex });
+      const preview = renderCanvasPreview({ ...options, pageIndex, qualityKey });
       const duplicateKey = getPreviewDuplicateKey(attachment, preview);
       if (getBoolPref("duplicateGuard", true) && recentIndexSaves.has(duplicateKey)) {
         showReaderToast(reader, "This preview was already saved in this Zotero session.", "warning");
@@ -537,7 +538,7 @@ var PdfImageSaver = (() => {
         parentItem,
         entries: [preview],
         scope: "clip",
-        qualityKey: options.qualityKey,
+        qualityKey,
       });
       const imported = await importIndexAttachment({
         attachment,
@@ -698,6 +699,7 @@ var PdfImageSaver = (() => {
     let jobAdded = false;
     try {
       const pageIndex = await getCurrentPageIndex(reader, options.pageIndex);
+      const qualityKey = normalizeQualityKey(options.qualityKey);
       jobKey = getReaderJobKey(reader, { scope: "page", pageIndex });
       if (activeJobs.has(jobKey)) {
         showReaderToast(reader, "Save already running for this page.", "warning");
@@ -718,7 +720,7 @@ var PdfImageSaver = (() => {
         canvas,
         pageElement,
         pageIndex,
-        qualityKey: options.qualityKey,
+        qualityKey,
         pageLabel: getPageLabel(context, pageIndex),
         selectionRect: {
           left: 0,
@@ -737,7 +739,7 @@ var PdfImageSaver = (() => {
         parentItem,
         entries: [preview],
         scope: "page",
-        qualityKey: options.qualityKey,
+        qualityKey,
       });
       await importIndexAttachment({
         attachment,
@@ -2770,6 +2772,7 @@ var PdfImageSaver = (() => {
       normalizePageNumber,
       prepareSelectionOverlayHost,
       getReaderJobKey,
+      renderCanvasPreview,
       saveAutoDetectedPageImagePreviews,
       saveClipPreviewIndex,
       saveOriginalImagesFromReader,
