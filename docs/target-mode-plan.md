@@ -1213,7 +1213,7 @@ End batch validation checklist:
 
 ### B40 Optional Original Per Image Import Failure Isolation
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1231,7 +1231,12 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `a9ba4e2ad745663fa9620c79d162d9688db15d7d71a2b4dc3cb806f689af88e3`, bytes `29315`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 3, temp children 0.
+- Code review: passed after all-attempted import failure escalation was added.
+- Git commit records B40 implementation: `aa4e8e5`.
 
 ## Current Validation Results
 
@@ -2603,12 +2608,13 @@ End batch validation checklist:
 - Environment: optional original image Zotero attachment import loop
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: one existing helper image that fails during `Zotero.Attachments.importFromFile` aborts the remaining original-image import loop.
 - Expected: failed individual original imports are counted and later valid images still import.
 - Actual: the import loop throws out to the reader-level catch, so later valid images are not imported.
 - Validation update: isolate per-image import failures and add behavior/static checks for continuing after one import failure.
 - Close condition: tests prove a failing existing image increments `importErrorCount`, is omitted from imported files, and later valid files still import.
+- Closure: per-image import failures are counted and logged while later valid files continue importing; behavior/static checks cover partial failure continuation.
 
 ### FAIL-20260706-089
 
@@ -2616,12 +2622,13 @@ End batch validation checklist:
 - Environment: optional original image Zotero attachment import loop systemic failures
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: all `Zotero.Attachments.importFromFile` calls can fail and still return as a non-fatal warning result.
 - Expected: partial import failures are counted, but all attempted original imports failing is surfaced as an overall import error.
 - Actual: user feedback can show `Saved 0` with warnings even when the Zotero import path is systemically broken.
 - Validation update: throw a clear overall error when every attempted original import fails and add behavior/static checks.
 - Close condition: tests prove partial failures continue but all attempted import failures reject with a clear error.
+- Closure: when every attempted Zotero original image import fails, the plugin throws a clear overall error; behavior/static checks cover all-failed escalation.
 
 ## Revised Validation Checklist
 
@@ -2796,3 +2803,5 @@ End batch validation checklist:
 - B38 XPI SHA256 `d80ac0fb7af750e2543ff647edaa87dd2c324d856093516d6c8af92c2c2bc991` was built in `outputs/` for manual Zotero add-on manager installation.
 - `e5401c2` B39 guard original helper file imports.
 - B39 XPI SHA256 `c6fb88604d8535896616b0248591d0fb3dc65503e4d3afa980566f69308fb932` was built in `outputs/` for manual Zotero add-on manager installation.
+- `aa4e8e5` B40 isolate original import failures.
+- B40 XPI SHA256 `a9ba4e2ad745663fa9620c79d162d9688db15d7d71a2b4dc3cb806f689af88e3` was built in `outputs/` for manual Zotero add-on manager installation.
