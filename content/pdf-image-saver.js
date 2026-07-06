@@ -598,6 +598,7 @@ var PdfImageSaver = (() => {
         parentItem,
         indexKey,
         memoryKeys: [duplicateKey],
+        sourceRegionKeys: [getSourceRegionKey(attachment, preview)],
       })) {
         showReaderToast(reader, "This preview was already saved.", "warning");
         return null;
@@ -684,7 +685,8 @@ var PdfImageSaver = (() => {
         : createEmptyPreviewIndexIdentities();
       const maxBytes = getAutoMaxPreviewBytes();
       let totalBytes = 0;
-      let skippedDuplicates = 0;
+      let skippedSessionDuplicates = 0;
+      let skippedSavedDuplicates = 0;
       let skippedByteLimit = 0;
       let skippedOversized = 0;
 
@@ -701,10 +703,16 @@ var PdfImageSaver = (() => {
           detectionArea: candidate.area,
         });
         const duplicateKey = getPreviewDuplicateKey(attachment, preview);
-        if (duplicateGuard && (
-          recentIndexSaves.has(duplicateKey) || existingIndexIdentities.entryKeys.has(duplicateKey)
-        )) {
-          skippedDuplicates += 1;
+        const sourceRegionKey = getSourceRegionKey(attachment, preview);
+        const sessionDuplicate = recentIndexSaves.has(duplicateKey);
+        const savedDuplicate = existingIndexIdentities.entryKeys.has(duplicateKey)
+          || existingIndexIdentities.sourceRegionKeys.has(sourceRegionKey);
+        if (duplicateGuard && (sessionDuplicate || savedDuplicate)) {
+          if (savedDuplicate) {
+            skippedSavedDuplicates += 1;
+          } else {
+            skippedSessionDuplicates += 1;
+          }
           continue;
         }
         if (preview.byteCount > maxBytes) {
@@ -720,9 +728,7 @@ var PdfImageSaver = (() => {
       }
 
       if (!previews.length) {
-        const reason = skippedDuplicates
-          ? "All detected previews were already saved in this Zotero session."
-          : "Detected previews exceeded the auto-save byte cap.";
+        const reason = formatAutoDuplicateSkipReason({ skippedSessionDuplicates, skippedSavedDuplicates });
         showReaderToast(reader, reason, "warning");
         return null;
       }
@@ -732,6 +738,7 @@ var PdfImageSaver = (() => {
         parentItem,
         indexKey,
         memoryKeys: previews.map((preview) => getPreviewDuplicateKey(attachment, preview)),
+        sourceRegionKeys: previews.map((preview) => getSourceRegionKey(attachment, preview)),
       })) {
         showReaderToast(reader, "This detected preview index was already saved.", "warning");
         return null;
@@ -757,8 +764,11 @@ var PdfImageSaver = (() => {
       });
       rememberPreviewIndexSave(attachment, previews, indexKey);
       const notes = [];
-      if (skippedDuplicates) {
-        notes.push(`${skippedDuplicates} duplicate skipped`);
+      if (skippedSavedDuplicates) {
+        notes.push(`${skippedSavedDuplicates} already-saved skipped`);
+      }
+      if (skippedSessionDuplicates) {
+        notes.push(`${skippedSessionDuplicates} session duplicate skipped`);
       }
       if (skippedByteLimit) {
         notes.push("byte cap reached");
@@ -781,6 +791,19 @@ var PdfImageSaver = (() => {
         activeJobs.delete(jobKey);
       }
     }
+  }
+
+  function formatAutoDuplicateSkipReason({ skippedSessionDuplicates = 0, skippedSavedDuplicates = 0 } = {}) {
+    if (skippedSavedDuplicates && skippedSessionDuplicates) {
+      return "All detected previews were already saved in synced HTML indexes or this Zotero session.";
+    }
+    if (skippedSavedDuplicates) {
+      return "All detected previews were already saved in synced HTML indexes.";
+    }
+    if (skippedSessionDuplicates) {
+      return "All detected previews were already saved in this Zotero session.";
+    }
+    return "Detected previews exceeded the auto-save byte cap.";
   }
 
   async function savePagePreviewIndex(reader, options = {}) {
@@ -825,6 +848,7 @@ var PdfImageSaver = (() => {
         parentItem,
         indexKey,
         memoryKeys: [duplicateKey],
+        sourceRegionKeys: [getSourceRegionKey(attachment, preview)],
       })) {
         showReaderToast(reader, "This page preview was already saved.", "warning");
         return;
@@ -1222,6 +1246,7 @@ var PdfImageSaver = (() => {
         const pageText = entry.pageLabel && entry.pageLabel !== String(entry.pageNumber)
           ? `${entry.pageNumber} (${entry.pageLabel})`
           : String(entry.pageNumber);
+        const regionIdentity = getSourceRegionFingerprint(entry.sourceRegionKey);
         const sourceRegionLabel = entry.sourceRegion?.label || entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ");
         return `
           <article class="entry">
@@ -1230,15 +1255,23 @@ var PdfImageSaver = (() => {
                 <img src="${escapeHTML(entry.dataURL)}" alt="Saved PDF preview ${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion)}
+              <a class="source-action" href="${escapeHTML(uri)}">Open source PDF</a>
             </div>
             <dl>
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
               <div><dt>Quality</dt><dd>${escapeHTML(QUALITY[entry.quality].label)} (${escapeHTML(entry.qualityEstimate)})</dd></div>
               <div><dt>Actual</dt><dd>${formatBytes(entry.byteCount)}, ${formatPreviewDimensions(entry.renderedWidth, entry.renderedHeight)}</dd></div>
-              <div><dt>Source</dt><dd>${escapeHTML(entry.detector)}</dd></div>
-              <div><dt>Region</dt><dd>${escapeHTML(sourceRegionLabel)}</dd></div>
-              <div><dt>BBox</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
+              <div><dt>Region</dt><dd title="${escapeHTML(entry.sourceRegionKey)}">${escapeHTML(regionIdentity)}</dd></div>
             </dl>
+            <details class="entry-details">
+              <summary>Details</summary>
+              <dl>
+                <div><dt>Detector</dt><dd>${escapeHTML(entry.detector)}</dd></div>
+                <div><dt>Region</dt><dd>${escapeHTML(sourceRegionLabel)}</dd></div>
+                <div><dt>BBox</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
+                <div><dt>Source key</dt><dd>${escapeHTML(entry.sourceRegionKey)}</dd></div>
+              </dl>
+            </details>
           </article>`;
       })
       .join("\n");
@@ -1290,15 +1323,17 @@ var PdfImageSaver = (() => {
     .meta { color: #555; margin: 0; }
     .entry { display: grid; grid-template-columns: minmax(160px, 360px) 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid #ddd; }
     .preview-column { display: grid; gap: 8px; align-content: start; }
+    .source-action { display: inline-block; width: fit-content; padding: 4px 8px; border: 1px solid #aaa; color: #0645ad; text-decoration: none; }
     img { max-width: 100%; height: auto; border: 1px solid #ccc; background: #f6f6f6; }
-    .source-map { position: relative; width: 72px; aspect-ratio: 0.72; border: 1px solid #bbb; background: #fafafa; }
+    .source-map { position: relative; width: 96px; aspect-ratio: 0.72; border: 1px solid #bbb; background: #fafafa; }
     .source-map span { position: absolute; min-width: 2px; min-height: 2px; border: 2px solid #1f73b7; background: rgba(31, 115, 183, 0.18); box-sizing: border-box; }
     dl { margin: 0; display: grid; gap: 6px; align-content: start; }
     dl div { display: grid; grid-template-columns: 80px 1fr; gap: 8px; }
     dt { color: #666; }
     dd { margin: 0; }
+    .entry-details { grid-column: 2; }
     pre { white-space: pre-wrap; word-break: break-word; padding: 12px; background: #f6f8fa; border: 1px solid #ddd; }
-    @media (max-width: 720px) { .entry { grid-template-columns: 1fr; } }
+    @media (max-width: 720px) { .entry { grid-template-columns: 1fr; } .entry-details { grid-column: 1; } }
   </style>
 </head>
 <body>
@@ -2315,6 +2350,10 @@ var PdfImageSaver = (() => {
     return `source-region:v1:${libraryID}:${itemKey}:p${pageNumber}:${bbox}`;
   }
 
+  function getSourceRegionFingerprint(sourceRegionKey) {
+    return getPreviewIndexFingerprint(sourceRegionKey) || "unknown";
+  }
+
   function getLibraryURIPath(libraryID) {
     try {
       if (!libraryID || libraryID === Zotero.Libraries.userLibraryID) {
@@ -2812,7 +2851,7 @@ var PdfImageSaver = (() => {
     return `h${(hash >>> 0).toString(36).padStart(7, "0")}`;
   }
 
-  async function isDuplicatePreviewIndexSave({ parentItem, indexKey, memoryKeys = [] }) {
+  async function isDuplicatePreviewIndexSave({ parentItem, indexKey, memoryKeys = [], sourceRegionKeys = [] }) {
     const normalizedIndexKey = normalizePreviewIndexKey(indexKey);
     if (!normalizedIndexKey) {
       return false;
@@ -2825,7 +2864,7 @@ var PdfImageSaver = (() => {
         return true;
       }
     }
-    return await hasExistingPreviewIndexAttachment(parentItem, normalizedIndexKey, memoryKeys);
+    return await hasExistingPreviewIndexAttachment(parentItem, normalizedIndexKey, memoryKeys, sourceRegionKeys);
   }
 
   function rememberPreviewIndexSave(attachment, entries, indexKey) {
@@ -2840,7 +2879,7 @@ var PdfImageSaver = (() => {
     pruneRecentIndexSaves();
   }
 
-  async function hasExistingPreviewIndexAttachment(parentItem, indexKey, memoryKeys = []) {
+  async function hasExistingPreviewIndexAttachment(parentItem, indexKey, memoryKeys = [], sourceRegionKeys = []) {
     const normalizedIndexKey = normalizePreviewIndexKey(indexKey);
     if (!parentItem || !normalizedIndexKey || typeof parentItem.getAttachments !== "function") {
       return false;
@@ -2854,6 +2893,11 @@ var PdfImageSaver = (() => {
         return true;
       }
     }
+    for (const sourceRegionKey of normalizeSourceRegionKeys(sourceRegionKeys)) {
+      if (identities.sourceRegionKeys.has(sourceRegionKey)) {
+        return true;
+      }
+    }
     return false;
   }
 
@@ -2861,6 +2905,7 @@ var PdfImageSaver = (() => {
     return {
       indexKeys: new Set(),
       entryKeys: new Set(),
+      sourceRegionKeys: new Set(),
     };
   }
 
@@ -2900,6 +2945,9 @@ var PdfImageSaver = (() => {
       }
       for (const entryKey of getPreviewDuplicateKeysFromMetadata(metadata)) {
         identities.entryKeys.add(entryKey);
+      }
+      for (const sourceRegionKey of getSourceRegionKeysFromMetadata(metadata)) {
+        identities.sourceRegionKeys.add(sourceRegionKey);
       }
     }
     return identities;
@@ -2981,6 +3029,26 @@ var PdfImageSaver = (() => {
   function getPreviewDuplicateKeysFromMetadata(metadata) {
     const entries = Array.isArray(metadata?.entries) ? metadata.entries : [];
     return normalizePreviewDuplicateKeys(entries.map((entry) => entry?.preview_duplicate_key));
+  }
+
+  function getSourceRegionKeysFromMetadata(metadata) {
+    const entries = Array.isArray(metadata?.entries) ? metadata.entries : [];
+    return normalizeSourceRegionKeys(entries.map((entry) => entry?.source_region_key));
+  }
+
+  function normalizeSourceRegionKeys(values) {
+    const keys = [];
+    for (const value of Array.isArray(values) ? values : []) {
+      const key = normalizeSourceRegionKey(value);
+      if (key) {
+        keys.push(key);
+      }
+    }
+    return keys;
+  }
+
+  function normalizeSourceRegionKey(value) {
+    return normalizeMetadataText(value, null, 1000);
   }
 
   function normalizePreviewDuplicateKeys(values) {
@@ -3210,6 +3278,7 @@ var PdfImageSaver = (() => {
       confirmAndSaveOriginalImagesFromReader,
       filterExistingOriginalImagesForImport,
       formatDiagnosticsReport,
+      formatAutoDuplicateSkipReason,
       formatHelperFailure,
       getErrorMessage,
       getActiveReader,
@@ -3222,6 +3291,7 @@ var PdfImageSaver = (() => {
       getPreviewDuplicateKey,
       getPreviewIndexFingerprint,
       getPreviewIndexKey,
+      getSourceRegionFingerprint,
       getSourceRegionKey,
       hasExistingPreviewIndexAttachment,
       importOriginalImages,

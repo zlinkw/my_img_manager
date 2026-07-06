@@ -2116,6 +2116,33 @@ End batch validation checklist:
 - `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
 - Git commit records B71 implementation: `f56a0e1`.
 
+### B72 Saved Index Source Action And Duplicate Feedback
+
+Status: in progress.
+
+Plan:
+
+- Make each saved HTML entry show an explicit `Open source PDF` action, not only a linked image/page number.
+- Show compact per-entry identity in the visible entry metadata so users can compare saved previews without opening the debug JSON.
+- Persist and compare source-region keys so changing preview quality does not bypass the default duplicate guard for the same PDF region.
+- Split auto-page duplicate skip accounting into session and already-saved buckets so cross-restart duplicates are not described as current-session-only.
+- Collapse detector, raw bbox, and full per-entry keys into per-entry details so the default saved index stays preview/source-action focused.
+- Add behavior/static checks covering the visible source action, compact entry identity, source-region duplicate guard, collapsed entry details, and duplicate feedback wording.
+
+Pre batch validation:
+
+- Git worktree clean at B72 start commit `9ca77e9`.
+- B72 plan review found auto-page duplicate feedback says `already saved in this Zotero session` even when B70/B71 now skip persisted duplicates found after reload; recorded as `FAIL-20260707-001`.
+- B72 plan review found changing preview quality changes `preview_duplicate_key`, so the same PDF/source region can be saved repeatedly at different qualities despite the default duplicate guard; recorded as `FAIL-20260707-002`.
+- B72 plan review found saved HTML normal view exposes detector, raw region label, and raw bbox by default, making the index more technical than needed for paper-reading use; recorded as `FAIL-20260707-003`.
+- B72 plan review found saved HTML only exposes source navigation through the preview image and linked page number, so the one-click source action is easy to miss; recorded as `FAIL-20260707-004`.
+- Regression guard: protect `FAIL-20260706-146`, `FAIL-20260706-157`, `FAIL-20260706-158`, `FAIL-20260706-159`, `FAIL-20260706-160`, and validation family: saved HTML source action plus duplicate feedback.
+- Batch size guard: uses the B69+ roughly 3x grouped target by combining four related saved-index readability and duplicate-feedback fixes that share the saved HTML/test/check validation surface.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -4502,6 +4529,58 @@ End batch validation checklist:
 - Close condition: tests and static checks prove unrelated HTML metadata is ignored while renamed valid plugin HTML metadata is still detected.
 - Closure: parsed HTML metadata must match `HELPER_SCHEMA_VERSION`, `reader_preview_index`, and plugin id before duplicate use; legacy fallback is limited to title candidates; tests/static checks cover unrelated HTML rejection and renamed valid HTML detection.
 
+### FAIL-20260707-001
+
+- Batch: B72
+- Environment: auto-page duplicate feedback after reload
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: auto-page duplicate feedback can say all previews were already saved in this Zotero session even when they were skipped from persisted child index metadata after reload.
+- Expected: duplicate feedback should distinguish current-session duplicates from already-saved synced HTML index duplicates.
+- Actual: B70/B71 added persisted duplicate filtering but the all-duplicates message still says `in this Zotero session`.
+- Validation update: split duplicate skip counters by session versus persisted saved index and update toast wording/tests.
+- Close condition: tests and static checks prove persisted duplicates are not described as current-session-only.
+
+### FAIL-20260707-002
+
+- Batch: B72
+- Environment: source-region duplicate guard across preview quality changes
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: saving the same PDF region at a different preview quality bypasses the default duplicate guard.
+- Expected: default duplicate protection should treat the same PDF and source region as already saved even when preview quality differs.
+- Actual: persisted duplicate matching compares `preview_duplicate_key`, which includes quality and changes across Low/Medium/High saves.
+- Validation update: persist and compare `source_region_key` alongside duplicate keys for persisted and auto-page duplicate checks.
+- Close condition: tests and static checks prove a matching `source_region_key` skips a different-quality duplicate by default.
+
+### FAIL-20260707-003
+
+- Batch: B72
+- Environment: saved HTML preview index normal-view noise
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: saved HTML normal view exposes detector, full region label, and raw bbox fields by default.
+- Expected: normal view should focus on preview, source action, quality/size, and short region identity; technical fields should be available but folded.
+- Actual: detector and bbox rows make the index read like debug output.
+- Validation update: move detector, bbox, and full source-region key into an entry-level `<details>` block and keep compact identity visible.
+- Close condition: tests and static checks prove technical per-entry fields are collapsed by default while still present.
+
+### FAIL-20260707-004
+
+- Batch: B72
+- Environment: saved HTML preview index source navigation
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: source navigation is available through the preview image and linked page number, but there is no explicit visible source action.
+- Expected: each saved preview entry should expose a clear one-click `Open source PDF` action near the preview.
+- Actual: users can miss that clicking the preview or page number opens the source PDF page.
+- Validation update: add a visible source action link and behavior/static checks for it.
+- Close condition: tests and static checks prove every saved HTML entry includes an escaped visible source PDF action using the same Zotero-compatible URI.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -4651,6 +4730,10 @@ End batch validation checklist:
 - Check saved HTML keeps full JSON metadata in a collapsed details block while showing compact identity in the header.
 - Check saved-index identity scanning returns empty identity sets, not booleans, when child attachment listing fails.
 - Check saved-index duplicate scanner ignores unrelated text/html metadata unless plugin schema, storage mode, and plugin id match.
+- Check auto-page duplicate feedback distinguishes current-session duplicates from already-saved persisted duplicates.
+- Check saved preview-index metadata includes per-entry `source_region_key` and uses it for persisted same-region duplicate detection across quality changes.
+- Check saved HTML entries keep detector, raw bbox, and full source-region key inside per-entry collapsed details.
+- Check saved HTML entries expose a visible `Open source PDF` action using the same Zotero-compatible source URI.
 
 ## Real Commit Log
 

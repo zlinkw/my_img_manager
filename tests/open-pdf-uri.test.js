@@ -93,6 +93,7 @@ const {
   cleanupSelectionOverlay,
   confirmAndSaveOriginalImagesFromReader,
   filterExistingOriginalImagesForImport,
+  formatAutoDuplicateSkipReason,
   formatDiagnosticsReport,
   formatHelperFailure,
   getErrorMessage,
@@ -104,6 +105,7 @@ const {
   getPreviewDuplicateKey,
   getPreviewIndexFingerprint,
   getPreviewIndexKey,
+  getSourceRegionFingerprint,
   getSourceRegionKey,
   hasExistingPreviewIndexAttachment,
   getReaderJobKey,
@@ -608,6 +610,11 @@ assert.strictEqual(metadata.entries[0].annotation_key, null);
 assert.ok(html.includes("<details>"), "full JSON metadata must be in a details block");
 assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
+assert.ok(html.includes(">Open source PDF</a>"), "HTML entry must expose an explicit source PDF action");
+assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region identity must keep full source key in a title");
+assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");
+assert.ok(html.includes('<details class="entry-details">'), "technical entry metadata must be in a per-entry details block");
+assert.ok(!/<details class="entry-details"[^>]*open/i.test(html), "technical entry metadata must be collapsed by default");
 
 const samePageLeft = {
   ...htmlEntry,
@@ -683,6 +690,21 @@ assert.strictEqual(
   buildIndexTitle(noisyParent, noisyAttachment, { bad: true }, { page: 1 }),
   "PDF - image index unknown",
   "index title must normalize malformed title, scope, and page target",
+);
+assert.strictEqual(
+  formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 2 }),
+  "All detected previews were already saved in this Zotero session.",
+  "session duplicate feedback must remain session-specific",
+);
+assert.strictEqual(
+  formatAutoDuplicateSkipReason({ skippedSavedDuplicates: 2 }),
+  "All detected previews were already saved in synced HTML indexes.",
+  "persisted duplicate feedback must not claim current-session-only saves",
+);
+assert.strictEqual(
+  formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 1, skippedSavedDuplicates: 1 }),
+  "All detected previews were already saved in synced HTML indexes or this Zotero session.",
+  "mixed duplicate feedback must mention both persisted and session sources",
 );
 
 const singleIndexKey = getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "medium");
@@ -1627,15 +1649,33 @@ async function runAsyncAssertions() {
       parentWithRenamedIndex,
       multiIndexKey,
       [getPreviewDuplicateKey(htmlAttachment, htmlEntry)],
+      [],
     ),
     true,
     "persisted entry duplicate keys must detect partial overlap when full index key differs",
+  );
+  const differentQualitySameRegionEntry = { ...htmlEntry, quality: "high" };
+  assert.notStrictEqual(
+    getPreviewDuplicateKey(htmlAttachment, differentQualitySameRegionEntry),
+    getPreviewDuplicateKey(htmlAttachment, htmlEntry),
+    "quality changes still produce distinct preview duplicate keys",
+  );
+  assert.strictEqual(
+    await hasExistingPreviewIndexAttachment(
+      parentWithRenamedIndex,
+      getPreviewIndexKey(htmlAttachment, [differentQualitySameRegionEntry], "clip", "high"),
+      [getPreviewDuplicateKey(htmlAttachment, differentQualitySameRegionEntry)],
+      [getSourceRegionKey(htmlAttachment, differentQualitySameRegionEntry)],
+    ),
+    true,
+    "persisted source_region_key must detect same-region duplicates across preview quality changes",
   );
   assert.strictEqual(
     await isDuplicatePreviewIndexSave({
       parentItem: parentWithRenamedIndex,
       indexKey: multiIndexKey,
       memoryKeys: [getPreviewDuplicateKey(htmlAttachment, htmlEntry)],
+      sourceRegionKeys: [],
     }),
     true,
     "duplicate save guard entry point must use persisted per-entry duplicate keys",

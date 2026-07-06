@@ -796,6 +796,18 @@ if ($mainJS -match "<details\s+open") {
 if ($mainJS -notmatch "Index\s+\$\{escapeHTML\(getPreviewIndexFingerprint\(previewIndexKey\)\s*\|\|\s*`"unknown`"\)") {
   throw "HTML preview header must expose compact index fingerprint"
 }
+if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}">Open source PDF</a>') {
+  throw "HTML preview entries must expose a visible source PDF action"
+}
+if ($mainJS -notmatch 'title="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
+  throw "HTML preview compact region identity must retain full source key in title"
+}
+if ($mainJS -notmatch "const\s+regionIdentity\s*=\s*getSourceRegionFingerprint\(entry\.sourceRegionKey\)") {
+  throw "HTML preview entries must show compact source region identity"
+}
+if ($mainJS -notmatch '<details class="entry-details">[\s\S]*<summary>Details</summary>[\s\S]*<dt>Detector</dt>[\s\S]*<dt>BBox</dt>[\s\S]*<dt>Source key</dt>') {
+  throw "HTML preview entry technical fields must be collapsed in per-entry details"
+}
 if ($mainJS -notmatch 'data-source-region-key="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
   throw "HTML preview links must carry source region keys"
 }
@@ -1132,7 +1144,7 @@ if ($duplicateKeyEntry.Value -cmatch "\$\{attachment\.key\}") {
 if ($mainJS -notmatch 'function\s+getPreviewIndexKey\s*\(\s*attachment,\s*entries,\s*scope,\s*qualityKey\s*\)[\s\S]*hashTextToken\(entryKeys\.join\("\|"\)\)') {
   throw "Preview index key must use a stable compact hash of normalized entry keys"
 }
-if ($mainJS -notmatch "async\s+function\s+hasExistingPreviewIndexAttachment\s*\(\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\]\s*\)") {
+if ($mainJS -notmatch "async\s+function\s+hasExistingPreviewIndexAttachment\s*\(\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\],\s*sourceRegionKeys\s*=\s*\[\]\s*\)") {
   throw "Persisted duplicate guard must scan existing child index attachments"
 }
 if ($mainJS -notmatch "parentItem\.getAttachments\(\)") {
@@ -1163,11 +1175,23 @@ if ($existingIdentityEntry.Value -match "return\s+false;") {
 if ($mainJS -notmatch "getPreviewDuplicateKeysFromMetadata\(metadata\)") {
   throw "Persisted duplicate guard must read per-entry duplicate keys from metadata"
 }
+if ($mainJS -notmatch "getSourceRegionKeysFromMetadata\(metadata\)") {
+  throw "Persisted duplicate guard must read per-entry source region keys from metadata"
+}
+if ($mainJS -notmatch "identities\.sourceRegionKeys\.add\(sourceRegionKey\)") {
+  throw "Persisted duplicate guard must store source region keys"
+}
 if ($mainJS -notmatch "identities\.entryKeys\.has\(memoryKey\)") {
   throw "Persisted duplicate guard must compare requested memory keys with existing entry keys"
 }
+if ($mainJS -notmatch "identities\.sourceRegionKeys\.has\(sourceRegionKey\)") {
+  throw "Persisted duplicate guard must compare requested source region keys with existing entries"
+}
 if ($mainJS -notmatch "existingIndexIdentities\.entryKeys\.has\(duplicateKey\)") {
   throw "Auto-page duplicate filtering must skip persisted per-entry duplicates before saving"
+}
+if ($mainJS -notmatch "existingIndexIdentities\.sourceRegionKeys\.has\(sourceRegionKey\)") {
+  throw "Auto-page duplicate filtering must skip persisted same-region duplicates"
 }
 if ($mainJS -notmatch "function\s+extractPreviewIndexMetadataFromHTML\s*\(\s*html,\s*options\s*=\s*\{\}\s*\)[\s\S]*JSON\.parse\(unescapeHTMLEntities\(preMatch\[1\]\)\.trim\(\)\)") {
   throw "Persisted duplicate guard must parse escaped metadata JSON from saved HTML"
@@ -1181,8 +1205,14 @@ if ($mainJS -notmatch "allowLegacyFallback:\s*isLegacyPreviewIndexTitleCandidate
 if ($mainJS -notmatch "if\s*\(\s*!options\?\.allowLegacyFallback\s*\)\s*\{\s*\r?\n\s*return\s+null;") {
   throw "Persisted duplicate guard must reject legacy key fallback unless explicitly allowed"
 }
-if ($mainJS -notmatch "async\s+function\s+isDuplicatePreviewIndexSave\s*\(\s*\{\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\]\s*\}\s*\)") {
+if ($mainJS -notmatch "async\s+function\s+isDuplicatePreviewIndexSave\s*\(\s*\{\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\],\s*sourceRegionKeys\s*=\s*\[\]\s*\}\s*\)") {
   throw "Duplicate guard must combine in-session and persisted index checks"
+}
+if ($mainJS -notmatch "function\s+formatAutoDuplicateSkipReason\s*\(\s*\{\s*skippedSessionDuplicates\s*=\s*0,\s*skippedSavedDuplicates\s*=\s*0\s*\}\s*=\s*\{\}\s*\)") {
+  throw "Auto-page duplicate feedback formatter missing"
+}
+if ($mainJS -notmatch "already saved in synced HTML indexes") {
+  throw "Auto-page persisted duplicate feedback must mention synced HTML indexes"
 }
 foreach ($saveEntry in @($clipSaveEntry, $autoSaveEntry, $pageSaveEntry)) {
   if ($saveEntry.Value -notmatch "getPreviewIndexKey\(attachment") {
