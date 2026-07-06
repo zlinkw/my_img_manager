@@ -1735,7 +1735,7 @@ End batch validation checklist:
 
 ### B59 Recursive Cleanup Temp Boundary Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1751,7 +1751,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `fb661947359cc1dbaba3da693fca5f07b5dccc4d9d378c45bfe0856ef8cee69b`, bytes `31413`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent identified the recursive cleanup boundary fault; local targeted rerun found no P0-P2 blockers after guard/tests/static checks.
+- Git commit records B59 implementation: `ea79d58`.
 
 ## Current Validation Results
 
@@ -3627,12 +3633,13 @@ End batch validation checklist:
 - Environment: recursive cleanup of optional-helper output directories
 - Zotero version target: 9.0.5
 - Severity: P1
-- Status: open
+- Status: closed
 - Symptom: `importOriginalImages()` passes `report.output_dir` to `removeDirectoryIfExists()`, and `removeDirectoryIfExists()` recursively removes any supplied path without proving it is under `PathUtils.tempDir/pdf-image-saver/`.
 - Expected: recursive cleanup should only remove directories inside the plugin temp root.
 - Actual: a malformed or future helper report could point cleanup at a non-plugin directory.
 - Validation update: add a final deletion-boundary guard and tests/static checks proving outside paths are skipped.
 - Close condition: tests/static checks prove recursive removal is limited to the normalized plugin temp root.
+- Closure: `removeDirectoryIfExists()` now calls `isPluginTempChildDirectory()` before recursive removal; the guard requires a normalized child path under `PathUtils.tempDir/pdf-image-saver/`, tests prove outside paths and the temp root are skipped, and static checks lock the guard before `IOUtils.remove()`.
 
 ## Revised Validation Checklist
 
@@ -3880,3 +3887,5 @@ End batch validation checklist:
 - B57 XPI SHA256 `21a24105cac3893e90fa9ad06daf0d41a725cb815e8b81da4fc4719046ec15fa` was built in `outputs/` for manual Zotero add-on manager installation.
 - `dd5022c` B58 cover auto raster coordinates.
 - B58 XPI SHA256 `095d9a6f34ba54ccb72ab29f994ceef01bef0d2811d96490693a853e585fc119` was built in `outputs/` for manual Zotero add-on manager installation.
+- `ea79d58` B59 guard recursive temp cleanup.
+- B59 XPI SHA256 `fb661947359cc1dbaba3da693fca5f07b5dccc4d9d378c45bfe0856ef8cee69b` was built in `outputs/` for manual Zotero add-on manager installation.
