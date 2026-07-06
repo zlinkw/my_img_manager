@@ -1207,12 +1207,20 @@ var PdfImageSaver = (() => {
         showReaderToast(reader, "No embedded original images matched helper filters.", "warning");
         return;
       }
-      const importedCount = await importOriginalImages({
+      const importResult = await importOriginalImages({
         report,
         attachment,
         parentItem,
+        scope: options.scope,
       });
-      showReaderToast(reader, `Saved ${importedCount} original image attachment${importedCount === 1 ? "" : "s"}.`, "success");
+      const skippedText = importResult.omittedCount
+        ? ` Skipped ${importResult.omittedCount} over safety cap ${importResult.maxImages}.`
+        : "";
+      showReaderToast(
+        reader,
+        `Saved ${importResult.count} original image attachment${importResult.count === 1 ? "" : "s"}.${skippedText}`,
+        importResult.omittedCount ? "warning" : "success",
+      );
     } catch (error) {
       logError(error);
       showReaderToast(reader, getErrorMessage(error), "error");
@@ -1221,11 +1229,12 @@ var PdfImageSaver = (() => {
     }
   }
 
-  async function importOriginalImages({ report, attachment, parentItem }) {
+  async function importOriginalImages({ report, attachment, parentItem, scope }) {
     const parentID = attachment.parentID || undefined;
     let count = 0;
+    const limited = limitOriginalImagesForImport(report, scope);
     try {
-      for (const image of report.images) {
+      for (const image of limited.images) {
         await Zotero.Attachments.importFromFile({
           file: image.file_path,
           parentItemID: parentID,
@@ -1235,10 +1244,25 @@ var PdfImageSaver = (() => {
         });
         count += 1;
       }
-      return count;
+      return {
+        count,
+        omittedCount: limited.omittedCount,
+        maxImages: limited.maxImages,
+      };
     } finally {
       await removeDirectoryIfExists(report.output_dir);
     }
+  }
+
+  function limitOriginalImagesForImport(report, scope) {
+    const images = Array.isArray(report?.images) ? report.images : [];
+    const maxImages = getHelperMaxImages(scope);
+    return {
+      images: images.slice(0, maxImages),
+      omittedCount: Math.max(0, images.length - maxImages),
+      maxImages,
+      originalCount: images.length,
+    };
   }
 
   function buildOriginalImageTitle(parentItem, attachment, image) {
@@ -2260,6 +2284,7 @@ var PdfImageSaver = (() => {
       calculateCanvasCrop,
       getActiveReader,
       getPDFViewerContextCandidate,
+      limitOriginalImagesForImport,
       isPDFReader,
       normalizeAnnotationKey,
     },

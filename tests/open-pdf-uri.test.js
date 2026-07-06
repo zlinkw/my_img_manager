@@ -20,6 +20,12 @@ const context = {
       },
     },
     version: "9.0.5-test",
+    Prefs: {
+      values: Object.create(null),
+      get(key) {
+        return this.values[key];
+      },
+    },
     debug() {},
     logError(error) {
       throw error;
@@ -43,6 +49,7 @@ const {
   calculateCanvasCrop,
   getActiveReader,
   getPDFViewerContextCandidate,
+  limitOriginalImagesForImport,
   isPDFReader,
   normalizeAnnotationKey,
 } = context.PdfImageSaver.__test__;
@@ -206,6 +213,32 @@ assert.strictEqual(metadata.zotero_version, "9.0.5-test");
 assert.strictEqual(metadata.entries[0].open_pdf_uri, "zotero://open-pdf/library/items/HTMLPDF1?page=5");
 assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normalized_page_rect");
 assert.strictEqual(metadata.entries[0].annotation_key, null);
+
+const helperImages = Array.from({ length: 5 }, (_, index) => ({ file_path: `image-${index}.jpg` }));
+context.Zotero.Prefs.values["extensions.pdfImageSaver.maxPageImages"] = 2;
+context.Zotero.Prefs.values["extensions.pdfImageSaver.maxDocumentImages"] = 3;
+const pageLimitedImages = limitOriginalImagesForImport({ images: helperImages }, "page");
+assert.strictEqual(pageLimitedImages.images.length, 2, "page import must truncate over-cap helper reports");
+assert.strictEqual(pageLimitedImages.omittedCount, 3, "page import must report skipped images");
+assert.strictEqual(pageLimitedImages.maxImages, 2);
+const documentLimitedImages = limitOriginalImagesForImport({ images: helperImages }, "document");
+assert.strictEqual(documentLimitedImages.images.length, 3, "document import must truncate over-cap helper reports");
+assert.strictEqual(documentLimitedImages.omittedCount, 2, "document import must report skipped images");
+assert.strictEqual(documentLimitedImages.maxImages, 3);
+context.Zotero.Prefs.values["extensions.pdfImageSaver.maxPageImages"] = 9999;
+const hardLimitedPageImages = limitOriginalImagesForImport({ images: helperImages }, "page");
+assert.strictEqual(hardLimitedPageImages.images.length, 5, "page import must not drop in-range reports");
+assert.strictEqual(hardLimitedPageImages.maxImages, 500, "page import must hard-clamp edited prefs");
+const hugeHelperImages = Array.from({ length: 501 }, (_, index) => ({ file_path: `huge-${index}.jpg` }));
+const hugeLimitedPageImages = limitOriginalImagesForImport({ images: hugeHelperImages }, "page");
+assert.strictEqual(hugeLimitedPageImages.images.length, 500, "page import must truncate at the hard cap");
+assert.strictEqual(hugeLimitedPageImages.omittedCount, 1, "page import must report hard-cap skips");
+context.Zotero.Prefs.values["extensions.pdfImageSaver.maxDocumentImages"] = 9999;
+const hugeDocumentImages = Array.from({ length: 2001 }, (_, index) => ({ file_path: `doc-${index}.jpg` }));
+const hugeLimitedDocumentImages = limitOriginalImagesForImport({ images: hugeDocumentImages }, "document");
+assert.strictEqual(hugeLimitedDocumentImages.images.length, 2000, "document import must truncate at the hard cap");
+assert.strictEqual(hugeLimitedDocumentImages.omittedCount, 1, "document import must report hard-cap skips");
+assert.strictEqual(hugeLimitedDocumentImages.maxImages, 2000, "document import must hard-clamp edited prefs");
 
 const directDoc = { nodeName: "#document" };
 const directApp = { pdfViewer: { currentPageNumber: 2 } };

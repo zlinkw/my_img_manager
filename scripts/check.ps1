@@ -208,6 +208,18 @@ $helperMaxCallCount = ([regex]::Matches($mainJS, "getHelperMaxImages\(")).Count
 if ($helperMaxCallCount -lt 3) {
   throw "Confirmation text and helper args must call getHelperMaxImages()"
 }
+if ($mainJS -notmatch "function\s+limitOriginalImagesForImport\s*\(\s*report\s*,\s*scope\s*\)") {
+  throw "Original image import must use an import-side image limit helper"
+}
+if ($mainJS -notmatch "const\s+limited\s*=\s*limitOriginalImagesForImport\(report,\s*scope\)") {
+  throw "Original image import path must call the import-side image limit helper"
+}
+if ($mainJS -match "for\s*\(\s*const\s+image\s+of\s+report\.images\s*\)") {
+  throw "Original image import must not iterate raw helper report images"
+}
+if ($mainJS -notmatch "images:\s*images\.slice\(0,\s*maxImages\)") {
+  throw "Original image import limiter must truncate images to maxImages"
+}
 $mainWithoutHelperMaxGetter = [regex]::Replace(
   $mainJS,
   "function\s+getHelperMaxImages\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+getHelperTimeoutSeconds",

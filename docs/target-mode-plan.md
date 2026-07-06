@@ -946,6 +946,33 @@ End batch validation checklist:
 - Plan review: passed after fixing the failure-section heading boundary and closing B30 failure states.
 - Git commit records B30: `8b1e2c3`.
 
+### B31 Original Import Hard Cap Enforcement
+
+Status: complete.
+
+Plan:
+
+- Add a second runtime hard cap at the Zotero attachment import boundary for optional original image extraction.
+- Do not rely only on the helper `--max-images` argument, because helper bugs or malformed reports could otherwise import too many original files.
+- Add regression coverage for truncating helper reports beyond the current hard cap.
+- Preserve default preview index behavior unchanged.
+
+Pre batch validation:
+
+- Git worktree clean at B31 start commit `25cc413`.
+- Runtime helper args pass `--max-images`, but `importOriginalImages()` loops through every `report.images` entry without enforcing the cap again; recorded as `FAIL-20260706-061`.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- `npm.cmd run test`: passed and covers page/document import caps plus hard cap truncation.
+- `npm.cmd run check`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run package:manual`: passed, packaged XPI SHA256 `35cfab091a28b2a777bdab770369c95d71b1ca5e6e3105c94c8d939bbcc4a617`.
+- `npm.cmd run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- Code review: passed after adding document hard-cap regression coverage.
+- Git commit records B31: pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -1085,6 +1112,11 @@ End batch validation checklist:
 - B30 `npm.cmd run build`: passed.
 - B30 `npm.cmd run package:manual`: passed; packaged XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1`.
 - B30 `npm.cmd run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- B31 `npm.cmd run test`: passed and covers optional original import-side cap behavior.
+- B31 `npm.cmd run check`: passed.
+- B31 `npm.cmd run build`: passed.
+- B31 `npm.cmd run package:manual`: passed; packaged XPI SHA256 `35cfab091a28b2a777bdab770369c95d71b1ca5e6e3105c94c8d939bbcc4a617`.
+- B31 `npm.cmd run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
 
 ## New Failures
 
@@ -1917,6 +1949,20 @@ End batch validation checklist:
 - Close condition: `scripts/check.ps1` uses a heading-boundary regex that cannot include later `##` sections in a failure body.
 - Closure: `scripts/check.ps1` now stops failure-section parsing at any Markdown heading level.
 
+### FAIL-20260706-061
+
+- Batch: B31
+- Environment: optional original image extraction when the helper returns more image records than requested
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `importOriginalImages()` imports every `report.images` entry.
+- Expected: Zotero import code enforces the same hard image count cap as helper invocation.
+- Actual: the helper receives `--max-images`, but a bad or stale report with extra images could still create too many Zotero attachments.
+- Validation update: add an import-side limiter that truncates report images to `getHelperMaxImages(scope)` before creating attachments.
+- Close condition: regression tests prove over-cap helper reports are truncated before import, and static checks assert the import path uses the limiter.
+- Closure: `limitOriginalImagesForImport()` now truncates page and document reports at the import boundary, tests cover configured caps and hard caps, and static checks reject direct raw report iteration.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1975,6 +2021,7 @@ End batch validation checklist:
 - Check Windows PowerShell validation can use `npm.cmd` when `npm.ps1` is blocked by execution policy.
 - Check runtime status handles null or inaccessible Zotero process `StartTime` and `Path` fields.
 - Check target-plan failure-section parsing stops before the next Markdown heading at any level.
+- Check optional original-image import enforces the helper image hard cap even if the helper report contains too many images.
 
 ## Real Commit Log
 
@@ -2043,3 +2090,4 @@ End batch validation checklist:
 - B29 XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1` was built in `outputs/` for manual Zotero add-on manager installation.
 - `8b1e2c3` B30 guard target plan consistency.
 - B30 XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1` was built in `outputs/` for manual Zotero add-on manager installation.
+- B31 XPI SHA256 `35cfab091a28b2a777bdab770369c95d71b1ca5e6e3105c94c8d939bbcc4a617` was built in `outputs/` for manual Zotero add-on manager installation.
