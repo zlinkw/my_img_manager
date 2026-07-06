@@ -696,8 +696,8 @@ if ($mainWithoutHelperMaxGetter -match 'getIntegerPref\("max(Page|Document)Image
 if ($mainJS -match 'getIntegerPref\("helperTimeoutSeconds",\s*DEFAULT_HELPER_TIMEOUT_SECONDS\)\)\s*\*\s*1000') {
   throw "runProcess must not read raw helper timeout prefs directly"
 }
-if ($mainJS -notmatch "function\s+buildOpenPDFURI\s*\(\s*attachment\s*,\s*pageNumber\s*,\s*annotationKey\s*,\s*sourceRegionKey\s*=\s*null\s*\)") {
-  throw "open-pdf URI builder must accept annotationKey and optional sourceRegionKey"
+if ($mainJS -notmatch "function\s+buildOpenPDFURI\s*\(\s*attachment\s*,\s*pageNumber\s*,\s*annotationKey\s*\)") {
+  throw "open-pdf URI builder must accept annotationKey"
 }
 if ($mainJS -match "getLibraryPrefix") {
   throw "open-pdf URI builder must not use Zotero API library prefixes"
@@ -714,8 +714,8 @@ if ($mainJS -match 'items/\$\{attachment\.key\}') {
 if ($mainJS -notmatch "annotation=\$\{encodeURIComponent\(normalizedAnnotationKey\)\}") {
   throw "open-pdf URI builder must append encoded annotation parameter"
 }
-if ($mainJS -notmatch 'pdfImageSaverRegion=\$\{encodeURIComponent\(getPreviewIndexFingerprint\(normalizedSourceRegionKey\)\)\}') {
-  throw "open-pdf URI builder must append compact source-region identity when annotation is absent"
+if ($mainJS -match "pdfImageSaverRegion") {
+  throw "open-pdf URI builder must not emit unsupported custom Zotero query parameters"
 }
 if ($mainJS -notmatch "source_region:\s*entry\.sourceRegion") {
   throw "metadata must include source_region"

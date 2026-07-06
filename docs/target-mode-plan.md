@@ -1973,6 +1973,26 @@ End batch validation checklist:
 - First B66 review agent timed out twice and was closed; second post-commit review agent timed out once and was closed; implementation validation passed locally before and after commit.
 - Git commit records B66 implementation: `fc3d6cd`.
 
+### B67 Open PDF URI Compatibility
+
+Status: in progress.
+
+Plan:
+
+- Remove unsupported custom `zotero://open-pdf` region query parameters and keep source links compatible with Zotero 9.0.5.
+- Preserve same-page source distinction in explicit metadata fields: `source_region`, `source_region_key`, `preview_index_key`, and title fingerprint.
+- Add behavior and static checks proving unsupported custom open-pdf query parameters cannot return while annotation links still work.
+
+Pre batch validation:
+
+- Git worktree clean at B67 start commit `f77b260`.
+- Local Zotero 9.0.5 `ZoteroProtocolHandler.mjs` inspection found the `open-pdf` handler reads `annotation`, `page`, `cfi`, and `sel`, but not custom region query parameters; recorded as `FAIL-20260706-150`.
+- Regression guard: protect `FAIL-20260706-146` and validation family: Zotero open-pdf URI compatibility plus source-region metadata identity.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -4205,6 +4225,19 @@ End batch validation checklist:
 - Close condition: `npm.cmd run check` passes while still checking B66 source-region, preview-index, and duplicate-guard invariants.
 - Closure: B66 static guards now use PowerShell-safe regex quoting, and `npm.cmd run check` passes while enforcing source-region, preview-index, persisted duplicate-guard, and title invariants.
 
+### FAIL-20260706-150
+
+- Batch: B67
+- Environment: Zotero 9.0.5 `zotero://open-pdf` URI handling
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: B66 appends `pdfImageSaverRegion=` to `open_pdf_uri` for no-annotation entries.
+- Expected: `open_pdf_uri` should only use parameters Zotero handles, while source-region identity stays in separate metadata when no annotation key exists.
+- Actual: local Zotero 9.0.5 `ZoteroProtocolHandler.mjs` maps only `annotation`, `page`, `cfi`, and `sel`; custom `pdfImageSaverRegion` is ignored, creating false precision.
+- Validation update: remove unsupported custom open-pdf parameters and add tests/static checks that no `pdfImageSaverRegion` query is emitted.
+- Close condition: `npm.cmd run test` and `npm.cmd run check` pass while proving no-annotation `open_pdf_uri` remains page-only and `source_region_key` still distinguishes same-page entries.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -4345,6 +4378,7 @@ End batch validation checklist:
 - Check persisted preview index duplicate keys skip duplicate child index creation across reloads.
 - Check saved index attachment titles stay short while exposing quality, count, and short identity.
 - Check PowerShell static regex guards for B66 parse correctly before validating source text.
+- Check Zotero open-pdf links do not use unsupported custom region query parameters.
 
 ## Real Commit Log
 

@@ -1211,7 +1211,7 @@ var PdfImageSaver = (() => {
         entry.annotationKey = normalizeAnnotationKey(entry.annotationKey);
         entry.sourceRegion = buildSourceRegion(entry.bboxNormalized);
         entry.sourceRegionKey = getSourceRegionKey(attachment, entry);
-        const uri = buildOpenPDFURI(attachment, entry.pageNumber, entry.annotationKey, entry.sourceRegionKey);
+        const uri = buildOpenPDFURI(attachment, entry.pageNumber, entry.annotationKey);
         entry.openPDFURI = uri;
         const pageText = entry.pageLabel && entry.pageLabel !== String(entry.pageNumber)
           ? `${entry.pageNumber} (${entry.pageLabel})`
@@ -2283,7 +2283,7 @@ var PdfImageSaver = (() => {
     doc.head?.appendChild(style);
   }
 
-  function buildOpenPDFURI(attachment, pageNumber, annotationKey, sourceRegionKey = null) {
+  function buildOpenPDFURI(attachment, pageNumber, annotationKey) {
     const libraryPath = getLibraryURIPath(attachment.libraryID);
     const itemKey = normalizeItemKey(attachment.key, "UNKNOWN");
     const page = normalizePageNumber(pageNumber, 1);
@@ -2291,11 +2291,6 @@ var PdfImageSaver = (() => {
     const normalizedAnnotationKey = normalizeAnnotationKey(annotationKey);
     if (normalizedAnnotationKey) {
       uri += `&annotation=${encodeURIComponent(normalizedAnnotationKey)}`;
-    } else {
-      const normalizedSourceRegionKey = normalizePreviewIndexKey(sourceRegionKey);
-      if (normalizedSourceRegionKey) {
-        uri += `&pdfImageSaverRegion=${encodeURIComponent(getPreviewIndexFingerprint(normalizedSourceRegionKey))}`;
-      }
     }
     return uri;
   }

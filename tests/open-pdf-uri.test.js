@@ -158,16 +158,10 @@ assert.strictEqual(
   "valid annotation key must append annotation parameter",
 );
 
-const regionKey = "source-region:v1:1:ABCDEF12:p7:0.1000,0.1000,0.2000,0.2000";
 assert.strictEqual(
-  buildOpenPDFURI(userAttachment, 7, null, regionKey),
-  `zotero://open-pdf/library/items/ABCDEF12?page=7&pdfImageSaverRegion=${getPreviewIndexFingerprint(regionKey)}`,
-  "source region key must add a compact ignored region parameter when annotation is absent",
-);
-assert.strictEqual(
-  buildOpenPDFURI(userAttachment, 7, "ANNOTATION9", regionKey),
+  buildOpenPDFURI(userAttachment, 7, "ANNOTATION9"),
   "zotero://open-pdf/library/items/ABCDEF12?page=7&annotation=ANNOTATION9",
-  "annotation target must take priority over source-region identity",
+  "annotation target must use the supported Zotero annotation parameter",
 );
 
 assert.strictEqual(
@@ -585,10 +579,7 @@ assert.ok(!html.includes("<script>alert(1)</script>"), "raw script text must not
 assert.ok(html.includes("zotero://open-pdf/library/items/HTMLPDF1?page=5"), "HTML must include source PDF link");
 assert.ok(!html.includes("annotation=bad-key"), "invalid annotation key must be dropped");
 assert.ok(html.includes("source-map"), "HTML must include source region map");
-assert.ok(
-  htmlEntry.openPDFURI.includes("?page=5&pdfImageSaverRegion="),
-  "entry without annotation must receive a region-distinguishable open PDF URI",
-);
+assert.strictEqual(htmlEntry.openPDFURI, "zotero://open-pdf/library/items/HTMLPDF1?page=5", "entry without annotation must keep Zotero-compatible page URI");
 assert.strictEqual(htmlEntry.annotationKey, null, "invalid annotation key must be normalized to null");
 assert.ok(htmlEntry.sourceRegion, "entry must receive source region metadata");
 assert.ok(htmlEntry.sourceRegionKey.includes("source-region:v1"), "entry must receive compact source region key");
@@ -642,14 +633,14 @@ assert.notStrictEqual(
   samePageMetadata.entries[1].source_region_key,
   "same-page previews with different bboxes must keep distinct source region keys",
 );
-assert.notStrictEqual(
+assert.strictEqual(
   samePageMetadata.entries[0].open_pdf_uri,
   samePageMetadata.entries[1].open_pdf_uri,
-  "same-page previews with different bboxes must keep distinct source-link identities",
+  "same-page previews without annotations must keep Zotero-compatible page links",
 );
 assert.ok(
-  samePageMetadata.entries.every((entry) => entry.open_pdf_uri.includes("pdfImageSaverRegion=")),
-  "region-distinguishable links must carry compact region query keys",
+  samePageMetadata.entries.every((entry) => !entry.open_pdf_uri.includes("pdfImageSaverRegion=")),
+  "source links must not include unsupported custom Zotero query parameters",
 );
 
 const noisySourceHTML = buildIndexHTML({
