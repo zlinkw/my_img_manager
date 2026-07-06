@@ -57,6 +57,12 @@ if (!$package.scripts.'smoke:wait') {
 if (!$package.scripts.'install:xpi') {
   throw "install:xpi script missing"
 }
+if (!$package.scripts.'package:manual') {
+  throw "package:manual script missing"
+}
+if ($package.scripts.'package:manual' -ne "powershell -ExecutionPolicy Bypass -File scripts/package-manual.ps1") {
+  throw "package:manual script must call scripts/package-manual.ps1"
+}
 if ($package.scripts.'install:xpi' -ne "powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1 -InstallMode XPI") {
   throw "install:xpi script must call install-global.ps1 -InstallMode XPI"
 }
@@ -71,6 +77,17 @@ if (!(Test-Path -LiteralPath .\scripts\smoke-wait.ps1)) {
 }
 if (!(Test-Path -LiteralPath .\scripts\check-xpi.ps1)) {
   throw "check-xpi.ps1 missing"
+}
+if (!(Test-Path -LiteralPath .\scripts\package-manual.ps1)) {
+  throw "package-manual.ps1 missing"
+}
+
+$readme = Get-Content -Encoding UTF8 -Raw -LiteralPath .\README.md
+if ($readme -notmatch "npm run package:manual") {
+  throw "README must document manual package command"
+}
+if ($readme -notmatch "Install Add-on From File") {
+  throw "README must document Zotero manual add-on installation"
 }
 
 $runtimeStatusScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\runtime-status.ps1

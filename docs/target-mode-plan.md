@@ -723,6 +723,31 @@ End batch validation checklist:
 - Final `npm run check`: passed.
 - Final `npm run build`: passed, packaged XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`.
 
+### B22 Manual Install Package Handoff
+
+Status: complete; manual Zotero install and reader smoke pending user action.
+
+Plan:
+
+- Treat manual Zotero add-on manager installation as the supported handoff path until `FAIL-20260706-050` is diagnosed.
+- Add a packaging command that builds the XPI and prints the exact artifact path, SHA256, manual install steps, and post-install verification commands.
+- Update README so development proxy/profile XPI fallback is no longer the primary user-facing install path.
+- Add static checks for the manual package handoff contract.
+
+Pre batch validation:
+
+- Git worktree clean at B22 start commit `8ac61bd`.
+- B21 packaged XPI exists at `outputs/pdf-image-saver-0.1.0.xpi`, size 25804 bytes.
+- B21 SHA256 remains `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`.
+- README still emphasizes development install commands and needs a clearer manual install path after the copied-XPI fallback failed.
+
+End batch validation checklist:
+
+- `npm run package:manual`: passed; printed manual Zotero add-on manager install steps, XPI path, SHA256, byte size, and post-install verification commands.
+- `npm run check`: passed.
+- `npm run build`: passed, packaged XPI SHA256 `64b4b823c79afa2d04956d19ca8eab0d3ec67d56cbded82607096831ff42e097`.
+- Git commit records B22: pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -826,6 +851,9 @@ End batch validation checklist:
 - B21 after Zotero launch attempt: no popup appeared; follow-up `npm run runtime:status` showed Zotero process count 0, registration false, profile XPI absent, `rescan.needsRescan: true`, startup cache raw-byte add-on hint false, temp child count 0.
 - B21 final `npm run check`: passed.
 - B21 final `npm run build`: passed; packaged XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`.
+- B22 `npm run package:manual`: passed; printed XPI path `outputs\pdf-image-saver-0.1.0.xpi`, SHA256 `64b4b823c79afa2d04956d19ca8eab0d3ec67d56cbded82607096831ff42e097`, size 26128 bytes, manual install steps, and post-install verification commands.
+- B22 `npm run check`: passed.
+- B22 `npm run build`: passed; packaged XPI SHA256 `64b4b823c79afa2d04956d19ca8eab0d3ec67d56cbded82607096831ff42e097`.
 
 ## New Failures
 
@@ -1614,3 +1642,4 @@ End batch validation checklist:
 - B20 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `76779d8` docs record B20 validation.
 - B21 XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187` was built in `outputs/` for manual Zotero add-on manager installation; runtime source-copy fallback remains open under `FAIL-20260706-050`.
+- B22 XPI SHA256 `64b4b823c79afa2d04956d19ca8eab0d3ec67d56cbded82607096831ff42e097` was built in `outputs/` for manual Zotero add-on manager installation.

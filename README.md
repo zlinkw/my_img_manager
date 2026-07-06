@@ -42,6 +42,7 @@ The helper discovery also checks the local conda `zlk` environment first when pr
 ```powershell
 npm run check
 npm run build
+npm run package:manual
 npm run install:global
 npm run install:xpi
 npm run runtime:status
@@ -49,8 +50,34 @@ npm run smoke:preflight
 npm run smoke:wait
 ```
 
-The global install script writes a Zotero extension proxy file into each detected Zotero profile. Restart Zotero to load a newly installed plugin.
-`install:xpi` is the profile XPI fallback for testing the packaged plugin rather than the development proxy; close Zotero before running it so the installer can switch the source cleanly.
+## Manual Installation
+
+Use the manual package command for the handoff build:
+
+```powershell
+npm run package:manual
+```
+
+It rebuilds the XPI, validates the payload, and prints the exact XPI path, SHA256, file size, Zotero manual install steps, and post-install verification commands.
+
+Install the printed XPI through Zotero's add-on manager:
+
+1. Zotero: Tools > Add-ons.
+2. Gear menu > Install Add-on From File...
+3. Select `outputs\pdf-image-saver-0.1.0.xpi`.
+4. Confirm the install if Zotero prompts.
+5. Restart Zotero if Zotero requests it.
+
+After Zotero starts, run:
+
+```powershell
+npm run smoke:wait
+npm run smoke:preflight
+npm run runtime:status
+```
+
+The global install script writes a Zotero extension proxy file into each detected Zotero profile for development testing. Restart Zotero to load a newly installed proxy.
+`install:xpi` is a profile XPI fallback for testing the packaged plugin rather than the development proxy; close Zotero before running it so the installer can switch the source cleanly. On Zotero 9.0.5, manual add-on manager installation is the preferred package handoff until the copied-profile-XPI fallback is verified.
 `runtime:status` reports whether the proxy is installed, whether the proxy target manifest is readable, whether expected payload files exist, whether Zotero has registered the add-on in the current session, whether startup cache/UUID hints exist, and whether temp files remain.
 If `runtime:status` reports `rescan.needsRescan: true`, close Zotero and run `npm run install:global` once more. The installer will then clear Zotero's extension scan cache prefs so the proxy is registered on the next Zotero launch.
 
