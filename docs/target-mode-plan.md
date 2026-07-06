@@ -1089,7 +1089,7 @@ End batch validation checklist:
 - `npm.cmd run package:manual`: passed, XPI SHA256 `9a548c482337de5685e5a7a1494d94756f1c6876cd80e902a69e3cb388832181`, bytes `27212`.
 - `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 3, temp children 0.
 - Code review: local review passed after fixing null/boolean/array page-target coercion; review-agent retry failed twice due 429/503 service availability.
-- Git commit records B35: pending.
+- Git commit records B35: `aae8cb8`.
 
 ## Current Validation Results
 
@@ -2405,3 +2405,5 @@ End batch validation checklist:
 - B33 XPI SHA256 `c493df863c924cac3c91fc30172897963e8ce36307fd6294c7aa61489f757f33` was built in `outputs/` for manual Zotero add-on manager installation.
 - `f0e0de4` B34 normalize HTML preview quality metadata.
 - B34 XPI SHA256 `028a3ea08679efccaa0f55ffae695110201f64028b7ea6509327361745dd0109` was built in `outputs/` for manual Zotero add-on manager installation.
+- `aae8cb8` B35 normalize open-pdf page targets.
+- B35 XPI SHA256 `9a548c482337de5685e5a7a1494d94756f1c6876cd80e902a69e3cb388832181` was built in `outputs/` for manual Zotero add-on manager installation.
