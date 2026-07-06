@@ -1324,6 +1324,30 @@ End batch validation checklist:
 - Code review: passed; no P0-P2 blockers found.
 - Git commit records B43 implementation: `bfef86f`.
 
+### B44 Reader Save Entry Options Guard
+
+Status: in progress.
+
+Plan:
+
+- Make reader page and auto-raster save entry points tolerate missing option objects.
+- Move page-target and job-key setup inside the existing error-handling path.
+- Ensure duplicate active-job checks do not delete another in-flight job.
+- Add regression/static checks for missing options and guarded active job cleanup.
+
+Pre batch validation:
+
+- Git worktree clean at B44 start commit `b2ae1f7`.
+- B44 planning pass found `saveAutoDetectedPageImagePreviews()` and `savePagePreviewIndex()` read `options.*` before their `try/catch`, so malformed internal/menu calls can reject before showing a reader error toast or normalizing cleanup; recorded as `FAIL-20260706-098`.
+- B44 code review found the new active-job cleanup static check is too broad and can pass if only one save entry remains guarded; recorded as `FAIL-20260706-099`.
+- B44 code review found missing-options tests only assert that either save entry logs the expected guarded-path error, not each entry separately; recorded as `FAIL-20260706-100`.
+- B44 re-review found the auto-raster guarded-cleanup static check can still cross into the page-preview function; recorded under `FAIL-20260706-099`.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -2828,6 +2852,45 @@ End batch validation checklist:
 - Close condition: tests/static checks prove malformed base64 lengths are rejected before HTML output while normal canvas-style payloads still pass.
 - Closure: `normalizePreviewDataURL()` now captures and validates the base64 payload length, tests cover malformed length rejection and canonical padded payload acceptance, and static checks guard the validation path.
 
+### FAIL-20260706-098
+
+- Batch: B44
+- Environment: reader save entry error handling
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: reader page and auto-raster save entry points read `options.*` before entering their `try/catch`.
+- Expected: missing or malformed option objects should be handled by the same reader error feedback path as later page/canvas failures.
+- Actual: missing options can throw before the save entry point reaches its local catch block, producing inconsistent button/menu behavior and possible unhandled rejections.
+- Validation update: default options to `{}`, move setup into guarded blocks, and only clear active jobs that the current call added.
+- Close condition: tests/static checks prove missing options do not reject and active-job cleanup is guarded.
+
+### FAIL-20260706-099
+
+- Batch: B44
+- Environment: B44 reader save active-job static checks
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: the new `jobAdded` static check scans the whole plugin once instead of checking both save entry functions independently.
+- Expected: static checks prove both `saveAutoDetectedPageImagePreviews()` and `savePagePreviewIndex()` guard active-job deletion.
+- Actual: one guarded entry can satisfy the check while the other regresses.
+- Validation update: scope guarded-cleanup static checks to each save entry function without allowing cross-function matches.
+- Close condition: static checks fail if either save entry drops guarded cleanup.
+
+### FAIL-20260706-100
+
+- Batch: B44
+- Environment: B44 missing-options regression tests
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: missing-options tests assert that at least one save entry logs the expected guarded-path error.
+- Expected: tests prove both page and auto-raster save entries individually handle missing options through the guarded error path.
+- Actual: one entry can still reject or log a pre-guard `TypeError` while the other makes the test pass.
+- Validation update: assert each save entry adds its own expected guarded-path error.
+- Close condition: regression tests fail if either save entry does not log the guarded page/canvas error.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2923,6 +2986,9 @@ End batch validation checklist:
 - Check B41 raw-status static guard is scoped to the helper failure formatter.
 - Check synced HTML preview entry lists and entry containers are normalized before field mutation.
 - Check synced HTML preview data URL base64 payloads use canonical lengths before byte-count metadata output.
+- Check reader page and auto-raster save entry points handle missing options inside guarded error paths.
+- Check each reader save entry has independently scoped active-job cleanup static coverage.
+- Check each reader save entry has independent missing-options regression coverage.
 
 ## Real Commit Log
 

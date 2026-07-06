@@ -355,6 +355,12 @@ if ($mainJS -notmatch "normalized\.length\s*>=\s*4") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*formatHelperFailure") {
   throw "Helper failure formatter must remain exported for regression tests"
 }
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveAutoDetectedPageImagePreviews") {
+  throw "Auto-raster save entry must remain exported for regression tests"
+}
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*savePagePreviewIndex") {
+  throw "Page-preview save entry must remain exported for regression tests"
+}
 if ($mainJS -notmatch "omittedCount:\s*\(limited\.omittedCount\s*\|\|\s*0\)\s*\+\s*missingCount\s*\+\s*errorCount") {
   throw "Original image existence filter must add missing and unreadable files to omission count"
 }
@@ -620,6 +626,26 @@ if ($mainJS -notmatch "const\s+normalizedExplicit\s*=\s*normalizePageIndex\(expl
 }
 if ($mainJS -notmatch "return\s+normalizePageNumber\(pageNumber,\s*1\)\s*-\s*1") {
   throw "Current page lookup must safely normalize viewer page numbers"
+}
+if ($mainJS -notmatch "async\s+function\s+saveAutoDetectedPageImagePreviews\s*\(\s*reader\s*,\s*options\s*=\s*\{\}\s*\)") {
+  throw "Auto-raster save entry must default missing options"
+}
+if ($mainJS -notmatch "async\s+function\s+savePagePreviewIndex\s*\(\s*reader\s*,\s*options\s*=\s*\{\}\s*\)") {
+  throw "Page-preview save entry must default missing options"
+}
+$autoSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveAutoDetectedPageImagePreviews\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+savePagePreviewIndex")
+if (!$autoSaveEntry.Success) {
+  throw "Auto-raster save entry function block not found"
+}
+if ($autoSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
+  throw "Auto-raster save entry must only clear active jobs added by the current call"
+}
+$pageSaveEntry = [regex]::Match($mainJS, "async\s+function\s+savePagePreviewIndex\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+renderCanvasPreview")
+if (!$pageSaveEntry.Success) {
+  throw "Page-preview save entry function block not found"
+}
+if ($pageSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
+  throw "Page-preview save entry must only clear active jobs added by the current call"
 }
 if ($mainJS -notmatch "const\s+contextPageIndex\s*=\s*normalizePageIndex\(params\?\.pageIndexFromContextMenu,\s*null\)") {
   throw "Context menu page targeting must normalize page-index strings"

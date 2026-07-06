@@ -20,6 +20,9 @@ const context = {
       },
     },
     version: "9.0.5-test",
+    Promise: {
+      delay: async () => {},
+    },
     Prefs: {
       values: Object.create(null),
       get(key) {
@@ -39,6 +42,12 @@ const context = {
   },
   Services: {
     appinfo: { OS: "WINNT" },
+    prompt: {
+      alerts: [],
+      alert(win, title, message) {
+        this.alerts.push({ win, title, message });
+      },
+    },
   },
   IOUtils: {
     exists: async () => false,
@@ -78,6 +87,8 @@ const {
   normalizeOriginalImageForImport,
   normalizePageIndex,
   normalizePageNumber,
+  saveAutoDetectedPageImagePreviews,
+  savePagePreviewIndex,
   isPDFReader,
   normalizeAnnotationKey,
 } = context.PdfImageSaver.__test__;
@@ -1008,6 +1019,27 @@ async function runAsyncAssertions() {
   );
   assert.strictEqual(allFailureErrors.length, 2, "all failed Zotero imports must log each failed import");
   assert.deepStrictEqual(context.Zotero.Attachments.imported, [], "all failed Zotero imports must not record imports");
+
+  const readerEntryErrors = [];
+  context.Zotero.logError = (error) => readerEntryErrors.push(error);
+  await assert.doesNotReject(
+    () => saveAutoDetectedPageImagePreviews(null),
+    "auto-raster save entry must handle missing options inside its guarded error path",
+  );
+  assert.strictEqual(readerEntryErrors.length, 1, "auto-raster save entry must log its own guarded error");
+  assert.ok(
+    String(readerEntryErrors[0]?.message || readerEntryErrors[0]).includes("Rendered PDF page canvas was not found"),
+    "auto-raster missing-options failure must reach guarded page/canvas error handling",
+  );
+  await assert.doesNotReject(
+    () => savePagePreviewIndex(null),
+    "page-preview save entry must handle missing options inside its guarded error path",
+  );
+  assert.strictEqual(readerEntryErrors.length, 2, "page-preview save entry must log its own guarded error");
+  assert.ok(
+    String(readerEntryErrors[1]?.message || readerEntryErrors[1]).includes("Rendered PDF page canvas was not found"),
+    "page-preview missing-options failure must reach guarded page/canvas error handling",
+  );
 }
 
 runAsyncAssertions()

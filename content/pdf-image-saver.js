@@ -539,17 +539,20 @@ var PdfImageSaver = (() => {
     }
   }
 
-  async function saveAutoDetectedPageImagePreviews(reader, options) {
-    const qualityKey = normalizeQualityKey(options.qualityKey);
-    const pageIndex = await getCurrentPageIndex(reader, options.pageIndex);
-    const jobKey = getReaderJobKey(reader, { scope: "auto-page", pageIndex });
-    if (activeJobs.has(jobKey)) {
-      showReaderToast(reader, "Auto image save already running for this page.", "warning");
-      return null;
-    }
-
-    activeJobs.add(jobKey);
+  async function saveAutoDetectedPageImagePreviews(reader, options = {}) {
+    let jobKey = null;
+    let jobAdded = false;
     try {
+      const qualityKey = normalizeQualityKey(options.qualityKey);
+      const pageIndex = await getCurrentPageIndex(reader, options.pageIndex);
+      jobKey = getReaderJobKey(reader, { scope: "auto-page", pageIndex });
+      if (activeJobs.has(jobKey)) {
+        showReaderToast(reader, "Auto image save already running for this page.", "warning");
+        return null;
+      }
+
+      activeJobs.add(jobKey);
+      jobAdded = true;
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -658,19 +661,24 @@ var PdfImageSaver = (() => {
       showReaderToast(reader, getErrorMessage(error), "error");
       return null;
     } finally {
-      activeJobs.delete(jobKey);
+      if (jobAdded) {
+        activeJobs.delete(jobKey);
+      }
     }
   }
 
-  async function savePagePreviewIndex(reader, options) {
-    const pageIndex = await getCurrentPageIndex(reader, options.pageIndex);
-    const jobKey = getReaderJobKey(reader, { scope: "page", pageIndex });
-    if (activeJobs.has(jobKey)) {
-      showReaderToast(reader, "Save already running for this page.", "warning");
-      return;
-    }
-    activeJobs.add(jobKey);
+  async function savePagePreviewIndex(reader, options = {}) {
+    let jobKey = null;
+    let jobAdded = false;
     try {
+      const pageIndex = await getCurrentPageIndex(reader, options.pageIndex);
+      jobKey = getReaderJobKey(reader, { scope: "page", pageIndex });
+      if (activeJobs.has(jobKey)) {
+        showReaderToast(reader, "Save already running for this page.", "warning");
+        return;
+      }
+      activeJobs.add(jobKey);
+      jobAdded = true;
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -719,7 +727,9 @@ var PdfImageSaver = (() => {
       logError(error);
       showReaderToast(reader, getErrorMessage(error), "error");
     } finally {
-      activeJobs.delete(jobKey);
+      if (jobAdded) {
+        activeJobs.delete(jobKey);
+      }
     }
   }
 
@@ -2699,6 +2709,8 @@ var PdfImageSaver = (() => {
       normalizeOriginalImageForImport,
       normalizePageIndex,
       normalizePageNumber,
+      saveAutoDetectedPageImagePreviews,
+      savePagePreviewIndex,
       isPDFReader,
       normalizeAnnotationKey,
     },
