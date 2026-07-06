@@ -1240,7 +1240,7 @@ End batch validation checklist:
 
 ### B41 Optional Helper Failure Message Scalar Normalization
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1262,7 +1262,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `453f4a76493f1bc95dac041d3b87651bde7693a943eae5b73ff9cd0bc9cba33a`, bytes `29479`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 3, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: passed; no P0-P2 blockers found after formatter branch guard fix.
+- Git commit records B41 implementation: `5a20a63`.
 
 ## Current Validation Results
 
@@ -2662,12 +2668,13 @@ End batch validation checklist:
 - Environment: optional helper failure reader toast messages
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `formatHelperFailure()` joins raw helper `warnings` and raw `status`.
 - Expected: optional helper failure messages use compact scalar text and never show `[object Object]`, arrays, `undefined`, or very long helper details.
 - Actual: malformed helper reports can produce noisy user-visible toast text.
 - Validation update: normalize helper status and warning strings before formatting failure messages.
 - Close condition: tests prove malformed helper status and warnings produce concise scalar failure text, and static checks reject raw warning joins.
+- Closure: formatter now normalizes status and warning detail text; tests cover malformed status, warnings, and concise output; static checks block raw warning joins.
 
 ### FAIL-20260706-091
 
@@ -2675,12 +2682,13 @@ End batch validation checklist:
 - Environment: optional helper multi-candidate failure aggregation
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `runHelperExtraction()` interpolates raw helper `report.status` into aggregated failure warnings.
 - Expected: helper candidate failure aggregation normalizes status text before adding it to `warnings`.
 - Actual: malformed helper status can become `[object Object]` or array text in warning strings before `formatHelperFailure()` sees them.
 - Validation update: normalize helper report status at aggregation time and add regression/static checks.
 - Close condition: tests and static checks prove candidate failure aggregation uses normalized status text.
+- Closure: helper candidate failure aggregation now uses `normalizeHelperStatusText(report.status)` and regression/static checks cover normalized warning output.
 
 ### FAIL-20260706-092
 
@@ -2688,12 +2696,13 @@ End batch validation checklist:
 - Environment: optional helper missing PyMuPDF warning aggregation
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: missing-PyMuPDF aggregation spreads raw `missingPyMuPDFReport.warnings`.
 - Expected: helper warning aggregation accepts malformed warning containers and normalizes them before output.
 - Actual: non-array `warnings` can throw before `formatHelperFailure()` normalizes the final message.
 - Validation update: use the helper warning normalizer during aggregation and add regression/static checks.
 - Close condition: tests/static checks prove malformed warning containers do not throw or leak object text.
+- Closure: missing-PyMuPDF aggregation now normalizes existing warnings before spread; malformed warning containers return an empty detail list without throwing.
 
 ### FAIL-20260706-093
 
@@ -2701,12 +2710,13 @@ End batch validation checklist:
 - Environment: optional helper schema mismatch error formatting
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: malformed helper `schema_version` values are interpolated directly into schema mismatch errors.
 - Expected: schema mismatch errors include a compact scalar schema value or `unknown`.
 - Actual: object schema values can become `[object Object]` in warning strings.
 - Validation update: normalize schema values before creating schema mismatch errors and add regression/static checks.
 - Close condition: tests/static checks prove malformed schema values do not leak object text.
+- Closure: helper schema mismatch errors now call `normalizeHelperSchemaText(report.schema_version)` and tests/static checks cover object schema fallback.
 
 ### FAIL-20260706-094
 
@@ -2714,12 +2724,13 @@ End batch validation checklist:
 - Environment: optional helper failure formatter branch guards
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `formatHelperFailure()` checks raw `report.status` before optional normalization guards.
 - Expected: missing or malformed helper reports format to a compact fallback message without throwing.
 - Actual: missing reports can throw before the formatter reaches normalized fallback status and warnings.
 - Validation update: normalize helper status once at formatter entry and branch on normalized status.
 - Close condition: tests/static checks prove missing or malformed helper reports do not throw and do not leak object text.
+- Closure: `formatHelperFailure()` now normalizes status at entry, branches on normalized status, and handles null reports as `unknown`.
 
 ### FAIL-20260706-095
 
@@ -2727,12 +2738,13 @@ End batch validation checklist:
 - Environment: B41 PowerShell static guard scope
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: the raw `report.status` formatter guard scans the whole plugin file.
 - Expected: the guard only rejects raw `report.status` branches inside `formatHelperFailure()`.
 - Actual: legitimate helper state checks in `runHelperExtraction()` fail `npm.cmd run check`.
 - Validation update: scope the raw-status branch guard to the formatter function and keep positive normalized-branch checks.
 - Close condition: `npm.cmd run check` passes while still blocking raw `report.status` branches in `formatHelperFailure()`.
+- Closure: raw-status static guard is scoped to `formatHelperFailure()` and `npm.cmd run check` passes while preserving positive normalized branch checks.
 
 ## Revised Validation Checklist
 
@@ -2915,3 +2927,5 @@ End batch validation checklist:
 - B39 XPI SHA256 `c6fb88604d8535896616b0248591d0fb3dc65503e4d3afa980566f69308fb932` was built in `outputs/` for manual Zotero add-on manager installation.
 - `aa4e8e5` B40 isolate original import failures.
 - B40 XPI SHA256 `a9ba4e2ad745663fa9620c79d162d9688db15d7d71a2b4dc3cb806f689af88e3` was built in `outputs/` for manual Zotero add-on manager installation.
+- `5a20a63` B41 normalize helper failure messages.
+- B41 XPI SHA256 `453f4a76493f1bc95dac041d3b87651bde7693a943eae5b73ff9cd0bc9cba33a` was built in `outputs/` for manual Zotero add-on manager installation.
