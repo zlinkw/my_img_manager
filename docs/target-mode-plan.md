@@ -960,5 +960,5 @@ End batch validation checklist:
 - B11 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `5d55771` B12 add runtime smoke preflight.
 - B12 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
-- B13 runtime registration wait gate commit pending.
+- `c3a140d` B13 add runtime registration wait gate.
 - B13 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
