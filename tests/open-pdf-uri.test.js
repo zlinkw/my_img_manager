@@ -50,6 +50,7 @@ const {
   getActiveReader,
   getPDFViewerContextCandidate,
   limitOriginalImagesForImport,
+  normalizeBBoxNormalized,
   isPDFReader,
   normalizeAnnotationKey,
 } = context.PdfImageSaver.__test__;
@@ -214,6 +215,50 @@ assert.strictEqual(metadata.entries[0].open_pdf_uri, "zotero://open-pdf/library/
 assert.strictEqual(metadata.entries[0].quality_estimate, "60-220 KB/image");
 assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normalized_page_rect");
 assert.strictEqual(metadata.entries[0].annotation_key, null);
+
+assert.deepStrictEqual(
+  Array.from(normalizeBBoxNormalized(["0.9", "bad", "0.2", "1.4"])),
+  [0.2, 0, 0.9, 1],
+  "bbox normalization must coerce strings, clamp values, and order coordinates",
+);
+assert.deepStrictEqual(
+  Array.from(normalizeBBoxNormalized(null)),
+  [0, 0, 1, 1],
+  "missing bbox must fall back to whole-page normalized bbox",
+);
+
+const staleRegionEntry = {
+  ...htmlEntry,
+  id: "entry-stale-region",
+  bboxNormalized: ["0.9", "bad", "0.2", "1.4"],
+  sourceRegion: { label: "OBSOLETE_REGION_LABEL", left: 0.99, top: 0.99, width: 0.01, height: 0.01 },
+  dataURL: "data:image/jpeg;base64,CCCC",
+  openPDFURI: "",
+};
+const staleRegionHTML = buildIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  entries: [staleRegionEntry],
+  scope: "clip",
+  qualityKey: "medium",
+});
+assert.ok(staleRegionHTML.includes("0.2000, 0.0000, 0.9000, 1.0000"), "HTML bbox text must use normalized bbox");
+assert.ok(!staleRegionHTML.includes("OBSOLETE_REGION_LABEL"), "stale source region labels must be rebuilt");
+assert.deepStrictEqual(
+  Array.from(staleRegionEntry.bboxNormalized),
+  [0.2, 0, 0.9, 1],
+  "entry bbox must be normalized during HTML index build",
+);
+assert.strictEqual(staleRegionEntry.sourceRegion.left, 0.2, "source region must be rebuilt from normalized bbox");
+const staleRegionMetadataText = staleRegionHTML.match(/<pre>([\s\S]*?)<\/pre>/)[1]
+  .replace(/&quot;/g, '"')
+  .replace(/&amp;/g, "&")
+  .replace(/&lt;/g, "<")
+  .replace(/&gt;/g, ">")
+  .replace(/&#39;/g, "'");
+const staleRegionMetadata = JSON.parse(staleRegionMetadataText);
+assert.deepStrictEqual(staleRegionMetadata.entries[0].bbox_normalized, [0.2, 0, 0.9, 1]);
+assert.strictEqual(staleRegionMetadata.entries[0].source_region.left, 0.2);
 
 const invalidQualityEntry = {
   ...htmlEntry,

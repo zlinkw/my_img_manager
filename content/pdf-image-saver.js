@@ -1047,8 +1047,9 @@ var PdfImageSaver = (() => {
         entry.quality = normalizeQualityKey(entry.quality);
         entry.qualityEstimate = QUALITY[entry.quality].estimate;
         entry.dataURL = normalizePreviewDataURL(entry.dataURL);
+        entry.bboxNormalized = normalizeBBoxNormalized(entry.bboxNormalized);
         entry.annotationKey = normalizeAnnotationKey(entry.annotationKey);
-        entry.sourceRegion = entry.sourceRegion || buildSourceRegion(entry.bboxNormalized);
+        entry.sourceRegion = buildSourceRegion(entry.bboxNormalized);
         const uri = buildOpenPDFURI(attachment, entry.pageNumber, entry.annotationKey);
         entry.openPDFURI = uri;
         const pageText = entry.pageLabel && entry.pageLabel !== String(entry.pageNumber)
@@ -1946,15 +1947,7 @@ var PdfImageSaver = (() => {
   }
 
   function buildSourceRegion(bboxNormalized) {
-    const values = Array.isArray(bboxNormalized) ? bboxNormalized : [];
-    const x1 = clampNormalized(values[0], 0);
-    const y1 = clampNormalized(values[1], 0);
-    const x2 = clampNormalized(values[2], 1);
-    const y2 = clampNormalized(values[3], 1);
-    const left = round6(Math.min(x1, x2));
-    const top = round6(Math.min(y1, y2));
-    const right = round6(Math.max(x1, x2));
-    const bottom = round6(Math.max(y1, y2));
+    const [left, top, right, bottom] = normalizeBBoxNormalized(bboxNormalized);
     const width = round6(right - left);
     const height = round6(bottom - top);
     const area = round6(width * height);
@@ -1971,6 +1964,20 @@ var PdfImageSaver = (() => {
       area,
       label: `x ${formatPercent(left)}-${formatPercent(right)}, y ${formatPercent(top)}-${formatPercent(bottom)}, size ${formatPercent(width)} x ${formatPercent(height)}`,
     };
+  }
+
+  function normalizeBBoxNormalized(bboxNormalized) {
+    const values = Array.isArray(bboxNormalized) ? bboxNormalized : [];
+    const x1 = clampNormalized(values[0], 0);
+    const y1 = clampNormalized(values[1], 0);
+    const x2 = clampNormalized(values[2], 1);
+    const y2 = clampNormalized(values[3], 1);
+    return [
+      round6(Math.min(x1, x2)),
+      round6(Math.min(y1, y2)),
+      round6(Math.max(x1, x2)),
+      round6(Math.max(y1, y2)),
+    ];
   }
 
   function buildSourceRegionMapHTML(region) {
@@ -2297,6 +2304,7 @@ var PdfImageSaver = (() => {
       getActiveReader,
       getPDFViewerContextCandidate,
       limitOriginalImagesForImport,
+      normalizeBBoxNormalized,
       isPDFReader,
       normalizeAnnotationKey,
     },

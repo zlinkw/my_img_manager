@@ -1002,6 +1002,35 @@ End batch validation checklist:
 - Code review: passed after adding normalized metadata `quality_estimate`.
 - Git commit records B32: `dd82bdf`.
 
+### B33 HTML Preview BBox Normalization
+
+Status: complete.
+
+Plan:
+
+- Normalize `bboxNormalized` for each HTML preview entry before rendering visible bbox text and metadata.
+- Recompute `sourceRegion` from the normalized bbox so the visible source map, metadata, and bbox text stay consistent.
+- Add regression tests for string/reversed/malformed bbox values.
+- Preserve normal reader canvas preview bbox output unchanged.
+
+Pre batch validation:
+
+- Git worktree clean at B33 start commit `14f7732`.
+- `buildIndexHTML()` calls `entry.bboxNormalized.map((value) => value.toFixed(4))` directly; recorded as `FAIL-20260706-065`.
+- `buildIndexHTML()` only fills `sourceRegion` when it is missing, so stale or mismatched source region data can remain after bbox normalization; recorded as `FAIL-20260706-066`.
+- First B33 regression test matched the substring `stale` from the entry id instead of the stale source-region label; recorded as `FAIL-20260706-067`.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- `npm.cmd run test`: passed after fixing the stale-label assertion token.
+- `npm.cmd run check`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run package:manual`: passed, packaged XPI SHA256 `c493df863c924cac3c91fc30172897963e8ce36307fd6294c7aa61489f757f33`.
+- `npm.cmd run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- Code review: passed; only plan closure remained.
+- Git commit records B33: pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -1151,6 +1180,11 @@ End batch validation checklist:
 - B32 `npm.cmd run build`: passed.
 - B32 `npm.cmd run package:manual`: passed; packaged XPI SHA256 `92ff8d47ac482681c309937af7404b932a778676f902ccaecfb311b3db441586`.
 - B32 `npm.cmd run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- B33 `npm.cmd run test`: passed after fixing the stale-label assertion token.
+- B33 `npm.cmd run check`: passed.
+- B33 `npm.cmd run build`: passed.
+- B33 `npm.cmd run package:manual`: passed; packaged XPI SHA256 `c493df863c924cac3c91fc30172897963e8ce36307fd6294c7aa61489f757f33`.
+- B33 `npm.cmd run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
 
 ## New Failures
 
@@ -2039,6 +2073,48 @@ End batch validation checklist:
 - Close condition: regression tests prove metadata includes normalized `quality_estimate`, and static checks assert the field is emitted.
 - Closure: metadata entries now include normalized `quality_estimate`, and regression/static checks cover it.
 
+### FAIL-20260706-065
+
+- Batch: B33
+- Environment: synced HTML preview index creation with malformed preview bbox data
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `buildIndexHTML()` calls `entry.bboxNormalized.map((value) => value.toFixed(4))` directly.
+- Expected: bbox metadata is normalized to four finite normalized numbers before visible and JSON output.
+- Actual: malformed bbox entries can throw unhelpful errors or produce inconsistent output.
+- Validation update: add `normalizeBBoxNormalized()` and apply it before source region and HTML output.
+- Close condition: regression tests prove malformed bbox input is normalized and static checks assert direct bbox mapping is not used before normalization.
+- Closure: `buildIndexHTML()` now normalizes bbox values before visible and JSON output; regression and static checks cover malformed and reversed bbox input.
+
+### FAIL-20260706-066
+
+- Batch: B33
+- Environment: synced HTML preview index creation when preview entries carry stale `sourceRegion`
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: closed
+- Symptom: `buildIndexHTML()` keeps an existing `entry.sourceRegion` even if it no longer matches `entry.bboxNormalized`.
+- Expected: saved HTML source map, metadata `source_region`, and visible bbox text are derived from the same normalized bbox.
+- Actual: stale source region data can disagree with normalized bbox metadata.
+- Validation update: recompute `sourceRegion` from normalized bbox during HTML index build.
+- Close condition: regression tests prove stale source region is replaced and static checks assert source region is rebuilt from normalized bbox.
+- Closure: `buildIndexHTML()` now rebuilds `sourceRegion` from normalized bbox, and tests prove stale source-region labels are replaced.
+
+### FAIL-20260706-067
+
+- Batch: B33
+- Environment: B33 HTML source-region regression test
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: closed
+- Symptom: the test for stale source-region removal fails even after source region is rebuilt.
+- Expected: the test should detect the stale source-region label only.
+- Actual: the assertion matches `stale` inside the test entry id `entry-stale-region`.
+- Validation update: use a unique stale label token that does not appear elsewhere in the generated HTML.
+- Close condition: `npm.cmd run test` passes while still proving the stale label is absent.
+- Closure: the test now uses `OBSOLETE_REGION_LABEL`, and `npm.cmd run test` passes while still checking stale label removal.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2101,6 +2177,8 @@ End batch validation checklist:
 - Check synced HTML preview index rejects malformed preview data URLs before writing `<img src>`.
 - Check synced HTML preview index normalizes malformed preview entry quality to Medium.
 - Check synced HTML preview metadata includes normalized `quality_estimate`.
+- Check synced HTML preview index normalizes bbox values before visible and JSON output.
+- Check synced HTML preview source region is rebuilt from the normalized bbox.
 
 ## Real Commit Log
 
@@ -2173,3 +2251,4 @@ End batch validation checklist:
 - B31 XPI SHA256 `35cfab091a28b2a777bdab770369c95d71b1ca5e6e3105c94c8d939bbcc4a617` was built in `outputs/` for manual Zotero add-on manager installation.
 - `dd82bdf` B32 sanitize HTML preview entries.
 - B32 XPI SHA256 `92ff8d47ac482681c309937af7404b932a778676f902ccaecfb311b3db441586` was built in `outputs/` for manual Zotero add-on manager installation.
+- B33 XPI SHA256 `c493df863c924cac3c91fc30172897963e8ce36307fd6294c7aa61489f757f33` was built in `outputs/` for manual Zotero add-on manager installation.

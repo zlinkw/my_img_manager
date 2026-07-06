@@ -264,6 +264,18 @@ if ($mainJS -notmatch "entry\.qualityEstimate\s*=\s*QUALITY\[entry\.quality\]\.e
 if ($mainJS -notmatch "quality_estimate:\s*entry\.qualityEstimate") {
   throw "HTML preview metadata must include normalized quality_estimate"
 }
+if ($mainJS -notmatch "function\s+normalizeBBoxNormalized\s*\(\s*bboxNormalized\s*\)") {
+  throw "HTML preview index must normalize bbox values"
+}
+if ($mainJS -notmatch "entry\.bboxNormalized\s*=\s*normalizeBBoxNormalized\(entry\.bboxNormalized\)") {
+  throw "HTML preview entries must normalize bbox before output"
+}
+if ($mainJS -notmatch "entry\.sourceRegion\s*=\s*buildSourceRegion\(entry\.bboxNormalized\)") {
+  throw "HTML preview source region must be rebuilt from normalized bbox"
+}
+if ($mainJS -match "entry\.sourceRegion\s*=\s*entry\.sourceRegion\s*\|\|") {
+  throw "HTML preview source region must not preserve stale sourceRegion over normalized bbox"
+}
 if ($mainJS -match "getSelectedItems") {
   throw "Active reader selection must not use selected library items as reader tab IDs"
 }
