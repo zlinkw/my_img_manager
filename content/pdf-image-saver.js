@@ -1231,22 +1231,29 @@ var PdfImageSaver = (() => {
   }
 
   async function confirmAndSaveOriginalImagesFromReader(reader, options = {}) {
-    const win = Zotero.getMainWindow?.();
-    const scope = normalizeOriginalScope(options.scope);
-    const scopeLabel = scope === "document" ? "whole document" : "current page";
-    const maxImages = scope === "document"
-      ? getHelperMaxImages("document")
-      : getHelperMaxImages("page");
-    const ok = Services.prompt.confirm(
-      win,
-      "PDF Image Saver",
-      `Save original embedded images from the ${scopeLabel}? This can store up to ${maxImages} original image attachments in Zotero. Preview clipping is safer for sync storage.`,
-    );
-    if (!ok) {
-      showReaderToast(reader, "Original extraction cancelled.", "warning");
-      return;
+    const safeOptions = normalizeOptionsObject(options);
+    try {
+      const win = Zotero.getMainWindow?.();
+      const scope = normalizeOriginalScope(safeOptions.scope);
+      const scopeLabel = scope === "document" ? "whole document" : "current page";
+      const maxImages = scope === "document"
+        ? getHelperMaxImages("document")
+        : getHelperMaxImages("page");
+      const ok = Services.prompt.confirm(
+        win,
+        "PDF Image Saver",
+        `Save original embedded images from the ${scopeLabel}? This can store up to ${maxImages} original image attachments in Zotero. Preview clipping is safer for sync storage.`,
+      );
+      if (!ok) {
+        showReaderToast(reader, "Original extraction cancelled.", "warning");
+        return null;
+      }
+      return await saveOriginalImagesFromReader(reader, { ...safeOptions, scope });
+    } catch (error) {
+      logError(error);
+      showReaderToast(reader, getErrorMessage(error), "error");
+      return null;
     }
-    await saveOriginalImagesFromReader(reader, { ...options, scope });
   }
 
   async function saveOriginalImagesFromReader(reader, options = {}) {
@@ -2413,6 +2420,10 @@ var PdfImageSaver = (() => {
     return value === "document" ? "document" : "page";
   }
 
+  function normalizeOptionsObject(options) {
+    return options && typeof options === "object" && !Array.isArray(options) ? options : {};
+  }
+
   function getNumberPref(key, fallback) {
     try {
       const value = Zotero.Prefs.get(PREF_BRANCH + key, true);
@@ -2769,6 +2780,7 @@ var PdfImageSaver = (() => {
       buildSourceRegion,
       calculateCanvasCrop,
       cleanupSelectionOverlay,
+      confirmAndSaveOriginalImagesFromReader,
       filterExistingOriginalImagesForImport,
       formatHelperFailure,
       getActiveReader,

@@ -1516,6 +1516,28 @@ End batch validation checklist:
 - Code review: local read-only review and targeted `test/check` rerun found no P0-P2 blockers; subagent unavailable due thread limit.
 - Git commit records B50 implementation: `e50fcca`.
 
+### B51 Original Confirmation Options Guard
+
+Status: in progress.
+
+Plan:
+
+- Harden `confirmAndSaveOriginalImagesFromReader()` against null or malformed options before reading `scope` or spreading options.
+- Keep optional original extraction explicit and confirmation-gated.
+- Add behavior/static checks proving malformed confirmation options cancel cleanly or route through guarded save logic without uncaught rejection.
+
+Pre batch validation:
+
+- Git worktree clean at B51 start commit `ef5aaa8`.
+- B51 initial subagent candidate about original-scope static coverage was rejected as stale because the check already uses `$originalSaveEntry.Value`.
+- B51 local planning pass found `confirmAndSaveOriginalImagesFromReader()` reads `options.scope` before normalizing the options object and has no local try/catch; malformed direct/future calls can reject before compact reader feedback; recorded as `FAIL-20260706-111`.
+- B51 validation found the first raw-options static guard used PowerShell case-insensitive `-match`, so it falsely matched `safeOptions.scope` and `...safeOptions`; recorded as `FAIL-20260706-112`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3202,6 +3224,32 @@ End batch validation checklist:
 - Close condition: tests/static checks prove malformed toast input becomes a compact fallback message and a supported level before document toast or alert output.
 - Closure: `showReaderToast()` now normalizes toast message and level before document toast or fallback alert paths; behavior/static checks cover malformed message objects, invalid levels, and fallback alert error messages.
 
+### FAIL-20260706-111
+
+- Batch: B51
+- Environment: optional original image confirmation entry
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `confirmAndSaveOriginalImagesFromReader()` reads `options.scope` before normalizing the options object and has no local guarded error path.
+- Expected: optional original confirmation should tolerate null or malformed options and still require explicit user confirmation before original image import.
+- Actual: direct or future malformed calls can reject before showing compact reader feedback.
+- Validation update: normalize confirmation options at entry, wrap confirmation flow in guarded error handling, export the entry for regression tests, and add static checks.
+- Close condition: behavior/static checks prove null confirmation options do not throw and the confirmation path keeps normalized options before calling original-image save.
+
+### FAIL-20260706-112
+
+- Batch: B51
+- Environment: B51 static validation for original confirmation options
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the raw `options.scope` and `...options` static guards use PowerShell case-insensitive matching, so they match `safeOptions.scope` and `...safeOptions`.
+- Expected: static guards should reject only raw lowercase `options` usage in `confirmAndSaveOriginalImagesFromReader()`.
+- Actual: `npm.cmd run check` fails even when the implementation uses `safeOptions`.
+- Validation update: make the raw-options static guards case-sensitive.
+- Close condition: `npm.cmd run check` passes while still guarding raw `options.scope` and `...options` spellings.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3310,6 +3358,8 @@ End batch validation checklist:
 - Check clip/page save entries normalize quality keys before rendering, duplicate-key generation, and index metadata.
 - Check canvas preview renderer self-normalizes malformed quality keys before pixels and metadata.
 - Check reader toast message and level inputs are normalized before document toast and fallback alert output.
+- Check optional original confirmation normalizes malformed options before scope use and save delegation.
+- Check raw original confirmation options static guards are case-sensitive and do not reject `safeOptions`.
 
 ## Real Commit Log
 

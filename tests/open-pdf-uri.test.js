@@ -47,8 +47,14 @@ const context = {
     appinfo: { OS: "WINNT" },
     prompt: {
       alerts: [],
+      confirms: [],
+      confirmResult: false,
       alert(win, title, message) {
         this.alerts.push({ win, title, message });
+      },
+      confirm(win, title, message) {
+        this.confirms.push({ win, title, message });
+        return this.confirmResult;
       },
     },
   },
@@ -75,6 +81,7 @@ const {
   buildSourceRegion,
   calculateCanvasCrop,
   cleanupSelectionOverlay,
+  confirmAndSaveOriginalImagesFromReader,
   filterExistingOriginalImagesForImport,
   formatHelperFailure,
   getActiveReader,
@@ -1097,6 +1104,22 @@ assert.strictEqual(
 );
 
 async function runAsyncAssertions() {
+  context.Services.prompt.confirms = [];
+  context.Services.prompt.alerts = [];
+  context.Services.prompt.confirmResult = false;
+  const cancelledOriginalSave = await confirmAndSaveOriginalImagesFromReader(null, null);
+  assert.strictEqual(cancelledOriginalSave, null, "malformed original confirmation options must not reject");
+  assert.strictEqual(context.Services.prompt.confirms.length, 1, "original confirmation must still require an explicit prompt");
+  assert.ok(
+    context.Services.prompt.confirms[0].message.includes("current page"),
+    "malformed original confirmation options must fall back to current-page scope",
+  );
+  assert.strictEqual(
+    context.Services.prompt.alerts[0].message,
+    "Original extraction cancelled.",
+    "cancelled original confirmation must show compact reader feedback",
+  );
+
   const existingOriginalFile = `${helperOutputDir}\\existing.jpg`;
   const missingOriginalFile = `${helperOutputDir}\\missing.jpg`;
   const laterExistingOriginalFile = `${helperOutputDir}\\later-existing.jpg`;

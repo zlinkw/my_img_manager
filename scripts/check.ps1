@@ -364,6 +364,9 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveClipPreviewIndex") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveOriginalImagesFromReader") {
   throw "Original-image save entry must remain exported for regression tests"
 }
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*confirmAndSaveOriginalImagesFromReader") {
+  throw "Original-image confirmation entry must remain exported for regression tests"
+}
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*savePagePreviewIndex") {
   throw "Page-preview save entry must remain exported for regression tests"
 }
@@ -662,6 +665,25 @@ if ($mainJS -notmatch "async\s+function\s+saveOriginalImagesFromReader\s*\(\s*re
 }
 if ($mainJS -notmatch "async\s+function\s+confirmAndSaveOriginalImagesFromReader\s*\(\s*reader\s*,\s*options\s*=\s*\{\}\s*\)") {
   throw "Original-image confirmation entry must default missing options"
+}
+$originalConfirmEntry = [regex]::Match($mainJS, "async\s+function\s+confirmAndSaveOriginalImagesFromReader\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+saveOriginalImagesFromReader")
+if (!$originalConfirmEntry.Success) {
+  throw "Original-image confirmation entry function block not found"
+}
+if ($originalConfirmEntry.Value -notmatch "const\s+safeOptions\s*=\s*normalizeOptionsObject\(options\)[\s\S]*const\s+scope\s*=\s*normalizeOriginalScope\(safeOptions\.scope\)") {
+  throw "Original-image confirmation entry must normalize options before scope"
+}
+if ($originalConfirmEntry.Value -notmatch "try\s*\{[\s\S]*Services\.prompt\.confirm[\s\S]*saveOriginalImagesFromReader\(reader,\s*\{\s*\.\.\.safeOptions,\s*scope\s*\}\)[\s\S]*\}\s*catch\s*\(\s*error\s*\)") {
+  throw "Original-image confirmation entry must guard prompt and save delegation"
+}
+if ($originalConfirmEntry.Value -cmatch "options\.scope") {
+  throw "Original-image confirmation entry must not read raw options.scope"
+}
+if ($originalConfirmEntry.Value -cmatch "\.\.\.options") {
+  throw "Original-image confirmation entry must not spread raw options"
+}
+if ($mainJS -notmatch "function\s+normalizeOptionsObject\s*\(\s*options\s*\)[\s\S]*typeof\s+options\s*===\s*`"object`"[\s\S]*!Array\.isArray\(options\)[\s\S]*\{\}") {
+  throw "Options object normalizer must reject null and arrays"
 }
 $clipSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveClipPreviewIndex\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+saveAutoDetectedPageImagePreviews")
 if (!$clipSaveEntry.Success) {
