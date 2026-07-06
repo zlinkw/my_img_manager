@@ -1884,7 +1884,7 @@ End batch validation checklist:
 
 ### B64 Context Menu And Toolbar UI Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1907,7 +1907,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `e86385c0dbff434408161129e204f9edc175de94ce7b83460d52d6cb55d03430`, bytes `31492`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent found no blockers; non-blocker behavior-test gap was recorded and covered in this batch.
+- Git commit records B64 implementation: `0965738`.
 
 ## Current Validation Results
 
@@ -3937,12 +3943,13 @@ End batch validation checklist:
 - Environment: reader context menu optional original extraction actions
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: the context menu exposes optional original extraction for the current page but not for the whole PDF.
 - Expected: whole-PDF original extraction should be available only through an explicit context-menu action because it can create many Zotero attachments.
 - Actual: `buildContextMenuActions()` only adds a page-scoped original action.
 - Validation update: add a whole-PDF original action that calls confirmation with `scope: "document"` and add behavior/static checks.
 - Close condition: tests prove the context menu exposes page and whole-PDF original actions and their commands pass `scope: "page"` and `scope: "document"` respectively.
+- Closure: `buildContextMenuActions()` now adds an explicit whole-PDF original extraction action with `scope: "document"` and tests cover page/document command payloads.
 
 ### FAIL-20260706-136
 
@@ -3950,12 +3957,13 @@ End batch validation checklist:
 - Environment: reader context menu optional original extraction labels
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: original-image context-menu labels do not show the attachment-count cap before the confirmation dialog.
 - Expected: disk-risky original extraction actions should show page/document max image counts at the menu level.
 - Actual: the page-scoped original action label only says `Optional: save original embedded images from this page`.
 - Validation update: include `up to N` counts in page and whole-PDF original action labels and test the labels.
 - Close condition: tests/static checks prove page and document original-action labels include the configured helper caps.
+- Closure: context-menu original extraction labels now include page/document helper caps, and tests set explicit prefs to prove configured values appear in labels.
 
 ### FAIL-20260706-137
 
@@ -3963,12 +3971,13 @@ End batch validation checklist:
 - Environment: reader toolbar Auto Raster unavailable tooltip
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: when Auto Raster is unavailable, changing preview quality can overwrite the unavailable explanation with a normal selected-quality tooltip.
 - Expected: quality changes should refresh Auto Raster state through the same availability helper so disabled/unavailable messaging remains consistent.
 - Actual: the toolbar `change` handler calls `updateQualityTooltips()` only.
 - Validation update: call `updateAutoRasterButtonState()` after quality changes and add a static check for the handler.
 - Close condition: `npm.cmd run check` proves the select-change handler updates quality tooltips and then reapplies Auto Raster availability state.
+- Closure: the toolbar select-change handler now normalizes the selected quality once, updates the preference/tooltips, and reapplies Auto Raster availability state; static and behavior tests cover this path.
 
 ### FAIL-20260706-138
 
@@ -3976,12 +3985,13 @@ End batch validation checklist:
 - Environment: context-menu original cap regression test setup
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the first B64 context-menu cap test expected default page/document caps even though earlier tests had changed helper cap preferences.
 - Expected: context-menu label tests should set their own helper cap prefs so failures represent label behavior, not inherited test order state.
 - Actual: `npm.cmd run test` failed because the current test process prefs no longer matched default cap values.
 - Validation update: set explicit helper cap prefs before context-menu label assertions and assert the labels use those values.
 - Close condition: `npm.cmd run test` passes and proves context-menu labels reflect configured helper caps.
+- Closure: the context-menu label regression test now sets explicit page/document helper cap prefs before assertions, and `npm.cmd run test` passes.
 
 ### FAIL-20260706-139
 
@@ -3989,12 +3999,13 @@ End batch validation checklist:
 - Environment: toolbar Auto Raster unavailable-state behavior test
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the B64 toolbar quality-state fix had static coverage but no behavior test that unavailable messaging survives a quality change.
 - Expected: when the PDF.js image-coordinate capability is unavailable, changing preview quality should leave Auto Raster disabled with the unavailable explanation.
 - Actual: tests only checked the lower-level state helper and the static shape of the change handler.
 - Validation update: export `onRenderToolbar()` for tests and add a behavior test that changes quality on a toolbar rendered against an unsupported PDF reader.
 - Close condition: `npm.cmd run test` proves changing quality leaves Auto Raster disabled with unavailable text in its title.
+- Closure: `onRenderToolbar()` is exported for tests, and the rendered-toolbar behavior test proves unsupported Auto Raster remains disabled with unavailable messaging after a quality change.
 
 ### FAIL-20260706-140
 
@@ -4002,12 +4013,13 @@ End batch validation checklist:
 - Environment: toolbar Auto Raster async behavior test
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the first toolbar behavior test asserted the Auto Raster button state before the unawaited async availability check completed.
 - Expected: behavior tests for toolbar state should wait for the async state update started by `onRenderToolbar()` and the select change handler.
 - Actual: `npm.cmd run test` failed because only microtasks were flushed before checking `button.disabled`.
 - Validation update: use a macrotask flush for the toolbar availability update before assertions.
 - Close condition: `npm.cmd run test` passes while proving disabled/unavailable state after initial render and quality change.
+- Closure: the toolbar behavior test now waits through a macrotask so the unawaited availability update completes before assertions; `npm.cmd run test` passes.
 
 ### FAIL-20260706-141
 
@@ -4015,12 +4027,13 @@ End batch validation checklist:
 - Environment: rendered-toolbar preference-write regression test
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the rendered-toolbar behavior test failed because the fake `Zotero.Prefs` object had `get()` but no `set()`.
 - Expected: toolbar change-handler tests should cover default-quality preference writes without throwing on the test double.
 - Actual: `npm.cmd run test` threw `TypeError: Zotero.Prefs.set is not a function`.
 - Validation update: add `Zotero.Prefs.set()` to the VM test double and keep the rendered-toolbar test on the real change handler.
 - Close condition: `npm.cmd run test` passes through the toolbar change handler without fake-pref TypeErrors.
+- Closure: the VM test double now implements `Zotero.Prefs.set()`, so rendered-toolbar preference writes are covered without fake-pref TypeErrors.
 
 ## Revised Validation Checklist
 
@@ -4292,3 +4305,5 @@ End batch validation checklist:
 - B62 XPI SHA256 `2d8252f42ffa35d53674369a8958732280ac52c1cff228d057258fc560ca6364` was built in `outputs/` for manual Zotero add-on manager installation; plugin payload unchanged from B61.
 - `a5d1fa3` B63 guard malformed save options.
 - B63 XPI SHA256 `b2393da8f3edfbebfa56323bee47264eb5abe8035867cdf3e3a472d68c409d72` was built in `outputs/` for manual Zotero add-on manager installation.
+- `0965738` B64 improve context menu original actions.
+- B64 XPI SHA256 `e86385c0dbff434408161129e204f9edc175de94ce7b83460d52d6cb55d03430` was built in `outputs/` for manual Zotero add-on manager installation.
