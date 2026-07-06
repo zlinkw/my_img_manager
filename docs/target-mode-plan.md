@@ -51,18 +51,20 @@ Priority order:
 
 ## Metadata Schema
 
-Saved metadata JSON records:
+Saved preview-index metadata JSON records:
 
 - `schema_version`
 - `created_at`
 - `plugin`
-- `source`
+- `storage_mode`
+- `scope`
+- `preview_quality`
+- `preview_index_key`
+- `preview_index_fingerprint`
+- `zotero_version`
 - `parent_item`
 - `pdf_attachment`
-- `request`
 - `entries` with minimal fields
-- `helper`
-- `warnings`
 
 Each preview entry includes:
 
@@ -74,12 +76,13 @@ Each preview entry includes:
 - `page_label`
 - `bbox_normalized`
 - `source_region`
+- `source_region_key`
 - `annotation_key`
 - `byte_count`
 - `rendered_width`
 - `rendered_height`
 - `quality`
-- `qualityEstimate`
+- `quality_estimate`
 - `detection_area`
 - `open_pdf_uri`
 - optional `zotero_attachment` only when original save is enabled
@@ -1997,6 +2000,28 @@ End batch validation checklist:
 - `npm.cmd run package:manual`: passed, XPI SHA256 `071e00bfee69d46d7c841d2401a865a8f26692110c0fd8f9faf96ebce8146157`, bytes `32875`.
 - `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
 - Git commit records B67 implementation: `2b7de9b`.
+
+### B68 Preview Metadata Schema Sync
+
+Status: in progress.
+
+Plan:
+
+- Align target-plan metadata schema with actual preview-index JSON after B66/B67.
+- Update README runtime smoke wording to mention `source_region_key` and `preview_index_key`.
+- Add static checks so metadata docs include current fields and do not list removed top-level fields for preview-index metadata.
+
+Pre batch validation:
+
+- Git worktree clean at B68 start commit `6a6a074`.
+- B68 local review found the target-plan metadata schema still lists removed/non-emitted top-level preview-index fields such as `source`, `request`, `helper`, and `warnings`; recorded as `FAIL-20260706-151`.
+- B68 local review found the metadata schema omits B66/B67 fields `preview_index_key`, `preview_index_fingerprint`, and `source_region_key`; recorded as `FAIL-20260706-152`.
+- B68 local review found README runtime smoke still mentions `source_region` and `annotation_key` but not the duplicate/source identity fields users need for compact inspection; recorded as `FAIL-20260706-153`.
+- Regression guard: protect `FAIL-20260706-064`, `FAIL-20260706-146`, `FAIL-20260706-147`, `FAIL-20260706-150`, and validation family: preview-index metadata schema docs.
+
+End batch validation checklist:
+
+- Pending.
 
 ## Current Validation Results
 
@@ -4244,6 +4269,45 @@ End batch validation checklist:
 - Close condition: `npm.cmd run test` and `npm.cmd run check` pass while proving no-annotation `open_pdf_uri` remains page-only and `source_region_key` still distinguishes same-page entries.
 - Closure: `buildOpenPDFURI()` now emits only Zotero-supported `page` and optional `annotation` parameters, while saved index metadata keeps `source_region_key`; `npm.cmd run test` and `npm.cmd run check` pass.
 
+### FAIL-20260706-151
+
+- Batch: B68
+- Environment: target-plan preview-index metadata schema
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: target-plan metadata schema lists top-level `source`, `request`, `helper`, and `warnings` for saved preview-index metadata.
+- Expected: preview-index schema docs should list only fields actually emitted by `buildIndexHTML()` metadata JSON.
+- Actual: schema docs imply non-emitted fields exist, making validation and future refactors misleading.
+- Validation update: update schema docs and add static checks rejecting removed top-level preview-index fields.
+- Close condition: `npm.cmd run check` passes while asserting target-plan schema omits those removed fields.
+
+### FAIL-20260706-152
+
+- Batch: B68
+- Environment: target-plan preview-index metadata schema after B66/B67
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: metadata schema omits `preview_index_key`, `preview_index_fingerprint`, and `source_region_key`.
+- Expected: schema docs should include the persisted duplicate key, short fingerprint, and per-entry source-region identity fields.
+- Actual: docs lag behind the current saved HTML metadata and can let future changes drop these fields without plan visibility.
+- Validation update: add these fields to the schema docs and static checks.
+- Close condition: `npm.cmd run check` passes while asserting target-plan schema lists these fields.
+
+### FAIL-20260706-153
+
+- Batch: B68
+- Environment: README runtime smoke checklist
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: README says the HTML preview shows `source_region` and `annotation_key` but omits `source_region_key` and `preview_index_key`.
+- Expected: smoke checklist should mention the compact identity metadata used for source lookup and duplicate prevention.
+- Actual: manual smoke can miss whether B66/B67 metadata is present in a saved index.
+- Validation update: update README smoke wording and static checks.
+- Close condition: `npm.cmd run check` passes while asserting README mentions `source_region_key` and `preview_index_key`.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -4385,6 +4449,7 @@ End batch validation checklist:
 - Check saved index attachment titles stay short while exposing quality, count, and short identity.
 - Check PowerShell static regex guards for B66 parse correctly before validating source text.
 - Check Zotero open-pdf links do not use unsupported custom region query parameters.
+- Check preview-index metadata schema docs match current emitted fields and README smoke mentions compact identity keys.
 
 ## Real Commit Log
 

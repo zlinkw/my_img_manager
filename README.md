@@ -94,7 +94,7 @@ After Zotero has been restarted or the add-on has been reloaded:
 - `npm.cmd run runtime:status` shows `registered: true` for `pdf-image-saver@zlk.local`.
 - A PDF reader toolbar shows one `Clip Figure` control group.
 - A manual clip creates one Zotero stored HTML child attachment.
-- The HTML preview opens, shows the preview, source region map, `source_region`, and `annotation_key`.
+- The HTML preview opens, shows the preview, source region map, `source_region`, `source_region_key`, `preview_index_key`, and `annotation_key`.
 - Clicking preview or page opens the source PDF page.
 - `Auto Raster` disables or warns safely when image coordinates are unavailable.
 - `%TEMP%\pdf-image-saver` has no leftover child directories after the save.

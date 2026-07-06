@@ -57,6 +57,33 @@ if ($targetPlan -match "(?m)^- Use local Python and PyMuPDF for original embedde
 if ($targetPlan -notmatch "(?m)^## Regression Loop Control\s*$") {
   throw "Target plan must define regression loop control rules"
 }
+$metadataSchema = [regex]::Match($targetPlan, '(?ms)^## Metadata Schema\s*(.*?)(?=^##\s+|\z)')
+if (!$metadataSchema.Success) {
+  throw "Target plan must document metadata schema"
+}
+foreach ($requiredMetadataField in @(
+  "storage_mode",
+  "scope",
+  "preview_quality",
+  "preview_index_key",
+  "preview_index_fingerprint",
+  "zotero_version",
+  "source_region",
+  "source_region_key",
+  "annotation_key",
+  "quality_estimate",
+  "open_pdf_uri"
+)) {
+  if ($metadataSchema.Value -notmatch "(?m)^-\s+``$requiredMetadataField``\s*$") {
+    throw "Target plan metadata schema missing field: $requiredMetadataField"
+  }
+}
+foreach ($removedPreviewIndexField in @("source", "request", "helper", "warnings", "qualityEstimate")) {
+  if ($metadataSchema.Value -notmatch "(?m)^-\s+``$removedPreviewIndexField``") {
+    continue
+  }
+  throw "Target plan preview-index metadata schema must not list stale field: $removedPreviewIndexField"
+}
 foreach ($requiredRule in @(
   "Every new fault must get a unique ``FAIL-*`` section before implementation",
   "Every closed fault added from B60 onward must keep ``Close condition`` and ``Closure`` evidence",
@@ -190,6 +217,11 @@ foreach ($requiredReadmeCommand in @(
 }
 if ($readme -match '(?m)^\s*npm run\s+' -or $readme -match '`npm run\s+') {
   throw "README PowerShell command guidance must use npm.cmd run"
+}
+foreach ($requiredReadmeMetadata in @("source_region_key", "preview_index_key")) {
+  if ($readme -notmatch [regex]::Escape($requiredReadmeMetadata)) {
+    throw "README smoke checklist must mention compact metadata key: $requiredReadmeMetadata"
+  }
 }
 if ($readme -notmatch "Install Add-on From File") {
   throw "README must document Zotero manual add-on installation"
