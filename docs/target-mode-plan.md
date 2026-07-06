@@ -1653,7 +1653,7 @@ End batch validation checklist:
 
 ### B56 Auto Raster Button State Recovery
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1669,7 +1669,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `e565f6f81be2f21abb09130cd9dd264a0e9f41862920ee1516b53b323e4689c6`, bytes `31002`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
+- Git commit records B56 implementation: `05e10d7`.
 
 ## Current Validation Results
 
@@ -3475,12 +3481,13 @@ End batch validation checklist:
 - Environment: reader toolbar Auto Raster button availability state
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `updateAutoRasterButtonState()` disables Auto Raster and writes an unavailable tooltip when PDF.js lacks image coordinate support, but does not restore enabled state or the quality tooltip when support is available later.
 - Expected: Auto Raster button state should reflect the current reader/page support and selected quality.
 - Actual: a previous unsupported state can leave the button disabled or with stale unavailable text even after support is available.
 - Validation update: centralize Auto Raster button state application and add behavior/static checks.
 - Close condition: tests/static checks prove unavailable state disables the button and available state re-enables it with the selected quality estimate.
+- Closure: `applyAutoRasterButtonState()` now handles both unavailable and available states; `updateAutoRasterButtonState()` passes the selected quality key, behavior tests cover disable/re-enable transitions, and static checks lock the recovery path.
 
 ## Revised Validation Checklist
 
@@ -3717,3 +3724,5 @@ End batch validation checklist:
 - B54 XPI SHA256 `030530099ff6afc05b95d997a74fceba99b93c9bf21883c22670167c90139e0f` was built in `outputs/` for manual Zotero add-on manager installation.
 - `85d058a` B55 sync toolbar quality tooltips.
 - B55 XPI SHA256 `c6658bae5891fb12ff358a4917ed5cb833462732ff77816b08c0e9d7c86d1a54` was built in `outputs/` for manual Zotero add-on manager installation.
+- `05e10d7` B56 recover auto raster button state.
+- B56 XPI SHA256 `e565f6f81be2f21abb09130cd9dd264a0e9f41862920ee1516b53b323e4689c6` was built in `outputs/` for manual Zotero add-on manager installation.
