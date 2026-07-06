@@ -48,14 +48,22 @@ const {
   buildSourceRegion,
   calculateCanvasCrop,
   getActiveReader,
+  getContextPageIndex,
   getPDFViewerContextCandidate,
   limitOriginalImagesForImport,
   normalizeBBoxNormalized,
+  normalizePageIndex,
+  normalizePageNumber,
   isPDFReader,
   normalizeAnnotationKey,
 } = context.PdfImageSaver.__test__;
 const userAttachment = { libraryID: 1, key: "ABCDEF12" };
 const groupAttachment = { libraryID: 2, key: "GROUP123" };
+context.Zotero.API = {
+  getLibraryPrefix() {
+    return "users/999";
+  },
+};
 
 assert.strictEqual(
   buildOpenPDFURI(userAttachment, 7, null),
@@ -79,6 +87,37 @@ assert.strictEqual(
   buildOpenPDFURI(groupAttachment, 3, "A1B2C3"),
   "zotero://open-pdf/groups/12345/items/GROUP123?page=3&annotation=A1B2C3",
   "group library URI must preserve group prefix and annotation",
+);
+
+assert.strictEqual(
+  buildOpenPDFURI(userAttachment, "bad", null),
+  "zotero://open-pdf/library/items/ABCDEF12?page=1",
+  "invalid page number must fall back to page 1",
+);
+
+assert.strictEqual(
+  buildOpenPDFURI(userAttachment, "-4", null),
+  "zotero://open-pdf/library/items/ABCDEF12?page=1",
+  "negative page number must fall back to page 1",
+);
+
+assert.strictEqual(normalizePageIndex("4", null), 4, "numeric page-index strings must be accepted");
+assert.strictEqual(normalizePageIndex("-1", null), null, "negative page indexes must fall back");
+assert.strictEqual(normalizePageIndex(null, 99), 99, "null page indexes must use the fallback");
+assert.strictEqual(normalizePageIndex(true, null), null, "boolean page indexes must be rejected");
+assert.strictEqual(normalizePageIndex([], null), null, "array page indexes must be rejected");
+assert.strictEqual(normalizePageNumber("2", 1), 2, "numeric page-number strings must be accepted");
+assert.strictEqual(normalizePageNumber("bad", 1), 1, "invalid page numbers must fall back");
+assert.strictEqual(getContextPageIndex({ pageIndex: "4" }), 4, "context pageIndex strings must be accepted");
+assert.strictEqual(
+  getContextPageIndex({ pageIndex: "-1", pageIndexFromContextMenu: "2" }),
+  2,
+  "context menu page index string must be used when pageIndex is invalid",
+);
+assert.strictEqual(
+  getContextPageIndex({ pageIndex: "", pageIndexFromContextMenu: "bad" }),
+  undefined,
+  "invalid context page indexes must be ignored",
 );
 
 assert.strictEqual(normalizeAnnotationKey("A1B2C3"), "A1B2C3");
@@ -156,6 +195,16 @@ function stubItem(fields, extra = {}) {
   };
 }
 
+function extractMetadata(htmlText) {
+  const metadataText = htmlText.match(/<pre>([\s\S]*?)<\/pre>/)[1]
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'");
+  return JSON.parse(metadataText);
+}
+
 const htmlAttachment = stubItem(
   { title: "Attachment <PDF>" },
   { libraryID: 1, key: "HTMLPDF1", attachmentContentType: "application/pdf" },
@@ -216,6 +265,62 @@ assert.strictEqual(metadata.entries[0].open_pdf_uri, "zotero://open-pdf/library/
 assert.strictEqual(metadata.entries[0].quality_estimate, "60-220 KB/image");
 assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normalized_page_rect");
 assert.strictEqual(metadata.entries[0].annotation_key, null);
+
+const malformedPageEntry = {
+  ...htmlEntry,
+  id: "entry-malformed-page-target",
+  pageIndex: "6",
+  pageNumber: "bad",
+  pageLabel: "bad",
+  dataURL: "data:image/jpeg;base64,DDDD",
+  openPDFURI: "",
+};
+const malformedPageHTML = buildIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  entries: [malformedPageEntry],
+  scope: "clip",
+  qualityKey: "medium",
+});
+assert.ok(
+  malformedPageHTML.includes("zotero://open-pdf/library/items/HTMLPDF1?page=7"),
+  "malformed entry page number must use normalized pageIndex + 1 URI",
+);
+assert.strictEqual(malformedPageEntry.pageIndex, 6, "entry pageIndex must be normalized");
+assert.strictEqual(malformedPageEntry.pageNumber, 7, "entry pageNumber must be normalized from pageIndex");
+const malformedPageMetadata = extractMetadata(malformedPageHTML);
+assert.strictEqual(malformedPageMetadata.entries[0].page_index, 6);
+assert.strictEqual(malformedPageMetadata.entries[0].page_number, 7);
+assert.strictEqual(
+  malformedPageMetadata.entries[0].open_pdf_uri,
+  "zotero://open-pdf/library/items/HTMLPDF1?page=7",
+);
+
+const nullPageIndexEntry = {
+  ...htmlEntry,
+  id: "entry-null-page-index",
+  pageIndex: null,
+  pageNumber: "9",
+  pageLabel: "",
+  dataURL: "data:image/jpeg;base64,EEEE",
+  openPDFURI: "",
+};
+const nullPageIndexHTML = buildIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  entries: [nullPageIndexEntry],
+  scope: "clip",
+  qualityKey: "medium",
+});
+assert.ok(
+  nullPageIndexHTML.includes("zotero://open-pdf/library/items/HTMLPDF1?page=9"),
+  "null entry pageIndex must not override a valid pageNumber",
+);
+assert.strictEqual(nullPageIndexEntry.pageIndex, 8);
+assert.strictEqual(nullPageIndexEntry.pageNumber, 9);
+const nullPageIndexMetadata = extractMetadata(nullPageIndexHTML);
+assert.strictEqual(nullPageIndexMetadata.entries[0].page_index, 8);
+assert.strictEqual(nullPageIndexMetadata.entries[0].page_number, 9);
 
 assert.deepStrictEqual(
   Array.from(normalizeBBoxNormalized(["0.9", "bad", "0.2", "1.4"])),

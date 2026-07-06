@@ -1045,6 +1045,9 @@ var PdfImageSaver = (() => {
     const previewQualityKey = normalizeQualityKey(qualityKey);
     const entriesHTML = entries
       .map((entry, index) => {
+        const pageTarget = normalizeEntryPageTarget(entry);
+        entry.pageIndex = pageTarget.pageIndex;
+        entry.pageNumber = pageTarget.pageNumber;
         entry.quality = normalizeQualityKey(entry.quality);
         entry.qualityEstimate = QUALITY[entry.quality].estimate;
         entry.dataURL = normalizePreviewDataURL(entry.dataURL);
@@ -1662,8 +1665,9 @@ var PdfImageSaver = (() => {
   }
 
   async function getCurrentPageIndex(reader, explicitPageIndex) {
-    if (Number.isInteger(explicitPageIndex) && explicitPageIndex >= 0) {
-      return explicitPageIndex;
+    const normalizedExplicit = normalizePageIndex(explicitPageIndex, null);
+    if (normalizedExplicit !== null) {
+      return normalizedExplicit;
     }
     const context = await getPDFViewerContext(reader);
     const pageNumber =
@@ -1671,7 +1675,7 @@ var PdfImageSaver = (() => {
       context?.app?.page ||
       context?.app?.pdfViewer?._currentPageNumber ||
       1;
-    return Math.max(0, Number(pageNumber || 1) - 1);
+    return normalizePageNumber(pageNumber, 1) - 1;
   }
 
   async function getPDFViewerContext(reader) {
@@ -1797,11 +1801,13 @@ var PdfImageSaver = (() => {
   }
 
   function getContextPageIndex(params) {
-    if (Number.isInteger(params?.pageIndex)) {
-      return params.pageIndex;
+    const pageIndex = normalizePageIndex(params?.pageIndex, null);
+    if (pageIndex !== null) {
+      return pageIndex;
     }
-    if (Number.isInteger(params?.pageIndexFromContextMenu)) {
-      return params.pageIndexFromContextMenu;
+    const contextPageIndex = normalizePageIndex(params?.pageIndexFromContextMenu, null);
+    if (contextPageIndex !== null) {
+      return contextPageIndex;
     }
     return undefined;
   }
@@ -1821,7 +1827,8 @@ var PdfImageSaver = (() => {
 
   function getReaderJobKey(reader, options) {
     const itemID = reader?._item?.id || reader?.itemID || "unknown";
-    const page = options.pageIndex ?? "current";
+    const pageIndex = normalizePageIndex(options.pageIndex, null);
+    const page = pageIndex === null ? "current" : pageIndex;
     return `${itemID}:${options.scope}:${page}`;
   }
 
@@ -1920,7 +1927,7 @@ var PdfImageSaver = (() => {
 
   function buildOpenPDFURI(attachment, pageNumber, annotationKey) {
     const libraryPath = getLibraryURIPath(attachment.libraryID);
-    const page = Math.max(1, Number.parseInt(pageNumber, 10) || 1);
+    const page = normalizePageNumber(pageNumber, 1);
     let uri = `zotero://open-pdf/${libraryPath}/items/${attachment.key}?page=${encodeURIComponent(String(page))}`;
     const normalizedAnnotationKey = normalizeAnnotationKey(annotationKey);
     if (normalizedAnnotationKey) {
@@ -1931,9 +1938,6 @@ var PdfImageSaver = (() => {
 
   function getLibraryURIPath(libraryID) {
     try {
-      if (Zotero.API?.getLibraryPrefix) {
-        return Zotero.API.getLibraryPrefix(libraryID);
-      }
       if (!libraryID || libraryID === Zotero.Libraries.userLibraryID) {
         return "library";
       }
@@ -2094,6 +2098,52 @@ var PdfImageSaver = (() => {
 
   function normalizeQualityKey(value) {
     return Object.prototype.hasOwnProperty.call(QUALITY, value) ? value : "medium";
+  }
+
+  function normalizeEntryPageTarget(entry) {
+    const pageIndex = normalizePageIndex(entry?.pageIndex, null);
+    if (pageIndex !== null) {
+      return {
+        pageIndex,
+        pageNumber: pageIndex + 1,
+      };
+    }
+    const pageNumber = normalizePageNumber(entry?.pageNumber, 1);
+    return {
+      pageIndex: pageNumber - 1,
+      pageNumber,
+    };
+  }
+
+  function normalizePageIndex(value, fallback = 0) {
+    const number = toFiniteNumber(value);
+    if (number === null || number < 0) {
+      return fallback;
+    }
+    return Math.floor(number);
+  }
+
+  function normalizePageNumber(value, fallback = 1) {
+    const number = toFiniteNumber(value);
+    if (number === null || number < 1) {
+      return fallback;
+    }
+    return Math.floor(number);
+  }
+
+  function toFiniteNumber(value) {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value !== "string") {
+      return null;
+    }
+    const text = value.trim();
+    if (!text) {
+      return null;
+    }
+    const number = Number(text);
+    return Number.isFinite(number) ? number : null;
   }
 
   function normalizePreviewDataURL(value) {
@@ -2303,9 +2353,12 @@ var PdfImageSaver = (() => {
       buildSourceRegion,
       calculateCanvasCrop,
       getActiveReader,
+      getContextPageIndex,
       getPDFViewerContextCandidate,
       limitOriginalImagesForImport,
       normalizeBBoxNormalized,
+      normalizePageIndex,
+      normalizePageNumber,
       isPDFReader,
       normalizeAnnotationKey,
     },

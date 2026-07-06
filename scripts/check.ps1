@@ -234,6 +234,12 @@ if ($mainJS -match 'getIntegerPref\("helperTimeoutSeconds",\s*DEFAULT_HELPER_TIM
 if ($mainJS -notmatch "function\s+buildOpenPDFURI\s*\(\s*attachment\s*,\s*pageNumber\s*,\s*annotationKey\s*\)") {
   throw "open-pdf URI builder must accept annotationKey"
 }
+if ($mainJS -match "getLibraryPrefix") {
+  throw "open-pdf URI builder must not use Zotero API library prefixes"
+}
+if ($mainJS -notmatch "const\s+page\s*=\s*normalizePageNumber\(pageNumber,\s*1\)") {
+  throw "open-pdf URI builder must normalize page numbers"
+}
 if ($mainJS -notmatch "annotation=\$\{encodeURIComponent\(normalizedAnnotationKey\)\}") {
   throw "open-pdf URI builder must append encoded annotation parameter"
 }
@@ -267,6 +273,15 @@ if ($mainJS -notmatch "entry\.qualityEstimate\s*=\s*QUALITY\[entry\.quality\]\.e
 if ($mainJS -notmatch "quality_estimate:\s*entry\.qualityEstimate") {
   throw "HTML preview metadata must include normalized quality_estimate"
 }
+if ($mainJS -notmatch "const\s+pageTarget\s*=\s*normalizeEntryPageTarget\(entry\)") {
+  throw "HTML preview entries must normalize page targets before URI and metadata output"
+}
+if ($mainJS -notmatch "entry\.pageIndex\s*=\s*pageTarget\.pageIndex") {
+  throw "HTML preview metadata must use normalized page indexes"
+}
+if ($mainJS -notmatch "entry\.pageNumber\s*=\s*pageTarget\.pageNumber") {
+  throw "HTML preview metadata must use normalized page numbers"
+}
 if ($mainJS -notmatch "const\s+previewQualityKey\s*=\s*normalizeQualityKey\(qualityKey\)") {
   throw "HTML preview request quality must be normalized before metadata output"
 }
@@ -296,6 +311,27 @@ if ($mainJS -match "readers\.find\(\(reader\)\s*=>\s*isPDFReader\(reader\)\)") {
 }
 if ($mainJS -match '!\s*reader\.type\s*\|\|\s*reader\.type\s*===\s*"pdf"') {
   throw "PDF reader detection must not treat missing reader.type as PDF"
+}
+if ($mainJS -notmatch "function\s+normalizePageIndex\s*\(\s*value\s*,\s*fallback\s*=\s*0\s*\)") {
+  throw "Page index normalization helper missing"
+}
+if ($mainJS -notmatch "function\s+normalizePageNumber\s*\(\s*value\s*,\s*fallback\s*=\s*1\s*\)") {
+  throw "Page number normalization helper missing"
+}
+if ($mainJS -notmatch 'if\s*\(\s*typeof\s+value\s*===\s*"number"\s*\)[\s\S]*?Number\.isFinite\(value\)') {
+  throw "Page target numeric coercion must explicitly handle finite numbers"
+}
+if ($mainJS -notmatch 'if\s*\(\s*typeof\s+value\s*!==\s*"string"\s*\)\s*\{\s*\r?\n\s*return\s+null;') {
+  throw "Page target numeric coercion must reject non-string non-number values"
+}
+if ($mainJS -notmatch "const\s+normalizedExplicit\s*=\s*normalizePageIndex\(explicitPageIndex,\s*null\)") {
+  throw "Current page lookup must normalize explicit page indexes"
+}
+if ($mainJS -notmatch "return\s+normalizePageNumber\(pageNumber,\s*1\)\s*-\s*1") {
+  throw "Current page lookup must safely normalize viewer page numbers"
+}
+if ($mainJS -notmatch "const\s+contextPageIndex\s*=\s*normalizePageIndex\(params\?\.pageIndexFromContextMenu,\s*null\)") {
+  throw "Context menu page targeting must normalize page-index strings"
 }
 if ($mainJS -notmatch 'function\s+getReaderType\s*\(\s*reader\s*\)') {
   throw "PDF reader detection must use an explicit reader type helper"

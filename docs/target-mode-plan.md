@@ -1060,6 +1060,37 @@ End batch validation checklist:
 - Code review: passed after fixing inherited quality-key acceptance; final review only found unsynced documentation closure, now resolved.
 - Git commit records B34: `f0e0de4`.
 
+### B35 Open PDF Link And Page Target Precision
+
+Status: complete.
+
+Plan:
+
+- Keep Zotero `open-pdf` source links on the documented Zotero URI forms: `library/items/...` for the user library and `groups/<groupID>/items/...` for groups.
+- Normalize page numbers and page indexes before URI, HTML, metadata, current-page, context-menu, and duplicate-key use.
+- Make malformed HTML preview entry page targets fall back to a single normalized target derived from `pageIndex + 1` or page 1.
+- Add regression tests and static checks for user-library API prefix drift, group links, malformed entry page targets, numeric context-menu strings, and invalid page fallbacks.
+- Preserve normal reader canvas preview behavior unchanged.
+
+Pre batch validation:
+
+- Git worktree clean at B35 start commit `fe0de63`.
+- B35 planning agent found `getLibraryURIPath()` can trust `Zotero.API.getLibraryPrefix()` and emit Web API style `users/<id>` inside `zotero://open-pdf`; recorded as `FAIL-20260706-070`.
+- B35 planning agent found `buildIndexHTML()` trusts raw `entry.pageNumber/pageIndex`, allowing source links and metadata to disagree; recorded as `FAIL-20260706-071`.
+- B35 planning agent found `getContextPageIndex()` rejects numeric strings and `getCurrentPageIndex()` can return `NaN` for nonnumeric viewer page state; recorded as `FAIL-20260706-072`.
+- B35 local review found the new page normalizer can coerce `null` to zero and override a valid page number; recorded as `FAIL-20260706-073` before code changes.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `9a548c482337de5685e5a7a1494d94756f1c6876cd80e902a69e3cb388832181`, bytes `27212`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 3, temp children 0.
+- Code review: local review passed after fixing null/boolean/array page-target coercion; review-agent retry failed twice due 429/503 service availability.
+- Git commit records B35: pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -1675,7 +1706,7 @@ End batch validation checklist:
 - Environment: install script and profile source diagnostics
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: runtime diagnostics and preflight can recognize a profile XPI install source, but no install script can create one.
 - Expected: there is a documented command to switch a profile from development proxy install to copied XPI install after Zotero is closed.
 - Actual: `npm run install:global` only writes a development proxy path into the profile.
@@ -2172,6 +2203,62 @@ End batch validation checklist:
 - Close condition: regression tests prove prototype-key quality input falls back to Medium, and static checks assert an own-key guard is used.
 - Closure: `normalizeQualityKey()` now accepts only own `QUALITY` keys, and regression/static checks prove `constructor` falls back to Medium for both request and entry quality.
 
+### FAIL-20260706-070
+
+- Batch: B35
+- Environment: Zotero `open-pdf` URI generation for user-library attachments when Zotero API prefix helpers are available
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `getLibraryURIPath()` returns `Zotero.API.getLibraryPrefix(libraryID)` before checking Zotero `open-pdf` URI forms.
+- Expected: user-library source links use `zotero://open-pdf/library/items/<key>?page=<n>`, and group links use `zotero://open-pdf/groups/<groupID>/items/<key>?page=<n>`.
+- Actual: a Web API style prefix such as `users/999` can produce an unsupported `zotero://open-pdf/users/999/items/...` link.
+- Validation update: remove API-prefix trust from Zotero open-pdf link construction and derive only documented library/group paths.
+- Close condition: regression tests prove a mocked API `users/999` prefix cannot change user-library open-pdf links, group links remain valid, and static checks reject API prefix use in `getLibraryURIPath()`.
+- Closure: `getLibraryURIPath()` now derives only user-library and group-library Zotero open-pdf paths, tests mock a `users/999` API prefix, and static checks reject `getLibraryPrefix` in plugin code.
+
+### FAIL-20260706-071
+
+- Batch: B35
+- Environment: synced HTML preview index creation from preview entries with malformed page target fields
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `buildIndexHTML()` trusts raw `entry.pageNumber` and `entry.pageIndex`.
+- Expected: visible page text, metadata page fields, duplicate target data, and `open_pdf_uri` are derived from one normalized page target.
+- Actual: malformed or divergent `entry.pageNumber/pageIndex` can make saved source links and metadata disagree.
+- Validation update: normalize each entry page target during HTML index build before URI, visible text, and metadata output.
+- Close condition: regression tests prove malformed `pageNumber` plus valid `pageIndex` outputs a consistent `pageIndex + 1` link and metadata fields, and static checks assert page-target normalization runs in `buildIndexHTML()`.
+- Closure: `buildIndexHTML()` normalizes each entry page target before URI and metadata output, and tests prove malformed `pageNumber` with valid `pageIndex` produces consistent page 7 URI and metadata.
+
+### FAIL-20260706-072
+
+- Batch: B35
+- Environment: reader current-page and context-menu page targeting
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: closed
+- Symptom: `getContextPageIndex()` accepts only integer page indexes, while `getCurrentPageIndex()` can subtract from nonnumeric viewer page state.
+- Expected: numeric strings from context state are accepted, and invalid page state falls back to a safe zero-based page index.
+- Actual: string page indexes are dropped, and nonnumeric viewer page values can produce `NaN`.
+- Validation update: add shared page index and page number normalization helpers.
+- Close condition: regression tests prove numeric strings are accepted and invalid/negative page values fall back safely, while static checks assert the shared helpers are used.
+- Closure: shared page index/page number helpers are used for current-page, context-menu, and URI paths; tests cover numeric strings and invalid/negative fallbacks.
+
+### FAIL-20260706-073
+
+- Batch: B35
+- Environment: shared page index normalization introduced for HTML preview entries and reader page targeting
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `toFiniteNumber()` uses `Number(value)` for all value types.
+- Expected: only finite numbers and nonempty numeric strings are accepted as page targets.
+- Actual: `null`, booleans, or arrays can be coerced into numeric page indexes, and a missing `entry.pageIndex` can override a valid `entry.pageNumber` as page 1.
+- Validation update: restrict page-target numeric coercion to numbers and trimmed strings.
+- Close condition: regression tests prove `null` page indexes do not override valid page numbers and non-string/non-number values fall back safely.
+- Closure: page-target numeric coercion now accepts only finite numbers and nonempty strings, tests cover null, boolean, and array rejection plus null pageIndex preserving a valid pageNumber.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2238,6 +2325,10 @@ End batch validation checklist:
 - Check synced HTML preview source region is rebuilt from the normalized bbox.
 - Check synced HTML preview top-level `preview_quality` is normalized.
 - Check preview quality normalization rejects inherited object prototype keys for both request and entry quality.
+- Check Zotero `open-pdf` links never use Web API `users/<id>` prefixes.
+- Check HTML preview page links and metadata are derived from normalized page targets.
+- Check reader current-page and context-menu page targeting accept numeric strings and reject invalid values safely.
+- Check page target normalizers reject null, boolean, and array values instead of numeric coercion.
 
 ## Real Commit Log
 
