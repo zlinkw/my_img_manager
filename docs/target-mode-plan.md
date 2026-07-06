@@ -1272,7 +1272,7 @@ End batch validation checklist:
 
 ### B42 HTML Preview Entry Container Normalization
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1289,7 +1289,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `1938b80d2f321cf3a60d380428c82dec82c104aa3d17e6e44cc40e1c4599ac39`, bytes `29599`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: local read-only review passed with no P0-P2 blockers; subagent review unavailable twice due local proxy HTTP 503.
+- Git commit records B42 implementation: `a7abc73`.
 
 ## Current Validation Results
 
@@ -2773,12 +2779,13 @@ End batch validation checklist:
 - Environment: synced HTML preview index entry list normalization
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `buildIndexHTML()` calls `entries.map()` and mutates `entry.*` without first normalizing the entry list and entry containers.
 - Expected: malformed entry containers produce clear preview-index validation errors or safe fallback entry objects before field normalization.
 - Actual: non-array entries or null/scalar entries can throw unclear TypeErrors before the plugin reaches existing preview data URL validation.
 - Validation update: normalize the preview entry list at the start of HTML index generation and add regression/static checks.
 - Close condition: tests/static checks prove non-array entry lists fail clearly and scalar/null entries are normalized before data URL validation.
+- Closure: `buildIndexHTML()` now uses `normalizePreviewEntries()` before field mutation; tests cover non-array, empty, null, and scalar entry containers; static checks block raw `entries.map()` output paths.
 
 ## Revised Validation Checklist
 
@@ -2964,3 +2971,5 @@ End batch validation checklist:
 - B40 XPI SHA256 `a9ba4e2ad745663fa9620c79d162d9688db15d7d71a2b4dc3cb806f689af88e3` was built in `outputs/` for manual Zotero add-on manager installation.
 - `5a20a63` B41 normalize helper failure messages.
 - B41 XPI SHA256 `453f4a76493f1bc95dac041d3b87651bde7693a943eae5b73ff9cd0bc9cba33a` was built in `outputs/` for manual Zotero add-on manager installation.
+- `a7abc73` B42 normalize preview entry containers.
+- B42 XPI SHA256 `1938b80d2f321cf3a60d380428c82dec82c104aa3d17e6e44cc40e1c4599ac39` was built in `outputs/` for manual Zotero add-on manager installation.
