@@ -1946,7 +1946,7 @@ End batch validation checklist:
 
 ### B66 Saved Index Identity And Duplicate Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1965,7 +1965,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed and covers region-distinguishable same-page source links, preview index key metadata, persisted duplicate detection, and compact title variants.
+- `npm.cmd run check`: passed and now enforces B66 source-region, preview-index, persisted duplicate-guard, title identity, and PowerShell regex parse invariants.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `84c0ced82e50b9b4f6947a6bbe19e58eff18fc823358969f17ea00b9c75ededf`, bytes `32919`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
+- First B66 review agent timed out twice and was closed; second post-commit review agent timed out once and was closed; implementation validation passed locally before and after commit.
+- Git commit records B66 implementation: `fc3d6cd`.
 
 ## Current Validation Results
 
@@ -4149,12 +4155,13 @@ End batch validation checklist:
 - Environment: saved HTML index source links
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `open_pdf_uri` links are page-only when no annotation key exists.
 - Expected: same-page previews with different `bbox_normalized` values should have distinguishable source targets or source-link metadata that can index the exact region.
 - Actual: clicking two different same-page previews can navigate to the same page-only target, forcing manual search.
 - Validation update: add behavior coverage for same-page entries with distinct bbox metadata and matching link/source metadata.
 - Close condition: tests prove same-page entries with distinct bbox metadata generate distinguishable saved index identity/source-link data.
+- Closure: saved index entries now include `source_region_key`, region-distinguishable `open_pdf_uri` values when no annotation key exists, and `data-source-region-key`; `npm.cmd run test` proves same-page different-bbox entries differ.
 
 ### FAIL-20260706-147
 
@@ -4162,12 +4169,13 @@ End batch validation checklist:
 - Environment: duplicate saved index prevention
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: duplicate prevention uses only in-memory `recentIndexSaves`.
 - Expected: duplicate preview index saves should be skipped when an existing child index attachment has the same stable key, even after Zotero restart or add-on reload.
 - Actual: reloads can recreate identical HTML index attachments and grow synced storage.
 - Validation update: add a persisted `preview_index_key` and tests that simulate existing child index attachments.
 - Close condition: tests prove a duplicate existing child index causes save to skip without creating a new index attachment.
+- Closure: saved index metadata now includes `preview_index_key` plus fingerprint, save entries check `hasExistingPreviewIndexAttachment()` through `isDuplicatePreviewIndexSave()`, and `npm.cmd run test` proves an existing child index is detected after reload.
 
 ### FAIL-20260706-148
 
@@ -4175,12 +4183,13 @@ End batch validation checklist:
 - Environment: saved index attachment titles
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: index titles only include page or scope, so repeated saves are hard to distinguish in Zotero child attachments.
 - Expected: titles should stay short but include enough quality/count/fingerprint identity for cleanup and review.
 - Actual: repeated same-page saves produce visually similar child attachment names.
 - Validation update: add title behavior tests for single image, multi image, quality differences, and bbox/fingerprint differences.
 - Close condition: tests prove generated titles are short, sanitized, and distinguish single/multi/quality/bbox variants.
+- Closure: `buildIndexTitle()` now accepts entries, quality, and index key, then adds quality, image count, and short fingerprint while staying within 140 chars; `npm.cmd run test` covers single and multi variants.
 
 ### FAIL-20260706-149
 
@@ -4188,12 +4197,13 @@ End batch validation checklist:
 - Environment: `scripts/check.ps1` PowerShell regex guards
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `npm.cmd run check` fails before running validations with `Unexpected token '\$\'`.
 - Expected: added static guards should parse as valid PowerShell and then validate B66 invariants.
 - Actual: a double-quoted regex containing escaped `$` and quotes breaks PowerShell parsing.
 - Validation update: use single-quoted regex strings or simpler literal checks for B66 static guards.
 - Close condition: `npm.cmd run check` passes while still checking B66 source-region, preview-index, and duplicate-guard invariants.
+- Closure: B66 static guards now use PowerShell-safe regex quoting, and `npm.cmd run check` passes while enforcing source-region, preview-index, persisted duplicate-guard, and title invariants.
 
 ## Revised Validation Checklist
 
@@ -4474,3 +4484,5 @@ End batch validation checklist:
 - B64 XPI SHA256 `e86385c0dbff434408161129e204f9edc175de94ce7b83460d52d6cb55d03430` was built in `outputs/` for manual Zotero add-on manager installation.
 - `fe2c2d0` B65 use npm.cmd in PowerShell handoff.
 - B65 XPI SHA256 `cc99aa9bdfb12901a93bd6ed607afe2da394e23c6653067180e25cf23dc9155e` was built in `outputs/` for manual Zotero add-on manager installation.
+- `fc3d6cd` B66 stabilize saved index identity.
+- B66 XPI SHA256 `84c0ced82e50b9b4f6947a6bbe19e58eff18fc823358969f17ea00b9c75ededf` was built in `outputs/` for manual Zotero add-on manager installation.
