@@ -358,6 +358,9 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*formatHelperFailure") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*formatDiagnosticsReport") {
   throw "Diagnostics formatter must remain exported for regression tests"
 }
+if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getErrorMessage") {
+  throw "Error message helper must remain exported for regression tests"
+}
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*saveAutoDetectedPageImagePreviews") {
   throw "Auto-raster save entry must remain exported for regression tests"
 }
@@ -882,6 +885,28 @@ if ($mainJS -notmatch "function\s+normalizeDiagnosticWarningMessages\s*\(\s*warn
 }
 if ($mainJS -notmatch "function\s+formatDiagnosticBoolean\s*\(\s*value\s*\)[\s\S]*value\s*===\s*true\s*\?\s*`"true`"\s*:\s*value\s*===\s*false\s*\?\s*`"false`"\s*:\s*`"unknown`"") {
   throw "Diagnostics booleans must format to true, false, or unknown"
+}
+$errorMessageEntry = [regex]::Match($mainJS, "function\s+getErrorMessage\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+normalizeErrorMessageText")
+if (!$errorMessageEntry.Success) {
+  throw "Error message helper function block not found"
+}
+if ($errorMessageEntry.Value -notmatch "normalizeErrorMessageText\(error\.message\)") {
+  throw "Error message helper must normalize Error.message"
+}
+if ($errorMessageEntry.Value -notmatch "typeof\s+error\s*===\s*`"string`"[\s\S]*typeof\s+error\s*===\s*`"number`"") {
+  throw "Error message helper must preserve scalar string and numeric errors"
+}
+if ($errorMessageEntry.Value -notmatch "return\s+`"Unknown error\.`"") {
+  throw "Error message helper must fall back to a compact unknown error"
+}
+if ($errorMessageEntry.Value -match "String\(error\)") {
+  throw "Error message helper must not stringify arbitrary thrown values"
+}
+if ($mainJS -notmatch "function\s+normalizeErrorMessageText\s*\(\s*value\s*\)[\s\S]*normalizeMetadataText\(value,\s*null,\s*320\)") {
+  throw "Error message text normalizer must use capped metadata text normalization"
+}
+if ($mainJS -notmatch "text\s*===\s*`"undefined`"[\s\S]*text\s*===\s*`"null`"[\s\S]*text\s*===\s*`"\[object Object\]`"") {
+  throw "Error message text normalizer must reject noisy stringified values"
 }
 if ($mainJS -notmatch "function\s+showToastInDocument\s*\(\s*doc\s*,\s*message\s*,\s*level\s*\)[\s\S]*return\s+false;[\s\S]*doc\.body\.appendChild\(toast\)[\s\S]*return\s+true;") {
   throw "Reader toast document renderer must return whether toast display succeeded"

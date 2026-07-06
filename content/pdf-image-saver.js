@@ -2799,9 +2799,20 @@ var PdfImageSaver = (() => {
 
   function getErrorMessage(error) {
     if (error && typeof error.message === "string") {
-      return error.message;
+      return normalizeErrorMessageText(error.message);
     }
-    return String(error);
+    if (typeof error === "string" || (typeof error === "number" && Number.isFinite(error))) {
+      return normalizeErrorMessageText(error);
+    }
+    return "Unknown error.";
+  }
+
+  function normalizeErrorMessageText(value) {
+    const text = normalizeMetadataText(value, null, 320);
+    if (!text || text === "undefined" || text === "null" || text === "[object Object]") {
+      return "Unknown error.";
+    }
+    return text;
   }
 
   return {
@@ -2822,6 +2833,7 @@ var PdfImageSaver = (() => {
       filterExistingOriginalImagesForImport,
       formatDiagnosticsReport,
       formatHelperFailure,
+      getErrorMessage,
       getActiveReader,
       getContextPageIndex,
       getPDFViewerContextCandidate,

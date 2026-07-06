@@ -85,6 +85,7 @@ const {
   filterExistingOriginalImagesForImport,
   formatDiagnosticsReport,
   formatHelperFailure,
+  getErrorMessage,
   getActiveReader,
   getContextPageIndex,
   getPDFViewerContextCandidate,
@@ -1155,6 +1156,18 @@ assert.ok(noisyDiagnostics.includes("PDF key: UNKNOWN"), "diagnostics PDF key mu
 assert.ok(noisyDiagnostics.includes("Parent item: none"), "diagnostics parent item must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Page: 1"), "diagnostics page target must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("- ok"), "diagnostics warnings must keep valid compact warning text");
+
+assert.strictEqual(getErrorMessage(new Error("Readable failure")), "Readable failure", "Error.message text must be preserved");
+assert.strictEqual(getErrorMessage("plain failure"), "plain failure", "plain thrown strings must be preserved");
+assert.strictEqual(getErrorMessage(404), "404", "numeric thrown values must be preserved");
+for (const noisyErrorValue of [{ bad: true }, ["bad"], null, undefined, new Error(""), "[object Object]", "undefined", "null"]) {
+  assert.strictEqual(
+    getErrorMessage(noisyErrorValue),
+    "Unknown error.",
+    "malformed error messages must use a compact fallback",
+  );
+}
+assert.strictEqual(getErrorMessage("x".repeat(400)).length, 320, "oversized error messages must be capped");
 
 async function runAsyncAssertions() {
   context.Services.prompt.confirms = [];

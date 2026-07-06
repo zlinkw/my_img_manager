@@ -1597,6 +1597,27 @@ End batch validation checklist:
 - Code review: subagent timed out and was closed; local read-only review and targeted `test/check` rerun found no P0-P2 blockers.
 - Git commit records B53 implementation: `2eb5c06`.
 
+### B54 Error Message Text Normalization
+
+Status: in progress.
+
+Plan:
+
+- Normalize `getErrorMessage()` so thrown objects, arrays, nulls, and empty messages cannot become `[object Object]`, `undefined`, `null`, or oversized text in logs, reader toasts, diagnostics warnings, or helper failure messages.
+- Preserve useful scalar error strings and `Error.message` text.
+- Add behavior/static checks proving `getErrorMessage()` no longer falls back to raw `String(error)`.
+
+Pre batch validation:
+
+- Git worktree clean at B54 start commit `1d2d11f`.
+- B54 local planning pass found `getErrorMessage()` returns `String(error)` for non-`Error` values, allowing object/array/null throw values to leak noisy text into user-visible feedback; recorded as `FAIL-20260706-116`.
+- B54 validation found the new noisy-string static guard over-escaped `[object Object]` and looked for literal backslashes; recorded as `FAIL-20260706-117`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -3353,6 +3374,32 @@ End batch validation checklist:
 - Close condition: `npm.cmd run check` passes while still guarding raw `report.warnings.map` and `report.pdf_attachment` spellings.
 - Closure: raw diagnostics static guards now use `-cmatch`, so `safeReport` passes while lowercase raw `report.warnings.map` and `report.pdf_attachment` remain rejected.
 
+### FAIL-20260706-116
+
+- Batch: B54
+- Environment: shared error-message formatting
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `getErrorMessage()` returns `String(error)` when the thrown value is not an object with a string `message`.
+- Expected: user-facing logs, toasts, diagnostics warnings, and helper failure strings should use compact scalar error text or a safe fallback.
+- Actual: thrown objects, arrays, nulls, and undefined can become `[object Object]`, array text, `null`, or `undefined` in user-visible feedback.
+- Validation update: normalize error messages at the shared helper and add behavior/static checks.
+- Close condition: tests/static checks prove object, array, null, undefined, empty, and oversized error values normalize without raw `String(error)`.
+
+### FAIL-20260706-117
+
+- Batch: B54
+- Environment: B54 static validation for noisy error strings
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the noisy-string static guard over-escapes `[object Object]` and searches for literal backslashes.
+- Expected: static guard should match the actual source check `text === "[object Object]"`.
+- Actual: `npm.cmd run check` fails even though the implementation rejects `[object Object]`.
+- Validation update: fix the static regex escaping for `[object Object]`.
+- Close condition: `npm.cmd run check` passes while still asserting `undefined`, `null`, and `[object Object]` rejection.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -3466,6 +3513,8 @@ End batch validation checklist:
 - Check preview duplicate guard keys normalize malformed preview and attachment fields.
 - Check runtime diagnostics alert text normalizes malformed report fields and warning lines.
 - Check raw diagnostics static guards are case-sensitive and do not reject `safeReport`.
+- Check shared error message formatting normalizes object, array, null, undefined, empty, and oversized values.
+- Check noisy error string static guard matches actual `[object Object]` source text without literal backslashes.
 
 ## Real Commit Log
 
