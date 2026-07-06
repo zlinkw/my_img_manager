@@ -1498,7 +1498,7 @@ var PdfImageSaver = (() => {
         parentItem,
         scope,
       });
-      const skippedText = importResult.omittedCount
+      const skippedText = importResult.omittedCount || importResult.indexErrorCount
         ? buildOriginalImportSkippedText(importResult)
         : "";
       if (!importResult.count) {
@@ -1508,7 +1508,7 @@ var PdfImageSaver = (() => {
       showReaderToast(
         reader,
         `Saved ${importResult.count} original image attachment${importResult.count === 1 ? "" : "s"}.${skippedText}`,
-        importResult.omittedCount ? "warning" : "success",
+        importResult.omittedCount || importResult.indexErrorCount ? "warning" : "success",
       );
     } catch (error) {
       logError(error);
@@ -1524,19 +1524,14 @@ var PdfImageSaver = (() => {
     const parentID = attachment.parentID || undefined;
     let count = 0;
     let importErrorCount = 0;
-    const limited = limitOriginalImagesForImport(report, scope);
+    let indexErrorCount = 0;
+    const normalized = normalizeOriginalImagesForImport(report);
+    const existingOriginalKeys = await getExistingOriginalImageKeys(parentItem, attachment);
+    const deduped = filterDuplicateOriginalImagesForImport(normalized, attachment, existingOriginalKeys);
+    const limited = limitNormalizedOriginalImagesForImport(deduped, scope);
     const prepared = await filterExistingOriginalImagesForImport(limited);
-    const existingOriginalKeys = await getExistingOriginalImageKeys(parentItem);
-    const importableImages = [];
-    let duplicateCount = 0;
-    for (const image of prepared.images) {
-      image.originalImageKey = getOriginalImageKey(attachment, image);
-      if (existingOriginalKeys.has(image.originalImageKey)) {
-        duplicateCount += 1;
-        continue;
-      }
-      importableImages.push(image);
-    }
+    const importableImages = prepared.images;
+    const duplicateCount = deduped.duplicateCount;
     const importedImages = [];
     try {
       for (const image of importableImages) {
@@ -1559,12 +1554,17 @@ var PdfImageSaver = (() => {
         throw new Error(`All ${importErrorCount} Zotero original image imports failed.`);
       }
       if (importedImages.length) {
-        await createOriginalImageIndexAttachment({
-          attachment,
-          parentItem,
-          images: importedImages,
-          scope,
-        });
+        try {
+          await createOriginalImageIndexAttachment({
+            attachment,
+            parentItem,
+            images: importedImages,
+            scope,
+          });
+        } catch (error) {
+          indexErrorCount += 1;
+          logError(error);
+        }
       }
       return {
         count,
@@ -1576,6 +1576,7 @@ var PdfImageSaver = (() => {
         byteCapCount: prepared.byteCapCount,
         duplicateCount,
         importErrorCount: importErrorCount,
+        indexErrorCount: indexErrorCount,
         maxImages: prepared.maxImages,
         totalBytes: prepared.totalBytes,
       };
@@ -1640,6 +1641,10 @@ var PdfImageSaver = (() => {
   }
 
   function limitOriginalImagesForImport(report, scope) {
+    return limitNormalizedOriginalImagesForImport(normalizeOriginalImagesForImport(report), scope);
+  }
+
+  function normalizeOriginalImagesForImport(report) {
     const images = Array.isArray(report?.images) ? report.images : [];
     const normalizedImages = [];
     let invalidCount = 0;
@@ -1651,15 +1656,47 @@ var PdfImageSaver = (() => {
         invalidCount += 1;
       }
     });
-    const maxImages = getHelperMaxImages(scope);
-    const overCapCount = Math.max(0, normalizedImages.length - maxImages);
     return {
-      images: normalizedImages.slice(0, maxImages),
-      omittedCount: invalidCount + overCapCount,
+      images: normalizedImages,
+      omittedCount: invalidCount,
       invalidCount,
+      overCapCount: 0,
+      maxImages: 0,
+      originalCount: images.length,
+    };
+  }
+
+  function filterDuplicateOriginalImagesForImport(normalized, attachment, existingOriginalKeys) {
+    const images = [];
+    let duplicateCount = 0;
+    const keySet = existingOriginalKeys instanceof Set ? existingOriginalKeys : new Set();
+    for (const image of normalized.images || []) {
+      image.originalImageKey = getOriginalImageKey(attachment, image);
+      if (keySet.has(image.originalImageKey)) {
+        duplicateCount += 1;
+        continue;
+      }
+      images.push(image);
+    }
+    return {
+      ...normalized,
+      images,
+      duplicateCount,
+    };
+  }
+
+  function limitNormalizedOriginalImagesForImport(normalized, scope) {
+    const maxImages = getHelperMaxImages(scope);
+    const images = Array.isArray(normalized?.images) ? normalized.images : [];
+    const overCapCount = Math.max(0, images.length - maxImages);
+    return {
+      ...normalized,
+      images: images.slice(0, maxImages),
+      omittedCount: (normalized?.omittedCount || 0) + overCapCount,
+      invalidCount: normalized?.invalidCount || 0,
       overCapCount,
       maxImages,
-      originalCount: images.length,
+      originalCount: normalized?.originalCount || images.length,
     };
   }
 
@@ -1720,6 +1757,9 @@ var PdfImageSaver = (() => {
     }
     if (importResult.importErrorCount) {
       parts.push(`skipped ${importResult.importErrorCount} failed Zotero import${importResult.importErrorCount === 1 ? "" : "s"}`);
+    }
+    if (importResult.indexErrorCount) {
+      parts.push("original image index metadata failed");
     }
     if (importResult.overCapCount) {
       parts.push(`skipped ${importResult.overCapCount} over safety cap ${importResult.maxImages}`);
@@ -1833,9 +1873,10 @@ var PdfImageSaver = (() => {
 </html>`;
   }
 
-  async function getExistingOriginalImageKeys(parentItem) {
+  async function getExistingOriginalImageKeys(parentItem, attachment = null) {
     const keys = new Set();
     if (!parentItem || typeof parentItem.getAttachments !== "function") {
+      await collectStandaloneOriginalImageKeys(keys, attachment);
       return keys;
     }
     let childIDs = [];
@@ -1869,6 +1910,32 @@ var PdfImageSaver = (() => {
       }
     }
     return keys;
+  }
+
+  async function collectStandaloneOriginalImageKeys(keys, attachment) {
+    if (attachment?.parentID || typeof Zotero.Items?.getAll !== "function") {
+      return;
+    }
+    let items = [];
+    try {
+      items = Zotero.Items.getAll(attachment?.libraryID) || [];
+    } catch (error) {
+      logError(error);
+      return;
+    }
+    for (const item of Array.isArray(items) ? items : []) {
+      if (!item || (item.id && attachment?.id && item.id === attachment.id) || !isHTMLAttachment(item)) {
+        continue;
+      }
+      const metadata = await readOriginalImageIndexMetadataFromAttachment(item);
+      const images = Array.isArray(metadata?.images) ? metadata.images : [];
+      for (const image of images) {
+        const key = normalizeMetadataText(image?.original_image_key, null, 1000);
+        if (key) {
+          keys.add(key);
+        }
+      }
+    }
   }
 
   async function readOriginalImageIndexMetadataFromAttachment(item) {

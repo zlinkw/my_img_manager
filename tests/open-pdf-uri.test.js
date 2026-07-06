@@ -1990,6 +1990,90 @@ async function runAsyncAssertions() {
   assert.strictEqual(duplicateGeneratedMetadata.images.length, 1, "duplicate skips must be excluded from new original index metadata");
   assert.strictEqual(duplicateGeneratedMetadata.images[0].sha256, "new-sha");
 
+  context.Zotero.Prefs.values["extensions.pdfImageSaver.maxPageImages"] = 1;
+  context.Zotero.Attachments.imported = [];
+  context.IOUtils.stat = async (filePath) => ({
+    size: String(filePath).toLowerCase() === existingOriginalFile.toLowerCase()
+      ? 149 * mb
+      : 20 * mb,
+  });
+  const duplicateBeforeCapResult = await importOriginalImages({
+    report: {
+      output_dir: helperOutputDir,
+      images: [
+        { file_path: existingOriginalFile, page_number: 2, occurrence: 2, sha256: "duplicate-sha" },
+        { file_path: laterExistingOriginalFile, page_number: 3, occurrence: 3, sha256: "new-sha-before-cap" },
+      ],
+    },
+    attachment: htmlAttachment,
+    parentItem: parentWithOriginalIndex,
+    scope: "page",
+  });
+  assert.strictEqual(duplicateBeforeCapResult.count, 1, "duplicate originals must not consume max-image capacity");
+  assert.strictEqual(duplicateBeforeCapResult.duplicateCount, 1, "duplicate-before-cap path must still count duplicates");
+  assert.strictEqual(duplicateBeforeCapResult.overCapCount, 0, "duplicate originals must be removed before max-image cap");
+  assert.strictEqual(duplicateBeforeCapResult.byteCapCount, 0, "duplicate originals must be removed before total byte cap");
+  assert.strictEqual(duplicateBeforeCapResult.totalBytes, 20 * mb, "duplicate bytes must not contribute to accepted total bytes");
+  assert.deepStrictEqual(importedImageFiles(), [laterExistingOriginalFile], "new original after duplicate must still import");
+  context.Zotero.Prefs.values["extensions.pdfImageSaver.maxPageImages"] = 10;
+
+  context.Zotero.Attachments.imported = [];
+  context.IOUtils.stat = async () => ({ size: 1024 });
+  context.Zotero.Items = {
+    getAll(libraryID) {
+      assert.strictEqual(libraryID, htmlAttachment.libraryID, "standalone duplicate scan must stay in the attachment library");
+      return [existingOriginalIndexChild];
+    },
+  };
+  const standaloneDuplicateResult = await importOriginalImages({
+    report: {
+      output_dir: helperOutputDir,
+      images: [
+        { file_path: existingOriginalFile, page_number: 2, occurrence: 2, sha256: "duplicate-sha" },
+        { file_path: laterExistingOriginalFile, page_number: 3, occurrence: 3, sha256: "standalone-new-sha" },
+      ],
+    },
+    attachment: htmlAttachment,
+    parentItem: null,
+    scope: "page",
+  });
+  assert.strictEqual(standaloneDuplicateResult.count, 1, "standalone PDF duplicate original keys must be skipped");
+  assert.strictEqual(standaloneDuplicateResult.duplicateCount, 1, "standalone duplicate skips must be counted");
+  assert.deepStrictEqual(importedImageFiles(), [laterExistingOriginalFile], "standalone duplicate originals must not reach Zotero import");
+  context.Zotero.Items = { get() { return null; } };
+
+  const indexFailureErrors = [];
+  context.Zotero.logError = (error) => indexFailureErrors.push(error);
+  context.Zotero.Attachments.imported = [];
+  context.Zotero.Attachments.importFromFile = async function importFromFile(options) {
+    if (options.contentType === "text/html") {
+      throw new Error("original index import failed");
+    }
+    this.imported.push(options);
+  };
+  const indexFailureResult = await importOriginalImages({
+    report: {
+      output_dir: helperOutputDir,
+      images: [
+        { file_path: existingOriginalFile, page_number: 1, occurrence: 1 },
+        { file_path: laterExistingOriginalFile, page_number: 2, occurrence: 2 },
+      ],
+    },
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    scope: "page",
+  });
+  assert.strictEqual(indexFailureResult.count, 2, "original image imports must still succeed when the HTML index import fails");
+  assert.strictEqual(indexFailureResult.indexErrorCount, 1, "HTML index import failures must be counted separately");
+  assert.strictEqual(indexFailureResult.omittedCount, 0, "HTML index failure must not be counted as an omitted original image");
+  assert.deepStrictEqual(
+    importedImageFiles(),
+    [existingOriginalFile, laterExistingOriginalFile],
+    "HTML index failure must not remove successful original image imports",
+  );
+  assert.strictEqual(importedHTMLIndexes().length, 0, "failed HTML index import must not be recorded as an imported index");
+  assert.strictEqual(indexFailureErrors.length, 1, "HTML index import failure must be logged");
+
   const importErrors = [];
   context.Zotero.logError = (error) => importErrors.push(error);
   context.Zotero.Attachments.imported = [];

@@ -464,17 +464,23 @@ if ($helperMaxCallCount -lt 3) {
 if ($mainJS -notmatch "function\s+limitOriginalImagesForImport\s*\(\s*report\s*,\s*scope\s*\)") {
   throw "Original image import must use an import-side image limit helper"
 }
-if ($mainJS -notmatch "const\s+limited\s*=\s*limitOriginalImagesForImport\(report,\s*scope\)") {
-  throw "Original image import path must call the import-side image limit helper"
+if ($mainJS -notmatch "const\s+normalized\s*=\s*normalizeOriginalImagesForImport\(report\)[\s\S]*const\s+deduped\s*=\s*filterDuplicateOriginalImagesForImport\(normalized,\s*attachment,\s*existingOriginalKeys\)[\s\S]*const\s+limited\s*=\s*limitNormalizedOriginalImagesForImport\(deduped,\s*scope\)[\s\S]*const\s+prepared\s*=\s*await\s+filterExistingOriginalImagesForImport\(limited\)") {
+  throw "Original image import path must normalize, dedupe, apply max caps, then filter files and bytes"
 }
 if ($mainJS -match "for\s*\(\s*const\s+image\s+of\s+report\.images\s*\)") {
   throw "Original image import must not iterate raw helper report images"
 }
-if ($mainJS -notmatch "images:\s*normalizedImages\.slice\(0,\s*maxImages\)") {
+if ($mainJS -notmatch "images:\s*images\.slice\(0,\s*maxImages\)") {
   throw "Original image import limiter must truncate images to maxImages"
 }
 if ($mainJS -notmatch "const\s+normalized\s*=\s*normalizeOriginalImageForImport\(image,\s*index,\s*report\?\.output_dir\)") {
   throw "Original image import limiter must normalize helper image records"
+}
+if ($mainJS -notmatch "function\s+filterDuplicateOriginalImagesForImport\s*\(\s*normalized,\s*attachment,\s*existingOriginalKeys\s*\)") {
+  throw "Original image import must have a pre-cap duplicate filter"
+}
+if ($mainJS -notmatch "function\s+limitNormalizedOriginalImagesForImport\s*\(\s*normalized,\s*scope\s*\)") {
+  throw "Original image import must cap deduped normalized images"
 }
 if ($mainJS -notmatch "function\s+normalizeOriginalImageForImport\s*\(\s*image,\s*index,\s*outputDir\s*\)") {
   throw "Original helper image record normalizer missing"
@@ -523,7 +529,7 @@ if ($mainJS -notmatch "overCapCount:\s*prepared\.overCapCount") {
 if ($mainJS -notmatch "const\s+prepared\s*=\s*await\s+filterExistingOriginalImagesForImport\(limited\)") {
   throw "Original image import must filter missing helper files before Zotero import"
 }
-if ($mainJS -notmatch "for\s*\(\s*const\s+image\s+of\s+prepared\.images\s*\)") {
+if ($mainJS -notmatch "const\s+importableImages\s*=\s*prepared\.images[\s\S]*for\s*\(\s*const\s+image\s+of\s+importableImages\s*\)") {
   throw "Original image import must iterate existence-filtered images"
 }
 if ($mainJS -match "for\s*\(\s*const\s+image\s+of\s+limited\.images\s*\)") {
@@ -534,6 +540,9 @@ if ($mainJS -notmatch "function\s+filterExistingOriginalImagesForImport\s*\(\s*l
 }
 if ($mainJS -notmatch "const\s+status\s*=\s*await\s+getHelperImageFileStatus\(image\.filePath\)") {
   throw "Original image existence filter must check each normalized helper file path"
+}
+if ($mainJS -notmatch "omittedCount:\s*\(limited\.omittedCount\s*\|\|\s*0\)\s*\+\s*missingCount\s*\+\s*errorCount\s*\+\s*byteCapCount") {
+  throw "Original image existence filter must add byte-cap skips to omission count"
 }
 if ($mainJS -notmatch "missingCount:\s*prepared\.missingCount") {
   throw "Original image import result must expose missing helper file count"
@@ -550,11 +559,26 @@ if ($mainJS -notmatch "importErrorCount\s*\+=\s*1") {
 if ($mainJS -notmatch "importErrorCount:\s*importErrorCount") {
   throw "Original image import result must expose Zotero import failure count"
 }
+if ($mainJS -notmatch "let\s+indexErrorCount\s*=\s*0") {
+  throw "Original image import must track HTML index creation failures separately"
+}
+if ($mainJS -notmatch "catch\s*\(\s*error\s*\)\s*\{\s*\r?\n\s*indexErrorCount\s*\+=\s*1;\s*\r?\n\s*logError\(error\);") {
+  throw "Original image HTML index failures must be caught and logged separately"
+}
+if ($mainJS -notmatch "indexErrorCount:\s*indexErrorCount") {
+  throw "Original image import result must expose HTML index failure count"
+}
+if ($mainJS -notmatch "importResult\.omittedCount\s*\|\|\s*importResult\.indexErrorCount") {
+  throw "Original-image save feedback must warn on HTML index failure even when images import"
+}
 if ($mainJS -notmatch "omittedCount:\s*prepared\.omittedCount\s*\+\s*duplicateCount\s*\+\s*importErrorCount") {
   throw "Original image import result must add duplicate skips and Zotero import failures to omission count"
 }
 if ($mainJS -notmatch "skipped\s+\$\{importResult\.importErrorCount\}\s+failed Zotero import") {
   throw "Original helper import toast must expose failed Zotero imports separately"
+}
+if ($mainJS -notmatch "original image index metadata failed") {
+  throw "Original helper import toast must expose HTML index metadata failure"
 }
 if ($mainJS -notmatch "try\s*\{\s*\r?\n\s*await\s+Zotero\.Attachments\.importFromFile") {
   throw "Original image import must isolate each Zotero import call"
@@ -583,10 +607,10 @@ if ($mainJS -notmatch "byteCapCount:\s*prepared\.byteCapCount") {
 if ($mainJS -notmatch "skipped\s+\$\{importResult\.byteCapCount\}\s+over byte safety cap") {
   throw "Original helper import toast must expose byte-cap skips"
 }
-if ($mainJS -notmatch "const\s+existingOriginalKeys\s*=\s*await\s+getExistingOriginalImageKeys\(parentItem\)") {
+if ($mainJS -notmatch "const\s+existingOriginalKeys\s*=\s*await\s+getExistingOriginalImageKeys\(parentItem,\s*attachment\)") {
   throw "Original image import must scan existing original-image keys before import"
 }
-if ($mainJS -notmatch "existingOriginalKeys\.has\(image\.originalImageKey\)") {
+if ($mainJS -notmatch "keySet\.has\(image\.originalImageKey\)") {
   throw "Original image import must skip duplicate original-image keys"
 }
 if ($mainJS -notmatch "duplicateCount\s*\+=\s*1") {
@@ -615,6 +639,12 @@ if ($mainJS -notmatch "open_pdf_uri:\s*buildOpenPDFURI\(attachment,\s*image\?\.p
 }
 if ($mainJS -notmatch "readOriginalImageIndexMetadataFromAttachment") {
   throw "Original image duplicate scanner must read original-image index metadata"
+}
+if ($mainJS -notmatch "collectStandaloneOriginalImageKeys\(keys,\s*attachment\)") {
+  throw "Original image duplicate scanner must fall back to standalone same-library scanning"
+}
+if ($mainJS -notmatch "Zotero\.Items\?\.getAll") {
+  throw "Standalone original image duplicate scanner must use guarded same-library item scanning"
 }
 if ($mainJS -notmatch "metadata\.storage_mode\s*===\s*`"original_image_index`"") {
   throw "Original image duplicate scanner must validate original_image_index storage mode"
