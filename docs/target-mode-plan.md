@@ -843,7 +843,31 @@ End batch validation checklist:
 - `npm run build`: passed.
 - `npm run package:manual`: passed, packaged XPI SHA256 `8bb8549b63579451e191c6410805f05af3f8f6a62c34124e756fbb52623eedd6`.
 - `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
-- Git commit records B26: pending.
+- Git commit records B26: `4a11a40`.
+
+### B27 Startup Preference Pane Registration
+
+Status: complete; manual Zotero install and reader smoke pending user action.
+
+Plan:
+
+- Harden bootstrap startup around Zotero preference pane registration.
+- Ensure async preference pane registration failures are awaited, logged, and do not become unhandled promise rejections during add-on startup.
+- Add static checks for this startup contract.
+
+Pre batch validation:
+
+- Git worktree clean at B27 start commit `4a11a40`.
+- Local Zotero 9.0.5 `PreferencePanes.register()` is async and can throw while resolving plugin name, icon, pane source, or scripts.
+- Current `bootstrap.js` calls `Zotero.PreferencePanes.register()` without `await` or `try/catch`; recorded as `FAIL-20260706-054`.
+
+End batch validation checklist:
+
+- `npm run check`: passed.
+- `npm run build`: passed.
+- `npm run package:manual`: passed, packaged XPI SHA256 `b30ebbd007d58228fe008c1f25575dcf4766864e1c53251c1c66ae3780f8e391`.
+- `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- Git commit records B27: pending.
 
 ## Current Validation Results
 
@@ -968,6 +992,10 @@ End batch validation checklist:
 - B26 `npm run build`: passed.
 - B26 `npm run package:manual`: passed; packaged XPI SHA256 `8bb8549b63579451e191c6410805f05af3f8f6a62c34124e756fbb52623eedd6`.
 - B26 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- B27 `npm run check`: passed.
+- B27 `npm run build`: passed.
+- B27 `npm run package:manual`: passed; packaged XPI SHA256 `b30ebbd007d58228fe008c1f25575dcf4766864e1c53251c1c66ae3780f8e391`.
+- B27 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
 
 ## New Failures
 
@@ -1702,6 +1730,20 @@ End batch validation checklist:
 - Close condition: static checks assert report removal before each candidate and helper exit-code recording.
 - Closure: each helper candidate now removes `report.json` before process start, requires a fresh report after process completion, records `helper.exit_code`, and `runProcess()` returns the exit code.
 
+### FAIL-20260706-054
+
+- Batch: B27
+- Environment: plugin startup in Zotero 9.0.5 while preference pane registration rejects
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `bootstrap.js` calls async `Zotero.PreferencePanes.register()` without `await` or error handling.
+- Expected: preference pane registration should be awaited or explicitly caught so startup logs preference failures without unhandled promise rejections.
+- Actual: local Zotero 9.0.5 source shows `register()` awaits plugin name, icon, source, and script URI resolution and can throw, but plugin startup does not await it.
+- Validation update: wrap preference pane registration in an awaited helper that catches/logs failures and continues loading the core reader plugin.
+- Close condition: static checks assert startup awaits a preference registration helper and that helper catches registration errors.
+- Closure: startup now awaits `registerPreferencePane(id, rootURI)`, and the helper catches/logs preference pane registration failures before continuing core plugin load.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1752,6 +1794,7 @@ End batch validation checklist:
 - Check reader event listener cleanup is scoped by plugin ID and does not remove unrelated listeners.
 - Check optional helper report files are isolated per Python candidate and helper exit codes are recorded.
 - Check HTML index output includes escaped title text, Zotero source PDF links, source region map, metadata JSON, source region metadata, and normalized annotation keys.
+- Check bootstrap awaits preference pane registration through a catch/log helper so pane failures do not become unhandled startup rejections.
 
 ## Real Commit Log
 
@@ -1810,4 +1853,6 @@ End batch validation checklist:
 - B24 XPI SHA256 `f921e70fef60d0db2a171f29f54b8df50f1aeb6095906dabff8bc4b473bc12e4` was built in `outputs/` for manual Zotero add-on manager installation.
 - `44cc930` B25 isolate helper reports.
 - B25 XPI SHA256 `abd001395b50ca6bbc2b5f54866f1df408178733d5a3ba8b53667d7e38efef33` was built in `outputs/` for manual Zotero add-on manager installation.
+- `4a11a40` B26 cover HTML index output.
 - B26 XPI SHA256 `8bb8549b63579451e191c6410805f05af3f8f6a62c34124e756fbb52623eedd6` was built in `outputs/` for manual Zotero add-on manager installation.
+- B27 XPI SHA256 `b30ebbd007d58228fe008c1f25575dcf4766864e1c53251c1c66ae3780f8e391` was built in `outputs/` for manual Zotero add-on manager installation.

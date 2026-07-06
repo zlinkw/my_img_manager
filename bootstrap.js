@@ -10,14 +10,23 @@ function install() {
 
 async function startup({ id, version, rootURI }) {
   log("Starting " + version);
-  Zotero.PreferencePanes.register({
-    pluginID: id,
-    src: rootURI + "preferences.xhtml",
-    scripts: [rootURI + "content/preferences.js"],
-  });
+  await registerPreferencePane(id, rootURI);
   Services.scriptloader.loadSubScript(rootURI + "content/pdf-image-saver.js");
   PdfImageSaver.init({ id, version, rootURI });
   await PdfImageSaver.startup();
+}
+
+async function registerPreferencePane(id, rootURI) {
+  try {
+    await Zotero.PreferencePanes.register({
+      pluginID: id,
+      src: rootURI + "preferences.xhtml",
+      scripts: [rootURI + "content/preferences.js"],
+    });
+  } catch (error) {
+    Zotero.logError(error);
+    log("Preference pane registration failed: " + (error?.message || error));
+  }
 }
 
 async function onMainWindowLoad({ window }) {

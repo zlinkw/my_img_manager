@@ -19,6 +19,17 @@ Invoke-Native "node" @("--check", ".\content\preferences.js")
 Invoke-Native "node" @("--check", ".\tests\open-pdf-uri.test.js")
 Invoke-Native "node" @(".\tests\open-pdf-uri.test.js")
 
+$bootstrapJS = Get-Content -Encoding UTF8 -Raw -LiteralPath .\bootstrap.js
+if ($bootstrapJS -notmatch "await\s+registerPreferencePane\(id,\s*rootURI\)") {
+  throw "bootstrap startup must await preference pane registration helper"
+}
+if ($bootstrapJS -notmatch "async\s+function\s+registerPreferencePane") {
+  throw "bootstrap must define registerPreferencePane helper"
+}
+if ($bootstrapJS -notmatch "catch\s*\(error\)[\s\S]*Zotero\.logError\(error\)") {
+  throw "preference pane registration helper must catch and log registration errors"
+}
+
 [xml](Get-Content -Encoding UTF8 -Raw -LiteralPath .\preferences.xhtml) | Out-Null
 $prefsXML = [xml](Get-Content -Encoding UTF8 -Raw -LiteralPath .\preferences.xhtml)
 
