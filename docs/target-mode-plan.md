@@ -1679,7 +1679,7 @@ End batch validation checklist:
 
 ### B57 Context Menu Default Quality Consistency
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1698,7 +1698,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `21a24105cac3893e90fa9ad06daf0d41a725cb815e8b81da4fc4719046ec15fa`, bytes `31218`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent read-only review found missing command-path validation; B57 added that coverage. Local targeted rerun found no P0-P2 blockers.
+- Git commit records B57 implementation: `adaccce`.
 
 ## Current Validation Results
 
@@ -3518,12 +3524,13 @@ End batch validation checklist:
 - Environment: reader context menu default-quality preview actions
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the context menu full-page preview action is labeled `Save current page preview index (Medium)` and passes `qualityKey: "medium"` even when the default preview quality is Low or High.
 - Expected: context menu default-quality actions should reflect the current normalized default quality and show the estimated sync size.
 - Actual: users can set a non-Medium default quality but still see and trigger a Medium-only full-page preview action from the context menu.
 - Validation update: compute one default quality key for the context menu, reuse it for labels and command arguments, and add behavior/static checks.
 - Close condition: tests/static checks prove Auto Raster and full-page preview context labels show default quality estimates and page preview passes the default quality key.
+- Closure: context menu default-quality actions now use one normalized default quality key for labels and command arguments; tests/static checks cover Auto Raster and page-preview labels and page-preview command quality.
 
 ### FAIL-20260706-121
 
@@ -3531,12 +3538,13 @@ End batch validation checklist:
 - Environment: reader context menu default-quality command validation
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the B57 regression test checks Auto Raster and page-preview context menu labels but does not execute their `onCommand` handlers.
 - Expected: behavior tests should prove the clicked context menu action passes the same normalized default quality shown in the label.
 - Actual: the UI label could show High while the command still saves Medium and the test would pass.
 - Validation update: make context menu action creation directly testable and execute Auto Raster/Page Preview command handlers with stub save functions.
 - Close condition: tests prove context menu Auto Raster and page-preview `onCommand` handlers pass the normalized default quality key.
+- Closure: `buildContextMenuActions()` exposes the shared action path for tests, and behavior tests execute Auto Raster/Page Preview commands to prove both pass `qualityKey: "high"` with the context page index.
 
 ### FAIL-20260706-122
 
@@ -3544,12 +3552,13 @@ End batch validation checklist:
 - Environment: Node VM regression tests for context menu command payloads
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: the command-path regression test fails even when the actual and expected payload fields are identical.
 - Expected: tests should compare behavior fields and not fail on cross-context object prototypes.
 - Actual: `assert.deepStrictEqual()` compares objects created inside the VM realm against host-realm object literals and fails with a misleading diff.
 - Validation update: assert command count, action names, reader identity, and option scalar fields directly.
 - Close condition: `npm.cmd run test` passes while still proving Auto Raster and page-preview command handlers pass `qualityKey: "high"` and `pageIndex: 2`.
+- Closure: the VM-backed regression test now compares scalar behavior fields and reader identity directly; `npm.cmd run test` passes while preserving command-path coverage.
 
 ## Revised Validation Checklist
 
@@ -3791,3 +3800,5 @@ End batch validation checklist:
 - B55 XPI SHA256 `c6658bae5891fb12ff358a4917ed5cb833462732ff77816b08c0e9d7c86d1a54` was built in `outputs/` for manual Zotero add-on manager installation.
 - `05e10d7` B56 recover auto raster button state.
 - B56 XPI SHA256 `e565f6f81be2f21abb09130cd9dd264a0e9f41862920ee1516b53b323e4689c6` was built in `outputs/` for manual Zotero add-on manager installation.
+- `adaccce` B57 sync context menu default quality.
+- B57 XPI SHA256 `21a24105cac3893e90fa9ad06daf0d41a725cb815e8b81da4fc4719046ec15fa` was built in `outputs/` for manual Zotero add-on manager installation.
