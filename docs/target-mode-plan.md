@@ -692,6 +692,37 @@ End batch validation checklist:
 - `npm run runtime:status`: passed after review fixes; XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`, temp child count 0, registration false, `rescan.needsRescan: true`.
 - B20 review agent found target-plan status inconsistency and weak static coverage for raw helper max-count reads; both were folded into this batch before commit.
 
+### B21 Runtime Install Validation
+
+Status: packaging complete; runtime registration pending manual Zotero installation.
+
+Plan:
+
+- Validate the closed-Zotero install path now that Zotero is not running.
+- Build the current package and switch the profile source to copied XPI mode to validate the independent install fallback.
+- Verify runtime status reports a valid XPI source, no development proxy, clear extension rescan prefs, and no temp files.
+- Launch Zotero only after the closed-Zotero install state is clean, then run bounded runtime smoke checks.
+- Reopen runtime failures whose close conditions require a successful Zotero registration or copied-XPI validation.
+
+Pre batch validation:
+
+- Git worktree clean at B21 start commit `76779d8`.
+- `npm run runtime:status`: passed; Zotero process count 0, development proxy exists, profile XPI absent, registration false, `rescan.needsRescan: true`, and `extensions.lastAppBuildId` plus `extensions.lastAppVersion` remain in `prefs.js`.
+- Plan review found `FAIL-20260706-027` and `FAIL-20260706-034` were marked closed before their close conditions were runtime-verified; recorded as `FAIL-20260706-049`.
+
+End batch validation checklist:
+
+- `npm run build`: passed, XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`.
+- `npm run install:xpi`: passed while Zotero was closed; copied profile XPI and cleared extension scan cache prefs.
+- `npm run runtime:status` before launch: passed; `zoteroProcessCount: 0`, `rescan.needsRescan: false`, development proxy absent, profile XPI present and valid, temp child count 0.
+- Zotero launch: attempted by opening `C:\Program Files\Zotero\zotero.exe`; no install confirmation popup appeared.
+- `npm run smoke:wait -- -TimeoutSeconds 180 -IntervalSeconds 5`: did not reach a verified registered state before the user chose manual installation handoff.
+- `npm run runtime:status` after Zotero launch: passed; Zotero process count 0, registration false, profile XPI absent, `rescan.needsRescan: true`, startup cache raw-byte add-on hint false, temp child count 0.
+- Runtime install fallback remains unresolved under `FAIL-20260706-050`.
+- Reader PDF smoke: pending manual Zotero installation and user-opened PDF reader.
+- Final `npm run check`: passed.
+- Final `npm run build`: passed, packaged XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -788,6 +819,13 @@ End batch validation checklist:
 - B20 `npm run build`: passed, XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`.
 - B20 `npm run install:global`: passed and reported rescan pending because Zotero is running.
 - B20 `npm run runtime:status`: passed after review fixes; XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`, temp child count 0, registration false, `rescan.needsRescan: true`.
+- B21 pre-validation `npm run runtime:status`: passed; Zotero process count 0, development proxy target valid, profile XPI absent, registration false, `rescan.needsRescan: true`, extension scan cache prefs present.
+- B21 `npm run build`: passed, XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`.
+- B21 `npm run install:xpi`: passed while Zotero was closed and copied `pdf-image-saver@zlk.local.xpi` into the profile.
+- B21 `npm run runtime:status` before Zotero launch: passed; profile XPI present and valid, development proxy absent, `rescan.needsRescan: false`, temp child count 0.
+- B21 after Zotero launch attempt: no popup appeared; follow-up `npm run runtime:status` showed Zotero process count 0, registration false, profile XPI absent, `rescan.needsRescan: true`, startup cache raw-byte add-on hint false, temp child count 0.
+- B21 final `npm run check`: passed.
+- B21 final `npm run build`: passed; packaged XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187`.
 
 ## New Failures
 
@@ -1152,7 +1190,7 @@ End batch validation checklist:
 - Environment: Zotero extension manager scanning plugin manifest
 - Zotero version target: 9.0.5
 - Severity: P1
-- Status: closed
+- Status: open
 - Symptom: after clearing extension scan cache and launching Zotero, `pdf-image-saver@zlk.local` still does not appear in `extensions.json`.
 - Expected: Zotero registers the extension proxy source directory.
 - Actual: Zotero scans extensions, rewrites last-app prefs, but the plugin remains absent from `extensions.json`.
@@ -1249,7 +1287,7 @@ End batch validation checklist:
 - Environment: install script and profile source diagnostics
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: closed
+- Status: open
 - Symptom: runtime diagnostics and preflight can recognize a profile XPI install source, but no install script can create one.
 - Expected: there is a documented command to switch a profile from development proxy install to copied XPI install after Zotero is closed.
 - Actual: `npm run install:global` only writes a development proxy path into the profile.
@@ -1453,6 +1491,33 @@ End batch validation checklist:
 - Close condition: static checks cover both current call sites and raw-read regressions.
 - Closure: `npm run check` now asserts `getHelperMaxImages()` call count and rejects raw helper image-count pref reads outside the getter.
 
+### FAIL-20260706-049
+
+- Batch: B21
+- Environment: target plan execution source
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: runtime install failures were marked closed before their runtime close conditions were actually verified.
+- Expected: `FAIL-20260706-027` remains open until Zotero registers the plugin after launch, and `FAIL-20260706-034` remains open until copied-XPI install is validated while Zotero is closed.
+- Actual: both failures had `Status: closed` even though B21 pre-validation still showed registration false and XPI source absent.
+- Validation update: reopen the two runtime failures and add B21 closed-Zotero XPI plus runtime registration validation to the batch checklist.
+- Close condition: target plan status matches the real runtime validation state.
+- Closure: `FAIL-20260706-027` and `FAIL-20260706-034` are open again until their runtime checks pass.
+
+### FAIL-20260706-050
+
+- Batch: B21
+- Environment: copied profile XPI fallback followed by Zotero launch
+- Zotero version target: 9.0.5
+- Severity: P1
+- Status: open
+- Symptom: after `npm run install:xpi` successfully copied the profile XPI and cleared rescan prefs, launching Zotero produced no confirmation popup and follow-up runtime diagnostics showed the profile XPI absent and registration false.
+- Expected: copied profile XPI remains in `extensions`, Zotero scans it, and the add-on becomes registered or reports a clear rejection reason.
+- Actual: profile XPI is gone after launch, `extensions.lastAppBuildId` and `extensions.lastAppVersion` are back in `prefs.js`, startup cache raw-byte add-on hint is false, and `extensions.json` has no registered add-on entry.
+- Validation update: manual Zotero add-on manager installation from the packaged XPI is now the next runtime validation path; source-copy fallback needs a separate diagnostic batch before it can be considered reliable.
+- Close condition: either manual install registers the packaged XPI, or source-copy fallback is diagnosed and fixed with evidence that Zotero preserves and registers the copied XPI.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1497,6 +1562,8 @@ End batch validation checklist:
 - Check XPI install mode does not tell the user to rerun proxy install.
 - Check preview bbox metadata reflects the actual rendered canvas crop.
 - Check optional original helper count and timeout prefs are hard-clamped in runtime.
+- Check target plan does not close runtime failures before their close conditions are validated.
+- Check copied-XPI profile fallback survives Zotero launch or clearly hand off to manual add-on manager installation.
 
 ## Real Commit Log
 
@@ -1545,3 +1612,5 @@ End batch validation checklist:
 - `ded7fbb` docs record B19 validation.
 - `c8b887b` B20 hard cap optional helper prefs.
 - B20 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `76779d8` docs record B20 validation.
+- B21 XPI SHA256 `a3b6576c66b2ee3c5b5be9cfb38b85d42b2d78c2585d6ce1701a71a382518187` was built in `outputs/` for manual Zotero add-on manager installation; runtime source-copy fallback remains open under `FAIL-20260706-050`.
