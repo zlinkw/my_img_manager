@@ -1154,7 +1154,7 @@ End batch validation checklist:
 
 ### B38 Optional Original Helper Report Scalar Normalization
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1175,7 +1175,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `d80ac0fb7af750e2543ff647edaa87dd2c324d856093516d6c8af92c2c2bc991`, bytes `28934`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 3, temp children 0.
+- Code review: passed after UNC path-root fix; final review found no findings.
+- Git commit records B38 implementation: `a0b4754`.
 
 ## Current Validation Results
 
@@ -2449,12 +2455,13 @@ End batch validation checklist:
 - Environment: optional original image helper report import path
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `importOriginalImages()` passes raw `image.file_path`, `image.content_type`, and `image.extension` from helper reports into Zotero import.
 - Expected: original-image import uses normalized scalar fields, rejects malformed paths, and only imports files from the helper output directory.
 - Actual: malformed helper reports can send object or out-of-scope file paths and noisy content type values into `Zotero.Attachments.importFromFile`.
 - Validation update: normalize helper image records before import and add regression/static checks for path, MIME, and omission counts.
 - Close condition: tests prove invalid helper image records are skipped, out-of-temp-dir paths are rejected, content types are normalized, and import iteration uses sanitized image records only.
+- Closure: `limitOriginalImagesForImport()` now calls `normalizeOriginalImageForImport()` and import uses normalized `filePath` and `contentType`; regression/static checks cover malformed records, out-of-dir paths, MIME fallback, invalid counts, and over-cap counts.
 
 ### FAIL-20260706-082
 
@@ -2462,12 +2469,13 @@ End batch validation checklist:
 - Environment: optional original image attachment title generation
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `buildOriginalImageTitle()` builds titles from raw Zotero fields and raw helper `page_number` and `occurrence`.
 - Expected: optional original image attachment titles remain compact scalar text with safe page and occurrence fallbacks.
 - Actual: malformed helper or item fields can produce `[object Object]`, `undefined`, or noisy title text.
 - Validation update: normalize original title base, page number, and occurrence before title output.
 - Close condition: regression tests prove malformed title inputs produce a compact fallback title and static checks assert normalized title generation.
+- Closure: original attachment titles now use normalized source title, page number, and occurrence values; regression/static checks cover malformed source and helper fields.
 
 ### FAIL-20260706-083
 
@@ -2475,12 +2483,13 @@ End batch validation checklist:
 - Environment: optional helper file path containment checks
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: helper image file paths can contain `.` or `..` path segments before the output-directory prefix check.
 - Expected: containment checks compare normalized lexical paths so `..` cannot escape the helper output directory.
 - Actual: a string such as `output_dir\..\other\image.png` can still share the raw output prefix before path segment resolution.
 - Validation update: normalize path segments before helper output directory containment checks and add regression/static checks.
 - Close condition: tests prove sibling and `..` escape paths are rejected while nested helper output files remain accepted.
+- Closure: helper path comparison now normalizes `.` and `..` segments before containment checks; regression/static checks cover sibling paths, parent-directory escapes, and internal normalized paths.
 
 ### FAIL-20260706-084
 
@@ -2488,12 +2497,13 @@ End batch validation checklist:
 - Environment: optional helper file path containment checks on Windows UNC paths
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: UNC paths and single-root Windows paths can be conflated if leading slashes are collapsed before comparison.
 - Expected: UNC roots such as `\\server\share` remain distinct from `\server\share` style rooted paths.
 - Actual: raw slash collapsing can make different Windows path roots compare as the same prefix.
 - Validation update: preserve UNC root identity during path normalization and add regression/static checks.
 - Close condition: tests prove UNC helper output paths accept matching UNC children and reject single-root lookalikes.
+- Closure: helper path normalization preserves UNC server/share roots before segment normalization; regression/static checks cover matching UNC children and single-root lookalikes.
 
 ## Revised Validation Checklist
 
@@ -2659,3 +2669,5 @@ End batch validation checklist:
 - B36 XPI SHA256 `8e62fee6574bf9e5f6881763a6f5282ba230eafbfc97965c3413401b5d3b6c12` was built in `outputs/` for manual Zotero add-on manager installation.
 - `72b78d3` B37 normalize HTML source metadata.
 - B37 XPI SHA256 `598d34659209be680a6c2a372144bb53a891b49159a80995ad2f27d9d0a2ed02` was built in `outputs/` for manual Zotero add-on manager installation.
+- `a0b4754` B38 normalize original helper import.
+- B38 XPI SHA256 `d80ac0fb7af750e2543ff647edaa87dd2c324d856093516d6c8af92c2c2bc991` was built in `outputs/` for manual Zotero add-on manager installation.
