@@ -1491,7 +1491,7 @@ End batch validation checklist:
 
 ### B50 Reader Toast Input Normalization
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1508,7 +1508,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `0a7695c5634eb7cbb213c4a0f868b16216cdcd6b80c55c0bc419727229992339`, bytes `30180`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed.
+- Code review: local read-only review and targeted `test/check` rerun found no P0-P2 blockers; subagent unavailable due thread limit.
+- Git commit records B50 implementation: `e50fcca`.
 
 ## Current Validation Results
 
@@ -3188,12 +3194,13 @@ End batch validation checklist:
 - Environment: reader toast UI feedback
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `showReaderToast()` forwards raw `message` and `level` to document toast rendering and fallback alerts.
 - Expected: toast messages should be compact scalar strings and toast levels should be one of `info`, `success`, `warning`, or `error`.
 - Actual: malformed internal callers can produce noisy alert text and unsupported CSS classes such as `pdf-image-saver-[object Object]`.
 - Validation update: normalize `message` and `level` once at the reader toast boundary and add behavior/static checks.
 - Close condition: tests/static checks prove malformed toast input becomes a compact fallback message and a supported level before document toast or alert output.
+- Closure: `showReaderToast()` now normalizes toast message and level before document toast or fallback alert paths; behavior/static checks cover malformed message objects, invalid levels, and fallback alert error messages.
 
 ## Revised Validation Checklist
 
@@ -3409,3 +3416,5 @@ End batch validation checklist:
 - B48 XPI SHA256 `711864fcc57e00ca87c2ae66215d889845d222a0b3c97c4943a08401d1c692d4` was built in `outputs/` for manual Zotero add-on manager installation.
 - `89cbf6d` B49 normalize renderer quality keys.
 - B49 XPI SHA256 `783c4d2bea774291e7dae43db39ead409b95c956b0b1168e6c4b8dd3f1b3bad3` was built in `outputs/` for manual Zotero add-on manager installation.
+- `e50fcca` B50 normalize reader toast inputs.
+- B50 XPI SHA256 `0a7695c5634eb7cbb213c4a0f868b16216cdcd6b80c55c0bc419727229992339` was built in `outputs/` for manual Zotero add-on manager installation.
