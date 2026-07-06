@@ -770,7 +770,7 @@ End batch validation checklist:
 - `npm run check`: passed.
 - `npm run build`: passed.
 - `npm run package:manual`: passed; printed `npm run verify:manual` in post-install verification commands and built XPI SHA256 `24f48b0b03c12c73bd103e2efba1f6718bef59f7d4fee39824f106737cddbdf2`.
-- Git commit records B23: pending.
+- Git commit records B23: `405bc1d`.
 
 ### B24 Reader Listener Shutdown Hardening
 
@@ -795,7 +795,31 @@ End batch validation checklist:
 - `npm run build`: passed.
 - `npm run package:manual`: passed, packaged XPI SHA256 `f921e70fef60d0db2a171f29f54b8df50f1aeb6095906dabff8bc4b473bc12e4`.
 - `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
-- Git commit records B24: pending.
+- Git commit records B24: `266f6e4`.
+
+### B25 Helper Report Isolation
+
+Status: complete; manual Zotero install and reader smoke pending user action.
+
+Plan:
+
+- Harden optional original-image helper execution so multiple Python candidates cannot reuse a stale `report.json`.
+- Preserve missing-PyMuPDF diagnostics while detecting nonzero exits that do not produce a fresh report.
+- Add static checks that each helper run removes the prior report and records helper exit code.
+
+Pre batch validation:
+
+- Git worktree clean at B25 start commit `266f6e4`.
+- Main HTML index creation/import path matched Zotero 9.0.5 `Zotero.Attachments.importFromFile()` arguments.
+- Optional helper loop reuses one `report.json` path across Python candidates, and `runProcess()` only logs nonzero exit values; recorded as `FAIL-20260706-053`.
+
+End batch validation checklist:
+
+- `npm run check`: passed.
+- `npm run build`: passed.
+- `npm run package:manual`: passed, packaged XPI SHA256 `abd001395b50ca6bbc2b5f54866f1df408178733d5a3ba8b53667d7e38efef33`.
+- `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- Git commit records B25: pending.
 
 ## Current Validation Results
 
@@ -912,6 +936,10 @@ End batch validation checklist:
 - B24 `npm run build`: passed.
 - B24 `npm run package:manual`: passed; packaged XPI SHA256 `f921e70fef60d0db2a171f29f54b8df50f1aeb6095906dabff8bc4b473bc12e4`.
 - B24 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- B25 `npm run check`: passed.
+- B25 `npm run build`: passed.
+- B25 `npm run package:manual`: passed; packaged XPI SHA256 `abd001395b50ca6bbc2b5f54866f1df408178733d5a3ba8b53667d7e38efef33`.
+- B25 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
 
 ## New Failures
 
@@ -1632,6 +1660,20 @@ End batch validation checklist:
 - Close condition: static checks confirm cleanup uses `_unregisterEventListenerByPluginID(config.id)` or plugin-ID filtering and does not call public `unregisterEventListener(type, handler)` in the normal path.
 - Closure: reader cleanup now uses `_unregisterEventListenerByPluginID(config.id)` when available and plugin-ID filtering as fallback; static checks assert both guards.
 
+### FAIL-20260706-053
+
+- Batch: B25
+- Environment: optional original-image helper with multiple Python candidates, for example conda `zlk`, env vars, and PATH candidates
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: helper attempts share one `report.json`, and `runProcess()` logs nonzero exits without making the caller distinguish a fresh report from a stale report.
+- Expected: each helper candidate must either produce a fresh report that is attributed to that command and exit code, or fail clearly without reading a previous candidate's report.
+- Actual: if candidate A writes a report and exits nonzero, candidate B exits nonzero without writing a report, the caller can read candidate A's stale report as if candidate B produced it.
+- Validation update: delete `report.json` before each candidate, return helper exit codes from `runProcess()`, require a fresh report after each process run, and store the exit code in helper metadata.
+- Close condition: static checks assert report removal before each candidate and helper exit-code recording.
+- Closure: each helper candidate now removes `report.json` before process start, requires a fresh report after process completion, records `helper.exit_code`, and `runProcess()` returns the exit code.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1680,6 +1722,7 @@ End batch validation checklist:
 - Check copied-XPI profile fallback survives Zotero launch or clearly hand off to manual add-on manager installation.
 - Check manual install verifier reports package identity, registration state, source hints, rescan state, temp children, and next action.
 - Check reader event listener cleanup is scoped by plugin ID and does not remove unrelated listeners.
+- Check optional helper report files are isolated per Python candidate and helper exit codes are recorded.
 
 ## Real Commit Log
 
@@ -1734,4 +1777,6 @@ End batch validation checklist:
 - B22 XPI SHA256 `64b4b823c79afa2d04956d19ca8eab0d3ec67d56cbded82607096831ff42e097` was built in `outputs/` for manual Zotero add-on manager installation.
 - `405bc1d` B23 add manual install verifier.
 - B23 XPI SHA256 `24f48b0b03c12c73bd103e2efba1f6718bef59f7d4fee39824f106737cddbdf2` was built in `outputs/` for manual Zotero add-on manager installation.
+- `266f6e4` B24 scope reader listener cleanup.
 - B24 XPI SHA256 `f921e70fef60d0db2a171f29f54b8df50f1aeb6095906dabff8bc4b473bc12e4` was built in `outputs/` for manual Zotero add-on manager installation.
+- B25 XPI SHA256 `abd001395b50ca6bbc2b5f54866f1df408178733d5a3ba8b53667d7e38efef33` was built in `outputs/` for manual Zotero add-on manager installation.

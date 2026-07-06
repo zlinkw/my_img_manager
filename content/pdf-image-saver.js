@@ -1286,11 +1286,16 @@ var PdfImageSaver = (() => {
     let missingPyMuPDFReport = null;
     for (const pythonCommand of pythonCommands) {
       try {
-        await runProcess(pythonCommand, argsBase);
+        await removeFileIfExists(reportPath);
+        const exitCode = await runProcess(pythonCommand, argsBase);
+        if (!(await IOUtils.exists(reportPath))) {
+          throw new Error(`Helper exited with ${exitCode} and did not create a report.`);
+        }
         const report = await readJSONReport(reportPath);
         report.output_dir = outputDir;
         report.helper = {
           command: formatCommand(pythonCommand),
+          exit_code: exitCode,
           report_path: reportPath,
         };
         if (report.status === "ok") {
@@ -1504,6 +1509,7 @@ var PdfImageSaver = (() => {
     if (process.exitValue !== 0) {
       log(`Helper exited with ${process.exitValue}: ${formatCommand(command)}`);
     }
+    return process.exitValue;
   }
 
   async function readJSONReport(path) {
@@ -1535,6 +1541,17 @@ var PdfImageSaver = (() => {
     }
     try {
       await IOUtils.remove(path, { recursive: true, ignoreAbsent: true });
+    } catch (error) {
+      logError(error);
+    }
+  }
+
+  async function removeFileIfExists(path) {
+    if (!path) {
+      return;
+    }
+    try {
+      await IOUtils.remove(path, { ignoreAbsent: true });
     } catch (error) {
       logError(error);
     }

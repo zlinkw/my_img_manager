@@ -167,6 +167,15 @@ if ($mainJS -notmatch "function\s+getHelperMaxImages\s*\(\s*scope\s*\)") {
 if ($mainJS -notmatch "function\s+getHelperTimeoutSeconds\s*\(") {
   throw "Optional helper timeout must use a hard-clamped getter"
 }
+if ($mainJS -notmatch "await\s+removeFileIfExists\(reportPath\);\s*\r?\n\s*const\s+exitCode\s*=\s*await\s+runProcess") {
+  throw "Optional helper must remove stale report before each Python candidate"
+}
+if ($mainJS -notmatch "exit_code:\s*exitCode") {
+  throw "Optional helper report metadata must record process exit code"
+}
+if ($mainJS -notmatch "return\s+process\.exitValue;") {
+  throw "runProcess must return helper process exit code"
+}
 $helperMaxCallCount = ([regex]::Matches($mainJS, "getHelperMaxImages\(")).Count
 if ($helperMaxCallCount -lt 3) {
   throw "Confirmation text and helper args must call getHelperMaxImages()"
