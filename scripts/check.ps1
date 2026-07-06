@@ -243,6 +243,27 @@ if ($mainJS -notmatch "source_region:\s*entry\.sourceRegion") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexHTML") {
   throw "buildIndexHTML must remain exported for regression tests"
 }
+if ($mainJS -notmatch "function\s+normalizePreviewDataURL\s*\(\s*value\s*\)") {
+  throw "HTML preview index must validate preview data URLs"
+}
+if ($mainJS -notmatch "entry\.dataURL\s*=\s*normalizePreviewDataURL\(entry\.dataURL\)") {
+  throw "HTML preview index must normalize entry data URLs before output"
+}
+if ($mainJS -match '<img src="\$\{entry\.dataURL\}"') {
+  throw "HTML preview image src must not write raw entry.dataURL"
+}
+if ($mainJS -notmatch '<img src="\$\{escapeHTML\(entry\.dataURL\)\}"') {
+  throw "HTML preview image src must escape normalized data URLs"
+}
+if ($mainJS -notmatch "entry\.quality\s*=\s*normalizeQualityKey\(entry\.quality\)") {
+  throw "HTML preview entries must normalize quality before output"
+}
+if ($mainJS -notmatch "entry\.qualityEstimate\s*=\s*QUALITY\[entry\.quality\]\.estimate") {
+  throw "HTML preview entries must normalize quality estimates"
+}
+if ($mainJS -notmatch "quality_estimate:\s*entry\.qualityEstimate") {
+  throw "HTML preview metadata must include normalized quality_estimate"
+}
 if ($mainJS -match "getSelectedItems") {
   throw "Active reader selection must not use selected library items as reader tab IDs"
 }

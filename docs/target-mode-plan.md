@@ -973,6 +973,35 @@ End batch validation checklist:
 - Code review: passed after adding document hard-cap regression coverage.
 - Git commit records B31: `fb03ce1`.
 
+### B32 HTML Preview Entry Sanitization
+
+Status: complete.
+
+Plan:
+
+- Validate preview `dataURL` before writing it into the synced HTML index.
+- Normalize per-entry preview quality before reading `QUALITY[entry.quality]`, so malformed entries do not crash with an unhelpful TypeError.
+- Add regression tests for malicious or malformed preview image URLs and invalid quality keys.
+- Preserve default reader canvas previews unchanged.
+
+Pre batch validation:
+
+- Git worktree clean at B32 start commit `81600ee`.
+- `buildIndexHTML()` writes `entry.dataURL` directly into `<img src="...">`; recorded as `FAIL-20260706-062`.
+- `buildIndexHTML()` reads `QUALITY[entry.quality].label` without normalizing entry quality; recorded as `FAIL-20260706-063`.
+- Code review found metadata schema lists `qualityEstimate`, but metadata JSON does not emit the normalized quality estimate; recorded as `FAIL-20260706-064`.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- `npm.cmd run test`: passed and covers malformed preview data URLs, invalid quality fallback, and normalized metadata `quality_estimate`.
+- `npm.cmd run check`: passed.
+- `npm.cmd run build`: passed.
+- `npm.cmd run package:manual`: passed, packaged XPI SHA256 `92ff8d47ac482681c309937af7404b932a778676f902ccaecfb311b3db441586`.
+- `npm.cmd run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- Code review: passed after adding normalized metadata `quality_estimate`.
+- Git commit records B32: pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -1117,6 +1146,11 @@ End batch validation checklist:
 - B31 `npm.cmd run build`: passed.
 - B31 `npm.cmd run package:manual`: passed; packaged XPI SHA256 `35cfab091a28b2a777bdab770369c95d71b1ca5e6e3105c94c8d939bbcc4a617`.
 - B31 `npm.cmd run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- B32 `npm.cmd run test`: passed and covers HTML preview entry sanitization plus normalized `quality_estimate` metadata.
+- B32 `npm.cmd run check`: passed.
+- B32 `npm.cmd run build`: passed.
+- B32 `npm.cmd run package:manual`: passed; packaged XPI SHA256 `92ff8d47ac482681c309937af7404b932a778676f902ccaecfb311b3db441586`.
+- B32 `npm.cmd run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
 
 ## New Failures
 
@@ -1963,6 +1997,48 @@ End batch validation checklist:
 - Close condition: regression tests prove over-cap helper reports are truncated before import, and static checks assert the import path uses the limiter.
 - Closure: `limitOriginalImagesForImport()` now truncates page and document reports at the import boundary, tests cover configured caps and hard caps, and static checks reject direct raw report iteration.
 
+### FAIL-20260706-062
+
+- Batch: B32
+- Environment: synced HTML preview index creation from preview entry data
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `buildIndexHTML()` writes `entry.dataURL` directly into `<img src="...">`.
+- Expected: preview image URLs are constrained to safe base64 image data URLs before HTML output.
+- Actual: malformed or unexpected preview data can become a broken or unsafe HTML attribute.
+- Validation update: add a preview data URL sanitizer and escape the resulting `src` attribute.
+- Close condition: regression tests reject malformed preview data URLs and static checks assert the sanitizer is used.
+- Closure: `normalizePreviewDataURL()` now rejects malformed preview URLs before HTML output, `<img src>` escapes the normalized value, and tests/static checks cover the guard.
+
+### FAIL-20260706-063
+
+- Batch: B32
+- Environment: synced HTML preview index creation with malformed preview entry quality
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: closed
+- Symptom: `buildIndexHTML()` reads `QUALITY[entry.quality].label` without normalizing `entry.quality`.
+- Expected: invalid preview entry quality falls back to Medium with the matching size estimate.
+- Actual: malformed entry quality throws an unhelpful TypeError and can skip cleanup only through the generic index error path.
+- Validation update: normalize per-entry quality before HTML and metadata output.
+- Close condition: regression tests prove invalid entry quality becomes Medium and static checks assert normalized entry quality is used.
+- Closure: `buildIndexHTML()` normalizes entry quality and quality estimate before HTML/metadata output, and regression tests cover invalid quality fallback.
+
+### FAIL-20260706-064
+
+- Batch: B32
+- Environment: synced HTML preview index metadata JSON
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: metadata schema lists `qualityEstimate`, but `metadata.entries[]` omits it.
+- Expected: synced metadata includes the normalized preview quality estimate shown in the HTML UI.
+- Actual: B32 normalizes `entry.qualityEstimate` for display but metadata JSON does not record it.
+- Validation update: add `quality_estimate` to metadata entries after entry quality normalization.
+- Close condition: regression tests prove metadata includes normalized `quality_estimate`, and static checks assert the field is emitted.
+- Closure: metadata entries now include normalized `quality_estimate`, and regression/static checks cover it.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2022,6 +2098,9 @@ End batch validation checklist:
 - Check runtime status handles null or inaccessible Zotero process `StartTime` and `Path` fields.
 - Check target-plan failure-section parsing stops before the next Markdown heading at any level.
 - Check optional original-image import enforces the helper image hard cap even if the helper report contains too many images.
+- Check synced HTML preview index rejects malformed preview data URLs before writing `<img src>`.
+- Check synced HTML preview index normalizes malformed preview entry quality to Medium.
+- Check synced HTML preview metadata includes normalized `quality_estimate`.
 
 ## Real Commit Log
 
@@ -2092,3 +2171,4 @@ End batch validation checklist:
 - B30 XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1` was built in `outputs/` for manual Zotero add-on manager installation.
 - `fb03ce1` B31 enforce original import cap.
 - B31 XPI SHA256 `35cfab091a28b2a777bdab770369c95d71b1ca5e6e3105c94c8d939bbcc4a617` was built in `outputs/` for manual Zotero add-on manager installation.
+- B32 XPI SHA256 `92ff8d47ac482681c309937af7404b932a778676f902ccaecfb311b3db441586` was built in `outputs/` for manual Zotero add-on manager installation.

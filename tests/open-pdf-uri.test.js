@@ -211,8 +211,53 @@ assert.strictEqual(metadata.plugin.id, "pdf-image-saver@zlk.local");
 assert.strictEqual(metadata.plugin.version, "0.1.0-test");
 assert.strictEqual(metadata.zotero_version, "9.0.5-test");
 assert.strictEqual(metadata.entries[0].open_pdf_uri, "zotero://open-pdf/library/items/HTMLPDF1?page=5");
+assert.strictEqual(metadata.entries[0].quality_estimate, "60-220 KB/image");
 assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normalized_page_rect");
 assert.strictEqual(metadata.entries[0].annotation_key, null);
+
+const invalidQualityEntry = {
+  ...htmlEntry,
+  id: "entry-invalid-quality",
+  quality: "oversized",
+  qualityEstimate: "unsafe",
+  dataURL: "data:image/jpeg;base64,BBBB",
+  openPDFURI: "",
+};
+const invalidQualityHTML = buildIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  entries: [invalidQualityEntry],
+  scope: "clip",
+  qualityKey: "medium",
+});
+assert.ok(invalidQualityHTML.includes("Medium (60-220 KB/image)"), "invalid entry quality must fall back to Medium");
+assert.strictEqual(invalidQualityEntry.quality, "medium", "invalid entry quality must be normalized on the entry");
+assert.strictEqual(invalidQualityEntry.qualityEstimate, "60-220 KB/image", "invalid quality estimate must be normalized");
+const invalidQualityMetadataText = invalidQualityHTML.match(/<pre>([\s\S]*?)<\/pre>/)[1]
+  .replace(/&quot;/g, '"')
+  .replace(/&amp;/g, "&")
+  .replace(/&lt;/g, "<")
+  .replace(/&gt;/g, ">")
+  .replace(/&#39;/g, "'");
+const invalidQualityMetadata = JSON.parse(invalidQualityMetadataText);
+assert.strictEqual(invalidQualityMetadata.entries[0].quality, "medium");
+assert.strictEqual(invalidQualityMetadata.entries[0].quality_estimate, "60-220 KB/image");
+
+assert.throws(
+  () => buildIndexHTML({
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    entries: [{
+      ...htmlEntry,
+      id: "entry-bad-url",
+      dataURL: 'x" onerror="alert(1)',
+    }],
+    scope: "clip",
+    qualityKey: "medium",
+  }),
+  /Preview image data URL is invalid/,
+  "malformed preview data URL must be rejected before HTML output",
+);
 
 const helperImages = Array.from({ length: 5 }, (_, index) => ({ file_path: `image-${index}.jpg` }));
 context.Zotero.Prefs.values["extensions.pdfImageSaver.maxPageImages"] = 2;

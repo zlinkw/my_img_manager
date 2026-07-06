@@ -1044,6 +1044,9 @@ var PdfImageSaver = (() => {
     const sourceTitle = parentItem?.getField("title") || attachment.getField("title") || "PDF";
     const entriesHTML = entries
       .map((entry, index) => {
+        entry.quality = normalizeQualityKey(entry.quality);
+        entry.qualityEstimate = QUALITY[entry.quality].estimate;
+        entry.dataURL = normalizePreviewDataURL(entry.dataURL);
         entry.annotationKey = normalizeAnnotationKey(entry.annotationKey);
         entry.sourceRegion = entry.sourceRegion || buildSourceRegion(entry.bboxNormalized);
         const uri = buildOpenPDFURI(attachment, entry.pageNumber, entry.annotationKey);
@@ -1056,7 +1059,7 @@ var PdfImageSaver = (() => {
           <article class="entry">
             <div class="preview-column">
               <a class="preview-link" href="${escapeHTML(uri)}">
-                <img src="${entry.dataURL}" alt="Saved PDF preview ${index + 1}">
+                <img src="${escapeHTML(entry.dataURL)}" alt="Saved PDF preview ${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion)}
             </div>
@@ -1090,6 +1093,7 @@ var PdfImageSaver = (() => {
         page_number: entry.pageNumber,
         page_label: entry.pageLabel,
         quality: entry.quality,
+        quality_estimate: entry.qualityEstimate,
         byte_count: entry.byteCount,
         rendered_width: entry.renderedWidth,
         rendered_height: entry.renderedHeight,
@@ -2082,6 +2086,14 @@ var PdfImageSaver = (() => {
 
   function normalizeQualityKey(value) {
     return QUALITY[value] ? value : "medium";
+  }
+
+  function normalizePreviewDataURL(value) {
+    const text = String(value || "").trim();
+    if (/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(text)) {
+      return text;
+    }
+    throw new Error("Preview image data URL is invalid.");
   }
 
   function getAutoMaxPreviewBytes() {
