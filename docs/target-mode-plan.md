@@ -867,7 +867,31 @@ End batch validation checklist:
 - `npm run build`: passed.
 - `npm run package:manual`: passed, packaged XPI SHA256 `b30ebbd007d58228fe008c1f25575dcf4766864e1c53251c1c66ae3780f8e391`.
 - `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
-- Git commit records B27: pending.
+- Git commit records B27: `19f2229`.
+
+### B28 Active Reader Targeting
+
+Status: complete; manual Zotero install and reader smoke pending user action.
+
+Plan:
+
+- Harden active PDF reader selection so Tools menu commands only target the selected Zotero reader tab.
+- Add direct Zotero 9.0.5 `reader._iframeWindow` support to PDF viewer context discovery.
+- Add regression tests for active reader selection and direct iframe context discovery.
+
+Pre batch validation:
+
+- Git worktree clean at B28 start commit `19f2229`.
+- Local Zotero 9.0.5 `ReaderInstance` stores the reader iframe on `reader._iframeWindow`, while current context discovery only checks `_lastView`, `_primaryView`, and internal view fields.
+- Current `getActiveReader()` falls back from selected library item ID to the first PDF reader if no selected reader tab is found; recorded as `FAIL-20260706-055`.
+
+End batch validation checklist:
+
+- `npm run check`: passed.
+- `npm run build`: passed.
+- `npm run package:manual`: passed, packaged XPI SHA256 `c9372a54ba896172f43cae7e71be1e00d53d0e906d0513b013aaf620ba22c0e1`.
+- `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- Git commit records B28: pending.
 
 ## Current Validation Results
 
@@ -996,6 +1020,10 @@ End batch validation checklist:
 - B27 `npm run build`: passed.
 - B27 `npm run package:manual`: passed; packaged XPI SHA256 `b30ebbd007d58228fe008c1f25575dcf4766864e1c53251c1c66ae3780f8e391`.
 - B27 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- B28 `npm run check`: passed and covers active reader selection plus direct iframe context lookup.
+- B28 `npm run build`: passed.
+- B28 `npm run package:manual`: passed; packaged XPI SHA256 `c9372a54ba896172f43cae7e71be1e00d53d0e906d0513b013aaf620ba22c0e1`.
+- B28 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
 
 ## New Failures
 
@@ -1744,6 +1772,20 @@ End batch validation checklist:
 - Close condition: static checks assert startup awaits a preference registration helper and that helper catches registration errors.
 - Closure: startup now awaits `registerPreferencePane(id, rootURI)`, and the helper catches/logs preference pane registration failures before continuing core plugin load.
 
+### FAIL-20260706-055
+
+- Batch: B28
+- Environment: Tools menu command while a non-reader Zotero tab or library item is selected and at least one PDF reader is open elsewhere
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `getActiveReader()` can fall back to the first PDF reader when no selected reader tab matches.
+- Expected: Tools menu clipping should only target the selected PDF reader tab, or report that no active PDF reader is available.
+- Actual: selected library item IDs can be passed through reader lookup and then the function returns the first PDF reader, risking clipping/saving the wrong paper.
+- Validation update: use Zotero tab selected ID only, do not use selected library items as tab IDs, and remove the first-reader fallback.
+- Close condition: regression tests prove selected tab match succeeds and non-reader selection returns null even when other PDF readers exist.
+- Closure: `getActiveReader()` now uses Zotero selected tab ID only and returns null without a selected PDF reader tab; context lookup also checks direct `reader._iframeWindow`.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1795,6 +1837,8 @@ End batch validation checklist:
 - Check optional helper report files are isolated per Python candidate and helper exit codes are recorded.
 - Check HTML index output includes escaped title text, Zotero source PDF links, source region map, metadata JSON, source region metadata, and normalized annotation keys.
 - Check bootstrap awaits preference pane registration through a catch/log helper so pane failures do not become unhandled startup rejections.
+- Check Tools menu active reader selection never falls back to selected library items or arbitrary first PDF reader.
+- Check PDF viewer context lookup supports Zotero 9.0.5 direct `reader._iframeWindow`.
 
 ## Real Commit Log
 
@@ -1855,4 +1899,6 @@ End batch validation checklist:
 - B25 XPI SHA256 `abd001395b50ca6bbc2b5f54866f1df408178733d5a3ba8b53667d7e38efef33` was built in `outputs/` for manual Zotero add-on manager installation.
 - `4a11a40` B26 cover HTML index output.
 - B26 XPI SHA256 `8bb8549b63579451e191c6410805f05af3f8f6a62c34124e756fbb52623eedd6` was built in `outputs/` for manual Zotero add-on manager installation.
+- `19f2229` B27 harden startup preference pane.
 - B27 XPI SHA256 `b30ebbd007d58228fe008c1f25575dcf4766864e1c53251c1c66ae3780f8e391` was built in `outputs/` for manual Zotero add-on manager installation.
+- B28 XPI SHA256 `c9372a54ba896172f43cae7e71be1e00d53d0e906d0513b013aaf620ba22c0e1` was built in `outputs/` for manual Zotero add-on manager installation.

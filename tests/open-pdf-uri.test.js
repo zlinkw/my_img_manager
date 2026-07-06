@@ -36,7 +36,15 @@ context.PdfImageSaver.init({
   rootURI: "resource://pdf-image-saver/",
 });
 
-const { buildIndexHTML, buildOpenPDFURI, buildSourceRegion, calculateCanvasCrop, normalizeAnnotationKey } = context.PdfImageSaver.__test__;
+const {
+  buildIndexHTML,
+  buildOpenPDFURI,
+  buildSourceRegion,
+  calculateCanvasCrop,
+  getActiveReader,
+  getPDFViewerContextCandidate,
+  normalizeAnnotationKey,
+} = context.PdfImageSaver.__test__;
 const userAttachment = { libraryID: 1, key: "ABCDEF12" };
 const groupAttachment = { libraryID: 2, key: "GROUP123" };
 
@@ -197,5 +205,57 @@ assert.strictEqual(metadata.zotero_version, "9.0.5-test");
 assert.strictEqual(metadata.entries[0].open_pdf_uri, "zotero://open-pdf/library/items/HTMLPDF1?page=5");
 assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normalized_page_rect");
 assert.strictEqual(metadata.entries[0].annotation_key, null);
+
+const directDoc = { nodeName: "#document" };
+const directApp = { pdfViewer: { currentPageNumber: 2 } };
+const directContext = getPDFViewerContextCandidate({
+  _iframeWindow: {
+    PDFViewerApplication: directApp,
+    document: directDoc,
+  },
+});
+assert.strictEqual(directContext.app, directApp, "direct reader iframe app must be detected");
+assert.strictEqual(directContext.doc, directDoc, "direct reader iframe document must be returned");
+
+const wrappedDoc = { nodeName: "#wrapped" };
+const wrappedApp = { pdfViewer: { currentPageNumber: 3 } };
+const wrappedContext = getPDFViewerContextCandidate({
+  _internalReader: {
+    _primaryView: {
+      _iframeWindow: {
+        wrappedJSObject: { PDFViewerApplication: wrappedApp },
+        document: wrappedDoc,
+      },
+    },
+  },
+});
+assert.strictEqual(wrappedContext.app, wrappedApp, "wrapped PDFViewerApplication must be detected");
+
+const selectedPDFReader = { type: "pdf", tabID: "tab-pdf" };
+const otherPDFReader = { type: "pdf", tabID: "tab-other" };
+context.Zotero.Reader = {
+  _readers: [otherPDFReader, selectedPDFReader],
+  getByTabID(tabID) {
+    return this._readers.find((reader) => reader.tabID === tabID) || null;
+  },
+};
+assert.strictEqual(
+  getActiveReader({ Zotero_Tabs: { selectedID: "tab-pdf" } }),
+  selectedPDFReader,
+  "active reader must match selected Zotero tab",
+);
+assert.strictEqual(
+  getActiveReader({
+    Zotero_Tabs: { selectedID: "library-tab" },
+    ZoteroPane: { getSelectedItems: () => [{ id: "tab-other" }] },
+  }),
+  null,
+  "non-reader selected tab must not fall back to first or selected library item reader",
+);
+assert.strictEqual(
+  getActiveReader({ Zotero_Tabs: {} }),
+  null,
+  "missing selected tab must not target an arbitrary open reader",
+);
 
 console.log("open-pdf uri tests ok");

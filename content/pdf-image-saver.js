@@ -1665,6 +1665,12 @@ var PdfImageSaver = (() => {
   }
 
   function getPDFViewerContextCandidate(reader) {
+    const directContext = getPDFViewerContextFromWindow(
+      reader?._iframeWindow || reader?._iframe?.contentWindow,
+    );
+    if (directContext) {
+      return directContext;
+    }
     const views = [
       reader?._lastView,
       reader?._primaryView,
@@ -1672,15 +1678,24 @@ var PdfImageSaver = (() => {
       reader?._internalReader?._primaryView,
     ];
     for (const view of views) {
-      const iframeWindow = view?._iframeWindow || view?._iframe?.contentWindow;
-      const app =
-        iframeWindow?.PDFViewerApplication ||
-        iframeWindow?.wrappedJSObject?.PDFViewerApplication;
-      if (app) {
-        return { app, doc: iframeWindow.document };
+      const context = getPDFViewerContextFromWindow(
+        view?._iframeWindow || view?._iframe?.contentWindow,
+      );
+      if (context) {
+        return context;
       }
     }
     return null;
+  }
+
+  function getPDFViewerContextFromWindow(iframeWindow) {
+    const app =
+      iframeWindow?.PDFViewerApplication ||
+      iframeWindow?.wrappedJSObject?.PDFViewerApplication;
+    if (!app) {
+      return null;
+    }
+    return { app, doc: iframeWindow.document };
   }
 
   async function waitForPageElement(context, pageNumber) {
@@ -1728,18 +1743,25 @@ var PdfImageSaver = (() => {
 
   function getActiveReader(win) {
     const readers = Zotero.Reader?._readers || [];
-    const selectedID =
-      win?.Zotero_Tabs?.selectedID ||
-      win?.Zotero_Tabs?._selectedID ||
-      win?.ZoteroPane?.getSelectedItems?.()?.[0]?.id;
-    const selectedReader = selectedID && Zotero.Reader?.getByTabID?.(selectedID);
+    const selectedTabID = getSelectedTabID(win);
+    const selectedReader = selectedTabID && Zotero.Reader?.getByTabID?.(selectedTabID);
     if (isPDFReader(selectedReader)) {
       return selectedReader;
     }
+    if (!selectedTabID) {
+      return null;
+    }
+    return readers.find((reader) => (
+      (reader.tabID === selectedTabID || reader._tabID === selectedTabID) &&
+      isPDFReader(reader)
+    )) || null;
+  }
+
+  function getSelectedTabID(win) {
     return (
-      readers.find((reader) => reader.tabID && reader.tabID === selectedID && isPDFReader(reader)) ||
-      readers.find((reader) => reader._tabID && reader._tabID === selectedID && isPDFReader(reader)) ||
-      readers.find((reader) => isPDFReader(reader)) ||
+      win?.Zotero_Tabs?.selectedID ||
+      win?.Zotero_Tabs?._selectedID ||
+      win?.Zotero_Tabs?.selected?.id ||
       null
     );
   }
@@ -2227,6 +2249,8 @@ var PdfImageSaver = (() => {
       buildOpenPDFURI,
       buildSourceRegion,
       calculateCanvasCrop,
+      getActiveReader,
+      getPDFViewerContextCandidate,
       normalizeAnnotationKey,
     },
     get started() {

@@ -214,6 +214,15 @@ if ($mainJS -notmatch "source_region:\s*entry\.sourceRegion") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexHTML") {
   throw "buildIndexHTML must remain exported for regression tests"
 }
+if ($mainJS -match "getSelectedItems") {
+  throw "Active reader selection must not use selected library items as reader tab IDs"
+}
+if ($mainJS -match "readers\.find\(\(reader\)\s*=>\s*isPDFReader\(reader\)\)") {
+  throw "Active reader selection must not fall back to the first PDF reader"
+}
+if ($mainJS -notmatch "reader\?\._iframeWindow\s*\|\|\s*reader\?\._iframe\?\.contentWindow") {
+  throw "PDF viewer context lookup must check direct reader iframe window"
+}
 if ($mainJS -notmatch "annotation_key:\s*entry\.annotationKey") {
   throw "metadata must include annotation_key"
 }
