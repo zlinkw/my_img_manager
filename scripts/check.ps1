@@ -617,6 +617,17 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getReaderJobKey") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getPreviewDuplicateKey") {
   throw "Preview duplicate key helper must remain exported for regression tests"
 }
+foreach ($requiredIndexExport in @(
+  "getPreviewIndexKey",
+  "getPreviewIndexFingerprint",
+  "getSourceRegionKey",
+  "hasExistingPreviewIndexAttachment",
+  "isDuplicatePreviewIndexSave"
+)) {
+  if ($mainJS -notmatch "__test__:\s*\{[\s\S]*$requiredIndexExport") {
+    throw "Preview index helper must remain exported for regression tests: $requiredIndexExport"
+  }
+}
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*renderCanvasPreview") {
   throw "Canvas preview renderer must remain exported for regression tests"
 }
@@ -685,8 +696,8 @@ if ($mainWithoutHelperMaxGetter -match 'getIntegerPref\("max(Page|Document)Image
 if ($mainJS -match 'getIntegerPref\("helperTimeoutSeconds",\s*DEFAULT_HELPER_TIMEOUT_SECONDS\)\)\s*\*\s*1000') {
   throw "runProcess must not read raw helper timeout prefs directly"
 }
-if ($mainJS -notmatch "function\s+buildOpenPDFURI\s*\(\s*attachment\s*,\s*pageNumber\s*,\s*annotationKey\s*\)") {
-  throw "open-pdf URI builder must accept annotationKey"
+if ($mainJS -notmatch "function\s+buildOpenPDFURI\s*\(\s*attachment\s*,\s*pageNumber\s*,\s*annotationKey\s*,\s*sourceRegionKey\s*=\s*null\s*\)") {
+  throw "open-pdf URI builder must accept annotationKey and optional sourceRegionKey"
 }
 if ($mainJS -match "getLibraryPrefix") {
   throw "open-pdf URI builder must not use Zotero API library prefixes"
@@ -703,8 +714,23 @@ if ($mainJS -match 'items/\$\{attachment\.key\}') {
 if ($mainJS -notmatch "annotation=\$\{encodeURIComponent\(normalizedAnnotationKey\)\}") {
   throw "open-pdf URI builder must append encoded annotation parameter"
 }
+if ($mainJS -notmatch 'pdfImageSaverRegion=\$\{encodeURIComponent\(getPreviewIndexFingerprint\(normalizedSourceRegionKey\)\)\}') {
+  throw "open-pdf URI builder must append compact source-region identity when annotation is absent"
+}
 if ($mainJS -notmatch "source_region:\s*entry\.sourceRegion") {
   throw "metadata must include source_region"
+}
+if ($mainJS -notmatch "source_region_key:\s*entry\.sourceRegionKey") {
+  throw "metadata must include source_region_key"
+}
+if ($mainJS -notmatch "preview_index_key:\s*previewIndexKey") {
+  throw "metadata must include preview_index_key"
+}
+if ($mainJS -notmatch "preview_index_fingerprint:\s*getPreviewIndexFingerprint\(previewIndexKey\)") {
+  throw "metadata must include preview_index_fingerprint"
+}
+if ($mainJS -notmatch 'data-source-region-key="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
+  throw "HTML preview links must carry source region keys"
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexHTML") {
   throw "buildIndexHTML must remain exported for regression tests"
@@ -738,6 +764,15 @@ if ($mainJS -notmatch "entry\s+&&\s+typeof\s+entry\s+===\s+`"object`"\s+&&\s+!Ar
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexTitle") {
   throw "buildIndexTitle must remain exported for regression tests"
+}
+if ($mainJS -notmatch "function\s+buildIndexTitle\s*\(\s*parentItem,\s*attachment,\s*scope,\s*pageIndex,\s*entries\s*=\s*\[\],\s*qualityKey\s*=\s*null,\s*indexKey\s*=\s*null\s*\)") {
+  throw "Index title must accept entries, quality, and index key for concise identity"
+}
+if ($mainJS -notmatch 'entryCount\s*\?\s*`\$\{entryCount\}img`') {
+  throw "Index title must include image count when available"
+}
+if ($mainJS -notmatch "getPreviewIndexFingerprint\(normalizedIndexKey\)") {
+  throw "Index title must include a short preview index fingerprint"
 }
 if ($mainJS -notmatch "const\s+sourceTitle\s*=\s*getSourceTitle\(parentItem,\s*attachment\)") {
   throw "HTML preview source title must be normalized"
@@ -1002,7 +1037,7 @@ if ($renderCanvasPreviewEntry.Value -notmatch "quality:\s*normalizedQualityKey")
 if ($renderCanvasPreviewEntry.Value -match "QUALITY\[qualityKey\]\s*\|\|\s*QUALITY\.medium") {
   throw "Canvas preview renderer must not rely on raw quality fallback"
 }
-$duplicateKeyEntry = [regex]::Match($mainJS, "function\s+getPreviewDuplicateKey\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+pruneRecentIndexSaves")
+$duplicateKeyEntry = [regex]::Match($mainJS, "function\s+getPreviewDuplicateKey\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+getPreviewIndexKey")
 if (!$duplicateKeyEntry.Success) {
   throw "Preview duplicate key helper function block not found"
 }
@@ -1026,6 +1061,32 @@ if ($duplicateKeyEntry.Value -match "preview\.bboxNormalized\.map") {
 }
 if ($duplicateKeyEntry.Value -cmatch "\$\{attachment\.key\}") {
   throw "Preview duplicate key must not interpolate raw attachment key"
+}
+if ($mainJS -notmatch 'function\s+getPreviewIndexKey\s*\(\s*attachment,\s*entries,\s*scope,\s*qualityKey\s*\)[\s\S]*hashTextToken\(entryKeys\.join\("\|"\)\)') {
+  throw "Preview index key must use a stable compact hash of normalized entry keys"
+}
+if ($mainJS -notmatch "async\s+function\s+hasExistingPreviewIndexAttachment\s*\(\s*parentItem,\s*indexKey\s*\)") {
+  throw "Persisted duplicate guard must scan existing child index attachments"
+}
+if ($mainJS -notmatch "parentItem\.getAttachments\(\)") {
+  throw "Persisted duplicate guard must inspect parent child attachments"
+}
+if ($mainJS -notmatch "readPreviewIndexKeyFromAttachment\(child\)") {
+  throw "Persisted duplicate guard must read preview_index_key from existing index attachments"
+}
+if ($mainJS -notmatch "async\s+function\s+isDuplicatePreviewIndexSave\s*\(\s*\{\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\]\s*\}\s*\)") {
+  throw "Duplicate guard must combine in-session and persisted index checks"
+}
+foreach ($saveEntry in @($clipSaveEntry, $autoSaveEntry, $pageSaveEntry)) {
+  if ($saveEntry.Value -notmatch "getPreviewIndexKey\(attachment") {
+    throw "Reader preview save entries must compute stable preview index keys"
+  }
+  if ($saveEntry.Value -notmatch "isDuplicatePreviewIndexSave") {
+    throw "Reader preview save entries must check persisted duplicate index saves"
+  }
+  if ($saveEntry.Value -notmatch "rememberPreviewIndexSave") {
+    throw "Reader preview save entries must remember stable preview index keys after import"
+  }
 }
 $originalSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveOriginalImagesFromReader\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+importOriginalImages")
 if (!$originalSaveEntry.Success) {

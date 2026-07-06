@@ -1946,7 +1946,7 @@ End batch validation checklist:
 
 ### B66 Saved Index Identity And Duplicate Guard
 
-Status: planned.
+Status: in progress.
 
 Plan:
 
@@ -1956,9 +1956,11 @@ Plan:
 
 Pre batch validation:
 
+- Git worktree clean at B66 start commit `adc14ed`.
 - B66 review found `open_pdf_uri` targets only the PDF page, so two different same-page previews can have identical click targets; recorded as `FAIL-20260706-146`.
 - B66 review found duplicate prevention relies on in-memory `recentIndexSaves`, so reloads can create duplicate synced HTML index attachments; recorded as `FAIL-20260706-147`.
 - B66 review found index titles omit quality, count, and a short fingerprint, making repeated child attachments hard to distinguish; recorded as `FAIL-20260706-148`.
+- B66 first `npm.cmd run check` failed because a new PowerShell static regex used invalid double-quoted escaping; recorded as `FAIL-20260706-149`.
 - Regression guard: validation family: saved index source links, duplicate/storage guard, and attachment title identity.
 
 End batch validation checklist:
@@ -4180,6 +4182,19 @@ End batch validation checklist:
 - Validation update: add title behavior tests for single image, multi image, quality differences, and bbox/fingerprint differences.
 - Close condition: tests prove generated titles are short, sanitized, and distinguish single/multi/quality/bbox variants.
 
+### FAIL-20260706-149
+
+- Batch: B66
+- Environment: `scripts/check.ps1` PowerShell regex guards
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `npm.cmd run check` fails before running validations with `Unexpected token '\$\'`.
+- Expected: added static guards should parse as valid PowerShell and then validate B66 invariants.
+- Actual: a double-quoted regex containing escaped `$` and quotes breaks PowerShell parsing.
+- Validation update: use single-quoted regex strings or simpler literal checks for B66 static guards.
+- Close condition: `npm.cmd run check` passes while still checking B66 source-region, preview-index, and duplicate-guard invariants.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -4319,6 +4334,7 @@ End batch validation checklist:
 - Check saved preview source links distinguish same-page previews with different source regions.
 - Check persisted preview index duplicate keys skip duplicate child index creation across reloads.
 - Check saved index attachment titles stay short while exposing quality, count, and short identity.
+- Check PowerShell static regex guards for B66 parse correctly before validating source text.
 
 ## Real Commit Log
 

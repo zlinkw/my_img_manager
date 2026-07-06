@@ -102,9 +102,14 @@ const {
   getContextPageIndex,
   getPDFViewerContextCandidate,
   getPreviewDuplicateKey,
+  getPreviewIndexFingerprint,
+  getPreviewIndexKey,
+  getSourceRegionKey,
+  hasExistingPreviewIndexAttachment,
   getReaderJobKey,
   imageCoordinatesToCandidates,
   importOriginalImages,
+  isDuplicatePreviewIndexSave,
   limitOriginalImagesForImport,
   onRenderToolbar,
   onCreateViewContextMenu,
@@ -151,6 +156,18 @@ assert.strictEqual(
   buildOpenPDFURI(userAttachment, 7, "ANNOTATION9"),
   "zotero://open-pdf/library/items/ABCDEF12?page=7&annotation=ANNOTATION9",
   "valid annotation key must append annotation parameter",
+);
+
+const regionKey = "source-region:v1:1:ABCDEF12:p7:0.1000,0.1000,0.2000,0.2000";
+assert.strictEqual(
+  buildOpenPDFURI(userAttachment, 7, null, regionKey),
+  `zotero://open-pdf/library/items/ABCDEF12?page=7&pdfImageSaverRegion=${getPreviewIndexFingerprint(regionKey)}`,
+  "source region key must add a compact ignored region parameter when annotation is absent",
+);
+assert.strictEqual(
+  buildOpenPDFURI(userAttachment, 7, "ANNOTATION9", regionKey),
+  "zotero://open-pdf/library/items/ABCDEF12?page=7&annotation=ANNOTATION9",
+  "annotation target must take priority over source-region identity",
 );
 
 assert.strictEqual(
@@ -568,9 +585,13 @@ assert.ok(!html.includes("<script>alert(1)</script>"), "raw script text must not
 assert.ok(html.includes("zotero://open-pdf/library/items/HTMLPDF1?page=5"), "HTML must include source PDF link");
 assert.ok(!html.includes("annotation=bad-key"), "invalid annotation key must be dropped");
 assert.ok(html.includes("source-map"), "HTML must include source region map");
-assert.ok(htmlEntry.openPDFURI.endsWith("?page=5"), "entry must receive page-only open PDF URI");
+assert.ok(
+  htmlEntry.openPDFURI.includes("?page=5&pdfImageSaverRegion="),
+  "entry without annotation must receive a region-distinguishable open PDF URI",
+);
 assert.strictEqual(htmlEntry.annotationKey, null, "invalid annotation key must be normalized to null");
 assert.ok(htmlEntry.sourceRegion, "entry must receive source region metadata");
+assert.ok(htmlEntry.sourceRegionKey.includes("source-region:v1"), "entry must receive compact source region key");
 
 const metadataText = html.match(/<pre>([\s\S]*?)<\/pre>/)[1]
   .replace(/&quot;/g, '"')
@@ -585,10 +606,51 @@ assert.strictEqual(metadata.preview_quality, "medium");
 assert.strictEqual(metadata.plugin.id, "pdf-image-saver@zlk.local");
 assert.strictEqual(metadata.plugin.version, "0.1.0-test");
 assert.strictEqual(metadata.zotero_version, "9.0.5-test");
-assert.strictEqual(metadata.entries[0].open_pdf_uri, "zotero://open-pdf/library/items/HTMLPDF1?page=5");
+assert.strictEqual(metadata.preview_index_key, getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "medium"));
+assert.strictEqual(metadata.preview_index_fingerprint, getPreviewIndexFingerprint(metadata.preview_index_key));
+assert.strictEqual(metadata.entries[0].open_pdf_uri, htmlEntry.openPDFURI);
 assert.strictEqual(metadata.entries[0].quality_estimate, "60-220 KB/image");
 assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normalized_page_rect");
+assert.strictEqual(metadata.entries[0].source_region_key, htmlEntry.sourceRegionKey);
 assert.strictEqual(metadata.entries[0].annotation_key, null);
+
+const samePageLeft = {
+  ...htmlEntry,
+  id: "same-page-left",
+  dataURL: "data:image/jpeg;base64,BBBB",
+  bboxNormalized: [0.1, 0.1, 0.2, 0.2],
+  openPDFURI: "",
+};
+const samePageRight = {
+  ...htmlEntry,
+  id: "same-page-right",
+  dataURL: "data:image/jpeg;base64,CCCC",
+  bboxNormalized: [0.6, 0.6, 0.8, 0.8],
+  openPDFURI: "",
+};
+const samePageHTML = buildIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  entries: [samePageLeft, samePageRight],
+  scope: "clip",
+  qualityKey: "medium",
+});
+const samePageMetadata = extractMetadata(samePageHTML);
+assert.strictEqual(samePageMetadata.entries[0].page_number, samePageMetadata.entries[1].page_number);
+assert.notStrictEqual(
+  samePageMetadata.entries[0].source_region_key,
+  samePageMetadata.entries[1].source_region_key,
+  "same-page previews with different bboxes must keep distinct source region keys",
+);
+assert.notStrictEqual(
+  samePageMetadata.entries[0].open_pdf_uri,
+  samePageMetadata.entries[1].open_pdf_uri,
+  "same-page previews with different bboxes must keep distinct source-link identities",
+);
+assert.ok(
+  samePageMetadata.entries.every((entry) => entry.open_pdf_uri.includes("pdfImageSaverRegion=")),
+  "region-distinguishable links must carry compact region query keys",
+);
 
 const noisySourceHTML = buildIndexHTML({
   attachment: noisyAttachment,
@@ -607,9 +669,8 @@ for (const forbiddenSourceText of ["[object Object]", "undefined"]) {
 assert.ok(noisySourceHTML.includes("<h1>PDF</h1>"), "malformed source title must fall back to PDF");
 const noisySourceMetadata = extractMetadata(noisySourceHTML);
 assert.strictEqual(noisySourceMetadata.scope, "unknown", "malformed scope must be normalized");
-assert.strictEqual(
-  noisySourceMetadata.entries[0].open_pdf_uri,
-  "zotero://open-pdf/library/items/UNKNOWN?page=5",
+assert.ok(
+  noisySourceMetadata.entries[0].open_pdf_uri.startsWith("zotero://open-pdf/library/items/UNKNOWN?page=5"),
   "malformed attachment keys must use a safe URI fallback",
 );
 assert.deepStrictEqual(noisySourceMetadata.parent_item, {
@@ -628,6 +689,20 @@ assert.strictEqual(
   "PDF - image index unknown",
   "index title must normalize malformed title, scope, and page target",
 );
+
+const singleIndexKey = getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "medium");
+const singleIndexTitle = buildIndexTitle(htmlParent, htmlAttachment, "clip", 4, [htmlEntry], "medium", singleIndexKey);
+assert.ok(singleIndexTitle.includes("p5"), "single preview title must include target page");
+assert.ok(singleIndexTitle.includes("medium"), "single preview title must include quality");
+assert.ok(singleIndexTitle.includes("1img"), "single preview title must include image count");
+assert.ok(singleIndexTitle.includes(getPreviewIndexFingerprint(singleIndexKey)), "single preview title must include short identity");
+assert.ok(singleIndexTitle.length <= 140, "single preview title must stay compact");
+
+const multiIndexKey = getPreviewIndexKey(htmlAttachment, [samePageLeft, samePageRight], "auto-page", "high");
+const multiIndexTitle = buildIndexTitle(htmlParent, htmlAttachment, "auto-page", 4, [samePageLeft, samePageRight], "high", multiIndexKey);
+assert.ok(multiIndexTitle.includes("2img"), "multi preview title must include image count");
+assert.ok(multiIndexTitle.includes("high"), "multi preview title must include quality");
+assert.notStrictEqual(multiIndexTitle, singleIndexTitle, "quality/count/fingerprint variants must be distinguishable");
 
 const malformedPageEntry = {
   ...htmlEntry,
@@ -654,10 +729,7 @@ assert.strictEqual(malformedPageEntry.pageNumber, 7, "entry pageNumber must be n
 const malformedPageMetadata = extractMetadata(malformedPageHTML);
 assert.strictEqual(malformedPageMetadata.entries[0].page_index, 6);
 assert.strictEqual(malformedPageMetadata.entries[0].page_number, 7);
-assert.strictEqual(
-  malformedPageMetadata.entries[0].open_pdf_uri,
-  "zotero://open-pdf/library/items/HTMLPDF1?page=7",
-);
+assert.ok(malformedPageMetadata.entries[0].open_pdf_uri.startsWith("zotero://open-pdf/library/items/HTMLPDF1?page=7"));
 
 const nullPageIndexEntry = {
   ...htmlEntry,
@@ -1412,6 +1484,57 @@ delete context.Zotero.Prefs.values["extensions.pdfImageSaver.maxDocumentImages"]
 
 async function runAsyncAssertions() {
   await assertToolbarUnavailableStateSurvivesQualityChange();
+  const duplicateIndexHTML = buildIndexHTML({
+    attachment: htmlAttachment,
+    parentItem: htmlParent,
+    entries: [{ ...htmlEntry, openPDFURI: "" }],
+    scope: "clip",
+    qualityKey: "medium",
+    indexKey: singleIndexKey,
+  });
+  const existingIndexChild = stubItem(
+    { title: singleIndexTitle },
+    {
+      async getFilePathAsync() {
+        return "C:\\Temp\\existing-index.html";
+      },
+    },
+  );
+  const parentWithExistingIndex = stubItem(
+    { title: "Parent with existing index" },
+    {
+      getAttachments() {
+        return [501];
+      },
+    },
+  );
+  context.Zotero.Items = {
+    get(id) {
+      return id === 501 ? existingIndexChild : null;
+    },
+  };
+  context.Zotero.File = {
+    async getContentsAsync(filePath) {
+      assert.strictEqual(filePath, "C:\\Temp\\existing-index.html");
+      return duplicateIndexHTML;
+    },
+  };
+  assert.strictEqual(
+    await hasExistingPreviewIndexAttachment(parentWithExistingIndex, singleIndexKey),
+    true,
+    "existing child index attachment with matching preview_index_key must be detected",
+  );
+  assert.strictEqual(
+    await isDuplicatePreviewIndexSave({ parentItem: parentWithExistingIndex, indexKey: singleIndexKey }),
+    true,
+    "duplicate save guard must skip an existing child index attachment after reload",
+  );
+  assert.strictEqual(
+    await hasExistingPreviewIndexAttachment(parentWithExistingIndex, multiIndexKey),
+    false,
+    "different preview index key must not be treated as a duplicate",
+  );
+
   context.Services.prompt.confirms = [];
   context.Services.prompt.alerts = [];
   context.Services.prompt.confirmResult = false;

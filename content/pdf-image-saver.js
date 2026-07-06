@@ -593,8 +593,13 @@ var PdfImageSaver = (() => {
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
       const preview = renderCanvasPreview({ ...safeOptions, pageIndex, qualityKey });
       const duplicateKey = getPreviewDuplicateKey(attachment, preview);
-      if (getBoolPref("duplicateGuard", true) && recentIndexSaves.has(duplicateKey)) {
-        showReaderToast(reader, "This preview was already saved in this Zotero session.", "warning");
+      const indexKey = getPreviewIndexKey(attachment, [preview], "clip", qualityKey);
+      if (getBoolPref("duplicateGuard", true) && await isDuplicatePreviewIndexSave({
+        parentItem,
+        indexKey,
+        memoryKeys: [duplicateKey],
+      })) {
+        showReaderToast(reader, "This preview was already saved.", "warning");
         return null;
       }
       const indexPath = await createIndexHTML({
@@ -603,6 +608,7 @@ var PdfImageSaver = (() => {
         entries: [preview],
         scope: "clip",
         qualityKey,
+        indexKey,
       });
       const imported = await importIndexAttachment({
         attachment,
@@ -610,14 +616,16 @@ var PdfImageSaver = (() => {
         indexPath,
         scope: "clip",
         pageIndex,
+        entries: [preview],
+        qualityKey,
+        indexKey,
       });
       showReaderToast(
         reader,
         `Saved preview index (${formatBytes(preview.byteCount)}).`,
         "success",
       );
-      recentIndexSaves.set(duplicateKey, Date.now());
-      pruneRecentIndexSaves();
+      rememberPreviewIndexSave(attachment, [preview], indexKey);
       return imported;
     } catch (error) {
       logError(error);
@@ -714,12 +722,23 @@ var PdfImageSaver = (() => {
         return null;
       }
 
+      const indexKey = getPreviewIndexKey(attachment, previews, "auto-page", qualityKey);
+      if (duplicateGuard && await isDuplicatePreviewIndexSave({
+        parentItem,
+        indexKey,
+        memoryKeys: previews.map((preview) => getPreviewDuplicateKey(attachment, preview)),
+      })) {
+        showReaderToast(reader, "This detected preview index was already saved.", "warning");
+        return null;
+      }
+
       const indexPath = await createIndexHTML({
         attachment,
         parentItem,
         entries: previews,
         scope: "auto-page",
         qualityKey,
+        indexKey,
       });
       const imported = await importIndexAttachment({
         attachment,
@@ -727,11 +746,11 @@ var PdfImageSaver = (() => {
         indexPath,
         scope: "auto-page",
         pageIndex,
+        entries: previews,
+        qualityKey,
+        indexKey,
       });
-      for (const preview of previews) {
-        recentIndexSaves.set(getPreviewDuplicateKey(attachment, preview), Date.now());
-      }
-      pruneRecentIndexSaves();
+      rememberPreviewIndexSave(attachment, previews, indexKey);
       const notes = [];
       if (skippedDuplicates) {
         notes.push(`${skippedDuplicates} duplicate skipped`);
@@ -796,8 +815,13 @@ var PdfImageSaver = (() => {
         },
       });
       const duplicateKey = getPreviewDuplicateKey(attachment, preview);
-      if (getBoolPref("duplicateGuard", true) && recentIndexSaves.has(duplicateKey)) {
-        showReaderToast(reader, "This page preview was already saved in this Zotero session.", "warning");
+      const indexKey = getPreviewIndexKey(attachment, [preview], "page", qualityKey);
+      if (getBoolPref("duplicateGuard", true) && await isDuplicatePreviewIndexSave({
+        parentItem,
+        indexKey,
+        memoryKeys: [duplicateKey],
+      })) {
+        showReaderToast(reader, "This page preview was already saved.", "warning");
         return;
       }
       const indexPath = await createIndexHTML({
@@ -806,6 +830,7 @@ var PdfImageSaver = (() => {
         entries: [preview],
         scope: "page",
         qualityKey,
+        indexKey,
       });
       await importIndexAttachment({
         attachment,
@@ -813,9 +838,11 @@ var PdfImageSaver = (() => {
         indexPath,
         scope: "page",
         pageIndex,
+        entries: [preview],
+        qualityKey,
+        indexKey,
       });
-      recentIndexSaves.set(duplicateKey, Date.now());
-      pruneRecentIndexSaves();
+      rememberPreviewIndexSave(attachment, [preview], indexKey);
       showReaderToast(reader, `Saved page preview index (${formatBytes(preview.byteCount)}).`, "success");
     } catch (error) {
       logError(error);
@@ -1132,7 +1159,7 @@ var PdfImageSaver = (() => {
     }
   }
 
-  async function createIndexHTML({ attachment, parentItem, entries, scope, qualityKey }) {
+  async function createIndexHTML({ attachment, parentItem, entries, scope, qualityKey, indexKey }) {
     const outputDir = await createTempDirectory();
     const htmlPath = PathUtils.join(outputDir, `pdf-image-index-${Zotero.Utilities.randomString(8)}.html`);
     try {
@@ -1142,6 +1169,7 @@ var PdfImageSaver = (() => {
         entries,
         scope,
         qualityKey,
+        indexKey,
       });
       const htmlBytes = estimateUTF8Bytes(html);
       const maxBytes = getMaxIndexBytes();
@@ -1156,7 +1184,7 @@ var PdfImageSaver = (() => {
     }
   }
 
-  function buildIndexHTML({ attachment, parentItem, entries, scope, qualityKey }) {
+  function buildIndexHTML({ attachment, parentItem, entries, scope, qualityKey, indexKey }) {
     const createdAt = new Date().toISOString();
     const sourceTitle = getSourceTitle(parentItem, attachment);
     const normalizedScope = normalizeScope(scope);
@@ -1182,7 +1210,8 @@ var PdfImageSaver = (() => {
         entry.bboxNormalized = normalizeBBoxNormalized(entry.bboxNormalized);
         entry.annotationKey = normalizeAnnotationKey(entry.annotationKey);
         entry.sourceRegion = buildSourceRegion(entry.bboxNormalized);
-        const uri = buildOpenPDFURI(attachment, entry.pageNumber, entry.annotationKey);
+        entry.sourceRegionKey = getSourceRegionKey(attachment, entry);
+        const uri = buildOpenPDFURI(attachment, entry.pageNumber, entry.annotationKey, entry.sourceRegionKey);
         entry.openPDFURI = uri;
         const pageText = entry.pageLabel && entry.pageLabel !== String(entry.pageNumber)
           ? `${entry.pageNumber} (${entry.pageLabel})`
@@ -1191,7 +1220,7 @@ var PdfImageSaver = (() => {
         return `
           <article class="entry">
             <div class="preview-column">
-              <a class="preview-link" href="${escapeHTML(uri)}">
+              <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
                 <img src="${escapeHTML(entry.dataURL)}" alt="Saved PDF preview ${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion)}
@@ -1208,6 +1237,7 @@ var PdfImageSaver = (() => {
       })
       .join("\n");
 
+    const previewIndexKey = normalizePreviewIndexKey(indexKey) || getPreviewIndexKey(attachment, normalizedEntries, normalizedScope, previewQualityKey);
     const metadata = {
       schema_version: HELPER_SCHEMA_VERSION,
       created_at: createdAt,
@@ -1215,6 +1245,8 @@ var PdfImageSaver = (() => {
       storage_mode: "reader_preview_index",
       scope: normalizedScope,
       preview_quality: previewQualityKey,
+      preview_index_key: previewIndexKey,
+      preview_index_fingerprint: getPreviewIndexFingerprint(previewIndexKey),
       zotero_version: Zotero.version,
       parent_item: serializeItem(parentItem),
       pdf_attachment: serializeAttachment(attachment),
@@ -1232,6 +1264,7 @@ var PdfImageSaver = (() => {
         rendered_height: entry.renderedHeight,
         bbox_normalized: entry.bboxNormalized,
         source_region: entry.sourceRegion,
+        source_region_key: entry.sourceRegionKey,
         annotation_key: entry.annotationKey,
         detection_area: entry.detectionArea,
         open_pdf_uri: entry.openPDFURI,
@@ -1285,14 +1318,14 @@ var PdfImageSaver = (() => {
     ));
   }
 
-  async function importIndexAttachment({ attachment, parentItem, indexPath, scope, pageIndex }) {
+  async function importIndexAttachment({ attachment, parentItem, indexPath, scope, pageIndex, entries, qualityKey, indexKey }) {
     const parentID = attachment.parentID || undefined;
     try {
       return await Zotero.Attachments.importFromFile({
         file: indexPath,
         parentItemID: parentID,
         libraryID: parentID ? undefined : attachment.libraryID,
-        title: buildIndexTitle(parentItem, attachment, scope, pageIndex),
+        title: buildIndexTitle(parentItem, attachment, scope, pageIndex, entries, qualityKey, indexKey),
         contentType: "text/html",
         charset: "utf-8",
       });
@@ -1301,11 +1334,22 @@ var PdfImageSaver = (() => {
     }
   }
 
-  function buildIndexTitle(parentItem, attachment, scope, pageIndex) {
-    const base = sanitizeTitle(getSourceTitle(parentItem, attachment));
+  function buildIndexTitle(parentItem, attachment, scope, pageIndex, entries = [], qualityKey = null, indexKey = null) {
+    const base = sanitizeTitle(getSourceTitle(parentItem, attachment)).slice(0, 70);
     const targetPage = normalizePageIndex(pageIndex, null);
     const target = targetPage === null ? normalizeScope(scope) : `p${targetPage + 1}`;
-    return `${base} - image index ${target}`;
+    const entryCount = Array.isArray(entries) ? entries.length : 0;
+    const normalizedQuality = qualityKey === null ? null : normalizeQualityKey(qualityKey);
+    const normalizedIndexKey = normalizePreviewIndexKey(indexKey);
+    const fingerprint = normalizedIndexKey ? getPreviewIndexFingerprint(normalizedIndexKey) : null;
+    const suffix = [
+      "image index",
+      target,
+      normalizedQuality,
+      entryCount ? `${entryCount}img` : null,
+      fingerprint,
+    ].filter(Boolean).join(" ");
+    return `${base} - ${suffix}`.slice(0, 140);
   }
 
   async function confirmAndSaveOriginalImagesFromReader(reader, options = {}) {
@@ -2239,7 +2283,7 @@ var PdfImageSaver = (() => {
     doc.head?.appendChild(style);
   }
 
-  function buildOpenPDFURI(attachment, pageNumber, annotationKey) {
+  function buildOpenPDFURI(attachment, pageNumber, annotationKey, sourceRegionKey = null) {
     const libraryPath = getLibraryURIPath(attachment.libraryID);
     const itemKey = normalizeItemKey(attachment.key, "UNKNOWN");
     const page = normalizePageNumber(pageNumber, 1);
@@ -2247,8 +2291,23 @@ var PdfImageSaver = (() => {
     const normalizedAnnotationKey = normalizeAnnotationKey(annotationKey);
     if (normalizedAnnotationKey) {
       uri += `&annotation=${encodeURIComponent(normalizedAnnotationKey)}`;
+    } else {
+      const normalizedSourceRegionKey = normalizePreviewIndexKey(sourceRegionKey);
+      if (normalizedSourceRegionKey) {
+        uri += `&pdfImageSaverRegion=${encodeURIComponent(getPreviewIndexFingerprint(normalizedSourceRegionKey))}`;
+      }
     }
     return uri;
+  }
+
+  function getSourceRegionKey(attachment, entry) {
+    const libraryID = normalizeMetadataText(attachment?.libraryID, "library", 40);
+    const itemKey = normalizeItemKey(attachment?.key, "UNKNOWN");
+    const pageNumber = normalizePageNumber(entry?.pageNumber, normalizePageIndex(entry?.pageIndex, 0) + 1);
+    const bbox = normalizeBBoxNormalized(entry?.bboxNormalized)
+      .map((value) => value.toFixed(4))
+      .join(",");
+    return `source-region:v1:${libraryID}:${itemKey}:p${pageNumber}:${bbox}`;
   }
 
   function getLibraryURIPath(libraryID) {
@@ -2717,6 +2776,141 @@ var PdfImageSaver = (() => {
     return `${libraryID}:${itemKey}:${pageIndex}:${quality}:${bbox}`;
   }
 
+  function getPreviewIndexKey(attachment, entries, scope, qualityKey) {
+    const normalizedScope = normalizeScope(scope);
+    const normalizedQuality = normalizeQualityKey(qualityKey);
+    const entryKeys = (Array.isArray(entries) ? entries : [])
+      .map((entry) => getPreviewDuplicateKey(attachment, entry))
+      .sort();
+    return `preview-index:v1:${normalizedScope}:${normalizedQuality}:n${entryKeys.length}:${hashTextToken(entryKeys.join("|"))}`;
+  }
+
+  function normalizePreviewIndexKey(value) {
+    return normalizeMetadataText(value, null, 1000);
+  }
+
+  function getPreviewIndexFingerprint(indexKey) {
+    const text = normalizePreviewIndexKey(indexKey);
+    if (!text) {
+      return null;
+    }
+    return hashTextToken(text);
+  }
+
+  function hashTextToken(text) {
+    let hash = 2166136261;
+    const normalizedText = String(text || "");
+    for (let index = 0; index < normalizedText.length; index += 1) {
+      hash ^= normalizedText.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return `h${(hash >>> 0).toString(36).padStart(7, "0")}`;
+  }
+
+  async function isDuplicatePreviewIndexSave({ parentItem, indexKey, memoryKeys = [] }) {
+    const normalizedIndexKey = normalizePreviewIndexKey(indexKey);
+    if (!normalizedIndexKey) {
+      return false;
+    }
+    if (recentIndexSaves.has(normalizedIndexKey)) {
+      return true;
+    }
+    for (const memoryKey of Array.isArray(memoryKeys) ? memoryKeys : []) {
+      if (recentIndexSaves.has(memoryKey)) {
+        return true;
+      }
+    }
+    return await hasExistingPreviewIndexAttachment(parentItem, normalizedIndexKey);
+  }
+
+  function rememberPreviewIndexSave(attachment, entries, indexKey) {
+    const now = Date.now();
+    const normalizedIndexKey = normalizePreviewIndexKey(indexKey);
+    if (normalizedIndexKey) {
+      recentIndexSaves.set(normalizedIndexKey, now);
+    }
+    for (const entry of Array.isArray(entries) ? entries : []) {
+      recentIndexSaves.set(getPreviewDuplicateKey(attachment, entry), now);
+    }
+    pruneRecentIndexSaves();
+  }
+
+  async function hasExistingPreviewIndexAttachment(parentItem, indexKey) {
+    const normalizedIndexKey = normalizePreviewIndexKey(indexKey);
+    const fingerprint = getPreviewIndexFingerprint(normalizedIndexKey);
+    if (!parentItem || !normalizedIndexKey || !fingerprint || typeof parentItem.getAttachments !== "function") {
+      return false;
+    }
+    let childIDs = [];
+    try {
+      childIDs = parentItem.getAttachments() || [];
+    } catch (error) {
+      logError(error);
+      return false;
+    }
+    for (const childID of Array.isArray(childIDs) ? childIDs : []) {
+      let child = null;
+      try {
+        child = Zotero.Items.get(childID);
+      } catch (error) {
+        logError(error);
+      }
+      if (!child || !isPreviewIndexAttachmentCandidate(child, fingerprint)) {
+        continue;
+      }
+      const childIndexKey = await readPreviewIndexKeyFromAttachment(child);
+      if (!childIndexKey || childIndexKey === normalizedIndexKey) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function isPreviewIndexAttachmentCandidate(item, fingerprint) {
+    const title = normalizeMetadataText(getItemField(item, "title"), "", 240);
+    return title.includes("image index") && title.includes(fingerprint);
+  }
+
+  async function readPreviewIndexKeyFromAttachment(item) {
+    const directKey = normalizePreviewIndexKey(item?.previewIndexKey);
+    if (directKey) {
+      return directKey;
+    }
+    if (typeof item?.getFilePathAsync !== "function" || typeof Zotero.File?.getContentsAsync !== "function") {
+      return null;
+    }
+    try {
+      const filePath = await item.getFilePathAsync();
+      if (!filePath) {
+        return null;
+      }
+      const contents = await Zotero.File.getContentsAsync(filePath);
+      return extractPreviewIndexKeyFromHTML(contents);
+    } catch (error) {
+      logError(error);
+      return null;
+    }
+  }
+
+  function extractPreviewIndexKeyFromHTML(html) {
+    const text = String(html || "");
+    const escapedMatch = text.match(/&quot;preview_index_key&quot;\s*:\s*&quot;([^&]+)&quot;/);
+    if (escapedMatch) {
+      return normalizePreviewIndexKey(unescapeHTMLEntities(escapedMatch[1]));
+    }
+    const rawMatch = text.match(/"preview_index_key"\s*:\s*"([^"]+)"/);
+    return rawMatch ? normalizePreviewIndexKey(rawMatch[1]) : null;
+  }
+
+  function unescapeHTMLEntities(value) {
+    return String(value || "")
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&#39;/g, "'");
+  }
+
   function pruneRecentIndexSaves() {
     if (recentIndexSaves.size <= 200) {
       return;
@@ -2920,7 +3114,12 @@ var PdfImageSaver = (() => {
       buildToolbarActionTooltip,
       imageCoordinatesToCandidates,
       getPreviewDuplicateKey,
+      getPreviewIndexFingerprint,
+      getPreviewIndexKey,
+      getSourceRegionKey,
+      hasExistingPreviewIndexAttachment,
       importOriginalImages,
+      isDuplicatePreviewIndexSave,
       limitOriginalImagesForImport,
       onRenderToolbar,
       onCreateViewContextMenu,
