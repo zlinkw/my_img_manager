@@ -94,6 +94,14 @@ Each preview entry includes:
 - Optional mode imports original images as child attachments.
 - Whole PDF extraction has a hard max count to reduce disk risk.
 
+## Regression Loop Control
+
+- Every new fault must get a unique `FAIL-*` section before implementation.
+- Every closed fault added from B60 onward must keep `Close condition` and `Closure` evidence.
+- Every batch marked complete must replace `Pending` with real validation output.
+- Fixes that reveal follow-up faults must record the new fault before changing that behavior.
+- `scripts/check.ps1` must enforce these plan-state invariants so a future patch cannot silently reopen old risks or close a fault without evidence.
+
 ## Preview Quality
 
 Quality is selectable in the reader context menu:
@@ -1758,6 +1766,27 @@ End batch validation checklist:
 - `git diff --check`: passed with LF-to-CRLF warnings only.
 - Code review: subagent identified the recursive cleanup boundary fault; local targeted rerun found no P0-P2 blockers after guard/tests/static checks.
 - Git commit records B59 implementation: `ea79d58`.
+
+### B60 Target Plan Regression Loop Guard
+
+Status: in progress.
+
+Plan:
+
+- Add explicit target-plan rules for unique fault IDs, closure evidence, no pending validation in completed batches, and recording follow-up faults before implementation.
+- Extend `scripts/check.ps1` to enforce the rules mechanically.
+- Keep the change scoped to plan integrity; no plugin runtime behavior change.
+
+Pre batch validation:
+
+- Git worktree clean at B60 start commit `a98bb42`.
+- User requested stronger protection against fixing one bug while reintroducing earlier bugs or creating an endless bug chain; recorded as `FAIL-20260706-125`.
+- First B60 validation found the new closed-fault evidence check was too broad for early historical `FAIL-*` records that predate the closure template; recorded as `FAIL-20260706-126`.
+- Runtime/manual-install smoke remains pending because it needs user-controlled manual Zotero installation.
+
+End batch validation checklist:
+
+- Pending.
 
 ## Current Validation Results
 
@@ -3640,6 +3669,32 @@ End batch validation checklist:
 - Validation update: add a final deletion-boundary guard and tests/static checks proving outside paths are skipped.
 - Close condition: tests/static checks prove recursive removal is limited to the normalized plugin temp root.
 - Closure: `removeDirectoryIfExists()` now calls `isPluginTempChildDirectory()` before recursive removal; the guard requires a normalized child path under `PathUtils.tempDir/pdf-image-saver/`, tests prove outside paths and the temp root are skipped, and static checks lock the guard before `IOUtils.remove()`.
+
+### FAIL-20260706-125
+
+- Batch: B60
+- Environment: target-mode planning and validation loop
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: the target plan documents many regressions and follow-up faults, but only one generic status/closure consistency rule is enforced.
+- Expected: plan-state checks should prevent duplicate fault IDs, completed batches with pending validation, and closed faults without close conditions or closure evidence.
+- Actual: a future batch could mark itself complete or close a fault without enough machine-checked evidence, increasing the risk of bug-fix loops.
+- Validation update: add explicit regression-loop control rules and enforce them in `scripts/check.ps1`.
+- Close condition: static checks fail on duplicate `FAIL-*` IDs, closed failures without `Close condition`/`Closure`, completed batches with pending validation, or a missing regression-loop-control plan section.
+
+### FAIL-20260706-126
+
+- Batch: B60
+- Environment: target-plan consistency check over historical failure sections
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: the first B60 check rejected `FAIL-20260706-001` because early historical failures predate the current `Closure` evidence template.
+- Expected: new plan-invariant checks should protect future batches without forcing unrelated historical metadata churn.
+- Actual: the broad closed-failure evidence check fails on old plan history before it can guard B60 and later work.
+- Validation update: enforce close-condition and closure evidence only for B60-and-later failure IDs, while keeping duplicate-ID and open-with-closure guards global.
+- Close condition: `npm.cmd run check` passes and still enforces closure evidence for `FAIL-20260706-125` and later.
 
 ## Revised Validation Checklist
 

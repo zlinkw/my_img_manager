@@ -54,12 +54,48 @@ if ($targetPlan -notmatch "Use Zotero reader rendered canvas for default preview
 if ($targetPlan -match "(?m)^- Use local Python and PyMuPDF for original embedded image extraction\.$") {
   throw "Target plan must not present local Python helper as required"
 }
+if ($targetPlan -notmatch "(?m)^## Regression Loop Control\s*$") {
+  throw "Target plan must define regression loop control rules"
+}
+foreach ($requiredRule in @(
+  "Every new fault must get a unique ``FAIL-*`` section before implementation",
+  "Every closed fault added from B60 onward must keep ``Close condition`` and ``Closure`` evidence",
+  "Every batch marked complete must replace ``Pending`` with real validation output",
+  "Fixes that reveal follow-up faults must record the new fault before changing that behavior",
+  "``scripts/check.ps1`` must enforce these plan-state invariants"
+)) {
+  if ($targetPlan -notmatch [regex]::Escape($requiredRule)) {
+    throw "Target plan regression loop rule missing: $requiredRule"
+  }
+}
 $failureSections = [regex]::Matches($targetPlan, '(?ms)^###\s+(FAIL-\d{8}-\d{3})\s*(.*?)(?=^#{1,6}\s+|\z)')
+$seenFailureIDs = @{}
 foreach ($section in $failureSections) {
   $failureID = $section.Groups[1].Value
   $body = $section.Groups[2].Value
+  if ($seenFailureIDs.ContainsKey($failureID)) {
+    throw "Target plan duplicate failure id: $failureID"
+  }
+  $seenFailureIDs[$failureID] = $true
   if ($body -match '(?m)^-\s+Status:\s+open\s*$' -and $body -match '(?m)^-\s+Closure:') {
     throw "Target plan failure $failureID is open but contains closure evidence"
+  }
+  $requiresClosureEvidence = [int]($failureID.Substring(14)) -ge 125
+  if ($requiresClosureEvidence -and $body -match '(?m)^-\s+Status:\s+closed\s*$') {
+    if ($body -notmatch '(?m)^-\s+Close condition:') {
+      throw "Target plan failure $failureID is closed without a close condition"
+    }
+    if ($body -notmatch '(?m)^-\s+Closure:') {
+      throw "Target plan failure $failureID is closed without closure evidence"
+    }
+  }
+}
+$batchSections = [regex]::Matches($targetPlan, '(?ms)^###\s+(B\d+[^\r\n]*)\s*(.*?)(?=^###\s+B\d+|\z)')
+foreach ($section in $batchSections) {
+  $batchTitle = $section.Groups[1].Value
+  $body = $section.Groups[2].Value
+  if ($body -match '(?m)^Status:\s+complete\.\s*$' -and $body -match '(?ms)End batch validation checklist:\s*\r?\n\s*\r?\n-\s+Pending\.') {
+    throw "Target plan completed batch still has pending validation: $batchTitle"
   }
 }
 
