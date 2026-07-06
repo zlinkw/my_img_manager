@@ -927,5 +927,5 @@ End batch validation checklist:
 - B10 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `bb7e227` B11 clear Zotero extension rescan cache.
 - B11 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
-- B12 runtime smoke preflight commit pending.
+- `5d55771` B12 add runtime smoke preflight.
 - B12 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
