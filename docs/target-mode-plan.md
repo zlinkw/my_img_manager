@@ -452,6 +452,31 @@ End batch validation checklist:
 - `npm run runtime:status`: passed; no running Zotero process, proxy installed, no BOM, temp child count 0, and `rescan.needsRescan: false`.
 - Current session registration remains false until user starts Zotero.
 
+### B12 Runtime Smoke Preflight
+
+Status: complete; reader smoke pending user-controlled Zotero launch.
+
+Plan:
+
+- Add a preflight script that fails with a clear reason until Zotero is running, rescan cache is clear, proxy is valid, and registration is active.
+- Keep the script separate from `npm run check` because registration depends on user-controlled Zotero launch.
+- Document the preflight command in README and keep runtime smoke as the next validation gate.
+
+Pre batch validation:
+
+- Git worktree clean at B12 start commit `72c48ba`.
+- `npm run runtime:status` reports no Zotero process, proxy installed, no BOM, temp child count 0, and `rescan.needsRescan: false`.
+- Registration remains false only because Zotero has not been launched after cache clear.
+
+End batch validation checklist:
+
+- `npm run smoke:preflight` exists and fails clearly when Zotero is not running.
+- Preflight checks proxy, rescan state, registration, and temp leftovers.
+- `npm run check`: passed.
+- `npm run build`: passed, XPI SHA256 `29ef560987edb1e89adcd829c1b35f857f0063e6a381d1ad4e5ba0a7bcae35e5`.
+- `npm run install:global`: passed and reported extension rescan already clear.
+- `npm run runtime:status`: passed; no running Zotero process, proxy installed, no BOM, temp child count 0, and `rescan.needsRescan: false`.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -496,6 +521,11 @@ End batch validation checklist:
 - B11 `npm run build`: passed, XPI SHA256 `cf54afb31f39bf95c23010bbeab9d51e1e3933368efe910a8789c536187fa34e`.
 - B11 `npm run install:global`: passed and cleared extension scan cache prefs while Zotero was closed.
 - B11 `npm run runtime:status`: passed; no running Zotero process and `rescan.needsRescan: false`.
+- B12 `npm run smoke:preflight`: expected failure because Zotero is not running; message clearly says to start Zotero and notes registration is unavailable.
+- B12 `npm run check`: passed.
+- B12 `npm run build`: passed, XPI SHA256 `29ef560987edb1e89adcd829c1b35f857f0063e6a381d1ad4e5ba0a7bcae35e5`.
+- B12 `npm run install:global`: passed and reported extension rescan already clear.
+- B12 `npm run runtime:status`: passed; no running Zotero process and `rescan.needsRescan: false`.
 
 ## New Failures
 
@@ -869,6 +899,7 @@ End batch validation checklist:
 - Check XPI payload validation failures propagate to `npm run check`.
 - Check XPI payload scan blocks absolute machine-specific paths without blocking optional helper discovery strings.
 - Check Zotero restart after proxy install registers the plugin or runtime diagnostics expose the rejection reason.
+- Check runtime smoke preflight fails clearly until Zotero is running and plugin is registered.
 
 ## Real Commit Log
 
@@ -896,3 +927,5 @@ End batch validation checklist:
 - B10 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `bb7e227` B11 clear Zotero extension rescan cache.
 - B11 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- B12 runtime smoke preflight commit pending.
+- B12 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.

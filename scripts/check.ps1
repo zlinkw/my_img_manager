@@ -31,8 +31,14 @@ $package = Get-Content -Encoding UTF8 -Raw -LiteralPath .\package.json | Convert
 if (!$package.scripts.'runtime:status') {
   throw "runtime:status script missing"
 }
+if (!$package.scripts.'smoke:preflight') {
+  throw "smoke:preflight script missing"
+}
 if (!(Test-Path -LiteralPath .\scripts\runtime-status.ps1)) {
   throw "runtime-status.ps1 missing"
+}
+if (!(Test-Path -LiteralPath .\scripts\smoke-preflight.ps1)) {
+  throw "smoke-preflight.ps1 missing"
 }
 if (!(Test-Path -LiteralPath .\scripts\check-xpi.ps1)) {
   throw "check-xpi.ps1 missing"

@@ -44,6 +44,7 @@ npm run check
 npm run build
 npm run install:global
 npm run runtime:status
+npm run smoke:preflight
 ```
 
 The global install script writes a Zotero extension proxy file into each detected Zotero profile. Restart Zotero to load a newly installed plugin.
@@ -54,6 +55,7 @@ If `runtime:status` reports `rescan.needsRescan: true`, close Zotero and run `np
 
 After Zotero has been restarted or the add-on has been reloaded:
 
+- `npm run smoke:preflight` passes.
 - `npm run runtime:status` shows `registered: true` for `pdf-image-saver@zlk.local`.
 - A PDF reader toolbar shows one `Clip Figure` control group.
 - A manual clip creates one Zotero stored HTML child attachment.
