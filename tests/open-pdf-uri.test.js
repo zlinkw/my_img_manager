@@ -1514,6 +1514,15 @@ async function runAsyncAssertions() {
       },
     },
   );
+  const unrelatedHTMLChild = stubItem(
+    { title: "Unrelated note" },
+    {
+      attachmentContentType: "text/html",
+      async getFilePathAsync() {
+        return "C:\\Temp\\unrelated.html";
+      },
+    },
+  );
   const parentWithExistingIndex = stubItem(
     { title: "Parent with existing index" },
     {
@@ -1538,21 +1547,44 @@ async function runAsyncAssertions() {
       },
     },
   );
+  const parentWithUnrelatedHTML = stubItem(
+    { title: "Parent with unrelated html" },
+    {
+      getAttachments() {
+        return [504];
+      },
+    },
+  );
+  const parentWithThrowingAttachments = stubItem(
+    { title: "Parent with throwing attachments" },
+    {
+      getAttachments() {
+        throw new Error("attachments unavailable");
+      },
+    },
+  );
   context.Zotero.Items = {
     get(id) {
       return {
         501: existingIndexChild,
         502: unreadableIndexChild,
         503: renamedIndexChild,
+        504: unrelatedHTMLChild,
       }[id] || null;
     },
   };
   context.Zotero.File = {
     async getContentsAsync(filePath) {
       assert.ok(
-        ["C:\\Temp\\existing-index.html", "C:\\Temp\\renamed-index.html"].includes(filePath),
+        ["C:\\Temp\\existing-index.html", "C:\\Temp\\renamed-index.html", "C:\\Temp\\unrelated.html"].includes(filePath),
         "duplicate scanner must only read known HTML candidates",
       );
+      if (filePath === "C:\\Temp\\unrelated.html") {
+        return `<pre>${JSON.stringify({
+          preview_index_key: singleIndexKey,
+          entries: [{ preview_duplicate_key: getPreviewDuplicateKey(htmlAttachment, htmlEntry) }],
+        })}</pre>`;
+      }
       return duplicateIndexHTML;
     },
   };
@@ -1572,9 +1604,23 @@ async function runAsyncAssertions() {
     "unreadable child index candidate must not be treated as duplicate without metadata evidence",
   );
   assert.strictEqual(
+    await hasExistingPreviewIndexAttachment(parentWithThrowingAttachments, singleIndexKey),
+    false,
+    "child attachment list failures must degrade to no persisted duplicate instead of throwing",
+  );
+  assert.strictEqual(
     await hasExistingPreviewIndexAttachment(parentWithRenamedIndex, singleIndexKey),
     true,
     "renamed text/html child index with matching metadata must still be detected",
+  );
+  assert.strictEqual(
+    await hasExistingPreviewIndexAttachment(
+      parentWithUnrelatedHTML,
+      singleIndexKey,
+      [getPreviewDuplicateKey(htmlAttachment, htmlEntry)],
+    ),
+    false,
+    "unrelated text/html metadata must not be treated as this plugin's preview index",
   );
   assert.strictEqual(
     await hasExistingPreviewIndexAttachment(

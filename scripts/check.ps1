@@ -1150,6 +1150,16 @@ if ($mainJS -notmatch "function\s+isPreviewIndexAttachmentCandidate\s*\(\s*item\
 if ($mainJS -notmatch "function\s+getExistingPreviewIndexIdentities\s*\(\s*parentItem\s*\)") {
   throw "Persisted duplicate guard must collect existing index and entry identities"
 }
+$existingIdentityEntry = [regex]::Match($mainJS, "async\s+function\s+getExistingPreviewIndexIdentities\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+isPreviewIndexAttachmentCandidate")
+if (!$existingIdentityEntry.Success) {
+  throw "Persisted duplicate identity scanner block not found"
+}
+if ($existingIdentityEntry.Value -notmatch "catch\s*\(\s*error\s*\)\s*\{[\s\S]*logError\(error\);[\s\S]*return\s+identities;") {
+  throw "Persisted duplicate identity scanner must return empty identities on child-list failure"
+}
+if ($existingIdentityEntry.Value -match "return\s+false;") {
+  throw "Persisted duplicate identity scanner must not return booleans"
+}
 if ($mainJS -notmatch "getPreviewDuplicateKeysFromMetadata\(metadata\)") {
   throw "Persisted duplicate guard must read per-entry duplicate keys from metadata"
 }
@@ -1159,8 +1169,17 @@ if ($mainJS -notmatch "identities\.entryKeys\.has\(memoryKey\)") {
 if ($mainJS -notmatch "existingIndexIdentities\.entryKeys\.has\(duplicateKey\)") {
   throw "Auto-page duplicate filtering must skip persisted per-entry duplicates before saving"
 }
-if ($mainJS -notmatch "function\s+extractPreviewIndexMetadataFromHTML\s*\(\s*html\s*\)[\s\S]*JSON\.parse\(unescapeHTMLEntities\(preMatch\[1\]\)\.trim\(\)\)") {
+if ($mainJS -notmatch "function\s+extractPreviewIndexMetadataFromHTML\s*\(\s*html,\s*options\s*=\s*\{\}\s*\)[\s\S]*JSON\.parse\(unescapeHTMLEntities\(preMatch\[1\]\)\.trim\(\)\)") {
   throw "Persisted duplicate guard must parse escaped metadata JSON from saved HTML"
+}
+if ($mainJS -notmatch "function\s+isSavedPreviewIndexMetadata\s*\(\s*metadata\s*\)[\s\S]*metadata\.schema_version\s*===\s*HELPER_SCHEMA_VERSION[\s\S]*metadata\.storage_mode\s*===\s*`"reader_preview_index`"[\s\S]*metadata\.plugin\?\.id\s*===\s*config\.id") {
+  throw "Persisted duplicate guard must validate plugin schema, storage mode, and plugin id"
+}
+if ($mainJS -notmatch "allowLegacyFallback:\s*isLegacyPreviewIndexTitleCandidate\(item\)") {
+  throw "Persisted duplicate guard legacy fallback must be limited to legacy title candidates"
+}
+if ($mainJS -notmatch "if\s*\(\s*!options\?\.allowLegacyFallback\s*\)\s*\{\s*\r?\n\s*return\s+null;") {
+  throw "Persisted duplicate guard must reject legacy key fallback unless explicitly allowed"
 }
 if ($mainJS -notmatch "async\s+function\s+isDuplicatePreviewIndexSave\s*\(\s*\{\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\]\s*\}\s*\)") {
   throw "Duplicate guard must combine in-session and persisted index checks"

@@ -2056,7 +2056,7 @@ End batch validation checklist:
 
 ### B70 Saved Index Duplicate And Metadata Ergonomics
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -2077,6 +2077,35 @@ Pre batch validation:
 - B70 plan review found saved HTML always expands full JSON metadata, making the synced preview index noisy when the user mainly needs preview, source link, and compact identity; recorded as `FAIL-20260706-158`.
 - Regression guard: protect `FAIL-20260706-146`, `FAIL-20260706-147`, `FAIL-20260706-150`, `FAIL-20260706-152`, `FAIL-20260706-153`, and validation family: saved preview-index duplicate/storage guard plus compact metadata UI.
 - Batch size guard: uses the B69+ roughly 3x grouped target by combining four related saved-index duplicate and metadata ergonomics fixes that share the same HTML metadata and duplicate-guard validation surface.
+
+End batch validation checklist:
+
+- `npm.cmd run test`: passed and covers unreadable child candidates, renamed HTML index detection, per-entry persisted duplicate keys, compact header identity, and collapsed metadata JSON.
+- `npm.cmd run check`: passed and now enforces per-entry duplicate metadata, text/html child scanning, JSON metadata parsing, no unreadable-child false duplicate, and collapsed metadata UI.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `d1cbf42132710991fba392d0375b41ba52fa097ebad34e17a93312c7810ffcab`, bytes `33519`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false, and `rescan needed: True`.
+- Code review: found two P2 follow-up issues in the B70 duplicate scanner; recorded as `FAIL-20260706-159` and `FAIL-20260706-160` for B71 before code changes.
+- Git commit records B70 implementation: `b45db97`.
+
+### B71 Saved Index Scanner Review Fixes
+
+Status: in progress.
+
+Plan:
+
+- Make `getExistingPreviewIndexIdentities()` return empty identity sets on child-list failures instead of a boolean.
+- Validate parsed saved-index metadata belongs to this plugin and preview-index storage mode before using it for duplicate decisions.
+- Keep legacy `preview_index_key` fallback narrow to legacy title candidates, while renamed HTML attachments still work when they contain valid plugin metadata.
+- Add behavior and static checks for exception-safe identity scanning and rejection of unrelated HTML metadata.
+
+Pre batch validation:
+
+- Git worktree has B70 docs closure pending after implementation commit `b45db97`.
+- B70 code review found `getExistingPreviewIndexIdentities()` returns `false` when `parentItem.getAttachments()` throws, but callers read `.indexKeys` or `.entryKeys`; recorded as `FAIL-20260706-159`.
+- B70 code review found broad `text/html` scanning can accept unrelated HTML whose first `<pre>` JSON happens to contain `preview_index_key`; recorded as `FAIL-20260706-160`.
+- Regression guard: protect `FAIL-20260706-155`, `FAIL-20260706-156`, `FAIL-20260706-157`, and validation family: persisted saved-index duplicate scanner.
+- Batch size guard: this batch is intentionally isolated because both issues are code-review regressions in the same freshly changed scanner and must be corrected before expanding to unrelated work; it still groups both same-surface P2 fixes.
 
 End batch validation checklist:
 
@@ -4390,12 +4419,13 @@ End batch validation checklist:
 - Environment: persisted saved-index duplicate guard
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: an existing child attachment whose title contains the expected fingerprint but whose HTML is missing, unreadable, or unparsable is treated as a duplicate.
 - Expected: unreadable or unparsable child indexes should be diagnostic-only and must not permanently block saving the preview again.
 - Actual: `hasExistingPreviewIndexAttachment()` returns duplicate when `readPreviewIndexKeyFromAttachment()` returns no key for a title candidate.
 - Validation update: require exact index-key or entry duplicate-key evidence before returning duplicate, and add regression tests for unreadable candidates.
 - Close condition: tests and static checks prove missing child HTML no longer blocks saving without a matching metadata key.
+- Closure: `hasExistingPreviewIndexAttachment()` now returns duplicate only after collecting exact index or entry keys from parsed child metadata, unreadable candidates are ignored, and `npm.cmd run test` plus `npm.cmd run check` cover the guard.
 
 ### FAIL-20260706-156
 
@@ -4403,12 +4433,13 @@ End batch validation checklist:
 - Environment: persisted saved-index duplicate guard after child title edits
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: user-renamed saved index child attachments are skipped before their HTML metadata is inspected.
 - Expected: duplicate detection should scan lightweight HTML index candidates by content type or metadata marker, not only by title fingerprint.
 - Actual: `isPreviewIndexAttachmentCandidate()` requires both `image index` and title fingerprint, so renamed attachments can be missed after restart.
 - Validation update: accept text/html child candidates and parse metadata before deciding whether they match.
 - Close condition: tests prove a renamed HTML child attachment with matching `preview_index_key` is detected.
+- Closure: preview-index child scanning now accepts `text/html` candidates without requiring title fingerprint text, parses saved metadata, and tests cover renamed child detection.
 
 ### FAIL-20260706-157
 
@@ -4416,12 +4447,13 @@ End batch validation checklist:
 - Environment: auto-page persisted duplicate filtering after reload
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: an already saved single preview can be embedded again in a later multi-entry auto-page index after add-on reload.
 - Expected: saved preview-index metadata should include per-entry duplicate keys, and new save requests should skip or block entries that match existing child metadata.
 - Actual: persisted duplicate checks compare only the full `preview_index_key`; partial overlap between old and new index batches is not detected.
 - Validation update: write `preview_duplicate_key` per entry, read it back from child HTML metadata, and compare requested memory keys against persisted entry keys.
 - Close condition: tests prove an existing child with a matching `preview_duplicate_key` is detected even when the full index key differs.
+- Closure: saved metadata now emits `preview_duplicate_key`, duplicate scanning collects per-entry keys, auto-page filtering skips persisted per-entry duplicates, and tests cover partial overlap through `hasExistingPreviewIndexAttachment()` and `isDuplicatePreviewIndexSave()`.
 
 ### FAIL-20260706-158
 
@@ -4429,12 +4461,39 @@ End batch validation checklist:
 - Environment: saved HTML preview index readability
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: saved HTML always expands the full JSON metadata block.
 - Expected: synced preview index should default to preview, source PDF link, region map, and compact identity, with full debug metadata hidden until opened.
 - Actual: full metadata JSON is visible by default and can dominate the saved attachment for normal paper-reading use.
 - Validation update: wrap full metadata JSON in a closed `<details>` block and show compact index fingerprint metadata in the header.
 - Close condition: tests and static checks prove metadata is collapsed by default while JSON remains present for inspection.
+- Closure: saved HTML now shows compact index fingerprint/count/quality in the header and keeps full metadata JSON in a closed `<details>` block; tests and static checks cover both.
+
+### FAIL-20260706-159
+
+- Batch: B71
+- Environment: persisted saved-index duplicate scanner error handling
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `getExistingPreviewIndexIdentities()` returns `false` when `parentItem.getAttachments()` throws.
+- Expected: scanner failures should degrade to empty identity sets so saving can continue and callers can safely read `.indexKeys` and `.entryKeys`.
+- Actual: callers expect an identity object and can crash if child-list retrieval fails.
+- Validation update: return `createEmptyPreviewIndexIdentities()` from the exception branch and add tests/static checks for that invariant.
+- Close condition: tests and static checks prove child-list exceptions do not throw through duplicate detection and return no duplicate.
+
+### FAIL-20260706-160
+
+- Batch: B71
+- Environment: persisted saved-index duplicate scanner candidate validation
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: broad `text/html` scanning can treat unrelated HTML metadata as this plugin's saved preview index.
+- Expected: duplicate decisions should use only metadata with this plugin's schema/storage markers, while legacy regex fallback remains limited to legacy title candidates.
+- Actual: any HTML child with first `<pre>` JSON containing `preview_index_key` can produce a false duplicate.
+- Validation update: validate parsed metadata with `schema_version`, `storage_mode`, and plugin id before using it; constrain legacy fallback by candidate title.
+- Close condition: tests and static checks prove unrelated HTML metadata is ignored while renamed valid plugin HTML metadata is still detected.
 
 ## Revised Validation Checklist
 
@@ -4583,6 +4642,8 @@ End batch validation checklist:
 - Check persisted duplicate guard detects renamed HTML child indexes by parsing saved metadata instead of relying on title fingerprint only.
 - Check saved preview-index metadata includes per-entry `preview_duplicate_key` and uses it for persisted partial duplicate detection.
 - Check saved HTML keeps full JSON metadata in a collapsed details block while showing compact identity in the header.
+- Check saved-index identity scanning returns empty identity sets, not booleans, when child attachment listing fails.
+- Check saved-index duplicate scanner ignores unrelated text/html metadata unless plugin schema, storage mode, and plugin id match.
 
 ## Real Commit Log
 
@@ -4730,3 +4791,5 @@ End batch validation checklist:
 - B68 XPI SHA256 `5cf967a54f51cb642ac44201b1f2b9dcc0b3214e8e9311a5d6feac0e1ff8837a` was built in `outputs/` for manual Zotero add-on manager installation.
 - `762d682` B69 enforce batch size guard.
 - B69 XPI SHA256 `5cf967a54f51cb642ac44201b1f2b9dcc0b3214e8e9311a5d6feac0e1ff8837a` was built in `outputs/` for manual Zotero add-on manager installation; plugin payload unchanged from B68.
+- `b45db97` B70 harden saved index duplicates.
+- B70 XPI SHA256 `d1cbf42132710991fba392d0375b41ba52fa097ebad34e17a93312c7810ffcab` was built in `outputs/` for manual Zotero add-on manager installation.

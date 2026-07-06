@@ -2873,8 +2873,12 @@ var PdfImageSaver = (() => {
     try {
       childIDs = parentItem.getAttachments() || [];
     } catch (error) {
-      logError(error);
-      return false;
+      try {
+        logError(error);
+      } catch (_logError) {
+        // Scanner failures must not block saving.
+      }
+      return identities;
     }
     for (const childID of Array.isArray(childIDs) ? childIDs : []) {
       let child = null;
@@ -2902,9 +2906,17 @@ var PdfImageSaver = (() => {
   }
 
   function isPreviewIndexAttachmentCandidate(item) {
-    const title = normalizeMetadataText(getItemField(item, "title"), "", 240);
+    return isHTMLAttachment(item) || isLegacyPreviewIndexTitleCandidate(item);
+  }
+
+  function isHTMLAttachment(item) {
     const contentType = normalizeMetadataText(item?.attachmentContentType, "", 80).toLowerCase();
-    return contentType === "text/html" || title.includes("image index");
+    return contentType === "text/html";
+  }
+
+  function isLegacyPreviewIndexTitleCandidate(item) {
+    const title = normalizeMetadataText(getItemField(item, "title"), "", 240);
+    return title.includes("image index");
   }
 
   async function readPreviewIndexMetadataFromAttachment(item) {
@@ -2921,7 +2933,9 @@ var PdfImageSaver = (() => {
         return null;
       }
       const contents = await Zotero.File.getContentsAsync(filePath);
-      return extractPreviewIndexMetadataFromHTML(contents);
+      return extractPreviewIndexMetadataFromHTML(contents, {
+        allowLegacyFallback: isLegacyPreviewIndexTitleCandidate(item),
+      });
     } catch (error) {
       logError(error);
       return null;
@@ -2933,21 +2947,35 @@ var PdfImageSaver = (() => {
     return normalizePreviewIndexKey(metadata?.preview_index_key);
   }
 
-  function extractPreviewIndexMetadataFromHTML(html) {
+  function extractPreviewIndexMetadataFromHTML(html, options = {}) {
     const text = String(html || "");
     const preMatch = text.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
     if (preMatch) {
       try {
         const metadata = JSON.parse(unescapeHTMLEntities(preMatch[1]).trim());
-        if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+        if (isSavedPreviewIndexMetadata(metadata)) {
           return metadata;
         }
       } catch (_error) {
         // Not every text/html child attachment is a saved preview index.
       }
     }
+    if (!options?.allowLegacyFallback) {
+      return null;
+    }
     const legacyKey = extractPreviewIndexKeyFromHTML(text);
     return legacyKey ? { preview_index_key: legacyKey, entries: [] } : null;
+  }
+
+  function isSavedPreviewIndexMetadata(metadata) {
+    return !!(
+      metadata
+      && typeof metadata === "object"
+      && !Array.isArray(metadata)
+      && metadata.schema_version === HELPER_SCHEMA_VERSION
+      && metadata.storage_mode === "reader_preview_index"
+      && metadata.plugin?.id === config.id
+    );
   }
 
   function getPreviewDuplicateKeysFromMetadata(metadata) {
