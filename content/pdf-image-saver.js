@@ -704,7 +704,7 @@ var PdfImageSaver = (() => {
         });
         const duplicateKey = getPreviewDuplicateKey(attachment, preview);
         const sourceRegionKey = getSourceRegionKey(attachment, preview);
-        const sessionDuplicate = recentIndexSaves.has(duplicateKey);
+        const sessionDuplicate = recentIndexSaves.has(duplicateKey) || recentIndexSaves.has(sourceRegionKey);
         const savedDuplicate = existingIndexIdentities.entryKeys.has(duplicateKey)
           || existingIndexIdentities.sourceRegionKeys.has(sourceRegionKey);
         if (duplicateGuard && (sessionDuplicate || savedDuplicate)) {
@@ -728,7 +728,12 @@ var PdfImageSaver = (() => {
       }
 
       if (!previews.length) {
-        const reason = formatAutoDuplicateSkipReason({ skippedSessionDuplicates, skippedSavedDuplicates });
+        const reason = formatAutoDuplicateSkipReason({
+          skippedSessionDuplicates,
+          skippedSavedDuplicates,
+          skippedByteLimit,
+          skippedOversized,
+        });
         showReaderToast(reader, reason, "warning");
         return null;
       }
@@ -793,7 +798,32 @@ var PdfImageSaver = (() => {
     }
   }
 
-  function formatAutoDuplicateSkipReason({ skippedSessionDuplicates = 0, skippedSavedDuplicates = 0 } = {}) {
+  function formatAutoDuplicateSkipReason({
+    skippedSessionDuplicates = 0,
+    skippedSavedDuplicates = 0,
+    skippedByteLimit = 0,
+    skippedOversized = 0,
+  } = {}) {
+    const duplicateReason = skippedSavedDuplicates && skippedSessionDuplicates
+      ? "already saved in synced HTML indexes or this Zotero session"
+      : skippedSavedDuplicates
+        ? "already saved in synced HTML indexes"
+        : skippedSessionDuplicates
+          ? "already saved in this Zotero session"
+          : null;
+    const capReason = skippedOversized && skippedByteLimit
+      ? "exceeded per-preview and total preview byte caps"
+      : skippedOversized
+        ? "exceeded the per-preview byte cap"
+        : skippedByteLimit
+          ? "exceeded the total preview byte cap"
+          : null;
+    if (duplicateReason && capReason) {
+      return `No detected previews were saved: some were ${duplicateReason}; others ${capReason}.`;
+    }
+    if (capReason) {
+      return `Detected previews ${capReason}.`;
+    }
     if (skippedSavedDuplicates && skippedSessionDuplicates) {
       return "All detected previews were already saved in synced HTML indexes or this Zotero session.";
     }
@@ -2864,6 +2894,11 @@ var PdfImageSaver = (() => {
         return true;
       }
     }
+    for (const sourceRegionKey of normalizeSourceRegionKeys(sourceRegionKeys)) {
+      if (recentIndexSaves.has(sourceRegionKey)) {
+        return true;
+      }
+    }
     return await hasExistingPreviewIndexAttachment(parentItem, normalizedIndexKey, memoryKeys, sourceRegionKeys);
   }
 
@@ -2875,6 +2910,7 @@ var PdfImageSaver = (() => {
     }
     for (const entry of Array.isArray(entries) ? entries : []) {
       recentIndexSaves.set(getPreviewDuplicateKey(attachment, entry), now);
+      recentIndexSaves.set(getSourceRegionKey(attachment, entry), now);
     }
     pruneRecentIndexSaves();
   }
@@ -3299,6 +3335,7 @@ var PdfImageSaver = (() => {
       limitOriginalImagesForImport,
       onRenderToolbar,
       onCreateViewContextMenu,
+      rememberPreviewIndexSave,
       normalizeHelperSchemaText,
       normalizeHelperStatusText,
       normalizeHelperWarningMessages,

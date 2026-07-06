@@ -1187,6 +1187,9 @@ if ($mainJS -notmatch "identities\.entryKeys\.has\(memoryKey\)") {
 if ($mainJS -notmatch "identities\.sourceRegionKeys\.has\(sourceRegionKey\)") {
   throw "Persisted duplicate guard must compare requested source region keys with existing entries"
 }
+if ($mainJS -notmatch "recentIndexSaves\.has\(sourceRegionKey\)") {
+  throw "In-session duplicate guard must check source region keys"
+}
 if ($mainJS -notmatch "existingIndexIdentities\.entryKeys\.has\(duplicateKey\)") {
   throw "Auto-page duplicate filtering must skip persisted per-entry duplicates before saving"
 }
@@ -1208,11 +1211,17 @@ if ($mainJS -notmatch "if\s*\(\s*!options\?\.allowLegacyFallback\s*\)\s*\{\s*\r?
 if ($mainJS -notmatch "async\s+function\s+isDuplicatePreviewIndexSave\s*\(\s*\{\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\],\s*sourceRegionKeys\s*=\s*\[\]\s*\}\s*\)") {
   throw "Duplicate guard must combine in-session and persisted index checks"
 }
-if ($mainJS -notmatch "function\s+formatAutoDuplicateSkipReason\s*\(\s*\{\s*skippedSessionDuplicates\s*=\s*0,\s*skippedSavedDuplicates\s*=\s*0\s*\}\s*=\s*\{\}\s*\)") {
+if ($mainJS -notmatch "function\s+formatAutoDuplicateSkipReason\s*\(\s*\{[\s\S]*skippedSessionDuplicates\s*=\s*0,[\s\S]*skippedSavedDuplicates\s*=\s*0,[\s\S]*skippedByteLimit\s*=\s*0,[\s\S]*skippedOversized\s*=\s*0,[\s\S]*\}\s*=\s*\{\}\s*\)") {
   throw "Auto-page duplicate feedback formatter missing"
 }
 if ($mainJS -notmatch "already saved in synced HTML indexes") {
   throw "Auto-page persisted duplicate feedback must mention synced HTML indexes"
+}
+if ($mainJS -notmatch 'No detected previews were saved: some were \$\{duplicateReason\}; others \$\{capReason\}\.') {
+  throw "Auto-page mixed duplicate and byte-cap feedback must mention both causes"
+}
+if ($mainJS -notmatch "recentIndexSaves\.set\(getSourceRegionKey\(attachment,\s*entry\),\s*now\)") {
+  throw "In-session duplicate memory must store source region keys"
 }
 foreach ($saveEntry in @($clipSaveEntry, $autoSaveEntry, $pageSaveEntry)) {
   if ($saveEntry.Value -notmatch "getPreviewIndexKey\(attachment") {

@@ -115,6 +115,7 @@ const {
   limitOriginalImagesForImport,
   onRenderToolbar,
   onCreateViewContextMenu,
+  rememberPreviewIndexSave,
   normalizeBBoxNormalized,
   normalizeHelperFilePath,
   normalizeImageContentType,
@@ -705,6 +706,16 @@ assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 1, skippedSavedDuplicates: 1 }),
   "All detected previews were already saved in synced HTML indexes or this Zotero session.",
   "mixed duplicate feedback must mention both persisted and session sources",
+);
+assert.strictEqual(
+  formatAutoDuplicateSkipReason({ skippedSavedDuplicates: 1, skippedByteLimit: 1 }),
+  "No detected previews were saved: some were already saved in synced HTML indexes; others exceeded the total preview byte cap.",
+  "mixed persisted duplicate and byte-cap feedback must mention both causes",
+);
+assert.strictEqual(
+  formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 1, skippedOversized: 1 }),
+  "No detected previews were saved: some were already saved in this Zotero session; others exceeded the per-preview byte cap.",
+  "mixed session duplicate and oversized feedback must mention both causes",
 );
 
 const singleIndexKey = getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "medium");
@@ -1670,6 +1681,30 @@ async function runAsyncAssertions() {
     true,
     "persisted source_region_key must detect same-region duplicates across preview quality changes",
   );
+  const duplicateScannerItems = context.Zotero.Items;
+  context.Zotero.Items = { get() { return null; } };
+  assert.strictEqual(
+    await isDuplicatePreviewIndexSave({
+      parentItem: null,
+      indexKey: getPreviewIndexKey(htmlAttachment, [differentQualitySameRegionEntry], "clip", "high"),
+      memoryKeys: [getPreviewDuplicateKey(htmlAttachment, differentQualitySameRegionEntry)],
+      sourceRegionKeys: [getSourceRegionKey(htmlAttachment, differentQualitySameRegionEntry)],
+    }),
+    false,
+    "same-region different-quality save must not be duplicate before the session cache is populated",
+  );
+  rememberPreviewIndexSave(htmlAttachment, [htmlEntry], singleIndexKey);
+  assert.strictEqual(
+    await isDuplicatePreviewIndexSave({
+      parentItem: null,
+      indexKey: getPreviewIndexKey(htmlAttachment, [differentQualitySameRegionEntry], "clip", "high"),
+      memoryKeys: [getPreviewDuplicateKey(htmlAttachment, differentQualitySameRegionEntry)],
+      sourceRegionKeys: [getSourceRegionKey(htmlAttachment, differentQualitySameRegionEntry)],
+    }),
+    true,
+    "in-session source_region_key cache must detect same-region duplicates across preview quality changes",
+  );
+  context.Zotero.Items = duplicateScannerItems;
   assert.strictEqual(
     await isDuplicatePreviewIndexSave({
       parentItem: parentWithRenamedIndex,
