@@ -893,6 +893,31 @@ End batch validation checklist:
 - `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
 - Git commit records B28: pending.
 
+### B29 Strict PDF Reader Type Guard
+
+Status: complete.
+
+Plan:
+
+- Make PDF reader detection strict so the toolbar/context actions only appear for actual PDF readers.
+- Support Zotero 9.0.5 public `reader.type`, private `_type`, and attachment reader type fallback, but do not treat missing type as PDF.
+- Add regression tests for selected PDF, selected EPUB, and type-missing readers.
+
+Pre batch validation:
+
+- Git worktree clean at B29 start commit `374e730`.
+- Local Zotero 9.0.5 `ReaderInstance` has public `get type()` returning `_type`, and `_type` is one of `pdf`, `epub`, or `snapshot`.
+- Current `isPDFReader(reader)` returns true when `reader.type` is missing, which can misclassify test doubles, future API shapes, or partially initialized non-PDF readers as PDF; recorded as `FAIL-20260706-056`.
+
+End batch validation checklist:
+
+- `npm run check`: passed and covers strict PDF reader detection for public `reader.type`, private `_type`, attachment reader type fallback, EPUB rejection, and type-missing rejection.
+- `npm run build`: passed.
+- `npm run package:manual`: passed, packaged XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1`.
+- `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- Code review: passed; no blocking code issues found, only plan status needed closure.
+- Git commit records B29: pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -1024,6 +1049,10 @@ End batch validation checklist:
 - B28 `npm run build`: passed.
 - B28 `npm run package:manual`: passed; packaged XPI SHA256 `c9372a54ba896172f43cae7e71be1e00d53d0e906d0513b013aaf620ba22c0e1`.
 - B28 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
+- B29 `npm run check`: passed and covers strict PDF reader detection for PDF, EPUB, and type-missing reader cases.
+- B29 `npm run build`: passed.
+- B29 `npm run package:manual`: passed; packaged XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1`.
+- B29 `npm run verify:manual`: passed; current state remains manual-install pending, with Zotero process count 3 and no temp leftovers.
 
 ## New Failures
 
@@ -1786,6 +1815,20 @@ End batch validation checklist:
 - Close condition: regression tests prove selected tab match succeeds and non-reader selection returns null even when other PDF readers exist.
 - Closure: `getActiveReader()` now uses Zotero selected tab ID only and returns null without a selected PDF reader tab; context lookup also checks direct `reader._iframeWindow`.
 
+### FAIL-20260706-056
+
+- Batch: B29
+- Environment: reader event dispatch or Tools menu selection with EPUB/snapshot readers or partially initialized reader objects
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: closed
+- Symptom: `isPDFReader(reader)` returns true when `reader.type` is missing.
+- Expected: only readers with an explicit PDF type or PDF attachment reader type are accepted.
+- Actual: missing `reader.type` is treated as PDF, allowing non-PDF or partial reader objects through PDF-only toolbar/context/diagnostic paths.
+- Validation update: derive reader type from `reader.type`, `reader._type`, or `reader._item.attachmentReaderType`, and require it to equal `pdf`.
+- Close condition: regression tests prove PDF readers are accepted while EPUB and type-missing readers are rejected.
+- Closure: `isPDFReader()` now delegates to `getReaderType()` and requires an explicit `pdf` type; regression tests and `scripts/check.ps1` cover the guard.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -1839,6 +1882,7 @@ End batch validation checklist:
 - Check bootstrap awaits preference pane registration through a catch/log helper so pane failures do not become unhandled startup rejections.
 - Check Tools menu active reader selection never falls back to selected library items or arbitrary first PDF reader.
 - Check PDF viewer context lookup supports Zotero 9.0.5 direct `reader._iframeWindow`.
+- Check PDF reader detection requires explicit `pdf` type from `reader.type`, `reader._type`, or `reader._item.attachmentReaderType`, and rejects EPUB plus type-missing readers.
 
 ## Real Commit Log
 
@@ -1901,4 +1945,6 @@ End batch validation checklist:
 - B26 XPI SHA256 `8bb8549b63579451e191c6410805f05af3f8f6a62c34124e756fbb52623eedd6` was built in `outputs/` for manual Zotero add-on manager installation.
 - `19f2229` B27 harden startup preference pane.
 - B27 XPI SHA256 `b30ebbd007d58228fe008c1f25575dcf4766864e1c53251c1c66ae3780f8e391` was built in `outputs/` for manual Zotero add-on manager installation.
+- `374e730` B28 target selected reader tab.
 - B28 XPI SHA256 `c9372a54ba896172f43cae7e71be1e00d53d0e906d0513b013aaf620ba22c0e1` was built in `outputs/` for manual Zotero add-on manager installation.
+- B29 XPI SHA256 `a5392ab2329053045eb709071deac81f4f0906eb2f45194dfc6b5daefbe0b0e1` was built in `outputs/` for manual Zotero add-on manager installation.

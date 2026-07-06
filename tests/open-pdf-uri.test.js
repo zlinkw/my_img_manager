@@ -43,6 +43,7 @@ const {
   calculateCanvasCrop,
   getActiveReader,
   getPDFViewerContextCandidate,
+  isPDFReader,
   normalizeAnnotationKey,
 } = context.PdfImageSaver.__test__;
 const userAttachment = { libraryID: 1, key: "ABCDEF12" };
@@ -231,6 +232,16 @@ const wrappedContext = getPDFViewerContextCandidate({
 });
 assert.strictEqual(wrappedContext.app, wrappedApp, "wrapped PDFViewerApplication must be detected");
 
+assert.strictEqual(isPDFReader({ type: "pdf" }), true, "public PDF reader type must be accepted");
+assert.strictEqual(isPDFReader({ _type: "pdf" }), true, "private PDF reader type must be accepted");
+assert.strictEqual(
+  isPDFReader({ _item: { attachmentReaderType: "pdf" } }),
+  true,
+  "PDF attachment reader type fallback must be accepted",
+);
+assert.strictEqual(isPDFReader({ type: "epub" }), false, "EPUB reader type must be rejected");
+assert.strictEqual(isPDFReader({}), false, "missing reader type must be rejected");
+
 const selectedPDFReader = { type: "pdf", tabID: "tab-pdf" };
 const otherPDFReader = { type: "pdf", tabID: "tab-other" };
 context.Zotero.Reader = {
@@ -252,6 +263,33 @@ assert.strictEqual(
   null,
   "non-reader selected tab must not fall back to first or selected library item reader",
 );
+
+const selectedEPUBReader = { type: "epub", tabID: "tab-epub" };
+context.Zotero.Reader = {
+  _readers: [otherPDFReader, selectedEPUBReader],
+  getByTabID(tabID) {
+    return this._readers.find((reader) => reader.tabID === tabID) || null;
+  },
+};
+assert.strictEqual(
+  getActiveReader({ Zotero_Tabs: { selectedID: "tab-epub" } }),
+  null,
+  "selected EPUB reader tab must be rejected",
+);
+
+const selectedTypelessReader = { tabID: "tab-typeless" };
+context.Zotero.Reader = {
+  _readers: [otherPDFReader, selectedTypelessReader],
+  getByTabID(tabID) {
+    return this._readers.find((reader) => reader.tabID === tabID) || null;
+  },
+};
+assert.strictEqual(
+  getActiveReader({ Zotero_Tabs: { selectedID: "tab-typeless" } }),
+  null,
+  "selected reader with missing type must be rejected",
+);
+
 assert.strictEqual(
   getActiveReader({ Zotero_Tabs: {} }),
   null,

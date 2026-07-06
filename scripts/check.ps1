@@ -220,6 +220,18 @@ if ($mainJS -match "getSelectedItems") {
 if ($mainJS -match "readers\.find\(\(reader\)\s*=>\s*isPDFReader\(reader\)\)") {
   throw "Active reader selection must not fall back to the first PDF reader"
 }
+if ($mainJS -match '!\s*reader\.type\s*\|\|\s*reader\.type\s*===\s*"pdf"') {
+  throw "PDF reader detection must not treat missing reader.type as PDF"
+}
+if ($mainJS -notmatch 'function\s+getReaderType\s*\(\s*reader\s*\)') {
+  throw "PDF reader detection must use an explicit reader type helper"
+}
+if ($mainJS -notmatch 'reader\?\._item\?\.attachmentReaderType') {
+  throw "PDF reader type helper must support attachment reader type fallback"
+}
+if ($mainJS -notmatch 'function\s+isPDFReader\s*\(\s*reader\s*\)\s*\{\s*return\s+getReaderType\(reader\)\s*===\s*"pdf";\s*\}') {
+  throw "PDF reader detection must require an explicit PDF reader type"
+}
 if ($mainJS -notmatch "reader\?\._iframeWindow\s*\|\|\s*reader\?\._iframe\?\.contentWindow") {
   throw "PDF viewer context lookup must check direct reader iframe window"
 }

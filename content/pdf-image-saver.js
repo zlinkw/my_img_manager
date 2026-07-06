@@ -1777,7 +1777,16 @@ var PdfImageSaver = (() => {
   }
 
   function isPDFReader(reader) {
-    return reader && (!reader.type || reader.type === "pdf");
+    return getReaderType(reader) === "pdf";
+  }
+
+  function getReaderType(reader) {
+    const type =
+      reader?.type ||
+      reader?._type ||
+      reader?._item?.attachmentReaderType ||
+      "";
+    return typeof type === "string" ? type.toLowerCase() : "";
   }
 
   function getReaderJobKey(reader, options) {
@@ -2251,6 +2260,7 @@ var PdfImageSaver = (() => {
       calculateCanvasCrop,
       getActiveReader,
       getPDFViewerContextCandidate,
+      isPDFReader,
       normalizeAnnotationKey,
     },
     get started() {
