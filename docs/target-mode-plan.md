@@ -1195,3 +1195,5 @@ End batch validation checklist:
 - B14 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
 - `1ef08d1` B15 add runtime registration diagnostics.
 - B15 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
+- `45defcc` B16 harden runtime diagnostics checks.
+- B16 XPI and SHA256 were built in `outputs/` and installed globally, but remain ignored build outputs rather than committed files.
