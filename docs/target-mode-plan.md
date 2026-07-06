@@ -427,6 +427,31 @@ End batch validation checklist:
 - Current session registration remains false because Zotero is running and the installer does not edit live profile prefs.
 - B10 post implementation review agent did not return before timeout and was closed; local static checks passed.
 
+### B11 Extension Rescan Cache Clear
+
+Status: complete; runtime registration pending user-controlled Zotero launch.
+
+Plan:
+
+- Use the B10 install script while Zotero is closed to clear `extensions.lastAppBuildId` and `extensions.lastAppVersion`.
+- Reinstall the extension proxy and verify `runtime:status` reports `rescan.needsRescan: false`.
+- Do not start Zotero automatically; runtime smoke waits for user-controlled launch.
+
+Pre batch validation:
+
+- Git worktree clean at B11 start commit `f166b57`.
+- `npm run runtime:status` shows no running Zotero processes.
+- Proxy exists, points to the workspace, and has no BOM.
+- `rescan.needsRescan` is true before B11 install.
+
+End batch validation checklist:
+
+- `npm run check`: passed.
+- `npm run build`: passed, XPI SHA256 `cf54afb31f39bf95c23010bbeab9d51e1e3933368efe910a8789c536187fa34e`.
+- `npm run install:global`: passed and cleared `extensions.lastAppBuildId`/`extensions.lastAppVersion` because Zotero is closed.
+- `npm run runtime:status`: passed; no running Zotero process, proxy installed, no BOM, temp child count 0, and `rescan.needsRescan: false`.
+- Current session registration remains false until user starts Zotero.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -467,6 +492,10 @@ End batch validation checklist:
 - B10 `npm run build`: passed, XPI SHA256 `c1c33619883c4f4e9e6a24c40f6942a747f6adbc1b91d795566a10cbc14f1ffa`.
 - B10 `npm run install:global`: passed and reported extension rescan pending because Zotero is running.
 - B10 `npm run runtime:status`: passed and reports `rescan.needsRescan: true` with the exact last-app prefs blocking proxy discovery.
+- B11 `npm run check`: passed.
+- B11 `npm run build`: passed, XPI SHA256 `cf54afb31f39bf95c23010bbeab9d51e1e3933368efe910a8789c536187fa34e`.
+- B11 `npm run install:global`: passed and cleared extension scan cache prefs while Zotero was closed.
+- B11 `npm run runtime:status`: passed; no running Zotero process and `rescan.needsRescan: false`.
 
 ## New Failures
 
