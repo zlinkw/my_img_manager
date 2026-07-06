@@ -31,6 +31,9 @@ const context = {
       throw error;
     },
   },
+  Services: {
+    appinfo: { OS: "WINNT" },
+  },
 };
 
 vm.createContext(context);
@@ -45,6 +48,7 @@ context.PdfImageSaver.init({
 const {
   buildIndexHTML,
   buildIndexTitle,
+  buildOriginalImageTitle,
   buildOpenPDFURI,
   buildSourceRegion,
   calculateCanvasCrop,
@@ -53,6 +57,9 @@ const {
   getPDFViewerContextCandidate,
   limitOriginalImagesForImport,
   normalizeBBoxNormalized,
+  normalizeHelperFilePath,
+  normalizeImageContentType,
+  normalizeOriginalImageForImport,
   normalizePageIndex,
   normalizePageNumber,
   isPDFReader,
@@ -514,31 +521,137 @@ assert.throws(
   "malformed preview data URL must be rejected before HTML output",
 );
 
-const helperImages = Array.from({ length: 5 }, (_, index) => ({ file_path: `image-${index}.jpg` }));
+const helperCapOutputDir = "C:\\Temp\\pdf-image-saver\\cap-job";
+const helperImages = Array.from({ length: 5 }, (_, index) => ({ file_path: `${helperCapOutputDir}\\image-${index}.jpg` }));
+const helperReport = { output_dir: helperCapOutputDir, images: helperImages };
 context.Zotero.Prefs.values["extensions.pdfImageSaver.maxPageImages"] = 2;
 context.Zotero.Prefs.values["extensions.pdfImageSaver.maxDocumentImages"] = 3;
-const pageLimitedImages = limitOriginalImagesForImport({ images: helperImages }, "page");
+const pageLimitedImages = limitOriginalImagesForImport(helperReport, "page");
 assert.strictEqual(pageLimitedImages.images.length, 2, "page import must truncate over-cap helper reports");
 assert.strictEqual(pageLimitedImages.omittedCount, 3, "page import must report skipped images");
 assert.strictEqual(pageLimitedImages.maxImages, 2);
-const documentLimitedImages = limitOriginalImagesForImport({ images: helperImages }, "document");
+const documentLimitedImages = limitOriginalImagesForImport(helperReport, "document");
 assert.strictEqual(documentLimitedImages.images.length, 3, "document import must truncate over-cap helper reports");
 assert.strictEqual(documentLimitedImages.omittedCount, 2, "document import must report skipped images");
 assert.strictEqual(documentLimitedImages.maxImages, 3);
 context.Zotero.Prefs.values["extensions.pdfImageSaver.maxPageImages"] = 9999;
-const hardLimitedPageImages = limitOriginalImagesForImport({ images: helperImages }, "page");
+const hardLimitedPageImages = limitOriginalImagesForImport(helperReport, "page");
 assert.strictEqual(hardLimitedPageImages.images.length, 5, "page import must not drop in-range reports");
 assert.strictEqual(hardLimitedPageImages.maxImages, 500, "page import must hard-clamp edited prefs");
-const hugeHelperImages = Array.from({ length: 501 }, (_, index) => ({ file_path: `huge-${index}.jpg` }));
-const hugeLimitedPageImages = limitOriginalImagesForImport({ images: hugeHelperImages }, "page");
+const hugeHelperImages = Array.from({ length: 501 }, (_, index) => ({ file_path: `${helperCapOutputDir}\\huge-${index}.jpg` }));
+const hugeLimitedPageImages = limitOriginalImagesForImport({ output_dir: helperCapOutputDir, images: hugeHelperImages }, "page");
 assert.strictEqual(hugeLimitedPageImages.images.length, 500, "page import must truncate at the hard cap");
 assert.strictEqual(hugeLimitedPageImages.omittedCount, 1, "page import must report hard-cap skips");
 context.Zotero.Prefs.values["extensions.pdfImageSaver.maxDocumentImages"] = 9999;
-const hugeDocumentImages = Array.from({ length: 2001 }, (_, index) => ({ file_path: `doc-${index}.jpg` }));
-const hugeLimitedDocumentImages = limitOriginalImagesForImport({ images: hugeDocumentImages }, "document");
+const hugeDocumentImages = Array.from({ length: 2001 }, (_, index) => ({ file_path: `${helperCapOutputDir}\\doc-${index}.jpg` }));
+const hugeLimitedDocumentImages = limitOriginalImagesForImport({ output_dir: helperCapOutputDir, images: hugeDocumentImages }, "document");
 assert.strictEqual(hugeLimitedDocumentImages.images.length, 2000, "document import must truncate at the hard cap");
 assert.strictEqual(hugeLimitedDocumentImages.omittedCount, 1, "document import must report hard-cap skips");
 assert.strictEqual(hugeLimitedDocumentImages.maxImages, 2000, "document import must hard-clamp edited prefs");
+
+context.Zotero.Prefs.values["extensions.pdfImageSaver.maxPageImages"] = 10;
+const helperOutputDir = "C:\\Temp\\pdf-image-saver\\job-1";
+const helperReportWithNoise = {
+  output_dir: helperOutputDir,
+  images: [
+    {
+      file_path: `${helperOutputDir}\\image-1.JPG`,
+      content_type: "IMAGE/JPEG",
+      extension: "JPG",
+      page_number: "3",
+      occurrence: "2",
+    },
+    {
+      file_path: `${helperOutputDir}\\nested\\image-2.weird`,
+      content_type: "text/html",
+      extension: { bad: true },
+      page_index: "4",
+      occurrence: 0,
+    },
+    {
+      file_path: "C:\\Temp\\pdf-image-saver\\other\\image-3.png",
+      content_type: "image/png",
+      extension: "png",
+    },
+    {
+      file_path: { bad: true },
+      content_type: ["image/png"],
+      extension: "png",
+    },
+  ],
+};
+const normalizedHelperImages = limitOriginalImagesForImport(helperReportWithNoise, "page");
+assert.strictEqual(normalizedHelperImages.images.length, 2, "helper import must skip malformed or out-of-dir records");
+assert.strictEqual(normalizedHelperImages.invalidCount, 2, "helper import must count malformed records");
+assert.strictEqual(normalizedHelperImages.omittedCount, 2, "helper import omission count must include malformed records");
+assert.strictEqual(normalizedHelperImages.images[0].filePath, `${helperOutputDir}\\image-1.JPG`);
+assert.strictEqual(normalizedHelperImages.images[0].contentType, "image/jpeg");
+assert.strictEqual(normalizedHelperImages.images[0].extension, "jpg");
+assert.strictEqual(normalizedHelperImages.images[0].pageNumber, 3);
+assert.strictEqual(normalizedHelperImages.images[0].occurrence, 2);
+assert.strictEqual(normalizedHelperImages.images[1].contentType, "application/octet-stream");
+assert.strictEqual(normalizedHelperImages.images[1].pageNumber, 5, "helper page number must fall back to page_index + 1");
+assert.strictEqual(normalizedHelperImages.images[1].occurrence, 2, "invalid occurrence must use compact fallback");
+assert.strictEqual(
+  normalizeHelperFilePath(`${helperOutputDir.toUpperCase()}\\image-4.png`, helperOutputDir),
+  `${helperOutputDir.toUpperCase()}\\image-4.png`,
+  "Windows helper path comparison must be case-insensitive",
+);
+assert.strictEqual(
+  normalizeHelperFilePath("C:\\Temp\\pdf-image-saver\\job-10\\image.png", helperOutputDir),
+  null,
+  "helper path must not accept sibling directories with shared prefixes",
+);
+assert.strictEqual(
+  normalizeHelperFilePath(`${helperOutputDir}\\..\\other\\image.png`, helperOutputDir),
+  null,
+  "helper path must reject parent-directory escapes",
+);
+assert.strictEqual(
+  normalizeHelperFilePath(`${helperOutputDir}\\.\\nested\\..\\image-7.png`, helperOutputDir),
+  `${helperOutputDir}\\.\\nested\\..\\image-7.png`,
+  "helper path must accept normalized paths that stay inside output directory",
+);
+assert.strictEqual(
+  normalizeHelperFilePath("\\\\server\\share\\job\\image.png", "\\\\server\\share\\job"),
+  "\\\\server\\share\\job\\image.png",
+  "helper path must accept matching UNC children",
+);
+assert.strictEqual(
+  normalizeHelperFilePath("\\server\\share\\job\\image.png", "\\\\server\\share\\job"),
+  null,
+  "helper path must reject single-root paths that look like UNC children",
+);
+assert.strictEqual(
+  normalizeHelperFilePath(`${helperOutputDir}\\image-6.png`, null),
+  null,
+  "helper path must require a helper output directory",
+);
+assert.strictEqual(normalizeImageContentType({ bad: true }, "png"), "image/png");
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(normalizeOriginalImageForImport({
+    file_path: `${helperOutputDir}\\image-5.webp`,
+    content_type: "text/plain",
+    page_number: { bad: true },
+    occurrence: ["bad"],
+  }, 4, helperOutputDir))),
+  {
+    file_path: `${helperOutputDir}\\image-5.webp`,
+    filePath: `${helperOutputDir}\\image-5.webp`,
+    content_type: "image/webp",
+    contentType: "image/webp",
+    extension: "webp",
+    page_number: 1,
+    pageNumber: 1,
+    occurrence: 5,
+  },
+  "helper image normalization must produce scalar import fields",
+);
+assert.strictEqual(
+  buildOriginalImageTitle(noisyParent, noisyAttachment, { page_number: { bad: true }, occurrence: ["bad"] }),
+  "PDF - original p1 image 1",
+  "original attachment title must normalize malformed source, page, and occurrence fields",
+);
 
 const directDoc = { nodeName: "#document" };
 const directApp = { pdfViewer: { currentPageNumber: 2 } };

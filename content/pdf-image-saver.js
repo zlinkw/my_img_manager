@@ -1234,7 +1234,7 @@ var PdfImageSaver = (() => {
         scope: options.scope,
       });
       const skippedText = importResult.omittedCount
-        ? ` Skipped ${importResult.omittedCount} over safety cap ${importResult.maxImages}.`
+        ? buildOriginalImportSkippedText(importResult)
         : "";
       showReaderToast(
         reader,
@@ -1256,17 +1256,19 @@ var PdfImageSaver = (() => {
     try {
       for (const image of limited.images) {
         await Zotero.Attachments.importFromFile({
-          file: image.file_path,
+          file: image.filePath,
           parentItemID: parentID,
           libraryID: parentID ? undefined : attachment.libraryID,
           title: buildOriginalImageTitle(parentItem, attachment, image),
-          contentType: image.content_type || guessContentType(image.extension),
+          contentType: image.contentType,
         });
         count += 1;
       }
       return {
         count,
         omittedCount: limited.omittedCount,
+        invalidCount: limited.invalidCount,
+        overCapCount: limited.overCapCount,
         maxImages: limited.maxImages,
       };
     } finally {
@@ -1276,18 +1278,66 @@ var PdfImageSaver = (() => {
 
   function limitOriginalImagesForImport(report, scope) {
     const images = Array.isArray(report?.images) ? report.images : [];
+    const normalizedImages = [];
+    let invalidCount = 0;
+    images.forEach((image, index) => {
+      const normalized = normalizeOriginalImageForImport(image, index, report?.output_dir);
+      if (normalized) {
+        normalizedImages.push(normalized);
+      } else {
+        invalidCount += 1;
+      }
+    });
     const maxImages = getHelperMaxImages(scope);
+    const overCapCount = Math.max(0, normalizedImages.length - maxImages);
     return {
-      images: images.slice(0, maxImages),
-      omittedCount: Math.max(0, images.length - maxImages),
+      images: normalizedImages.slice(0, maxImages),
+      omittedCount: invalidCount + overCapCount,
+      invalidCount,
+      overCapCount,
       maxImages,
       originalCount: images.length,
     };
   }
 
+  function normalizeOriginalImageForImport(image, index, outputDir) {
+    const filePath = normalizeHelperFilePath(image?.file_path, outputDir);
+    if (!filePath) {
+      return null;
+    }
+    const extension = normalizeFileExtension(image?.extension) || getFileExtension(filePath);
+    const pageIndex = normalizePageIndex(image?.page_index, null);
+    const pageNumberFallback = pageIndex === null ? 1 : pageIndex + 1;
+    const pageNumber = normalizePageNumber(image?.page_number, pageNumberFallback);
+    const contentType = normalizeImageContentType(image?.content_type, extension);
+    return {
+      file_path: filePath,
+      filePath,
+      content_type: contentType,
+      contentType,
+      extension,
+      page_number: pageNumber,
+      pageNumber,
+      occurrence: normalizePositiveInteger(image?.occurrence, index + 1),
+    };
+  }
+
   function buildOriginalImageTitle(parentItem, attachment, image) {
-    const base = sanitizeTitle(parentItem?.getField("title") || attachment.getField("title") || "PDF");
-    return `${base} - original p${image.page_number} image ${image.occurrence}`;
+    const base = sanitizeTitle(getSourceTitle(parentItem, attachment));
+    const pageNumber = normalizePageNumber(image?.pageNumber ?? image?.page_number, 1);
+    const occurrence = normalizePositiveInteger(image?.occurrence, 1);
+    return `${base} - original p${pageNumber} image ${occurrence}`;
+  }
+
+  function buildOriginalImportSkippedText(importResult) {
+    const parts = [];
+    if (importResult.invalidCount) {
+      parts.push(`skipped ${importResult.invalidCount} malformed helper record${importResult.invalidCount === 1 ? "" : "s"}`);
+    }
+    if (importResult.overCapCount) {
+      parts.push(`skipped ${importResult.overCapCount} over safety cap ${importResult.maxImages}`);
+    }
+    return parts.length ? ` ${parts.join("; ")}.` : "";
   }
 
   async function runHelperExtraction({ attachment, pdfPath, pageIndex, scope }) {
@@ -2061,6 +2111,89 @@ var PdfImageSaver = (() => {
     }[String(extension || "").toLowerCase()] || "application/octet-stream";
   }
 
+  function normalizeImageContentType(value, extension) {
+    const contentType = normalizeMetadataText(value, null, 80)?.toLowerCase();
+    const knownTypes = new Set([
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+      "image/tiff",
+      "image/bmp",
+      "image/jp2",
+    ]);
+    return knownTypes.has(contentType) ? contentType : guessContentType(extension);
+  }
+
+  function normalizeHelperFilePath(value, outputDir) {
+    if (typeof value !== "string") {
+      return null;
+    }
+    const filePath = value.trim();
+    if (!filePath) {
+      return null;
+    }
+    const outputPath = typeof outputDir === "string" ? outputDir.trim() : "";
+    if (!outputPath) {
+      return null;
+    }
+    const normalizedFile = normalizePathForComparison(filePath);
+    const normalizedOutput = normalizePathForComparison(outputPath);
+    const outputPrefix = normalizedOutput.endsWith("/") ? normalizedOutput : `${normalizedOutput}/`;
+    return normalizedFile.startsWith(outputPrefix) ? filePath : null;
+  }
+
+  function normalizePathForComparison(path) {
+    const rawText = String(path || "")
+      .replace(/\\/g, "/")
+      .replace(/\/$/, "");
+    const uncMatch = rawText.match(/^\/{2,}([^/]+)\/([^/]+)(?:\/(.*))?$/);
+    const driveMatch = rawText.match(/^([A-Za-z]:)(?:\/|$)/);
+    let rootPrefix = "";
+    let body = rawText;
+    if (uncMatch) {
+      rootPrefix = `//${uncMatch[1]}/${uncMatch[2]}/`;
+      body = uncMatch[3] || "";
+    } else {
+      const text = rawText.replace(/\/+/g, "/");
+      rootPrefix = driveMatch ? `${driveMatch[1]}/` : (text.startsWith("/") ? "/" : "");
+      body = driveMatch ? text.slice(driveMatch[1].length) : text;
+    }
+    const parts = [];
+    for (const part of body.split("/")) {
+      if (!part || part === ".") {
+        continue;
+      }
+      if (part === "..") {
+        if (parts.length && parts[parts.length - 1] !== "..") {
+          parts.pop();
+        } else if (!rootPrefix) {
+          parts.push(part);
+        }
+        continue;
+      }
+      parts.push(part);
+    }
+    let normalized = `${rootPrefix}${parts.join("/")}`;
+    if (normalized.endsWith("/") && normalized.length > rootPrefix.length) {
+      normalized = normalized.slice(0, -1);
+    }
+    if (typeof Services !== "undefined" && Services?.appinfo?.OS === "WINNT") {
+      normalized = normalized.toLowerCase();
+    }
+    return normalized;
+  }
+
+  function normalizeFileExtension(value) {
+    const extension = normalizeMetadataText(value, null, 16)?.toLowerCase();
+    return extension && /^[a-z0-9]+$/.test(extension) ? extension : null;
+  }
+
+  function getFileExtension(filePath) {
+    const leafName = String(filePath || "").split(/[\\/]/).pop() || "";
+    const match = leafName.match(/\.([A-Za-z0-9]{1,16})$/);
+    return match ? match[1].toLowerCase() : null;
+  }
+
   function sanitizeTitle(value) {
     return String(value || "PDF image").replace(/\s+/g, " ").trim().slice(0, 90);
   }
@@ -2451,6 +2584,7 @@ var PdfImageSaver = (() => {
     __test__: {
       buildIndexHTML,
       buildIndexTitle,
+      buildOriginalImageTitle,
       buildOpenPDFURI,
       buildSourceRegion,
       calculateCanvasCrop,
@@ -2459,6 +2593,9 @@ var PdfImageSaver = (() => {
       getPDFViewerContextCandidate,
       limitOriginalImagesForImport,
       normalizeBBoxNormalized,
+      normalizeHelperFilePath,
+      normalizeImageContentType,
+      normalizeOriginalImageForImport,
       normalizePageIndex,
       normalizePageNumber,
       isPDFReader,

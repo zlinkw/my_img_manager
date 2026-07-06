@@ -217,8 +217,65 @@ if ($mainJS -notmatch "const\s+limited\s*=\s*limitOriginalImagesForImport\(repor
 if ($mainJS -match "for\s*\(\s*const\s+image\s+of\s+report\.images\s*\)") {
   throw "Original image import must not iterate raw helper report images"
 }
-if ($mainJS -notmatch "images:\s*images\.slice\(0,\s*maxImages\)") {
+if ($mainJS -notmatch "images:\s*normalizedImages\.slice\(0,\s*maxImages\)") {
   throw "Original image import limiter must truncate images to maxImages"
+}
+if ($mainJS -notmatch "const\s+normalized\s*=\s*normalizeOriginalImageForImport\(image,\s*index,\s*report\?\.output_dir\)") {
+  throw "Original image import limiter must normalize helper image records"
+}
+if ($mainJS -notmatch "function\s+normalizeOriginalImageForImport\s*\(\s*image,\s*index,\s*outputDir\s*\)") {
+  throw "Original helper image record normalizer missing"
+}
+if ($mainJS -notmatch "function\s+normalizeHelperFilePath\s*\(\s*value,\s*outputDir\s*\)") {
+  throw "Original helper file path normalizer missing"
+}
+if ($mainJS -notmatch "function\s+normalizeImageContentType\s*\(\s*value,\s*extension\s*\)") {
+  throw "Original helper content type normalizer missing"
+}
+if ($mainJS -notmatch "file:\s*image\.filePath") {
+  throw "Original image import must use normalized filePath"
+}
+if ($mainJS -match "file:\s*image\.file_path") {
+  throw "Original image import must not use raw helper file_path"
+}
+if ($mainJS -notmatch "contentType:\s*image\.contentType") {
+  throw "Original image import must use normalized contentType"
+}
+if ($mainJS -match "contentType:\s*image\.content_type") {
+  throw "Original image import must not use raw helper content_type"
+}
+if ($mainJS -notmatch "invalidCount:\s*limited\.invalidCount") {
+  throw "Original image import result must expose malformed helper record count"
+}
+if ($mainJS -notmatch "overCapCount:\s*limited\.overCapCount") {
+  throw "Original image import result must expose over-cap helper record count"
+}
+if ($mainJS -notmatch "return\s+normalizedFile\.startsWith\(outputPrefix\)\s*\?\s*filePath\s*:\s*null") {
+  throw "Original helper file paths must stay under the helper output directory"
+}
+if ($mainJS -notmatch "if\s*\(\s*!outputPath\s*\)\s*\{\s*\r?\n\s*return\s+null;") {
+  throw "Original helper file paths must require a helper output directory"
+}
+if ($mainJS -notmatch 'part\s*===\s*"\.\."[\s\S]*parts\.pop\(\)') {
+  throw "Original helper path comparison must resolve parent-directory segments"
+}
+if ($mainJS -notmatch 'part\s*===\s*"\."') {
+  throw "Original helper path comparison must resolve current-directory segments"
+}
+if ($mainJS -notmatch 'const\s+uncMatch\s*=\s*rawText\.match\(/') {
+  throw "Original helper path comparison must preserve UNC path roots"
+}
+if ($mainJS -notmatch 'rootPrefix\s*=\s*`//\$\{uncMatch\[1\]\}/\$\{uncMatch\[2\]\}/`') {
+  throw "Original helper path comparison must include UNC server and share in the root prefix"
+}
+if ($mainJS -notmatch "const\s+base\s*=\s*sanitizeTitle\(getSourceTitle\(parentItem,\s*attachment\)\)") {
+  throw "Original image title must use normalized source title"
+}
+if ($mainJS -notmatch "const\s+pageNumber\s*=\s*normalizePageNumber\(image\?\.pageNumber\s*\?\?\s*image\?\.page_number,\s*1\)") {
+  throw "Original image title must normalize page number"
+}
+if ($mainJS -notmatch "const\s+occurrence\s*=\s*normalizePositiveInteger\(image\?\.occurrence,\s*1\)") {
+  throw "Original image title must normalize occurrence"
 }
 $mainWithoutHelperMaxGetter = [regex]::Replace(
   $mainJS,

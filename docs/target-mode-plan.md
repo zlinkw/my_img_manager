@@ -1152,6 +1152,31 @@ End batch validation checklist:
 - Code review: passed; only documentation closure remained and is now resolved.
 - Git commit records B37: `72b78d3`.
 
+### B38 Optional Original Helper Report Scalar Normalization
+
+Status: in progress.
+
+Plan:
+
+- Normalize optional helper image report records before Zotero attachment import.
+- Reject malformed or out-of-temp-dir helper `file_path` values instead of passing them to `Zotero.Attachments.importFromFile`.
+- Normalize original image attachment titles using compact source title, page number, and occurrence fields.
+- Normalize helper content types and extensions to known image MIME types or safe fallback.
+- Keep default reader preview index workflow unchanged and independent of Python/PyMuPDF.
+
+Pre batch validation:
+
+- Git worktree clean at B38 start commit `262a8e5`.
+- B38 planning pass found `importOriginalImages()` passes raw `image.file_path`, `image.content_type`, and `image.extension` into Zotero import; recorded as `FAIL-20260706-081`.
+- B38 planning pass found `buildOriginalImageTitle()` uses raw Zotero fields plus raw helper `page_number` and `occurrence`, allowing noisy attachment titles; recorded as `FAIL-20260706-082`.
+- B38 implementation review found helper file path prefix checks need lexical `.` and `..` segment normalization before containment checks; recorded as `FAIL-20260706-083`.
+- B38 code review found Windows UNC helper output paths can be conflated with single-root paths if leading slashes are collapsed; recorded as `FAIL-20260706-084`.
+- Runtime/manual-install failures remain open because their close conditions need manual Zotero installation or closed-Zotero validation.
+
+End batch validation checklist:
+
+- Pending.
+
 ## Current Validation Results
 
 - `git status`: not a git repository at start.
@@ -2418,6 +2443,58 @@ End batch validation checklist:
 - Close condition: regression tests prove malformed attachment keys do not emit `[object Object]`, and static checks assert open-pdf URI key normalization.
 - Closure: `buildOpenPDFURI()` normalizes attachment keys and falls back to `UNKNOWN` for malformed keys; regression/static checks cover source link output.
 
+### FAIL-20260706-081
+
+- Batch: B38
+- Environment: optional original image helper report import path
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: `importOriginalImages()` passes raw `image.file_path`, `image.content_type`, and `image.extension` from helper reports into Zotero import.
+- Expected: original-image import uses normalized scalar fields, rejects malformed paths, and only imports files from the helper output directory.
+- Actual: malformed helper reports can send object or out-of-scope file paths and noisy content type values into `Zotero.Attachments.importFromFile`.
+- Validation update: normalize helper image records before import and add regression/static checks for path, MIME, and omission counts.
+- Close condition: tests prove invalid helper image records are skipped, out-of-temp-dir paths are rejected, content types are normalized, and import iteration uses sanitized image records only.
+
+### FAIL-20260706-082
+
+- Batch: B38
+- Environment: optional original image attachment title generation
+- Zotero version target: 9.0.5
+- Severity: P3
+- Status: open
+- Symptom: `buildOriginalImageTitle()` builds titles from raw Zotero fields and raw helper `page_number` and `occurrence`.
+- Expected: optional original image attachment titles remain compact scalar text with safe page and occurrence fallbacks.
+- Actual: malformed helper or item fields can produce `[object Object]`, `undefined`, or noisy title text.
+- Validation update: normalize original title base, page number, and occurrence before title output.
+- Close condition: regression tests prove malformed title inputs produce a compact fallback title and static checks assert normalized title generation.
+
+### FAIL-20260706-083
+
+- Batch: B38
+- Environment: optional helper file path containment checks
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: helper image file paths can contain `.` or `..` path segments before the output-directory prefix check.
+- Expected: containment checks compare normalized lexical paths so `..` cannot escape the helper output directory.
+- Actual: a string such as `output_dir\..\other\image.png` can still share the raw output prefix before path segment resolution.
+- Validation update: normalize path segments before helper output directory containment checks and add regression/static checks.
+- Close condition: tests prove sibling and `..` escape paths are rejected while nested helper output files remain accepted.
+
+### FAIL-20260706-084
+
+- Batch: B38
+- Environment: optional helper file path containment checks on Windows UNC paths
+- Zotero version target: 9.0.5
+- Severity: P2
+- Status: open
+- Symptom: UNC paths and single-root Windows paths can be conflated if leading slashes are collapsed before comparison.
+- Expected: UNC roots such as `\\server\share` remain distinct from `\server\share` style rooted paths.
+- Actual: raw slash collapsing can make different Windows path roots compare as the same prefix.
+- Validation update: preserve UNC root identity during path normalization and add regression/static checks.
+- Close condition: tests prove UNC helper output paths accept matching UNC children and reject single-root lookalikes.
+
 ## Revised Validation Checklist
 
 - Check Python executable discovery.
@@ -2495,6 +2572,11 @@ End batch validation checklist:
 - Check synced HTML preview source item metadata is scalar and compact.
 - Check synced HTML preview scope metadata and generated titles are normalized.
 - Check Zotero `open-pdf` source links normalize attachment keys before URI output.
+- Check optional original helper image records are normalized before Zotero import.
+- Check optional original helper file paths are scalar and stay inside the helper output directory.
+- Check optional original image attachment titles normalize source title, page number, and occurrence.
+- Check optional helper file path containment resolves `.` and `..` path segments before prefix comparison.
+- Check optional helper file path containment preserves Windows UNC root identity before prefix comparison.
 
 ## Real Commit Log
 
