@@ -1822,7 +1822,7 @@ End batch validation checklist:
 
 ### B62 Plan Update Regression Guard
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1843,7 +1843,12 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `2d8252f42ffa35d53674369a8958732280ac52c1cff228d057258fc560ca6364`, bytes `31409`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0, registered false, active false.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: subagent found broad/narrow guard validation and last-batch body parsing blockers; both recorded and fixed. Planning agent found malformed-options save-entry fault; recorded as `FAIL-20260706-130` for B63.
+- Git commits record B62 implementation: `cefdc62`, `c880302`.
 
 ## Current Validation Results
 
@@ -3775,12 +3780,13 @@ End batch validation checklist:
 - Environment: target-mode plan update loop
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: plan updates can record new fixes without explicitly naming the older faults or validation families that must stay protected.
 - Expected: every plan-updating batch should state which prior failure checks are protected, so a bug1 fix cannot silently cause bug2, then reintroduce bug1 or create bug3 in an endless loop.
 - Actual: current `Regression Loop Control` rules enforce IDs, closure evidence, and pending validation, but do not require a per-batch regression guard.
 - Validation update: add a B62+ `Regression guard:` rule and a static check that blocks completed batches without non-pending guard evidence.
 - Close condition: `npm.cmd run check` fails if a completed B62+ batch lacks a non-pending `Regression guard:` line, while existing `FAIL-20260706-125` and `FAIL-20260706-126` protections still pass.
+- Closure: `Regression Loop Control` now requires B62+ regression guards to cite prior `FAIL-*` IDs or explicit `validation family:` names, and `scripts/check.ps1` enforces non-placeholder guard lines while preserving existing unique-fault, close-evidence, and no-pending validation checks.
 
 ### FAIL-20260706-129
 
@@ -3788,12 +3794,13 @@ End batch validation checklist:
 - Environment: B62 target-plan regression guard static check
 - Zotero version target: 9.0.5
 - Severity: P3
-- Status: open
+- Status: closed
 - Symptom: `npm.cmd run check` rejects B62 because its regression guard says `no-pending checks`.
 - Expected: the pending-placeholder detector should reject placeholder guard text, not normal phrases that mention an existing no-pending validation family.
 - Actual: the detector matches the word `pending` anywhere in the guard line.
 - Validation update: narrow placeholder detection to guard text that is only `pending`, `todo`, or `tbd`.
 - Close condition: `npm.cmd run check` passes with the B62 `no-pending checks` regression-guard text.
+- Closure: pending-placeholder detection now rejects only guard lines whose full text is `pending`, `todo`, or `tbd`, so the B62 `no-pending checks` guard passes under `npm.cmd run check`.
 
 ### FAIL-20260706-130
 
@@ -3814,12 +3821,13 @@ End batch validation checklist:
 - Environment: B62 target-plan regression guard reference validation
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: the first guard reference detector accepts broad words like `check`, `test`, or `guard`, but can reject legitimate validation-family names that do not contain those words.
 - Expected: a B62+ `Regression guard:` line should explicitly cite prior `FAIL-*` IDs or a labeled `validation family:` entry, and placeholder text should not pass through broad keyword matches.
 - Actual: the detector can pass `pending check` and can reject non-English or domain-specific validation family names.
 - Validation update: require either a `FAIL-*` reference or an explicit `validation family:` label with non-placeholder content.
 - Close condition: `npm.cmd run check` passes with B62 fault-ID guard text and the static check no longer accepts only generic `check`, `test`, or `guard` words as evidence.
+- Closure: `scripts/check.ps1` now accepts only a `FAIL-*` reference or labeled `validation family:` content for B62+ regression guards, and `npm.cmd run check` passes with the B62 fault-ID guard.
 
 ### FAIL-20260706-132
 
@@ -3827,12 +3835,13 @@ End batch validation checklist:
 - Environment: target-plan batch-section parser
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: the batch-section regex stops only at the next batch heading or end of file.
 - Expected: each batch body should stop before the next batch or any next top-level plan section.
 - Actual: the last batch body can consume `## Current Validation Results`, failure sections, revised checklist, and real commit log, causing false passes or false failures.
 - Validation update: stop batch-section parsing at the next `### B*` heading, the next `##` top-level heading, or end of file.
 - Close condition: `npm.cmd run check` passes with batch bodies scoped before `## Current Validation Results`.
+- Closure: target-plan batch parsing now stops before the next batch heading, top-level section, or end of file, so B62 no longer consumes `## Current Validation Results`; `npm.cmd run check` passes.
 
 ## Revised Validation Checklist
 
@@ -3957,7 +3966,7 @@ End batch validation checklist:
 - Check auto-raster PDF.js image-coordinate conversion is behavior-tested for rectangle math, tiny-candidate filtering, overlap dedupe, and largest-first ordering.
 - Check recursive cleanup only removes paths under the normalized plugin temp root.
 - Check optional-helper temp output directories are created only after Python and helper script prerequisites are available.
-- Check B62+ completed batches declare non-pending regression guards for prior failures or validation families affected by their changes.
+- Check B62+ batches declare non-pending regression guards for prior failures or validation families affected by their changes.
 - Check B62+ regression-guard placeholder detection does not reject legitimate `no-pending` guard text.
 - Check B62+ regression guards cite prior `FAIL-*` IDs or explicit `validation family:` entries rather than broad generic words.
 - Check target-plan batch parsing stops before the next top-level section.
@@ -4092,3 +4101,6 @@ End batch validation checklist:
 - B60 XPI SHA256 `fb661947359cc1dbaba3da693fca5f07b5dccc4d9d378c45bfe0856ef8cee69b` was built in `outputs/` for manual Zotero add-on manager installation; plugin payload unchanged from B59.
 - `6dff38d` B61 delay helper temp creation.
 - B61 XPI SHA256 `2d8252f42ffa35d53674369a8958732280ac52c1cff228d057258fc560ca6364` was built in `outputs/` for manual Zotero add-on manager installation.
+- `cefdc62` B62 require batch regression guards.
+- `c880302` B62 tighten regression guard checks.
+- B62 XPI SHA256 `2d8252f42ffa35d53674369a8958732280ac52c1cff228d057258fc560ca6364` was built in `outputs/` for manual Zotero add-on manager installation; plugin payload unchanged from B61.
