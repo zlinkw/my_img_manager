@@ -1299,7 +1299,7 @@ End batch validation checklist:
 
 ### B43 HTML Preview Data URL Base64 Canonical Validation
 
-Status: in progress.
+Status: complete.
 
 Plan:
 
@@ -1316,7 +1316,13 @@ Pre batch validation:
 
 End batch validation checklist:
 
-- Pending.
+- `npm.cmd run test`: passed.
+- `npm.cmd run check`: passed.
+- `npm.cmd run package:manual`: passed, XPI SHA256 `8eb72ca65d77bdcf9cbeb36d3d6f4760805673f605f816af36c01a41db66c718`, bytes `29616`.
+- `npm.cmd run verify:manual`: passed; manual install status remains pending, Zotero process count 0, temp children 0.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- Code review: passed; no P0-P2 blockers found.
+- Git commit records B43 implementation: `bfef86f`.
 
 ## Current Validation Results
 
@@ -2814,12 +2820,13 @@ End batch validation checklist:
 - Environment: synced HTML preview data URL validation
 - Zotero version target: 9.0.5
 - Severity: P2
-- Status: open
+- Status: closed
 - Symptom: `normalizePreviewDataURL()` accepts base64 payloads with invalid canonical length.
 - Expected: preview data URLs must contain canonical image base64 payloads before HTML output and byte-count metadata generation.
 - Actual: malformed payloads such as `data:image/jpeg;base64,A` can pass validation, render as broken previews, and produce misleading `0 B` metadata.
 - Validation update: require base64 payload length to be divisible by four after the existing MIME/character validation and add regression/static checks.
 - Close condition: tests/static checks prove malformed base64 lengths are rejected before HTML output while normal canvas-style payloads still pass.
+- Closure: `normalizePreviewDataURL()` now captures and validates the base64 payload length, tests cover malformed length rejection and canonical padded payload acceptance, and static checks guard the validation path.
 
 ## Revised Validation Checklist
 
@@ -3008,3 +3015,5 @@ End batch validation checklist:
 - B41 XPI SHA256 `453f4a76493f1bc95dac041d3b87651bde7693a943eae5b73ff9cd0bc9cba33a` was built in `outputs/` for manual Zotero add-on manager installation.
 - `a7abc73` B42 normalize preview entry containers.
 - B42 XPI SHA256 `1938b80d2f321cf3a60d380428c82dec82c104aa3d17e6e44cc40e1c4599ac39` was built in `outputs/` for manual Zotero add-on manager installation.
+- `bfef86f` B43 validate preview data url base64.
+- B43 XPI SHA256 `8eb72ca65d77bdcf9cbeb36d3d6f4760805673f605f816af36c01a41db66c718` was built in `outputs/` for manual Zotero add-on manager installation.
