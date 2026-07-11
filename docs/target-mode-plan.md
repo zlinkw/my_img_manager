@@ -1,5 +1,7 @@
 # Target Mode Plan
 
+> Retired: background agents and target-mode execution are disabled for this repository. This file is historical reference only. New modifications must follow `PROJECT_CONSTRAINTS.md`.
+
 ## Goal
 
 Build a Zotero 9.0.5 compatible plugin for saving figure previews from the PDF currently open in the Zotero reader, with enough metadata to trace each saved preview back to its paper, attachment, page, and PDF region. Original embedded image extraction remains optional.

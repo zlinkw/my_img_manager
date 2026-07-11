@@ -1,5 +1,7 @@
 # PDF Image Saver
 
+Before modifying this project, read [PROJECT_CONSTRAINTS.md](PROJECT_CONSTRAINTS.md). It is the active project contract and explicitly disables background agents, target-mode loops, and autonomous review/planning agents for this repository.
+
 Zotero plugin for clipping figure previews from the open PDF reader and saving a small synced index attachment.
 
 ## Features
