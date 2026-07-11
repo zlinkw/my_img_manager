@@ -859,7 +859,7 @@ if ($mainJS -match "<details\s+open") {
 if ($mainJS -notmatch "Index\s+\$\{escapeHTML\(getPreviewIndexFingerprint\(previewIndexKey\)\s*\|\|\s*`"unknown`"\)") {
   throw "HTML preview header must expose compact index fingerprint"
 }
-if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}" title="Open PDF page">Open PDF</a>') {
+if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}" title="Open PDF">Open PDF</a>') {
   throw "HTML preview entries must expose a visible source PDF action"
 }
 if ($mainJS -notmatch 'title="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
@@ -1412,7 +1412,7 @@ if ($mainJS -notmatch "Saved \$\{previews\.length\} auto \$\{formatPageToastToke
 if ($mainJS -notmatch "Saving clip \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
   throw "Clip save path must show page-scoped progress toast"
 }
-if ($mainJS -notmatch "Detect auto \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
+if ($mainJS -notmatch "Auto detect \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
   throw "Auto-detect path must show page-scoped progress toast"
 }
 if ($mainJS -notmatch "Saving page \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {

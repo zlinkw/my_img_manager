@@ -151,7 +151,7 @@ var PdfImageSaver = (() => {
     group.className = "pdf-image-saver-toolbar-group";
     const select = doc.createElement("select");
     select.className = "pdf-image-saver-quality";
-    select.setAttribute?.("aria-label", "Preview Q");
+    select.setAttribute?.("aria-label", "Q");
     select.title = "Q; est size";
     for (const key of Object.keys(QUALITY)) {
       const option = doc.createElement("option");
@@ -165,12 +165,12 @@ var PdfImageSaver = (() => {
     button.type = "button";
     button.className = "pdf-image-saver-toolbar-button";
     button.textContent = "Clip";
-    button.setAttribute?.("aria-label", "Clip figure");
+    button.setAttribute?.("aria-label", "Clip");
     const autoButton = doc.createElement("button");
     autoButton.type = "button";
     autoButton.className = "pdf-image-saver-toolbar-button";
     autoButton.textContent = "Auto";
-    autoButton.setAttribute?.("aria-label", "Auto raster");
+    autoButton.setAttribute?.("aria-label", "Auto");
 
     let toolbarMode = "idle";
     let autoRasterAvailable = false;
@@ -228,9 +228,9 @@ var PdfImageSaver = (() => {
       }
       button.disabled = false;
       button.textContent = "Clip";
-      button.setAttribute?.("aria-label", "Clip figure");
+      button.setAttribute?.("aria-label", "Clip");
       autoButton.textContent = "Auto";
-      autoButton.setAttribute?.("aria-label", "Auto raster");
+      autoButton.setAttribute?.("aria-label", "Auto");
       refreshAutoButtonState();
       updateQualityTooltips();
     };
@@ -790,7 +790,7 @@ var PdfImageSaver = (() => {
 
       activeJobs.add(jobKey);
       jobAdded = true;
-      showReaderToast(reader, `Detect auto ${formatPageToastToken(pageIndex)}...`, "progress");
+      showReaderToast(reader, `Auto detect ${formatPageToastToken(pageIndex)}...`, "progress");
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -1468,7 +1468,7 @@ var PdfImageSaver = (() => {
                 <img src="${escapeHTML(entry.dataURL)}" alt="Preview ${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion)}
-              <a class="source-action" href="${escapeHTML(uri)}" title="Open PDF page">Open PDF</a>
+              <a class="source-action" href="${escapeHTML(uri)}" title="Open PDF">Open PDF</a>
             </div>
             <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
@@ -1528,7 +1528,7 @@ var PdfImageSaver = (() => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${escapeHTML(sourceTitle)} - preview index</title>
+  <title>${escapeHTML(sourceTitle)} - img index</title>
   <style>
     body { margin: 18px; font: 13px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
     header { margin-bottom: 12px; }
@@ -1553,7 +1553,7 @@ var PdfImageSaver = (() => {
 <body>
   <header>
     <h1>${escapeHTML(sourceTitle)}</h1>
-    <p class="meta">Saved ${escapeHTML(createdAt)}. HTML index; sync PDF.</p>
+    <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync PDF.</p>
     <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(previewQualityKey)}</p>
   </header>
   ${entriesHTML}
@@ -2008,7 +2008,7 @@ var PdfImageSaver = (() => {
   function buildOriginalImageIndexTitle(parentItem, attachment, images, scope) {
     const base = sanitizeTitle(getSourceTitle(parentItem, attachment)).slice(0, 70);
     const count = Array.isArray(images) ? images.length : 0;
-    return `${base} - orig index ${normalizeOriginalScope(scope)} ${count}img`.slice(0, 140);
+    return `${base} - orig ${normalizeOriginalScope(scope)} ${count}img`.slice(0, 140);
   }
 
   function buildOriginalImageIndexHTML({ attachment, parentItem, images, scope }) {
@@ -2049,7 +2049,7 @@ var PdfImageSaver = (() => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${escapeHTML(getSourceTitle(parentItem, attachment))} - orig index</title>
+  <title>${escapeHTML(getSourceTitle(parentItem, attachment))} - orig</title>
   <style>
     body { margin: 18px; font: 13px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
     h1 { font-size: 16px; margin: 0 0 4px; }
@@ -2062,7 +2062,7 @@ var PdfImageSaver = (() => {
 </head>
 <body>
   <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
-  <p class="meta">Originals ${escapeHTML(normalizedScope)}; ${normalizedImages.length} img; links open PDF.</p>
+  <p class="meta">Orig ${escapeHTML(normalizedScope)}; ${normalizedImages.length} img; open PDF.</p>
   <table>
     <thead><tr><th>Page</th><th>ID</th><th>Size</th><th>Box</th></tr></thead>
     <tbody>${rows}</tbody>

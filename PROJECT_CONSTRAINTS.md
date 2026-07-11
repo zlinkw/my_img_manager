@@ -82,6 +82,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Cancel/tooltip/validation strings and prefs duplicate labels densified; toast fallback shortened.
 - Overlay drag hints, diagnostics warnings, HTML index headers, and prefs caps labels densified.
 - Context-menu original labels, original confirm/busy toasts, and auto tooltip densified.
+- Residual toolbar/diag and HTML index labels densified further (Q/est, Clip page HTML, Auto page, Open PDF title, img/orig index titles).
 
 ### After UI Is Exhausted
 
