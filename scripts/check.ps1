@@ -767,7 +767,7 @@ if ($mainJS -notmatch "IOUtils\.exists\(filePath\)") {
 if ($mainJS -notmatch "error:\s*true") {
   throw "Original helper file status checker must expose IO errors separately"
 }
-if ($mainJS -notmatch "\$\{importResult\.errorCount\}\s+unreadable file") {
+if ($mainJS -notmatch "\$\{importResult\.errorCount\}\s+unreadable") {
   throw "Original helper import toast must expose unreadable helper files separately"
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*importOriginalImages") {
@@ -1412,13 +1412,13 @@ if ($mainJS -notmatch "Saved \$\{previews\.length\} auto \$\{formatPageToastToke
 if ($mainJS -notmatch "Saving clip \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
   throw "Clip save path must show page-scoped progress toast"
 }
-if ($mainJS -notmatch "Detecting auto \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
+if ($mainJS -notmatch "Detect auto \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
   throw "Auto-detect path must show page-scoped progress toast"
 }
 if ($mainJS -notmatch "Saving page \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
   throw "Page save path must show page-scoped progress toast"
 }
-if ($mainJS -notmatch "Helper running \$\{formatOriginalScopeToken\(scope, pageIndex\)\}\.\.\.") {
+if ($mainJS -notmatch "Helper run \$\{formatOriginalScopeToken\(scope, pageIndex\)\}\.\.\.") {
   throw "Original helper path must show scope-scoped progress toast"
 }
 if ($mainJS -notmatch "if\s*\(\s*!pythonCommands\.length\s*\)\s*\{[\s\S]*formatHelperFailure\(\{\s*status:\s*`"no_python`"") {
@@ -1438,10 +1438,10 @@ if ($mainJS -notmatch "pdf-image-saver-progress") {
   throw "Reader styles must include progress toast styling"
 }
 
-if ($mainJS -notmatch "Clip selection active; drag on page") {
+if ($mainJS -notmatch "Clip drag active") {
   throw "Clip busy mode must update aria-label"
 }
-if ($mainJS -notmatch "Auto detection running") {
+if ($mainJS -notmatch "Auto running") {
   throw "Auto busy mode must update aria-label"
 }
 if ($mainJS -notmatch 'sizeBadge\.textContent\s*=\s*`\$\{width\} x \$\{height\}`') {

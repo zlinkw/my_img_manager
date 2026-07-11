@@ -178,9 +178,9 @@ var PdfImageSaver = (() => {
       const normalizedQualityKey = normalizeQualityKey(qualityKey);
       if (toolbarMode !== "idle") {
         if (toolbarMode === "clip") {
-          autoButton.title = "Auto locked while clipping";
+          autoButton.title = "Auto locked (clip)";
         } else if (toolbarMode === "auto") {
-          autoButton.title = "Auto detection running";
+          autoButton.title = "Auto running";
         }
         return;
       }
@@ -207,22 +207,22 @@ var PdfImageSaver = (() => {
       if (toolbarMode === "clip") {
         button.disabled = true;
         button.textContent = "Drag...";
-        button.setAttribute?.("aria-label", "Clip selection active; drag on page");
-        button.title = "Clip selection active; drag on page";
+        button.setAttribute?.("aria-label", "Clip drag active");
+        button.title = "Clip drag active";
         autoButton.disabled = true;
         autoButton.textContent = "Auto";
-        autoButton.setAttribute?.("aria-label", "Auto locked while clipping");
+        autoButton.setAttribute?.("aria-label", "Auto locked (clip)");
         refreshAutoButtonState();
         return;
       }
       if (toolbarMode === "auto") {
         button.disabled = true;
         button.textContent = "Clip";
-        button.setAttribute?.("aria-label", "Clip locked while auto runs");
-        button.title = "Clip locked while auto runs";
+        button.setAttribute?.("aria-label", "Clip locked (auto)");
+        button.title = "Clip locked (auto)";
         autoButton.disabled = true;
         autoButton.textContent = "Auto...";
-        autoButton.setAttribute?.("aria-label", "Auto detection running");
+        autoButton.setAttribute?.("aria-label", "Auto running");
         refreshAutoButtonState();
         return;
       }
@@ -637,7 +637,7 @@ var PdfImageSaver = (() => {
       const rect = normalizedRect(start, end);
       endSession();
       if (rect.width < 12 || rect.height < 12) {
-        showReaderToast(reader, `Selection too small ${formatPageToastToken(pageIndex)}.`, "warning");
+        showReaderToast(reader, `Clip too small ${formatPageToastToken(pageIndex)}.`, "warning");
         return;
       }
       void saveClipPreviewIndex(reader, {
@@ -716,7 +716,7 @@ var PdfImageSaver = (() => {
         pageIndex,
       });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, `Clip already running ${formatPageToastToken(pageIndex)}.`, "warning");
+        showReaderToast(reader, `Clip busy ${formatPageToastToken(pageIndex)}.`, "warning");
         return;
       }
       activeJobs.add(jobKey);
@@ -784,13 +784,13 @@ var PdfImageSaver = (() => {
       const pageIndex = await getCurrentPageIndex(reader, safeOptions.pageIndex);
       jobKey = getReaderJobKey(reader, { scope: "auto-page", pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, `Auto already running ${formatPageToastToken(pageIndex)}.`, "warning");
+        showReaderToast(reader, `Auto busy ${formatPageToastToken(pageIndex)}.`, "warning");
         return null;
       }
 
       activeJobs.add(jobKey);
       jobAdded = true;
-      showReaderToast(reader, `Detecting auto ${formatPageToastToken(pageIndex)}...`, "progress");
+      showReaderToast(reader, `Detect auto ${formatPageToastToken(pageIndex)}...`, "progress");
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -1024,7 +1024,7 @@ var PdfImageSaver = (() => {
       const qualityKey = normalizeQualityKey(safeOptions.qualityKey);
       jobKey = getReaderJobKey(reader, { scope: "page", pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, `Page already running ${formatPageToastToken(pageIndex)}.`, "warning");
+        showReaderToast(reader, `Page busy ${formatPageToastToken(pageIndex)}.`, "warning");
         return;
       }
       activeJobs.add(jobKey);
@@ -1654,7 +1654,7 @@ var PdfImageSaver = (() => {
           : null;
       jobKey = getReaderJobKey(reader, { scope, pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, `Original already running ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
+        showReaderToast(reader, `Original busy ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
         return;
       }
 
@@ -1666,7 +1666,7 @@ var PdfImageSaver = (() => {
         showReaderToast(reader, formatHelperFailure({ status: "no_python" }), "warning");
         return;
       }
-      showReaderToast(reader, `Helper running ${formatOriginalScopeToken(scope, pageIndex)}...`, "progress");
+      showReaderToast(reader, `Helper run ${formatOriginalScopeToken(scope, pageIndex)}...`, "progress");
       const report = await runHelperExtraction({
         attachment,
         pdfPath,
@@ -1940,13 +1940,13 @@ var PdfImageSaver = (() => {
   function buildOriginalImportSkippedText(importResult) {
     const parts = [];
     if (importResult.invalidCount) {
-      parts.push(`${importResult.invalidCount} bad record${importResult.invalidCount === 1 ? "" : "s"}`);
+      parts.push(`${importResult.invalidCount} bad`);
     }
     if (importResult.missingCount) {
-      parts.push(`${importResult.missingCount} missing file${importResult.missingCount === 1 ? "" : "s"}`);
+      parts.push(`${importResult.missingCount} missing`);
     }
     if (importResult.errorCount) {
-      parts.push(`${importResult.errorCount} unreadable file${importResult.errorCount === 1 ? "" : "s"}`);
+      parts.push(`${importResult.errorCount} unreadable`);
     }
     if (importResult.byteCapCount) {
       parts.push(`${importResult.byteCapCount} byte-cap`);
@@ -2008,7 +2008,7 @@ var PdfImageSaver = (() => {
   function buildOriginalImageIndexTitle(parentItem, attachment, images, scope) {
     const base = sanitizeTitle(getSourceTitle(parentItem, attachment)).slice(0, 70);
     const count = Array.isArray(images) ? images.length : 0;
-    return `${base} - original index ${normalizeOriginalScope(scope)} ${count}img`.slice(0, 140);
+    return `${base} - orig index ${normalizeOriginalScope(scope)} ${count}img`.slice(0, 140);
   }
 
   function buildOriginalImageIndexHTML({ attachment, parentItem, images, scope }) {
@@ -2049,7 +2049,7 @@ var PdfImageSaver = (() => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${escapeHTML(getSourceTitle(parentItem, attachment))} - original index</title>
+  <title>${escapeHTML(getSourceTitle(parentItem, attachment))} - orig index</title>
   <style>
     body { margin: 18px; font: 13px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
     h1 { font-size: 16px; margin: 0 0 4px; }

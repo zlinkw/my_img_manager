@@ -1735,8 +1735,8 @@ async function assertToolbarBusyModeLocksSiblingControls() {
     assert.strictEqual(toolbarClipButton.disabled, true, "clip click must disable clip button");
     assert.strictEqual(toolbarAutoButton.disabled, true, "clip click must disable auto button");
     assert.strictEqual(toolbarSelect.disabled, true, "clip click must disable quality select");
-    assert.strictEqual(toolbarClipButton.title, "Clip selection active; drag on page", "busy clip title must describe active selection");
-    assert.strictEqual(toolbarAutoButton.title, "Auto locked while clipping", "busy auto title must describe clip lock");
+    assert.strictEqual(toolbarClipButton.title, "Clip drag active", "busy clip title must describe active selection");
+    assert.strictEqual(toolbarAutoButton.title, "Auto locked (clip)", "busy auto title must describe clip lock");
 
     // Quality change and second clip click must stay no-ops while busy.
     toolbarSelect.value = "high";
