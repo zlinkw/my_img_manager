@@ -462,14 +462,14 @@ const selectionBox = (sessionPage.child.children || []).find((node) => node.clas
 assert.ok(selectionBox, "selection overlay must include selection box");
 const sizeBadge = (selectionBox.children || []).find((node) => node.className === "pdf-image-saver-selection-size");
 assert.ok(sizeBadge, "selection box must include live size badge");
-assert.strictEqual(sessionPage.child.title, "Drag p1; Esc cancel", "clip overlay title must include page token");
+assert.strictEqual(sessionPage.child.title, "Drag p1; Esc", "clip overlay title must include page token");
 assert.strictEqual(
   sessionPage.child.getAttribute("aria-label"),
-  "Clip p1. Drag p1; Esc cancel.",
+  "Clip p1. Drag p1; Esc.",
   "clip overlay aria-label must include page token",
 );
 const sessionHint = (sessionPage.child.children || []).find((node) => node.className === "pdf-image-saver-selection-hint");
-assert.strictEqual(sessionHint?.textContent, "Drag p1; Esc cancel", "clip overlay hint must include page token");
+assert.strictEqual(sessionHint?.textContent, "Drag p1; Esc", "clip overlay hint must include page token");
 sessionPage.child.dispatch("pointerdown", { button: 0, pointerId: 1, clientX: 10, clientY: 12 });
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
 assert.strictEqual(sizeBadge.textContent, "60x40", "selection size badge must show live pixel size");
@@ -931,22 +931,22 @@ assert.strictEqual(
 );
 assert.strictEqual(
   formatAutoNoCandidatesReason("no image coords", 4),
-  "Auto skip p5: no image coords. Use Clip.",
+  "Auto skip p5: no image coords. Use clip.",
   "auto no-candidate toast must include page token and clip fallback",
 );
 assert.strictEqual(
   formatAutoNoCandidatesReason("PDF.js render API unavailable."),
-  "Auto skip: render API missing. Use Clip.",
+  "Auto skip: render API missing. Use clip.",
   "legacy auto no-candidate reason must densify",
 );
 assert.strictEqual(
   formatAutoNoCandidatesReason("runtime no coords", 0),
-  "Auto skip p1: runtime no coords. Use Clip.",
+  "Auto skip p1: runtime no coords. Use clip.",
   "runtime no-coords toast must stay compact",
 );
 assert.strictEqual(
   formatAutoNoCandidatesReason(""),
-  "Auto skip: no images. Use Clip.",
+  "Auto skip: no images. Use clip.",
   "empty auto no-candidate reason must fall back compactly",
 );
 

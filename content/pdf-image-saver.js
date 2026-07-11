@@ -524,7 +524,7 @@ var PdfImageSaver = (() => {
       if (!pageElement || !canvas) {
         throw new Error("Capture failed: canvas missing.");
       }
-      showReaderToast(reader, `Drag ${formatPageToastToken(pageIndex)}; Esc cancel.`, "info");
+      showReaderToast(reader, `Drag ${formatPageToastToken(pageIndex)}; Esc.`, "info");
       installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex, {
         onSessionEnd,
       });
@@ -554,7 +554,7 @@ var PdfImageSaver = (() => {
     overlay.className = "pdf-image-saver-selection-overlay";
     overlay.setAttribute?.("role", "application");
     const pageToken = formatPageToastToken(pageIndex);
-    const dragHint = `Drag ${pageToken}; Esc cancel`;
+    const dragHint = `Drag ${pageToken}; Esc`;
     overlay.setAttribute?.("aria-label", `Clip ${pageToken}. ${dragHint}.`);
     overlay.title = dragHint;
     overlay.__pdfImageSaverOnSessionEnd = onSessionEnd;
@@ -637,7 +637,7 @@ var PdfImageSaver = (() => {
       const rect = normalizedRect(start, end);
       endSession();
       if (rect.width < 12 || rect.height < 12) {
-        showReaderToast(reader, `Clip too small ${formatPageToastToken(pageIndex)}.`, "warning");
+        showReaderToast(reader, `Clip tiny ${formatPageToastToken(pageIndex)}.`, "warning");
         return;
       }
       void saveClipPreviewIndex(reader, {
@@ -996,7 +996,7 @@ var PdfImageSaver = (() => {
               : text === "No auto images."
                 ? "no images"
                 : text.replace(/\.$/, "");
-    return `Auto skip${pageToken}: ${compact}. Use Clip.`;
+    return `Auto skip${pageToken}: ${compact}. Use clip.`;
   }
 
   function formatPreviewDuplicateSkipReason(scope, reason, pageIndex = null) {
@@ -1373,7 +1373,7 @@ var PdfImageSaver = (() => {
       return;
     }
     button.disabled = true;
-    button.title = "Auto n/a; use Clip.";
+    button.title = "Auto n/a; use clip.";
   }
 
   function supportsPDFJSImageCoordinates(pdfPage) {
@@ -1553,7 +1553,7 @@ var PdfImageSaver = (() => {
 <body>
   <header>
     <h1>${escapeHTML(sourceTitle)}</h1>
-    <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync PDF.</p>
+    <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync.</p>
     <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(previewQualityKey)}</p>
   </header>
   ${entriesHTML}
@@ -1681,7 +1681,7 @@ var PdfImageSaver = (() => {
           reader,
           helperStatus === "missing_pymupdf" || helperStatus === "no_python"
             ? helperMessage
-            : `${helperMessage} Use Clip.`,
+            : `${helperMessage} Use clip.`,
           "warning",
         );
         return;

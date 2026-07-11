@@ -66,6 +66,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Dense reader toolbar, menus, overlays, toasts, diagnostics, prefs, and HTML index labels landed.
 - Tools menu labels, diagnostic booleans, auto n/a tooltip, and toolbar chrome densified further.
 - Success toasts and prefs labels densified further (OK *, Q/Dups/Index MB/Python, sess+saved).
+- Overlay drag/Esc and clip-tiny wording densified; Clip fallback lowercase for scan density.
 - Category prefixes stay fixed: `Capture failed:`, `Helper:`, `Storage failed:`, `Byte cap:`, `Auto/Clip/Page skip`.
 - Session vs saved duplicate wording and page/doc scope tokens remain required.
 - Toolbar widths/aria stay stable in busy modes; toast reuses one element; quality estimates stay visible.
