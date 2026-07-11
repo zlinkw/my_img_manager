@@ -111,6 +111,8 @@ const {
   confirmAndSaveOriginalImagesFromReader,
   filterExistingOriginalImagesForImport,
   formatAutoDuplicateSkipReason,
+  formatPreviewDuplicateSkipReason,
+  classifyPreviewDuplicateSkipReason,
   formatDiagnosticsReport,
   formatHelperFailure,
   getErrorMessage,
@@ -778,6 +780,21 @@ assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 1, skippedOversized: 1 }),
   "No detected previews were saved: some were already saved in this Zotero session; others exceeded the per-preview byte cap.",
   "mixed session duplicate and oversized feedback must mention both causes",
+);
+assert.strictEqual(
+  formatPreviewDuplicateSkipReason("clip", "session"),
+  "This preview was already saved in this Zotero session.",
+  "clip duplicate feedback must distinguish session memory",
+);
+assert.strictEqual(
+  formatPreviewDuplicateSkipReason("page", "saved"),
+  "This page preview was already saved in a synced HTML index.",
+  "page duplicate feedback must distinguish synced indexes",
+);
+assert.strictEqual(
+  formatPreviewDuplicateSkipReason("auto-page", "saved"),
+  "This detected preview index was already saved in a synced HTML index.",
+  "auto-page duplicate feedback must distinguish synced indexes",
 );
 
 const singleIndexKey = getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "medium");
@@ -1751,6 +1768,16 @@ async function runAsyncAssertions() {
     true,
     "persisted source_region_key must detect same-region duplicates across preview quality changes",
   );
+  assert.strictEqual(
+    await classifyPreviewDuplicateSkipReason({
+      parentItem: parentWithRenamedIndex,
+      indexKey: multiIndexKey,
+      memoryKeys: [getPreviewDuplicateKey(htmlAttachment, htmlEntry)],
+      sourceRegionKeys: [],
+    }),
+    "saved",
+    "persisted index hits must classify as saved skips",
+  );
   const duplicateScannerItems = context.Zotero.Items;
   context.Zotero.Items = { get() { return null; } };
   assert.strictEqual(
@@ -1773,6 +1800,16 @@ async function runAsyncAssertions() {
     }),
     true,
     "in-session source_region_key cache must detect same-region duplicates across preview quality changes",
+  );
+  assert.strictEqual(
+    await classifyPreviewDuplicateSkipReason({
+      parentItem: null,
+      indexKey: getPreviewIndexKey(htmlAttachment, [differentQualitySameRegionEntry], "clip", "high"),
+      memoryKeys: [getPreviewDuplicateKey(htmlAttachment, differentQualitySameRegionEntry)],
+      sourceRegionKeys: [getSourceRegionKey(htmlAttachment, differentQualitySameRegionEntry)],
+    }),
+    "session",
+    "session source-region cache hits must classify as session skips",
   );
   context.Zotero.Items = duplicateScannerItems;
   assert.strictEqual(
@@ -2222,8 +2259,96 @@ async function runAsyncAssertions() {
   );
 }
 
+function createPreferenceElement(initial = {}) {
+  return {
+    value: "",
+    checked: false,
+    textContent: "",
+    listeners: Object.create(null),
+    appendChild() {
+      return this;
+    },
+    addEventListener(type, listener) {
+      if (!this.listeners[type]) {
+        this.listeners[type] = [];
+      }
+      this.listeners[type].push(listener);
+    },
+    dispatch(type) {
+      for (const listener of this.listeners[type] || []) {
+        listener({ type, target: this });
+      }
+    },
+    ...initial,
+  };
+}
+
+function createPreferenceDocument() {
+  const elements = new Map();
+  for (const id of [
+    "pdf-image-saver-default-quality",
+    "pdf-image-saver-duplicate-guard",
+    "pdf-image-saver-auto-max-images",
+    "pdf-image-saver-auto-max-preview-mb",
+    "pdf-image-saver-max-index-mb",
+    "pdf-image-saver-prefs-status",
+  ]) {
+    elements.set(id, createPreferenceElement());
+  }
+  return {
+    documentElement: createPreferenceElement(),
+    createElement() {
+      return createPreferenceElement();
+    },
+    getElementById(id) {
+      return elements.get(id) || null;
+    },
+  };
+}
+
+function assertPreferenceStatusRendering() {
+  const preferencesSource = fs.readFileSync(path.join(root, "content", "preferences.js"), "utf8");
+  const prefDoc = createPreferenceDocument();
+  prefDoc.getElementById("pdf-image-saver-default-quality").value = "high";
+  prefDoc.getElementById("pdf-image-saver-duplicate-guard").checked = true;
+  prefDoc.getElementById("pdf-image-saver-auto-max-images").value = "6";
+  prefDoc.getElementById("pdf-image-saver-auto-max-preview-mb").value = "3";
+  prefDoc.getElementById("pdf-image-saver-max-index-mb").value = "5";
+  const prefContext = {
+    document: prefDoc,
+    Zotero: {
+      Prefs: {
+        get(key) {
+          const values = {
+            "extensions.pdfImageSaver.defaultQuality": "medium",
+            "extensions.pdfImageSaver.duplicateGuard": true,
+            "extensions.pdfImageSaver.autoDetectMaxImages": 8,
+            "extensions.pdfImageSaver.autoMaxPreviewBytesMB": 4,
+            "extensions.pdfImageSaver.maxIndexBytesMB": 6,
+          };
+          return values[key];
+        },
+      },
+    },
+  };
+  vm.createContext(prefContext);
+  vm.runInContext(preferencesSource, prefContext, { filename: "preferences.js" });
+  prefContext.PdfImageSaverPreferences.init();
+  const status = prefDoc.getElementById("pdf-image-saver-prefs-status");
+  assert.ok(status.textContent.includes("Storage mode: compact Zotero HTML preview indexes"), "preference status must render storage mode");
+  assert.ok(status.textContent.includes("Preview quality: High, 180-750 KB/image"), "preference status must render selected quality estimate");
+  assert.ok(status.textContent.includes("Duplicate guard: on"), "preference status must render duplicate guard state");
+  assert.ok(status.textContent.includes("Auto page limit: up to 6 candidates"), "preference status must render auto page limit");
+  assert.ok(status.textContent.includes("Auto preview cap: 3 MB"), "preference status must render auto preview cap");
+  assert.ok(status.textContent.includes("Synced HTML index cap: 5 MB"), "preference status must render HTML index cap");
+  prefDoc.getElementById("pdf-image-saver-default-quality").value = "low";
+  prefDoc.getElementById("pdf-image-saver-default-quality").dispatch("change");
+  assert.ok(status.textContent.includes("Preview quality: Low, 20-80 KB/image"), "preference status must refresh after quality change");
+}
+
 runAsyncAssertions()
   .then(() => {
+    assertPreferenceStatusRendering();
     console.log("open-pdf uri tests ok");
   })
   .catch((error) => {

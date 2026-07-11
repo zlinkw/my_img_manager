@@ -51,8 +51,8 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 ## Optimization Backlog
 
-- Improve preference/status UI so current storage mode, caps, and manual install state are easier to verify.
-- Reduce duplicate-save confusion by showing whether a skip came from in-session memory, existing index metadata, or byte caps.
+- Improve preference/status UI further with install/source diagnostics when needed; current prefs already surface storage mode, quality, caps, and duplicate-guard state.
+- Keep duplicate-skip messaging specific as new save paths are added; clip/page/auto already distinguish session memory, synced HTML indexes, and byte caps.
 - Tighten smoke scripts around Zotero 9.0.5 registration and manual add-on install status.
 - Keep optional original extraction isolated from the main preview workflow and make helper absence quieter.
 - Compact or archive old historical target-mode notes when they slow navigation, while preserving useful failure IDs and lessons.

@@ -1302,6 +1302,15 @@ if ($mainJS -notmatch "if\s*\(\s*!options\?\.allowLegacyFallback\s*\)\s*\{\s*\r?
 if ($mainJS -notmatch "async\s+function\s+isDuplicatePreviewIndexSave\s*\(\s*\{\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\],\s*sourceRegionKeys\s*=\s*\[\]\s*\}\s*\)") {
   throw "Duplicate guard must combine in-session and persisted index checks"
 }
+if ($mainJS -notmatch "async\s+function\s+classifyPreviewDuplicateSkipReason\s*\(\s*\{\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\],\s*sourceRegionKeys\s*=\s*\[\]\s*\}\s*\)") {
+  throw "Duplicate guard must classify session vs saved skip reasons"
+}
+if ($mainJS -notmatch "function\s+formatPreviewDuplicateSkipReason\s*\(\s*scope,\s*reason\s*\)") {
+  throw "Manual preview duplicate feedback formatter missing"
+}
+if ($mainJS -notmatch "already saved in this Zotero session" -or $mainJS -notmatch "already saved in a synced HTML index") {
+  throw "Manual preview duplicate feedback must distinguish session memory and synced indexes"
+}
 if ($mainJS -notmatch "function\s+formatAutoDuplicateSkipReason\s*\(\s*\{[\s\S]*skippedSessionDuplicates\s*=\s*0,[\s\S]*skippedSavedDuplicates\s*=\s*0,[\s\S]*skippedByteLimit\s*=\s*0,[\s\S]*skippedOversized\s*=\s*0,[\s\S]*\}\s*=\s*\{\}\s*\)") {
   throw "Auto-page duplicate feedback formatter missing"
 }
@@ -1318,8 +1327,8 @@ foreach ($saveEntry in @($clipSaveEntry, $autoSaveEntry, $pageSaveEntry)) {
   if ($saveEntry.Value -notmatch "getPreviewIndexKey\(attachment") {
     throw "Reader preview save entries must compute stable preview index keys"
   }
-  if ($saveEntry.Value -notmatch "isDuplicatePreviewIndexSave") {
-    throw "Reader preview save entries must check persisted duplicate index saves"
+  if ($saveEntry.Value -notmatch "classifyPreviewDuplicateSkipReason") {
+    throw "Reader preview save entries must classify session vs saved duplicate skips"
   }
   if ($saveEntry.Value -notmatch "rememberPreviewIndexSave") {
     throw "Reader preview save entries must remember stable preview index keys after import"

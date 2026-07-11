@@ -596,14 +596,17 @@ var PdfImageSaver = (() => {
       const preview = renderCanvasPreview({ ...safeOptions, pageIndex, qualityKey });
       const duplicateKey = getPreviewDuplicateKey(attachment, preview);
       const indexKey = getPreviewIndexKey(attachment, [preview], "clip", qualityKey);
-      if (getBoolPref("duplicateGuard", true) && await isDuplicatePreviewIndexSave({
-        parentItem,
-        indexKey,
-        memoryKeys: [duplicateKey],
-        sourceRegionKeys: [getSourceRegionKey(attachment, preview)],
-      })) {
-        showReaderToast(reader, "This preview was already saved.", "warning");
-        return null;
+      if (getBoolPref("duplicateGuard", true)) {
+        const skipReason = await classifyPreviewDuplicateSkipReason({
+          parentItem,
+          indexKey,
+          memoryKeys: [duplicateKey],
+          sourceRegionKeys: [getSourceRegionKey(attachment, preview)],
+        });
+        if (skipReason) {
+          showReaderToast(reader, formatPreviewDuplicateSkipReason("clip", skipReason), "warning");
+          return null;
+        }
       }
       const indexPath = await createIndexHTML({
         attachment,
@@ -741,14 +744,17 @@ var PdfImageSaver = (() => {
       }
 
       const indexKey = getPreviewIndexKey(attachment, previews, "auto-page", qualityKey);
-      if (duplicateGuard && await isDuplicatePreviewIndexSave({
-        parentItem,
-        indexKey,
-        memoryKeys: previews.map((preview) => getPreviewDuplicateKey(attachment, preview)),
-        sourceRegionKeys: previews.map((preview) => getSourceRegionKey(attachment, preview)),
-      })) {
-        showReaderToast(reader, "This detected preview index was already saved.", "warning");
-        return null;
+      if (duplicateGuard) {
+        const skipReason = await classifyPreviewDuplicateSkipReason({
+          parentItem,
+          indexKey,
+          memoryKeys: previews.map((preview) => getPreviewDuplicateKey(attachment, preview)),
+          sourceRegionKeys: previews.map((preview) => getSourceRegionKey(attachment, preview)),
+        });
+        if (skipReason) {
+          showReaderToast(reader, formatPreviewDuplicateSkipReason("auto-page", skipReason), "warning");
+          return null;
+        }
       }
 
       const indexPath = await createIndexHTML({
@@ -838,6 +844,21 @@ var PdfImageSaver = (() => {
     return "Detected previews exceeded the auto-save byte cap.";
   }
 
+  function formatPreviewDuplicateSkipReason(scope, reason) {
+    const kind = reason === "session"
+      ? "already saved in this Zotero session"
+      : reason === "saved"
+        ? "already saved in a synced HTML index"
+        : "already saved";
+    if (scope === "page") {
+      return `This page preview was ${kind}.`;
+    }
+    if (scope === "auto-page") {
+      return `This detected preview index was ${kind}.`;
+    }
+    return `This preview was ${kind}.`;
+  }
+
   async function savePagePreviewIndex(reader, options = {}) {
     let jobKey = null;
     let jobAdded = false;
@@ -876,14 +897,17 @@ var PdfImageSaver = (() => {
       });
       const duplicateKey = getPreviewDuplicateKey(attachment, preview);
       const indexKey = getPreviewIndexKey(attachment, [preview], "page", qualityKey);
-      if (getBoolPref("duplicateGuard", true) && await isDuplicatePreviewIndexSave({
-        parentItem,
-        indexKey,
-        memoryKeys: [duplicateKey],
-        sourceRegionKeys: [getSourceRegionKey(attachment, preview)],
-      })) {
-        showReaderToast(reader, "This page preview was already saved.", "warning");
-        return;
+      if (getBoolPref("duplicateGuard", true)) {
+        const skipReason = await classifyPreviewDuplicateSkipReason({
+          parentItem,
+          indexKey,
+          memoryKeys: [duplicateKey],
+          sourceRegionKeys: [getSourceRegionKey(attachment, preview)],
+        });
+        if (skipReason) {
+          showReaderToast(reader, formatPreviewDuplicateSkipReason("page", skipReason), "warning");
+          return;
+        }
       }
       const indexPath = await createIndexHTML({
         attachment,
@@ -3190,24 +3214,36 @@ var PdfImageSaver = (() => {
   }
 
   async function isDuplicatePreviewIndexSave({ parentItem, indexKey, memoryKeys = [], sourceRegionKeys = [] }) {
+    return !!(await classifyPreviewDuplicateSkipReason({
+      parentItem,
+      indexKey,
+      memoryKeys,
+      sourceRegionKeys,
+    }));
+  }
+
+  async function classifyPreviewDuplicateSkipReason({ parentItem, indexKey, memoryKeys = [], sourceRegionKeys = [] }) {
     const normalizedIndexKey = normalizePreviewIndexKey(indexKey);
     if (!normalizedIndexKey) {
-      return false;
+      return null;
     }
     if (recentIndexSaves.has(normalizedIndexKey)) {
-      return true;
+      return "session";
     }
     for (const memoryKey of Array.isArray(memoryKeys) ? memoryKeys : []) {
       if (recentIndexSaves.has(memoryKey)) {
-        return true;
+        return "session";
       }
     }
     for (const sourceRegionKey of normalizeSourceRegionKeys(sourceRegionKeys)) {
       if (recentIndexSaves.has(sourceRegionKey)) {
-        return true;
+        return "session";
       }
     }
-    return await hasExistingPreviewIndexAttachment(parentItem, normalizedIndexKey, memoryKeys, sourceRegionKeys);
+    if (await hasExistingPreviewIndexAttachment(parentItem, normalizedIndexKey, memoryKeys, sourceRegionKeys)) {
+      return "saved";
+    }
+    return null;
   }
 
   function rememberPreviewIndexSave(attachment, entries, indexKey) {
@@ -3624,6 +3660,8 @@ var PdfImageSaver = (() => {
       filterExistingOriginalImagesForImport,
       formatDiagnosticsReport,
       formatAutoDuplicateSkipReason,
+      formatPreviewDuplicateSkipReason,
+      classifyPreviewDuplicateSkipReason,
       formatHelperFailure,
       getErrorMessage,
       getActiveReader,
