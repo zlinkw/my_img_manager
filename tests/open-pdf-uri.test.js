@@ -1639,7 +1639,7 @@ applyAutoRasterButtonState(autoRasterStateButton, true, "high");
 assert.strictEqual(autoRasterStateButton.disabled, false, "available auto-raster state must re-enable the button");
 assert.strictEqual(
   autoRasterStateButton.title,
-  "Auto page raster; High; 180-750 KB",
+  "Auto page; High; 180-750 KB",
   "available auto-raster state must restore selected quality tooltip",
 );
 

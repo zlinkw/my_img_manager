@@ -78,7 +78,7 @@ var PdfImageSaver = (() => {
       : doc.createElement("menuitem");
     menuitem.id = "pdf-image-saver-tools-menuitem";
     menuitem.setAttribute("label", "PDF Img: Clip");
-    menuitem.setAttribute("tooltiptext", "Clip page to HTML index");
+    menuitem.setAttribute("tooltiptext", "Clip page HTML");
     menuitem.addEventListener("command", () => {
       void startClipFromActiveReader(win, getDefaultQualityKey());
     });
@@ -87,7 +87,7 @@ var PdfImageSaver = (() => {
       : doc.createElement("menuitem");
     diagnosticsItem.id = "pdf-image-saver-diagnostics-menuitem";
     diagnosticsItem.setAttribute("label", "PDF Img: Diag");
-    diagnosticsItem.setAttribute("tooltiptext", "Runtime, open-PDF, helper, temp");
+    diagnosticsItem.setAttribute("tooltiptext", "Runtime/open/helper/temp");
     diagnosticsItem.addEventListener("command", () => {
       void showDiagnostics(win);
     });
@@ -152,7 +152,7 @@ var PdfImageSaver = (() => {
     const select = doc.createElement("select");
     select.className = "pdf-image-saver-quality";
     select.setAttribute?.("aria-label", "Preview Q");
-    select.title = "Q; approx sync size";
+    select.title = "Q; est size";
     for (const key of Object.keys(QUALITY)) {
       const option = doc.createElement("option");
       option.value = key;
@@ -270,7 +270,7 @@ var PdfImageSaver = (() => {
         return;
       }
       select.title = `Q ${getQualityLabelWithEstimate(qualityKey)}`;
-      button.title = buildToolbarActionTooltip("Clip page to HTML index", qualityKey);
+      button.title = buildToolbarActionTooltip("Clip page HTML", qualityKey);
       refreshAutoButtonState(qualityKey);
     };
     select.addEventListener("change", () => {
@@ -463,14 +463,14 @@ var PdfImageSaver = (() => {
       `Plugin ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}; Zotero ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
       `On ${formatDiagnosticBoolean(safeReport.started)}; readers ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}; PDF ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
       `Q ${normalizeQualityKey(safeReport.default_quality)}; auto ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
-      `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; orig optional`,
+      `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; orig opt`,
       `Temp ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)}); ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 160)}`,
     ];
     if (safeReport.pdf_attachment) {
       lines.push(
         `PDF ${normalizeItemKey(pdfAttachment.key, "UNKNOWN")}; lib ${normalizeDiagnosticText(safeReport.library_prefix, "library", 80)}; parent ${normalizeDiagnosticText(pdfAttachment.parent_id, "none", 80)}`,
         `Page ${pageNumber}${pageLabel ? ` (${pageLabel})` : ""}; auto ${formatDiagnosticBoolean(safeReport.auto_raster_available)}`,
-        `Open ${normalizeDiagnosticText(safeReport.open_pdf_uri, "unavailable", 240)}`,
+        `Open ${normalizeDiagnosticText(safeReport.open_pdf_uri, "n/a", 240)}`,
       );
     }
     if (warnings.length) {
@@ -1369,7 +1369,7 @@ var PdfImageSaver = (() => {
     }
     if (isAvailable) {
       button.disabled = false;
-      button.title = buildToolbarActionTooltip("Auto page raster", qualityKey);
+      button.title = buildToolbarActionTooltip("Auto page", qualityKey);
       return;
     }
     button.disabled = true;
