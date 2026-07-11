@@ -1527,9 +1527,16 @@ if ($mainJS -notmatch "function\s+normalizeErrorMessageText\s*\(\s*value\s*\)[\s
 if ($mainJS -notmatch "text\s*===\s*`"undefined`"[\s\S]*text\s*===\s*`"null`"[\s\S]*text\s*===\s*`"\[object Object\]`"") {
   throw "Error message text normalizer must reject noisy stringified values"
 }
-if ($mainJS -notmatch "function\s+showToastInDocument\s*\(\s*doc\s*,\s*message\s*,\s*level\s*\)[\s\S]*return\s+false;[\s\S]*doc\.body\.appendChild\(toast\)[\s\S]*return\s+true;") {
+if ($mainJS -notmatch "function\s+showToastInDocument\s*\(\s*doc\s*,\s*message\s*,\s*level\s*\)[\s\S]*return\s+false;[\s\S]*return\s+true;") {
   throw "Reader toast document renderer must return whether toast display succeeded"
 }
+if ($mainJS -notmatch "const\s+toast\s*=\s*existing\s*\|\|\s*doc\.createElement\(`"div`"\)") {
+  throw "Reader toast must reuse existing toast element when updating"
+}
+if ($mainJS -notmatch "if\s*\(\s*!existing\s*\)\s*\{[\s\S]*doc\.body\.appendChild\(toast\)") {
+  throw "Reader toast must append only when creating a new toast element"
+}
+
 if ($mainJS -notmatch "function\s+showFallbackAlert\s*\(\s*fallbackWindow\s*,\s*message\s*\)[\s\S]*Services\.prompt\.alert\(fallbackWindow,\s*`"PDF Img`",\s*message\)") {
   throw "Reader toast fallback alert helper missing"
 }

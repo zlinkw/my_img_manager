@@ -2754,13 +2754,14 @@ var PdfImageSaver = (() => {
     if (existing?.__pdfImageSaverToastTimer && doc.defaultView?.clearTimeout) {
       doc.defaultView.clearTimeout(existing.__pdfImageSaverToastTimer);
     }
-    existing?.remove();
-    const toast = doc.createElement("div");
+    const toast = existing || doc.createElement("div");
     toast.id = "pdf-image-saver-toast";
     toast.className = `pdf-image-saver-toast pdf-image-saver-${level || "info"}`;
     toast.setAttribute?.("role", level === "progress" ? "status" : "alert");
     toast.textContent = message;
-    doc.body.appendChild(toast);
+    if (!existing) {
+      doc.body.appendChild(toast);
+    }
     if (doc.defaultView?.setTimeout) {
       toast.__pdfImageSaverToastTimer = doc.defaultView.setTimeout(() => {
         if (toast.isConnected) {
@@ -2813,13 +2814,13 @@ var PdfImageSaver = (() => {
       }
       .pdf-image-saver-toast {
         position: fixed;
-        right: 16px;
-        bottom: 16px;
+        right: 14px;
+        bottom: 14px;
         z-index: 999999;
-        max-width: min(380px, calc(100vw - 32px));
-        padding: 8px 10px;
-        border-radius: 5px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        max-width: min(360px, calc(100vw - 28px));
+        padding: 7px 9px;
+        border-radius: 4px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
         background: #222;
         color: #fff;
         font: 12px system-ui, sans-serif;

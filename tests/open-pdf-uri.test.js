@@ -484,8 +484,9 @@ showReaderToast(
   { bad: true },
   { level: "bad" },
 );
-assert.strictEqual(readerToastDoc.bodyChildren[1].textContent, "PDF Img notification.", "malformed toast messages must normalize to compact fallback text");
-assert.strictEqual(readerToastDoc.bodyChildren[1].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
+assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "toast updates must reuse the existing toast element");
+assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img notification.", "malformed toast messages must normalize to compact fallback text");
+assert.strictEqual(readerToastDoc.bodyChildren[0].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
 
 context.Services.prompt.alerts = [];
 showReaderToast(null, new Error("Structured failure"), "fatal");
