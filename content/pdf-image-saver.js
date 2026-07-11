@@ -751,7 +751,7 @@ var PdfImageSaver = (() => {
       });
       showReaderToast(
         reader,
-        `Saved clip (${formatBytes(preview.byteCount)}).`,
+        `Saved clip (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`,
         "success",
       );
       rememberPreviewIndexSave(attachment, [preview], indexKey);
@@ -916,7 +916,7 @@ var PdfImageSaver = (() => {
       }
       showReaderToast(
         reader,
-        `Saved ${previews.length} auto (${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
+        `Saved ${previews.length} auto (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
         "success",
       );
       return imported;
@@ -1054,7 +1054,7 @@ var PdfImageSaver = (() => {
         indexKey,
       });
       rememberPreviewIndexSave(attachment, [preview], indexKey);
-      showReaderToast(reader, `Saved page (${formatBytes(preview.byteCount)}).`, "success");
+      showReaderToast(reader, `Saved page (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`, "success");
     } catch (error) {
       logError(error);
       showReaderToast(reader, formatUserFacingError(error), "error");
