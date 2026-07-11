@@ -1419,12 +1419,12 @@ assert.strictEqual(
 );
 assert.strictEqual(
   formatHelperFailure({ status: "no_python" }),
-  "Helper unavailable: Python missing.",
+  "Helper: Python missing.",
   "missing python helper failure must stay compact",
 );
 assert.strictEqual(
   formatHelperFailure({ status: "missing_pymupdf" }),
-  "Helper unavailable: PyMuPDF missing.",
+  "Helper: PyMuPDF missing.",
   "missing pymupdf helper failure must stay compact",
 );
 
@@ -1592,13 +1592,13 @@ for (const noisyErrorValue of [{ bad: true }, ["bad"], null, undefined, new Erro
 }
 assert.strictEqual(getErrorMessage("x".repeat(400)).length, 320, "oversized error messages must be capped");
 assert.strictEqual(classifyErrorCategory("Byte cap: preview index is too large"), "byte_cap", "byte-cap errors must classify");
-assert.strictEqual(classifyErrorCategory("Helper unavailable: Python missing."), "helper", "helper absence must classify as helper");
+assert.strictEqual(classifyErrorCategory("Helper: Python missing."), "helper", "helper absence must classify as helper");
 assert.strictEqual(classifyErrorCategory("Storage failed: could not import preview index into Zotero."), "storage", "storage import failures must classify");
-assert.strictEqual(classifyErrorCategory("Capture failed: rendered PDF page canvas was not found."), "capture", "canvas failures must classify as capture");
+assert.strictEqual(classifyErrorCategory("Capture failed: page canvas missing."), "capture", "canvas failures must classify as capture");
 assert.strictEqual(classifyErrorCategory("Clip skip: session dup."), "duplicate", "session duplicate skips must classify");
 assert.strictEqual(
-  formatUserFacingError(new Error("rendered PDF page canvas was not found")),
-  "Capture failed: rendered PDF page canvas was not found",
+  formatUserFacingError(new Error("page canvas missing")),
+  "Capture failed: page canvas missing",
   "unprefixed capture errors must gain capture prefix",
 );
 assert.strictEqual(
@@ -2562,22 +2562,22 @@ async function runAsyncAssertions() {
   await assertSaveEntryHandlesMalformedOptions(
     saveAutoDetectedPageImagePreviews,
     "auto-raster",
-    "Capture failed: rendered PDF page canvas was not found",
+    "Capture failed: page canvas missing",
   );
   await assertSaveEntryHandlesMalformedOptions(
     savePagePreviewIndex,
     "page-preview",
-    "Capture failed: rendered PDF page canvas was not found",
+    "Capture failed: page canvas missing",
   );
   await assertSaveEntryHandlesMalformedOptions(
     saveClipPreviewIndex,
     "clip-preview",
-    "Capture failed: active reader item is not a PDF attachment",
+    "Capture failed: reader item is not a PDF",
   );
   await assertSaveEntryHandlesMalformedOptions(
     saveOriginalImagesFromReader,
     "original-image",
-    "Capture failed: active reader item is not a PDF attachment",
+    "Capture failed: reader item is not a PDF",
   );
 }
 

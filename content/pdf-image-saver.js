@@ -371,7 +371,7 @@ var PdfImageSaver = (() => {
   async function startClipFromActiveReader(win, qualityKey) {
     const reader = getActiveReader(win);
     if (!reader) {
-      Services.prompt.alert(win, "PDF Img", "Capture failed: no active Zotero PDF reader.");
+      Services.prompt.alert(win, "PDF Img", "Capture failed: no active PDF reader.");
       return;
     }
     await startClipFromReader(reader, qualityKey);
@@ -522,7 +522,7 @@ var PdfImageSaver = (() => {
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
       if (!pageElement || !canvas) {
-        throw new Error("Capture failed: rendered PDF page canvas was not found.");
+        throw new Error("Capture failed: page canvas missing.");
       }
       showReaderToast(reader, `Drag ${formatPageToastToken(pageIndex)}; Esc cancels.`, "info");
       installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex, {
@@ -795,7 +795,7 @@ var PdfImageSaver = (() => {
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
       if (!pageElement || !canvas) {
-        throw new Error("Capture failed: rendered PDF page canvas was not found.");
+        throw new Error("Capture failed: page canvas missing.");
       }
 
       const detection = await detectPageImageCandidates({
@@ -1034,7 +1034,7 @@ var PdfImageSaver = (() => {
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
       if (!pageElement || !canvas) {
-        throw new Error("Capture failed: rendered PDF page canvas was not found.");
+        throw new Error("Capture failed: page canvas missing.");
       }
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
@@ -1170,7 +1170,7 @@ var PdfImageSaver = (() => {
 
   function calculateCanvasCrop({ selectionRect, pageRect, canvasRect, canvasWidth, canvasHeight }) {
     if (!pageRect?.width || !pageRect?.height || !canvasRect?.width || !canvasRect?.height) {
-      throw new Error("Capture failed: rendered PDF page geometry is unavailable.");
+      throw new Error("Capture failed: page geometry unavailable.");
     }
     const normalizedPageRect = rectWithEdges(pageRect);
     const normalizedCanvasRect = rectWithEdges(canvasRect);
@@ -1182,7 +1182,7 @@ var PdfImageSaver = (() => {
     };
     const cropClient = intersectRects(selectionClientRect, normalizedCanvasRect);
     if (cropClient.width <= 0 || cropClient.height <= 0) {
-      throw new Error("Capture failed: selection does not overlap the rendered page canvas.");
+      throw new Error("Capture failed: selection outside canvas.");
     }
 
     const sourceX = clampInteger(
@@ -1681,7 +1681,7 @@ var PdfImageSaver = (() => {
           reader,
           helperStatus === "missing_pymupdf" || helperStatus === "no_python"
             ? helperMessage
-            : `${helperMessage} Clip still works.`,
+            : `${helperMessage} Use Clip.`,
           "warning",
         );
         return;
@@ -2561,7 +2561,7 @@ var PdfImageSaver = (() => {
     if (item?.isAttachment?.() && item.attachmentContentType === "application/pdf") {
       return item;
     }
-    throw new Error("Capture failed: active reader item is not a PDF attachment.");
+    throw new Error("Capture failed: reader item is not a PDF.");
   }
 
   async function getAttachmentPath(attachment) {
@@ -3056,10 +3056,10 @@ var PdfImageSaver = (() => {
   function formatHelperFailure(report) {
     const status = normalizeHelperStatusText(report?.status);
     if (status === "missing_pymupdf") {
-      return "Helper unavailable: PyMuPDF missing.";
+      return "Helper: PyMuPDF missing.";
     }
     if (status === "no_python") {
-      return "Helper unavailable: Python missing.";
+      return "Helper: Python missing.";
     }
     const details = normalizeHelperWarningMessages(report?.warnings).join("; ");
     return `Helper failed: ${status}${details ? ` (${details})` : ""}`;
@@ -3940,6 +3940,7 @@ var PdfImageSaver = (() => {
     if (
       text.includes("helper failed")
       || text.includes("helper unavailable")
+      || text.includes("helper:")
       || text.includes("pymupdf")
       || text.includes("python helper")
       || text.includes("optional helper")
@@ -3963,6 +3964,10 @@ var PdfImageSaver = (() => {
       || text.includes("page geometry")
       || text.includes("pdf attachment")
       || text.includes("active zotero pdf reader")
+      || text.includes("active pdf reader")
+      || text.includes("page canvas missing")
+      || text.includes("selection outside canvas")
+      || text.includes("reader item is not a pdf")
     ) {
       return "capture";
     }

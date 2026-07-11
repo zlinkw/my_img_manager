@@ -74,6 +74,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Busy toolbar titles now match locked aria labels instead of idle quality tooltips; original confirm and diagnostics titles densified.
 - Tools/menu/tooltip wording densified; HTML Open action and original index titles shortened for scanability.
 - HTML index header/meta labels and original skip notes densified; source-region map labels shortened.
+- Capture/helper failure strings densified while preserving category prefixes and Clip fallback.
 
 ### After UI Is Exhausted
 
