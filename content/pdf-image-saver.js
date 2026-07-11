@@ -592,6 +592,7 @@ var PdfImageSaver = (() => {
       }
       activeJobs.add(jobKey);
       jobAdded = true;
+      showReaderToast(reader, "Saving clip...", "progress");
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
       const preview = renderCanvasPreview({ ...safeOptions, pageIndex, qualityKey });
@@ -660,6 +661,7 @@ var PdfImageSaver = (() => {
 
       activeJobs.add(jobKey);
       jobAdded = true;
+      showReaderToast(reader, "Detecting auto previews...", "progress");
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -758,6 +760,7 @@ var PdfImageSaver = (() => {
         }
       }
 
+      showReaderToast(reader, `Saving ${previews.length} auto preview${previews.length === 1 ? "" : "s"}...`, "progress");
       const indexPath = await createIndexHTML({
         attachment,
         parentItem,
@@ -874,6 +877,7 @@ var PdfImageSaver = (() => {
       }
       activeJobs.add(jobKey);
       jobAdded = true;
+      showReaderToast(reader, "Saving page...", "progress");
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -1466,7 +1470,7 @@ var PdfImageSaver = (() => {
       const ok = Services.prompt.confirm(
         win,
         "PDF Image Saver",
-        `Save original embedded images from the ${scopeLabel}? This can store up to ${maxImages} original image attachments in Zotero, with a safety limit of ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)} per image and ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)} total per run. Preview clipping is safer for sync storage.`,
+        `Save original embeds from the ${scopeLabel}? Up to ${maxImages} attachments; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/image and ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Clip previews stay safer for sync.`,
       );
       if (!ok) {
         showReaderToast(reader, "Original cancelled.", "warning");
@@ -1501,7 +1505,7 @@ var PdfImageSaver = (() => {
       activeJobs.add(jobKey);
       jobAdded = true;
       const pdfPath = await getAttachmentPath(attachment);
-      showReaderToast(reader, "Trying optional helper...", "info");
+      showReaderToast(reader, "Running optional helper...", "progress");
       const report = await runHelperExtraction({
         attachment,
         pdfPath,
@@ -2598,7 +2602,23 @@ var PdfImageSaver = (() => {
 
   function normalizeToastLevel(level) {
     const text = normalizeMetadataText(level, "info", 24);
-    return ["info", "success", "warning", "error"].includes(text) ? text : "info";
+    return ["info", "success", "warning", "error", "progress"].includes(text) ? text : "info";
+  }
+
+  function getToastDuration(level) {
+    if (level === "error") {
+      return 8000;
+    }
+    if (level === "progress") {
+      return 120000;
+    }
+    if (level === "success") {
+      return 2800;
+    }
+    if (level === "warning") {
+      return 4200;
+    }
+    return 3200;
   }
 
   function showToastInDocument(doc, message, level) {
@@ -2607,13 +2627,23 @@ var PdfImageSaver = (() => {
     }
     ensureReaderStyles(doc);
     const existing = doc.getElementById("pdf-image-saver-toast");
+    if (existing?.__pdfImageSaverToastTimer && doc.defaultView?.clearTimeout) {
+      doc.defaultView.clearTimeout(existing.__pdfImageSaverToastTimer);
+    }
     existing?.remove();
     const toast = doc.createElement("div");
     toast.id = "pdf-image-saver-toast";
     toast.className = `pdf-image-saver-toast pdf-image-saver-${level || "info"}`;
+    toast.setAttribute?.("role", level === "progress" ? "status" : "alert");
     toast.textContent = message;
     doc.body.appendChild(toast);
-    doc.defaultView.setTimeout(() => toast.remove(), level === "error" ? 8000 : 3500);
+    if (doc.defaultView?.setTimeout) {
+      toast.__pdfImageSaverToastTimer = doc.defaultView.setTimeout(() => {
+        if (toast.isConnected) {
+          toast.remove();
+        }
+      }, getToastDuration(level));
+    }
     return true;
   }
 
@@ -2674,6 +2704,10 @@ var PdfImageSaver = (() => {
       .pdf-image-saver-success { background: #176b3a; }
       .pdf-image-saver-warning { background: #8a5a00; }
       .pdf-image-saver-error { background: #8a1f1f; }
+      .pdf-image-saver-progress {
+        background: #1f3b63;
+        border-left: 3px solid #7db7ff;
+      }
       .pdf-image-saver-selection-overlay {
         position: absolute;
         inset: 0;
@@ -2825,13 +2859,13 @@ var PdfImageSaver = (() => {
   function formatHelperFailure(report) {
     const status = normalizeHelperStatusText(report?.status);
     if (status === "missing_pymupdf") {
-      return "Optional PyMuPDF helper is unavailable.";
+      return "Helper unavailable: PyMuPDF missing.";
     }
     if (status === "no_python") {
-      return "Optional Python helper was not found.";
+      return "Helper unavailable: Python missing.";
     }
     const details = normalizeHelperWarningMessages(report?.warnings).join("; ");
-    return `Optional original extraction failed: ${status}${details ? ` (${details})` : ""}`;
+    return `Helper failed: ${status}${details ? ` (${details})` : ""}`;
   }
 
   function normalizeHelperStatusText(status) {
@@ -3681,7 +3715,9 @@ var PdfImageSaver = (() => {
       formatPreviewDuplicateSkipReason,
       classifyPreviewDuplicateSkipReason,
       formatHelperFailure,
+      getToastDuration,
       getErrorMessage,
+      normalizeToastLevel,
       getActiveReader,
       getContextPageIndex,
       getPDFViewerContextCandidate,

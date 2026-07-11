@@ -1419,8 +1419,26 @@ if ($readerToastEntry.Value -match "Services\.prompt\.alert") {
 if ($mainJS -notmatch "function\s+normalizeToastMessage\s*\(\s*message\s*\)[\s\S]*normalizeMetadataText\(message,\s*`"PDF Image Saver notification\.`",\s*280\)") {
   throw "Reader toast message normalizer missing compact fallback"
 }
-if ($mainJS -notmatch "function\s+normalizeToastLevel\s*\(\s*level\s*\)[\s\S]*\[`"info`",\s*`"success`",\s*`"warning`",\s*`"error`"\]\.includes\(text\)\s*\?\s*text\s*:\s*`"info`"") {
+if ($mainJS -notmatch "function\s+normalizeToastLevel\s*\(\s*level\s*\)[\s\S]*\[`"info`",\s*`"success`",\s*`"warning`",\s*`"error`",\s*`"progress`"\]\.includes\(text\)\s*\?\s*text\s*:\s*`"info`"") {
   throw "Reader toast level normalizer must allow only supported levels"
+}
+if ($mainJS -notmatch "function\s+getToastDuration\s*\(\s*level\s*\)[\s\S]*progress[\s\S]*120000") {
+  throw "Reader toast duration helper must keep progress toasts sticky"
+}
+if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Saving clip\.\.\.`",\s*`"progress`"\)") {
+  throw "Clip save path must show progress toast"
+}
+if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Detecting auto previews\.\.\.`",\s*`"progress`"\)") {
+  throw "Auto-detect path must show progress toast"
+}
+if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Saving page\.\.\.`",\s*`"progress`"\)") {
+  throw "Page save path must show progress toast"
+}
+if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Running optional helper\.\.\.`",\s*`"progress`"\)") {
+  throw "Original helper path must show progress toast"
+}
+if ($mainJS -notmatch "pdf-image-saver-progress") {
+  throw "Reader styles must include progress toast styling"
 }
 $diagnosticsReportEntry = [regex]::Match($mainJS, "function\s+formatDiagnosticsReport\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+normalizeDiagnosticText")
 if (!$diagnosticsReportEntry.Success) {

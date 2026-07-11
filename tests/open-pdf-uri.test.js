@@ -115,6 +115,8 @@ const {
   classifyPreviewDuplicateSkipReason,
   formatDiagnosticsReport,
   formatHelperFailure,
+  getToastDuration,
+  normalizeToastLevel,
   getErrorMessage,
   getActiveReader,
   applyAutoRasterButtonState,
@@ -1243,7 +1245,7 @@ const noisyHelperFailure = formatHelperFailure({
 for (const forbiddenHelperFailureText of ["[object Object]", "undefined", "array", "x".repeat(181)]) {
   assert.ok(!noisyHelperFailure.includes(forbiddenHelperFailureText), `helper failure text must not contain ${forbiddenHelperFailureText}`);
 }
-assert.ok(noisyHelperFailure.includes("Optional original extraction failed: unknown"), "malformed helper status must fall back to unknown");
+assert.ok(noisyHelperFailure.includes("Helper failed: unknown"), "malformed helper status must fall back to unknown");
 assert.ok(noisyHelperFailure.includes("bad <detail>"), "scalar helper warning details must be preserved");
 assert.strictEqual(normalizeHelperStatusText(["array-status"]), "unknown", "helper status arrays must fall back to unknown");
 assert.strictEqual(normalizeHelperWarningMessages({ bad: true }).length, 0, "malformed helper warning containers must not throw");
@@ -1261,9 +1263,15 @@ assert.ok(aggregatedHelperFailure.includes("schema: unknown"), "aggregated helpe
 assert.ok(!aggregatedHelperFailure.includes("[object Object]"), "aggregated helper candidate status must not leak object text");
 assert.strictEqual(
   formatHelperFailure(null),
-  "Optional original extraction failed: unknown",
+  "Helper failed: unknown",
   "missing helper reports must format to an unknown failure without throwing",
 );
+assert.strictEqual(normalizeToastLevel("progress"), "progress", "progress toast level must be accepted");
+assert.strictEqual(normalizeToastLevel("constructor"), "info", "malformed toast level must fall back to info");
+assert.strictEqual(getToastDuration("progress"), 120000, "progress toast must stay visible long enough for long-running work");
+assert.strictEqual(getToastDuration("success"), 2800, "success toast duration must stay short");
+assert.strictEqual(getToastDuration("error"), 8000, "error toast duration must stay longer");
+
 
 const directDoc = { nodeName: "#document" };
 const directApp = { pdfViewer: { currentPageNumber: 2 } };
@@ -1839,8 +1847,8 @@ async function runAsyncAssertions() {
     "malformed original confirmation options must fall back to current-page scope",
   );
   assert.ok(
-    context.Services.prompt.confirms[0].message.includes("25 MB per image")
-      && context.Services.prompt.confirms[0].message.includes("150 MB total"),
+    context.Services.prompt.confirms[0].message.includes("25 MB/image")
+      && context.Services.prompt.confirms[0].message.includes("150 MB/run"),
     "original confirmation must state per-image and total byte risk",
   );
   assert.strictEqual(
