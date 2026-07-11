@@ -177,10 +177,10 @@ var PdfImageSaver = (() => {
     const refreshAutoButtonState = (qualityKey = normalizeQualityKey(select.value)) => {
       const normalizedQualityKey = normalizeQualityKey(qualityKey);
       if (toolbarMode !== "idle") {
-        if (autoRasterAvailable) {
-          autoButton.title = buildToolbarActionTooltip("Auto current-page raster previews", normalizedQualityKey);
-        } else {
-          autoButton.title = "Auto unavailable. Use Clip.";
+        if (toolbarMode === "clip") {
+          autoButton.title = "Auto locked while clipping";
+        } else if (toolbarMode === "auto") {
+          autoButton.title = "Auto detection running";
         }
         return;
       }
@@ -208,6 +208,7 @@ var PdfImageSaver = (() => {
         button.disabled = true;
         button.textContent = "Drag...";
         button.setAttribute?.("aria-label", "Clip selection active; drag on page");
+        button.title = "Clip selection active; drag on page";
         autoButton.disabled = true;
         autoButton.textContent = "Auto";
         autoButton.setAttribute?.("aria-label", "Auto locked while clipping");
@@ -218,6 +219,7 @@ var PdfImageSaver = (() => {
         button.disabled = true;
         button.textContent = "Clip";
         button.setAttribute?.("aria-label", "Clip locked while auto runs");
+        button.title = "Clip locked while auto runs";
         autoButton.disabled = true;
         autoButton.textContent = "Auto...";
         autoButton.setAttribute?.("aria-label", "Auto detection running");
@@ -230,6 +232,7 @@ var PdfImageSaver = (() => {
       autoButton.textContent = "Auto";
       autoButton.setAttribute?.("aria-label", "Auto raster previews");
       refreshAutoButtonState();
+      updateQualityTooltips();
     };
 
     button.addEventListener("click", (domEvent) => {
@@ -263,6 +266,9 @@ var PdfImageSaver = (() => {
     });
     const updateQualityTooltips = () => {
       const qualityKey = normalizeQualityKey(select.value);
+      if (toolbarMode !== "idle") {
+        return;
+      }
       select.title = `Q ${getQualityLabelWithEstimate(qualityKey)}`;
       button.title = buildToolbarActionTooltip("Clip current page to synced HTML index", qualityKey);
       refreshAutoButtonState(qualityKey);
@@ -376,13 +382,13 @@ var PdfImageSaver = (() => {
     const report = reader
       ? await buildRuntimeDiagnostics(reader)
       : await buildRuntimeDiagnostics(null);
-    Services.prompt.alert(win, "PDF Img diagnostics", formatDiagnosticsReport(report));
+    Services.prompt.alert(win, "PDF Img Diag", formatDiagnosticsReport(report));
   }
 
   async function showReaderDiagnostics(reader) {
     const report = await buildRuntimeDiagnostics(reader);
     const win = Zotero.getMainWindow?.();
-    Services.prompt.alert(win, "PDF Img diagnostics", formatDiagnosticsReport(report));
+    Services.prompt.alert(win, "PDF Img Diag", formatDiagnosticsReport(report));
   }
 
   async function buildRuntimeDiagnostics(reader) {
@@ -1612,14 +1618,14 @@ var PdfImageSaver = (() => {
     try {
       const win = Zotero.getMainWindow?.();
       const scope = normalizeOriginalScope(safeOptions.scope);
-      const scopeLabel = scope === "document" ? "whole document" : "current page";
+      const scopeLabel = scope === "document" ? "doc" : "page";
       const maxImages = scope === "document"
         ? getHelperMaxImages("document")
         : getHelperMaxImages("page");
       const ok = Services.prompt.confirm(
         win,
         "PDF Img",
-        `Save originals from ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/image, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Clip safer for sync.`,
+        `Originals ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/image, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Clip safer.`,
       );
       if (!ok) {
         const pageIndex = normalizePageIndex(safeOptions.pageIndex, null);

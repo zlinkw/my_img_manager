@@ -1734,6 +1734,8 @@ async function assertToolbarBusyModeLocksSiblingControls() {
     assert.strictEqual(toolbarClipButton.disabled, true, "clip click must disable clip button");
     assert.strictEqual(toolbarAutoButton.disabled, true, "clip click must disable auto button");
     assert.strictEqual(toolbarSelect.disabled, true, "clip click must disable quality select");
+    assert.strictEqual(toolbarClipButton.title, "Clip selection active; drag on page", "busy clip title must describe active selection");
+    assert.strictEqual(toolbarAutoButton.title, "Auto locked while clipping", "busy auto title must describe clip lock");
 
     // Quality change and second clip click must stay no-ops while busy.
     toolbarSelect.value = "high";
@@ -2140,8 +2142,8 @@ async function runAsyncAssertions() {
   assert.strictEqual(cancelledOriginalSave, null, "malformed original confirmation options must not reject");
   assert.strictEqual(context.Services.prompt.confirms.length, 1, "original confirmation must still require an explicit prompt");
   assert.ok(
-    context.Services.prompt.confirms[0].message.includes("current page"),
-    "malformed original confirmation options must fall back to current-page scope",
+    context.Services.prompt.confirms[0].message.includes("Originals page?"),
+    "malformed original confirmation options must fall back to page scope",
   );
   assert.ok(
     context.Services.prompt.confirms[0].message.includes("25 MB/image")

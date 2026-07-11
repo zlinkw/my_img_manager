@@ -71,6 +71,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - UI-first backlog is largely exhausted; dense labels cover main surfaces including quality tooltips and page/doc-scoped progress/success/skip toasts, toast reuses one element, toolbar widths/aria stay stable in busy modes, prefs status includes live helper caps, and clip selection size badge stays on-box. Further UI work only for concrete clarity gaps.
 - Clip start/cancel/too-small toasts and original cancel feedback now carry the same page/doc tokens as progress/success toasts.
 - Auto no-candidate warnings now use the same page-scoped `Auto skip` pattern and denser runtime reasons.
+- Busy toolbar titles now match locked aria labels instead of idle quality tooltips; original confirm and diagnostics titles densified.
 
 ### After UI Is Exhausted
 
