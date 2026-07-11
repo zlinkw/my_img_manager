@@ -1530,6 +1530,12 @@ if ($mainJS -notmatch "text\s*===\s*`"undefined`"[\s\S]*text\s*===\s*`"null`"[\s
 if ($mainJS -notmatch "function\s+showToastInDocument\s*\(\s*doc\s*,\s*message\s*,\s*level\s*\)[\s\S]*return\s+false;[\s\S]*return\s+true;") {
   throw "Reader toast document renderer must return whether toast display succeeded"
 }
+if ($mainJS -notmatch "\.pdf-image-saver-toolbar-button[\s\S]*width:\s*60px[\s\S]*min-width:\s*60px") {
+  throw "Reader toolbar buttons must keep stable width during busy labels"
+}
+if ($mainJS -notmatch "\.pdf-image-saver-quality[\s\S]*width:\s*118px[\s\S]*min-width:\s*118px") {
+  throw "Reader toolbar quality select must keep stable width"
+}
 if ($mainJS -notmatch "const\s+toast\s*=\s*existing\s*\|\|\s*doc\.createElement\(`"div`"\)") {
   throw "Reader toast must reuse existing toast element when updating"
 }

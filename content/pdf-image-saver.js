@@ -2785,15 +2785,22 @@ var PdfImageSaver = (() => {
     style.textContent = `
       .pdf-image-saver-toolbar-button {
         margin: 0;
-        padding: 3px 9px;
+        padding: 3px 8px;
         border: 1px solid var(--fill-quinary, #b8b8b8);
         border-radius: 4px;
         background: var(--material-background, #fff);
         color: var(--fill-primary, #111);
         font: inherit;
         cursor: pointer;
+        box-sizing: border-box;
         min-height: 26px;
-        min-width: 52px;
+        width: 60px;
+        min-width: 60px;
+        max-width: 60px;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .pdf-image-saver-toolbar-button:hover { background: var(--fill-quinary, #eee); }
       .pdf-image-saver-toolbar-button:disabled {
@@ -2806,9 +2813,13 @@ var PdfImageSaver = (() => {
         gap: 4px;
         margin: 0 6px;
         padding: 0 2px;
+        flex: 0 0 auto;
       }
       .pdf-image-saver-quality {
-        max-width: 168px;
+        box-sizing: border-box;
+        width: 118px;
+        min-width: 118px;
+        max-width: 118px;
         min-height: 26px;
         font: inherit;
       }
