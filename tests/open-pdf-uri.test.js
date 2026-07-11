@@ -908,6 +908,16 @@ assert.strictEqual(
   "Auto skip: saved-index dup.",
   "auto-page duplicate feedback must distinguish synced indexes",
 );
+assert.strictEqual(
+  formatPreviewDuplicateSkipReason("clip", "session", 2),
+  "Clip skip p3: session dup.",
+  "clip duplicate feedback can include page token",
+);
+assert.strictEqual(
+  formatAutoDuplicateSkipReason({ skippedSavedDuplicates: 1, pageIndex: 4 }),
+  "Auto skip p5: all saved-index dups.",
+  "auto duplicate feedback can include page token",
+);
 
 const singleIndexKey = getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "medium");
 const singleIndexTitle = buildIndexTitle(htmlParent, htmlAttachment, "clip", 4, [htmlEntry], "medium", singleIndexKey);

@@ -708,12 +708,12 @@ var PdfImageSaver = (() => {
         pageIndex,
       });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, "Clip already running.", "warning");
+        showReaderToast(reader, `Clip already running ${formatPageToastToken(pageIndex)}.`, "warning");
         return;
       }
       activeJobs.add(jobKey);
       jobAdded = true;
-      showReaderToast(reader, "Saving clip...", "progress");
+      showReaderToast(reader, `Saving clip ${formatPageToastToken(pageIndex)}...`, "progress");
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
       const preview = renderCanvasPreview({ ...safeOptions, pageIndex, qualityKey });
@@ -727,7 +727,7 @@ var PdfImageSaver = (() => {
           sourceRegionKeys: [getSourceRegionKey(attachment, preview)],
         });
         if (skipReason) {
-          showReaderToast(reader, formatPreviewDuplicateSkipReason("clip", skipReason), "warning");
+          showReaderToast(reader, formatPreviewDuplicateSkipReason("clip", skipReason, pageIndex), "warning");
           return null;
         }
       }
@@ -776,13 +776,13 @@ var PdfImageSaver = (() => {
       const pageIndex = await getCurrentPageIndex(reader, safeOptions.pageIndex);
       jobKey = getReaderJobKey(reader, { scope: "auto-page", pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, "Auto already running.", "warning");
+        showReaderToast(reader, `Auto already running ${formatPageToastToken(pageIndex)}.`, "warning");
         return null;
       }
 
       activeJobs.add(jobKey);
       jobAdded = true;
-      showReaderToast(reader, "Detecting auto...", "progress");
+      showReaderToast(reader, `Detecting auto ${formatPageToastToken(pageIndex)}...`, "progress");
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -862,6 +862,7 @@ var PdfImageSaver = (() => {
           skippedSavedDuplicates,
           skippedByteLimit,
           skippedOversized,
+          pageIndex,
         });
         showReaderToast(reader, reason, "warning");
         return null;
@@ -876,12 +877,12 @@ var PdfImageSaver = (() => {
           sourceRegionKeys: previews.map((preview) => getSourceRegionKey(attachment, preview)),
         });
         if (skipReason) {
-          showReaderToast(reader, formatPreviewDuplicateSkipReason("auto-page", skipReason), "warning");
+          showReaderToast(reader, formatPreviewDuplicateSkipReason("auto-page", skipReason, pageIndex), "warning");
           return null;
         }
       }
 
-      showReaderToast(reader, `Saving ${previews.length} auto...`, "progress");
+      showReaderToast(reader, `Saving ${previews.length} auto ${formatPageToastToken(pageIndex)}...`, "progress");
       const indexPath = await createIndexHTML({
         attachment,
         parentItem,
@@ -936,7 +937,9 @@ var PdfImageSaver = (() => {
     skippedSavedDuplicates = 0,
     skippedByteLimit = 0,
     skippedOversized = 0,
+    pageIndex = null,
   } = {}) {
+    const pageToken = pageIndex === null || pageIndex === undefined ? "" : ` ${formatPageToastToken(pageIndex)}`;
     const duplicateReason = skippedSavedDuplicates && skippedSessionDuplicates
       ? "saved/session dups"
       : skippedSavedDuplicates
@@ -952,36 +955,37 @@ var PdfImageSaver = (() => {
           ? "total byte cap"
           : null;
     if (duplicateReason && capReason) {
-      return `Auto skip: ${duplicateReason}; ${capReason}.`;
+      return `Auto skip${pageToken}: ${duplicateReason}; ${capReason}.`;
     }
     if (capReason) {
-      return `Auto skip: ${capReason}.`;
+      return `Auto skip${pageToken}: ${capReason}.`;
     }
     if (skippedSavedDuplicates && skippedSessionDuplicates) {
-      return "Auto skip: all saved/session dups.";
+      return `Auto skip${pageToken}: all saved/session dups.`;
     }
     if (skippedSavedDuplicates) {
-      return "Auto skip: all saved-index dups.";
+      return `Auto skip${pageToken}: all saved-index dups.`;
     }
     if (skippedSessionDuplicates) {
-      return "Auto skip: all session dups.";
+      return `Auto skip${pageToken}: all session dups.`;
     }
-    return "Auto skip: byte cap.";
+    return `Auto skip${pageToken}: byte cap.`;
   }
 
-  function formatPreviewDuplicateSkipReason(scope, reason) {
+  function formatPreviewDuplicateSkipReason(scope, reason, pageIndex = null) {
+    const pageToken = pageIndex === null || pageIndex === undefined ? "" : ` ${formatPageToastToken(pageIndex)}`;
     const kind = reason === "session"
       ? "session dup"
       : reason === "saved"
         ? "saved-index dup"
         : "dup";
     if (scope === "page") {
-      return `Page skip: ${kind}.`;
+      return `Page skip${pageToken}: ${kind}.`;
     }
     if (scope === "auto-page") {
-      return `Auto skip: ${kind}.`;
+      return `Auto skip${pageToken}: ${kind}.`;
     }
-    return `Clip skip: ${kind}.`;
+    return `Clip skip${pageToken}: ${kind}.`;
   }
 
   async function savePagePreviewIndex(reader, options = {}) {
@@ -993,12 +997,12 @@ var PdfImageSaver = (() => {
       const qualityKey = normalizeQualityKey(safeOptions.qualityKey);
       jobKey = getReaderJobKey(reader, { scope: "page", pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, "Page already running.", "warning");
+        showReaderToast(reader, `Page already running ${formatPageToastToken(pageIndex)}.`, "warning");
         return;
       }
       activeJobs.add(jobKey);
       jobAdded = true;
-      showReaderToast(reader, "Saving page...", "progress");
+      showReaderToast(reader, `Saving page ${formatPageToastToken(pageIndex)}...`, "progress");
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -1031,7 +1035,7 @@ var PdfImageSaver = (() => {
           sourceRegionKeys: [getSourceRegionKey(attachment, preview)],
         });
         if (skipReason) {
-          showReaderToast(reader, formatPreviewDuplicateSkipReason("page", skipReason), "warning");
+          showReaderToast(reader, formatPreviewDuplicateSkipReason("page", skipReason, pageIndex), "warning");
           return;
         }
       }

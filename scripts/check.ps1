@@ -1277,19 +1277,22 @@ if ($mainJS -notmatch "async\s+function\s+isDuplicatePreviewIndexSave\s*\(\s*\{\
 if ($mainJS -notmatch "async\s+function\s+classifyPreviewDuplicateSkipReason\s*\(\s*\{\s*parentItem,\s*indexKey,\s*memoryKeys\s*=\s*\[\],\s*sourceRegionKeys\s*=\s*\[\]\s*\}\s*\)") {
   throw "Duplicate guard must classify session vs saved skip reasons"
 }
-if ($mainJS -notmatch "function\s+formatPreviewDuplicateSkipReason\s*\(\s*scope,\s*reason\s*\)") {
-  throw "Manual preview duplicate feedback formatter missing"
+if ($mainJS -notmatch "function\s+formatPreviewDuplicateSkipReason\s*\(\s*scope,\s*reason,\s*pageIndex\s*=\s*null\s*\)") {
+  throw "Preview duplicate feedback must accept optional page token"
+}
+if ($mainJS -notmatch "formatPreviewDuplicateSkipReason\(`"clip`",\s*skipReason,\s*pageIndex\)") {
+  throw "Clip duplicate feedback must pass page token"
 }
 if ($mainJS -notmatch "session dup" -or $mainJS -notmatch "saved-index dup") {
   throw "Manual preview duplicate feedback must distinguish session memory and synced indexes"
 }
-if ($mainJS -notmatch "function\s+formatAutoDuplicateSkipReason\s*\(\s*\{[\s\S]*skippedSessionDuplicates\s*=\s*0,[\s\S]*skippedSavedDuplicates\s*=\s*0,[\s\S]*skippedByteLimit\s*=\s*0,[\s\S]*skippedOversized\s*=\s*0,[\s\S]*\}\s*=\s*\{\}\s*\)") {
+if ($mainJS -notmatch "function\s+formatAutoDuplicateSkipReason\s*\(\s*\{[\s\S]*skippedSessionDuplicates\s*=\s*0,[\s\S]*skippedSavedDuplicates\s*=\s*0,[\s\S]*skippedByteLimit\s*=\s*0,[\s\S]*skippedOversized\s*=\s*0,[\s\S]*pageIndex\s*=\s*null,[\s\S]*\}\s*=\s*\{\}\s*\)") {
   throw "Auto-page duplicate feedback formatter missing"
 }
 if ($mainJS -notmatch "saved-index dups" -and $mainJS -notmatch "saved dups") {
   throw "Auto-page persisted duplicate feedback must mention synced HTML indexes"
 }
-if ($mainJS -notmatch 'Auto skip: \$\{duplicateReason\}; \$\{capReason\}\.') {
+if ($mainJS -notmatch 'Auto skip\$\{pageToken\}: \$\{duplicateReason\}; \$\{capReason\}\.') {
   throw "Auto-page mixed duplicate and byte-cap feedback must mention both causes"
 }
 if ($mainJS -notmatch "recentIndexSaves\.set\(getSourceRegionKey\(attachment,\s*entry\),\s*now\)") {
@@ -1406,14 +1409,14 @@ if ($mainJS -notmatch "Saved page \$\{formatPageToastToken\(pageIndex\)\} \(\$\{
 if ($mainJS -notmatch "Saved \$\{previews\.length\} auto \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\};") {
   throw "Auto success toast must include page, quality, and size"
 }
-if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Saving clip\.\.\.`",\s*`"progress`"\)") {
-  throw "Clip save path must show progress toast"
+if ($mainJS -notmatch "Saving clip \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
+  throw "Clip save path must show page-scoped progress toast"
 }
-if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Detecting auto\.\.\.`",\s*`"progress`"\)") {
-  throw "Auto-detect path must show progress toast"
+if ($mainJS -notmatch "Detecting auto \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
+  throw "Auto-detect path must show page-scoped progress toast"
 }
-if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Saving page\.\.\.`",\s*`"progress`"\)") {
-  throw "Page save path must show progress toast"
+if ($mainJS -notmatch "Saving page \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
+  throw "Page save path must show page-scoped progress toast"
 }
 if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Helper running\.\.\.`",\s*`"progress`"\)") {
   throw "Original helper path must show progress toast"
