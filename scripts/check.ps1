@@ -285,7 +285,7 @@ $toolbarEntry = [regex]::Match($mainJS, "function\s+onRenderToolbar\s*\([\s\S]*?
 if (!$toolbarEntry.Success) {
   throw "Reader toolbar render function block not found"
 }
-if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip current-page figure to synced HTML index`",\s*qualityKey\)[\s\S]*refreshAutoButtonState\(qualityKey\)") {
+if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip current page to synced HTML index`",\s*qualityKey\)[\s\S]*refreshAutoButtonState\(qualityKey\)") {
   throw "Reader toolbar tooltips must be built from selected quality metadata"
 }
 if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*updateQualityTooltips\(\)") {
@@ -351,10 +351,10 @@ $autoRasterApplyEntry = [regex]::Match($mainJS, "function\s+applyAutoRasterButto
 if (!$autoRasterApplyEntry.Success) {
   throw "Auto-raster button state apply helper function block not found"
 }
-if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*button\.disabled\s*=\s*false[\s\S]*buildToolbarActionTooltip\(`"Auto-detect current-page raster previews`",\s*qualityKey\)") {
+if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*button\.disabled\s*=\s*false[\s\S]*buildToolbarActionTooltip\(`"Auto current-page raster previews`",\s*qualityKey\)") {
   throw "Auto-raster available state must re-enable button and restore quality tooltip"
 }
-if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto unavailable in this PDF\.js runtime\. Use Clip\.") {
+if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto unavailable\. Use Clip\.") {
   throw "Auto-raster unavailable state must disable button with fallback tooltip"
 }
 $imageCoordinateEntry = [regex]::Match($mainJS, "function\s+imageCoordinatesToCandidates\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+updateAutoRasterButtonState")
@@ -847,7 +847,7 @@ if ($mainJS -notmatch "preview_index_fingerprint:\s*getPreviewIndexFingerprint\(
 if ($mainJS -notmatch "entry\.previewDuplicateKey\s*=\s*getPreviewDuplicateKey\(attachment,\s*entry\)") {
   throw "HTML preview entries must persist normalized duplicate keys"
 }
-if ($mainJS -notmatch "<details>[\s\S]*<summary>Metadata JSON</summary>[\s\S]*<pre>\$\{escapeHTML\(JSON\.stringify\(metadata,\s*null,\s*2\)\)\}</pre>[\s\S]*</details>") {
+if ($mainJS -notmatch "<details>[\s\S]*<summary>Meta JSON</summary>[\s\S]*<pre>\$\{escapeHTML\(JSON\.stringify\(metadata,\s*null,\s*2\)\)\}</pre>[\s\S]*</details>") {
   throw "HTML preview metadata JSON must be collapsed in a details block"
 }
 if ($mainJS -match "<details\s+open") {
@@ -856,7 +856,7 @@ if ($mainJS -match "<details\s+open") {
 if ($mainJS -notmatch "Index\s+\$\{escapeHTML\(getPreviewIndexFingerprint\(previewIndexKey\)\s*\|\|\s*`"unknown`"\)") {
   throw "HTML preview header must expose compact index fingerprint"
 }
-if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}">Open PDF</a>') {
+if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}">Open</a>') {
   throw "HTML preview entries must expose a visible source PDF action"
 }
 if ($mainJS -notmatch 'title="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {

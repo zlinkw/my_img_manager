@@ -152,7 +152,7 @@ var PdfImageSaver = (() => {
     const select = doc.createElement("select");
     select.className = "pdf-image-saver-quality";
     select.setAttribute?.("aria-label", "Preview quality");
-    select.title = "Preview quality and approximate Zotero sync size";
+    select.title = "Preview quality; approx sync size";
     for (const key of Object.keys(QUALITY)) {
       const option = doc.createElement("option");
       option.value = key;
@@ -178,9 +178,9 @@ var PdfImageSaver = (() => {
       const normalizedQualityKey = normalizeQualityKey(qualityKey);
       if (toolbarMode !== "idle") {
         if (autoRasterAvailable) {
-          autoButton.title = buildToolbarActionTooltip("Auto-detect current-page raster previews", normalizedQualityKey);
+          autoButton.title = buildToolbarActionTooltip("Auto current-page raster previews", normalizedQualityKey);
         } else {
-          autoButton.title = "Auto unavailable in this PDF.js runtime. Use Clip.";
+          autoButton.title = "Auto unavailable. Use Clip.";
         }
         return;
       }
@@ -258,7 +258,7 @@ var PdfImageSaver = (() => {
     const updateQualityTooltips = () => {
       const qualityKey = normalizeQualityKey(select.value);
       select.title = `Quality: ${getQualityLabelWithEstimate(qualityKey)}`;
-      button.title = buildToolbarActionTooltip("Clip current-page figure to synced HTML index", qualityKey);
+      button.title = buildToolbarActionTooltip("Clip current page to synced HTML index", qualityKey);
       refreshAutoButtonState(qualityKey);
     };
     select.addEventListener("change", () => {
@@ -1321,11 +1321,11 @@ var PdfImageSaver = (() => {
     }
     if (isAvailable) {
       button.disabled = false;
-      button.title = buildToolbarActionTooltip("Auto-detect current-page raster previews", qualityKey);
+      button.title = buildToolbarActionTooltip("Auto current-page raster previews", qualityKey);
       return;
     }
     button.disabled = true;
-    button.title = "Auto unavailable in this PDF.js runtime. Use Clip.";
+    button.title = "Auto unavailable. Use Clip.";
   }
 
   function supportsPDFJSImageCoordinates(pdfPage) {
@@ -1420,13 +1420,13 @@ var PdfImageSaver = (() => {
                 <img src="${escapeHTML(entry.dataURL)}" alt="Saved PDF preview ${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion)}
-              <a class="source-action" href="${escapeHTML(uri)}">Open PDF</a>
+              <a class="source-action" href="${escapeHTML(uri)}">Open</a>
             </div>
             <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
-              <div><dt>Quality</dt><dd>${escapeHTML(QUALITY[entry.quality].label)}; ${escapeHTML(entry.qualityEstimate)}</dd></div>
+              <div><dt>Q</dt><dd>${escapeHTML(QUALITY[entry.quality].label)}; ${escapeHTML(formatQualityEstimateShort(entry.quality))}</dd></div>
               <div><dt>Size</dt><dd>${formatBytes(entry.byteCount)}; ${formatPreviewDimensions(entry.renderedWidth, entry.renderedHeight)}</dd></div>
-              <div><dt>Region</dt><dd title="${escapeHTML(entry.sourceRegionKey)}">${escapeHTML(regionIdentity)}</dd></div>
+              <div><dt>ID</dt><dd title="${escapeHTML(entry.sourceRegionKey)}">${escapeHTML(regionIdentity)}</dd></div>
             </dl>
             <details class="entry-details">
               <summary>Trace</summary>
@@ -1493,7 +1493,7 @@ var PdfImageSaver = (() => {
     .source-map { position: relative; width: 88px; aspect-ratio: 0.72; border: 1px solid #bbb; background: #fafafa; }
     .source-map span { position: absolute; min-width: 2px; min-height: 2px; border: 2px solid #1f73b7; background: rgba(31, 115, 183, 0.18); box-sizing: border-box; }
     dl { margin: 0; display: grid; gap: 4px; align-content: start; }
-    dl div { display: grid; grid-template-columns: 64px 1fr; gap: 8px; }
+    dl div { display: grid; grid-template-columns: 48px 1fr; gap: 8px; }
     dt { color: #666; }
     dd { margin: 0; word-break: break-word; }
     .entry-details { grid-column: 2; }
@@ -1505,12 +1505,12 @@ var PdfImageSaver = (() => {
 <body>
   <header>
     <h1>${escapeHTML(sourceTitle)}</h1>
-    <p class="meta">Saved ${escapeHTML(createdAt)}. Compact HTML preview index; syncs with the PDF attachment.</p>
-    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")} ; ${normalizedEntries.length} preview${normalizedEntries.length === 1 ? "" : "s"} ; ${escapeHTML(previewQualityKey)}</p>
+    <p class="meta">Saved ${escapeHTML(createdAt)}. HTML preview index; syncs with PDF.</p>
+    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} preview${normalizedEntries.length === 1 ? "" : "s"}; ${escapeHTML(previewQualityKey)}</p>
   </header>
   ${entriesHTML}
   <details>
-    <summary>Metadata JSON</summary>
+    <summary>Meta JSON</summary>
     <pre>${escapeHTML(JSON.stringify(metadata, null, 2))}</pre>
   </details>
 </body>
@@ -2013,13 +2013,13 @@ var PdfImageSaver = (() => {
 </head>
 <body>
   <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
-  <p class="meta">Original embeds ; ${normalizedImages.length} attachment${normalizedImages.length === 1 ? "" : "s"} ; page links open source PDF.</p>
+  <p class="meta">Originals; ${normalizedImages.length} attachment${normalizedImages.length === 1 ? "" : "s"}; page links open PDF.</p>
   <table>
     <thead><tr><th>Page</th><th>Image</th><th>Size</th><th>BBox</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <details>
-    <summary>Metadata JSON</summary>
+    <summary>Meta JSON</summary>
     <pre>${escapeHTML(JSON.stringify(metadata, null, 2))}</pre>
   </details>
 </body>

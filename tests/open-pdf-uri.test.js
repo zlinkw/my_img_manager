@@ -740,7 +740,7 @@ assert.strictEqual(metadata.entries[0].annotation_key, null);
 assert.ok(html.includes("<details>"), "full JSON metadata must be in a details block");
 assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
-assert.ok(html.includes(">Open PDF</a>"), "HTML entry must expose an explicit source PDF action");
+assert.ok(html.includes(">Open</a>"), "HTML entry must expose an explicit source PDF action");
 assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region identity must keep full source key in a title");
 assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");
 assert.ok(html.includes('<details class="entry-details">'), "trace metadata must be in a per-entry details block");
@@ -1076,7 +1076,7 @@ const invalidQualityHTML = buildIndexHTML({
   scope: "clip",
   qualityKey: "constructor",
 });
-assert.ok(invalidQualityHTML.includes("Medium; 60-220 KB/image"), "invalid entry quality must fall back to Medium");
+assert.ok(invalidQualityHTML.includes("Medium; 60-220 KB"), "invalid entry quality must fall back to Medium");
 assert.strictEqual(invalidQualityEntry.quality, "medium", "invalid entry quality must be normalized on the entry");
 assert.strictEqual(invalidQualityEntry.qualityEstimate, "60-220 KB/image", "invalid quality estimate must be normalized");
 const invalidQualityMetadataText = invalidQualityHTML.match(/<pre>([\s\S]*?)<\/pre>/)[1]
@@ -1578,7 +1578,7 @@ applyAutoRasterButtonState(autoRasterStateButton, true, "high");
 assert.strictEqual(autoRasterStateButton.disabled, false, "available auto-raster state must re-enable the button");
 assert.strictEqual(
   autoRasterStateButton.title,
-  "Auto-detect current-page raster previews; High, 180-750 KB/image",
+  "Auto current-page raster previews; High, 180-750 KB/image",
   "available auto-raster state must restore selected quality tooltip",
 );
 
