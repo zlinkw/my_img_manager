@@ -1513,14 +1513,14 @@ for (const forbiddenDiagnosticsText of ["[object Object]", "undefined", "NaN", "
   );
 }
 assert.ok(noisyDiagnostics.includes("Plugin unknown"), "diagnostics plugin must normalize malformed text");
-assert.ok(noisyDiagnostics.includes("Started unknown"), "diagnostics booleans must normalize malformed values");
-assert.ok(noisyDiagnostics.includes("Quality medium"), "diagnostics quality must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("On unknown"), "diagnostics booleans must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Q medium"), "diagnostics quality must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("PDF UNKNOWN"), "diagnostics PDF key must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("parent none"), "diagnostics parent item must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Page 1"), "diagnostics page target must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Helper unknown"), "diagnostics helper status must normalize malformed values");
-assert.strictEqual(formatOptionalHelperStatus("python-missing"), "python missing", "helper status formatter must label missing python");
-assert.strictEqual(formatOptionalHelperStatus("python-available"), "python available", "helper status formatter must label available python");
+assert.strictEqual(formatOptionalHelperStatus("python-missing"), "py missing", "helper status formatter must label missing python");
+assert.strictEqual(formatOptionalHelperStatus("python-available"), "py ok", "helper status formatter must label available python");
 assert.strictEqual(formatOptionalHelperStatus({ bad: true }), "unknown", "helper status formatter must fall back for malformed values");
 
 assert.ok(noisyDiagnostics.includes("- ok"), "diagnostics warnings must keep valid compact warning text");

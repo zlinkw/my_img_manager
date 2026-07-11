@@ -1456,7 +1456,7 @@ if ($mainJS -notmatch "select\.disabled\s*=\s*busy") {
 if ($mainJS -notmatch "setToolbarMode\(`"auto`"\)") {
   throw "Auto toolbar path must enter shared busy mode"
 }
-if ($mainJS -notmatch 'PDF Image Saver: Clip"') {
+if ($mainJS -notmatch 'PDF Img: Clip"') {
   throw "Tools menu clip label must stay dense"
 }
 if ($mainJS -notmatch "syncAutoRasterAvailability") {

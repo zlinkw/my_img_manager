@@ -77,8 +77,8 @@ var PdfImageSaver = (() => {
       ? doc.createXULElement("menuitem")
       : doc.createElement("menuitem");
     menuitem.id = "pdf-image-saver-tools-menuitem";
-    menuitem.setAttribute("label", "PDF Image Saver: Clip");
-    menuitem.setAttribute("tooltiptext", "Clip current-page figure to synced HTML preview index");
+    menuitem.setAttribute("label", "PDF Img: Clip");
+    menuitem.setAttribute("tooltiptext", "Clip current-page figure to synced HTML index");
     menuitem.addEventListener("command", () => {
       void startClipFromActiveReader(win, getDefaultQualityKey());
     });
@@ -86,8 +86,8 @@ var PdfImageSaver = (() => {
       ? doc.createXULElement("menuitem")
       : doc.createElement("menuitem");
     diagnosticsItem.id = "pdf-image-saver-diagnostics-menuitem";
-    diagnosticsItem.setAttribute("label", "PDF Image Saver: Diagnostics");
-    diagnosticsItem.setAttribute("tooltiptext", "Runtime status, active PDF URI, helper availability, temp leftovers");
+    diagnosticsItem.setAttribute("label", "PDF Img: Diag");
+    diagnosticsItem.setAttribute("tooltiptext", "Runtime status, open-PDF URI, helper, temp leftovers");
     diagnosticsItem.addEventListener("command", () => {
       void showDiagnostics(win);
     });
@@ -370,13 +370,13 @@ var PdfImageSaver = (() => {
     const report = reader
       ? await buildRuntimeDiagnostics(reader)
       : await buildRuntimeDiagnostics(null);
-    Services.prompt.alert(win, "PDF Image Saver diagnostics", formatDiagnosticsReport(report));
+    Services.prompt.alert(win, "PDF Img diagnostics", formatDiagnosticsReport(report));
   }
 
   async function showReaderDiagnostics(reader) {
     const report = await buildRuntimeDiagnostics(reader);
     const win = Zotero.getMainWindow?.();
-    Services.prompt.alert(win, "PDF Image Saver diagnostics", formatDiagnosticsReport(report));
+    Services.prompt.alert(win, "PDF Img diagnostics", formatDiagnosticsReport(report));
   }
 
   async function buildRuntimeDiagnostics(reader) {
@@ -449,21 +449,20 @@ var PdfImageSaver = (() => {
     const warnings = normalizeDiagnosticWarningMessages(safeReport.warnings);
     const lines = [
       `Plugin ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}; Zotero ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
-      `Started ${formatDiagnosticBoolean(safeReport.started)}; readers ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}; active PDF ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
-      `Quality ${normalizeQualityKey(safeReport.default_quality)}; auto cap ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index cap ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
-      `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; originals optional only`,
-      `Temp leftovers ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)})`,
-      `Temp dir ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 240)}`,
+      `On ${formatDiagnosticBoolean(safeReport.started)}; readers ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}; PDF ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
+      `Q ${normalizeQualityKey(safeReport.default_quality)}; auto ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
+      `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; originals optional`,
+      `Temp ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)}); ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 240)}`,
     ];
     if (safeReport.pdf_attachment) {
       lines.push(
-        `PDF ${normalizeItemKey(pdfAttachment.key, "UNKNOWN")}; library ${normalizeDiagnosticText(safeReport.library_prefix, "library", 80)}; parent ${normalizeDiagnosticText(pdfAttachment.parent_id, "none", 80)}`,
-        `Page ${pageNumber}${pageLabel ? ` (${pageLabel})` : ""}; auto raster ${formatDiagnosticBoolean(safeReport.auto_raster_available)}`,
+        `PDF ${normalizeItemKey(pdfAttachment.key, "UNKNOWN")}; lib ${normalizeDiagnosticText(safeReport.library_prefix, "library", 80)}; parent ${normalizeDiagnosticText(pdfAttachment.parent_id, "none", 80)}`,
+        `Page ${pageNumber}${pageLabel ? ` (${pageLabel})` : ""}; auto ${formatDiagnosticBoolean(safeReport.auto_raster_available)}`,
         `Open ${normalizeDiagnosticText(safeReport.open_pdf_uri, "unavailable", 240)}`,
       );
     }
     if (warnings.length) {
-      lines.push("Warnings:", ...warnings.map((warning) => `- ${warning}`));
+      lines.push("Warn:", ...warnings.map((warning) => `- ${warning}`));
     }
     return lines.join("\n");
   }
@@ -494,10 +493,10 @@ var PdfImageSaver = (() => {
   function formatOptionalHelperStatus(value) {
     const key = normalizeDiagnosticText(value, "unknown", 40);
     if (key === "python-available") {
-      return "python available";
+      return "py ok";
     }
     if (key === "python-missing") {
-      return "python missing";
+      return "py missing";
     }
     return "unknown";
   }
