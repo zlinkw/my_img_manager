@@ -1043,7 +1043,7 @@ for (const forbiddenScalarText of ["NaN", "Infinity", "undefined", "[object Obje
     `malformed scalar HTML must not contain ${forbiddenScalarText}`,
   );
 }
-assert.ok(malformedScalarHTML.includes("3 B; unknown size"), "malformed scalar HTML must show concise actual size");
+assert.ok(malformedScalarHTML.includes("3 B; size n/a"), "malformed scalar HTML must show concise actual size");
 const malformedScalarMetadata = extractMetadata(malformedScalarHTML);
 assert.strictEqual(malformedScalarMetadata.entries[0].id, "preview-1");
 assert.strictEqual(malformedScalarMetadata.entries[0].mode, "reader_canvas_preview");
@@ -1068,7 +1068,7 @@ const paddedByteHTML = buildIndexHTML({
   scope: "clip",
   qualityKey: "medium",
 });
-assert.ok(paddedByteHTML.includes("1 B; 120 x 80px"), "base64 padding must be subtracted from visible byte count");
+assert.ok(paddedByteHTML.includes("1 B; 120x80"), "base64 padding must be subtracted from visible byte count");
 const paddedByteMetadata = extractMetadata(paddedByteHTML);
 assert.strictEqual(paddedByteMetadata.entries[0].byte_count, 1, "base64 padding must be subtracted from metadata byte count");
 
@@ -1186,7 +1186,7 @@ const canonicalBase64HTML = buildIndexHTML({
   scope: "clip",
   qualityKey: "medium",
 });
-assert.ok(canonicalBase64HTML.includes("1 B; 120 x 80px"), "canonical padded preview data URLs must still pass");
+assert.ok(canonicalBase64HTML.includes("1 B; 120x80"), "canonical padded preview data URLs must still pass");
 assert.throws(
   () => buildIndexHTML({
     attachment: htmlAttachment,
@@ -2147,7 +2147,7 @@ async function runAsyncAssertions() {
     "malformed original confirmation options must fall back to page scope",
   );
   assert.ok(
-    context.Services.prompt.confirms[0].message.includes("25 MB/image")
+    context.Services.prompt.confirms[0].message.includes("25 MB/img")
       && context.Services.prompt.confirms[0].message.includes("150 MB/run"),
     "original confirmation must state per-image and total byte risk",
   );

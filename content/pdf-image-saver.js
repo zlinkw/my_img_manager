@@ -721,7 +721,7 @@ var PdfImageSaver = (() => {
       }
       activeJobs.add(jobKey);
       jobAdded = true;
-      showReaderToast(reader, `Saving clip ${formatPageToastToken(pageIndex)}...`, "progress");
+      showReaderToast(reader, `Save clip ${formatPageToastToken(pageIndex)}...`, "progress");
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
       const preview = renderCanvasPreview({ ...safeOptions, pageIndex, qualityKey });
@@ -890,7 +890,7 @@ var PdfImageSaver = (() => {
         }
       }
 
-      showReaderToast(reader, `Saving ${previews.length} auto ${formatPageToastToken(pageIndex)}...`, "progress");
+      showReaderToast(reader, `Save ${previews.length} auto ${formatPageToastToken(pageIndex)}...`, "progress");
       const indexPath = await createIndexHTML({
         attachment,
         parentItem,
@@ -1029,7 +1029,7 @@ var PdfImageSaver = (() => {
       }
       activeJobs.add(jobKey);
       jobAdded = true;
-      showReaderToast(reader, `Saving page ${formatPageToastToken(pageIndex)}...`, "progress");
+      showReaderToast(reader, `Save page ${formatPageToastToken(pageIndex)}...`, "progress");
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -1625,7 +1625,7 @@ var PdfImageSaver = (() => {
       const ok = Services.prompt.confirm(
         win,
         "PDF Img",
-        `Orig ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/image, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Clip safer.`,
+        `Orig ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/img, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Prefer Clip.`,
       );
       if (!ok) {
         const pageIndex = normalizePageIndex(safeOptions.pageIndex, null);
@@ -1666,7 +1666,7 @@ var PdfImageSaver = (() => {
         showReaderToast(reader, formatHelperFailure({ status: "no_python" }), "warning");
         return;
       }
-      showReaderToast(reader, `Helper run ${formatOriginalScopeToken(scope, pageIndex)}...`, "progress");
+      showReaderToast(reader, `Helper ${formatOriginalScopeToken(scope, pageIndex)}...`, "progress");
       const report = await runHelperExtraction({
         attachment,
         pdfPath,
@@ -3838,9 +3838,9 @@ var PdfImageSaver = (() => {
 
   function formatPreviewDimensions(width, height) {
     if (width === null || height === null) {
-      return "unknown size";
+      return "size n/a";
     }
-    return `${width} x ${height}px`;
+    return `${width}x${height}`;
   }
 
   function round6(value) {

@@ -1409,16 +1409,16 @@ if ($mainJS -notmatch "Saved page \$\{formatPageToastToken\(pageIndex\)\} \(\$\{
 if ($mainJS -notmatch "Saved \$\{previews\.length\} auto \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\};") {
   throw "Auto success toast must include page, quality, and size"
 }
-if ($mainJS -notmatch "Saving clip \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
+if ($mainJS -notmatch "Save clip \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
   throw "Clip save path must show page-scoped progress toast"
 }
 if ($mainJS -notmatch "Auto detect \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
   throw "Auto-detect path must show page-scoped progress toast"
 }
-if ($mainJS -notmatch "Saving page \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
+if ($mainJS -notmatch "Save page \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
   throw "Page save path must show page-scoped progress toast"
 }
-if ($mainJS -notmatch "Helper run \$\{formatOriginalScopeToken\(scope, pageIndex\)\}\.\.\.") {
+if ($mainJS -notmatch "Helper \$\{formatOriginalScopeToken\(scope, pageIndex\)\}\.\.\.") {
   throw "Original helper path must show scope-scoped progress toast"
 }
 if ($mainJS -notmatch "if\s*\(\s*!pythonCommands\.length\s*\)\s*\{[\s\S]*formatHelperFailure\(\{\s*status:\s*`"no_python`"") {
