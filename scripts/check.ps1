@@ -1440,6 +1440,16 @@ if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Running optional helper\.\.\
 if ($mainJS -notmatch "pdf-image-saver-progress") {
   throw "Reader styles must include progress toast styling"
 }
+
+if ($mainJS -notmatch "onSessionEnd") {
+  throw "Clip selection overlay must support onSessionEnd lifecycle callback"
+}
+if ($mainJS -notmatch "button\.textContent\s*=\s*`"Drag\.\.\.`"[\s\S]*onSessionEnd\(\)\s*\{[\s\S]*button\.textContent\s*=\s*`"Clip`"") {
+  throw "Clip toolbar button must stay in Drag state until selection session ends"
+}
+if ($mainJS -notmatch "helperStatus\s*===\s*`"missing_pymupdf`"\s*\|\|\s*helperStatus\s*===\s*`"no_python`"") {
+  throw "Helper absence feedback must stay quieter than generic helper failures"
+}
 $diagnosticsReportEntry = [regex]::Match($mainJS, "function\s+formatDiagnosticsReport\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+normalizeDiagnosticText")
 if (!$diagnosticsReportEntry.Success) {
   throw "Diagnostics report formatter function block not found"

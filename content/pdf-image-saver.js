@@ -169,11 +169,16 @@ var PdfImageSaver = (() => {
     button.addEventListener("click", (domEvent) => {
       domEvent.preventDefault();
       domEvent.stopPropagation();
+      if (button.disabled) {
+        return;
+      }
       button.disabled = true;
       button.textContent = "Drag...";
-      Promise.resolve(startClipFromReader(reader, normalizeQualityKey(select.value))).finally(() => {
-        button.disabled = false;
-        button.textContent = "Clip";
+      void startClipFromReader(reader, normalizeQualityKey(select.value), null, {
+        onSessionEnd() {
+          button.disabled = false;
+          button.textContent = "Clip";
+        },
       });
     });
 
@@ -185,8 +190,11 @@ var PdfImageSaver = (() => {
     autoButton.addEventListener("click", (domEvent) => {
       domEvent.preventDefault();
       domEvent.stopPropagation();
+      if (autoButton.disabled) {
+        return;
+      }
       autoButton.disabled = true;
-      autoButton.textContent = "...";
+      autoButton.textContent = "Busy";
       Promise.resolve(saveAutoDetectedPageImagePreviews(reader, {
         qualityKey: normalizeQualityKey(select.value),
       })).finally(() => {
@@ -420,7 +428,9 @@ var PdfImageSaver = (() => {
     return value === true ? "true" : value === false ? "false" : "unknown";
   }
 
-  async function startClipFromReader(reader, qualityKey, explicitPageIndex) {
+  async function startClipFromReader(reader, qualityKey, explicitPageIndex, options = {}) {
+    const safeOptions = normalizeOptionsObject(options);
+    const onSessionEnd = typeof safeOptions.onSessionEnd === "function" ? safeOptions.onSessionEnd : null;
     try {
       const pageIndex = await getCurrentPageIndex(reader, explicitPageIndex);
       const context = await getPDFViewerContext(reader);
@@ -430,16 +440,28 @@ var PdfImageSaver = (() => {
         throw new Error("Rendered PDF page canvas was not found.");
       }
       showReaderToast(reader, "Drag on this page to clip. Esc cancels.", "info");
-      installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex);
+      installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex, {
+        onSessionEnd,
+      });
     } catch (error) {
       logError(error);
       showReaderToast(reader, getErrorMessage(error), "error");
+      onSessionEnd?.();
     }
   }
 
-  function installSelectionOverlay(reader, doc, pageElement, canvas, qualityKey, pageIndex) {
+  function installSelectionOverlay(reader, doc, pageElement, canvas, qualityKey, pageIndex, options = {}) {
+    const safeOptions = normalizeOptionsObject(options);
+    const onSessionEnd = typeof safeOptions.onSessionEnd === "function" ? safeOptions.onSessionEnd : null;
     const existing = doc.getElementById("pdf-image-saver-selection-overlay");
-    cleanupSelectionOverlay(existing);
+    if (existing) {
+      const previousEnd = existing.__pdfImageSaverOnSessionEnd;
+      existing.__pdfImageSaverOnSessionEnd = null;
+      cleanupSelectionOverlay(existing);
+      if (typeof previousEnd === "function") {
+        previousEnd();
+      }
+    }
 
     const overlay = doc.createElement("div");
     overlay.id = "pdf-image-saver-selection-overlay";
@@ -448,6 +470,7 @@ var PdfImageSaver = (() => {
     overlay.setAttribute?.("role", "application");
     overlay.setAttribute?.("aria-label", "Clip figure on current page. Drag to select. Esc cancels.");
     overlay.title = "Drag on this page; Esc cancels";
+    overlay.__pdfImageSaverOnSessionEnd = onSessionEnd;
     prepareSelectionOverlayHost(pageElement, overlay);
     const hint = doc.createElement("div");
     hint.className = "pdf-image-saver-selection-hint";
@@ -461,14 +484,21 @@ var PdfImageSaver = (() => {
     let start = null;
     let current = null;
     let activePointerID = null;
+    let sessionEnded = false;
 
-    const cleanup = () => {
+    const endSession = () => {
+      if (sessionEnded) {
+        return;
+      }
+      sessionEnded = true;
+      overlay.__pdfImageSaverOnSessionEnd = null;
       cleanupSelectionOverlay(overlay);
+      onSessionEnd?.();
     };
 
     overlay.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
-        cleanup();
+        endSession();
         showReaderToast(reader, "Clip cancelled on current page.", "warning");
       }
     });
@@ -480,6 +510,7 @@ var PdfImageSaver = (() => {
       event.preventDefault();
       activePointerID = event.pointerId;
       overlay.setPointerCapture?.(event.pointerId);
+      hint.remove?.();
       const rect = pageElement.getBoundingClientRect();
       start = {
         clientX: event.clientX,
@@ -513,7 +544,7 @@ var PdfImageSaver = (() => {
       overlay.releasePointerCapture?.(event.pointerId);
       const end = current || start;
       const rect = normalizedRect(start, end);
-      cleanup();
+      endSession();
       if (rect.width < 12 || rect.height < 12) {
         showReaderToast(reader, "Selection too small on this page.", "warning");
         return;
@@ -1513,7 +1544,15 @@ var PdfImageSaver = (() => {
         scope,
       });
       if (report.status !== "ok") {
-        showReaderToast(reader, `${formatHelperFailure(report)} Clip still works.`, "warning");
+        const helperStatus = normalizeHelperStatusText(report?.status);
+        const helperMessage = formatHelperFailure(report);
+        showReaderToast(
+          reader,
+          helperStatus === "missing_pymupdf" || helperStatus === "no_python"
+            ? helperMessage
+            : `${helperMessage} Clip still works.`,
+          "warning",
+        );
         return;
       }
       if (!report.images?.length) {
@@ -3708,6 +3747,8 @@ var PdfImageSaver = (() => {
       buildSourceRegion,
       calculateCanvasCrop,
       cleanupSelectionOverlay,
+      installSelectionOverlay,
+      startClipFromReader,
       confirmAndSaveOriginalImagesFromReader,
       filterExistingOriginalImagesForImport,
       formatDiagnosticsReport,

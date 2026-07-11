@@ -63,9 +63,10 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 - Preference pane groups, denser status/control labels, and shorter intro help landed.
 - Reader toolbar `Clip` / `Auto`, denser menus/diagnostics, and page-bound overlay cues landed.
-- Toast hierarchy now includes sticky `progress` feedback for clip/auto/page/helper work; keep final success/warning/error specific.
+- Toast hierarchy includes sticky `progress` feedback for clip/auto/page/helper work.
+- Clip toolbar now stays in session state until selection ends; helper absence feedback is quieter than hard failures.
 - Duplicate-skip messages densified while preserving session vs saved distinctions.
-- Remaining UI polish should only continue if a concrete clarity gap still outranks non-UI work; otherwise move to after-UI backlog.
+- UI-first backlog is largely exhausted for current surfaces; prefer after-UI work unless a new concrete clarity gap appears.
 
 ### After UI Is Exhausted
 

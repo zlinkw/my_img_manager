@@ -108,6 +108,8 @@ const {
   buildContextMenuActions,
   calculateCanvasCrop,
   cleanupSelectionOverlay,
+  installSelectionOverlay,
+  startClipFromReader,
   confirmAndSaveOriginalImagesFromReader,
   filterExistingOriginalImagesForImport,
   formatAutoDuplicateSkipReason,
@@ -358,6 +360,96 @@ assert.strictEqual(absoluteHost.style.position, "absolute", "overlay cleanup mus
 const replacedHost = { style: { position: "relative" } };
 const replacedOverlay = createFakeOverlay(replacedHost, "");
 cleanupSelectionOverlay(replacedOverlay);
+
+let clipSessionEnded = 0;
+const sessionDoc = {
+  body: { appendChild() {}, removeChild() {} },
+  getElementById() { return null; },
+  createElement(tag) {
+    const node = {
+      tagName: String(tag || "div").toUpperCase(),
+      className: "",
+      style: {},
+      attributes: Object.create(null),
+      children: [],
+      textContent: "",
+      tabIndex: 0,
+      focus() {},
+      remove() {
+        this.removed = true;
+      },
+      append(...nodes) {
+        this.children.push(...nodes);
+      },
+      appendChild(node) {
+        this.children.push(node);
+        return node;
+      },
+      setAttribute(name, value) {
+        this.attributes[name] = value;
+      },
+      setAttributeNS(_ns, name, value) {
+        this.attributes[name] = value;
+      },
+      getAttribute(name) {
+        return this.attributes[name] || null;
+      },
+      addEventListener(type, listener) {
+        if (!this.listeners) {
+          this.listeners = Object.create(null);
+        }
+        if (!this.listeners[type]) {
+          this.listeners[type] = [];
+        }
+        this.listeners[type].push(listener);
+      },
+      dispatch(type, event = {}) {
+        for (const listener of this.listeners?.[type] || []) {
+          listener({
+            preventDefault() {},
+            stopPropagation() {},
+            button: 0,
+            pointerId: 1,
+            clientX: 20,
+            clientY: 20,
+            key: type === "keydown" ? "Escape" : undefined,
+            ...event,
+            target: this,
+          });
+        }
+      },
+    };
+    return node;
+  },
+};
+const sessionPage = {
+  style: { position: "static" },
+  getBoundingClientRect() {
+    return { left: 0, top: 0, width: 200, height: 200, right: 200, bottom: 200 };
+  },
+  appendChild(node) {
+    this.child = node;
+    return node;
+  },
+};
+installSelectionOverlay(
+  { _iframeWindow: { document: sessionDoc } },
+  sessionDoc,
+  sessionPage,
+  { getBoundingClientRect() { return { left: 0, top: 0, width: 200, height: 200 }; } },
+  "medium",
+  0,
+  {
+    onSessionEnd() {
+      clipSessionEnded += 1;
+    },
+  },
+);
+assert.ok(sessionPage.child, "selection overlay must mount on the page");
+sessionPage.child.dispatch("keydown", { key: "Escape" });
+assert.strictEqual(clipSessionEnded, 1, "onSessionEnd must fire when overlay is cancelled");
+assert.strictEqual(sessionPage.child.removed, true, "cancelled overlay must be removed");
+
 assert.strictEqual(replacedHost.style.position, "", "replaced overlay cleanup must restore previous host position from overlay metadata");
 const mainWindowToastDoc = createFakeToastDocument();
 context.Zotero.getMainWindow = () => ({ document: mainWindowToastDoc });
@@ -1266,6 +1358,17 @@ assert.strictEqual(
   "Helper failed: unknown",
   "missing helper reports must format to an unknown failure without throwing",
 );
+assert.strictEqual(
+  formatHelperFailure({ status: "no_python" }),
+  "Helper unavailable: Python missing.",
+  "missing python helper failure must stay compact",
+);
+assert.strictEqual(
+  formatHelperFailure({ status: "missing_pymupdf" }),
+  "Helper unavailable: PyMuPDF missing.",
+  "missing pymupdf helper failure must stay compact",
+);
+
 assert.strictEqual(normalizeToastLevel("progress"), "progress", "progress toast level must be accepted");
 assert.strictEqual(normalizeToastLevel("constructor"), "info", "malformed toast level must fall back to info");
 assert.strictEqual(getToastDuration("progress"), 120000, "progress toast must stay visible long enough for long-running work");
