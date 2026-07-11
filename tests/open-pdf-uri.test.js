@@ -1591,9 +1591,9 @@ for (const noisyErrorValue of [{ bad: true }, ["bad"], null, undefined, new Erro
   );
 }
 assert.strictEqual(getErrorMessage("x".repeat(400)).length, 320, "oversized error messages must be capped");
-assert.strictEqual(classifyErrorCategory("Byte cap: preview index is too large"), "byte_cap", "byte-cap errors must classify");
+assert.strictEqual(classifyErrorCategory("Byte cap: index too large"), "byte_cap", "byte-cap errors must classify");
 assert.strictEqual(classifyErrorCategory("Helper: Python missing."), "helper", "helper absence must classify as helper");
-assert.strictEqual(classifyErrorCategory("Storage failed: could not import preview index into Zotero."), "storage", "storage import failures must classify");
+assert.strictEqual(classifyErrorCategory("Storage failed: preview index import failed."), "storage", "storage import failures must classify");
 assert.strictEqual(classifyErrorCategory("Capture failed: page canvas missing."), "capture", "canvas failures must classify as capture");
 assert.strictEqual(classifyErrorCategory("Clip skip: session dup."), "duplicate", "session duplicate skips must classify");
 assert.strictEqual(
@@ -1602,13 +1602,13 @@ assert.strictEqual(
   "unprefixed capture errors must gain capture prefix",
 );
 assert.strictEqual(
-  formatUserFacingError(new Error("Byte cap: preview index is too large (1 MB > 0.5 MB).")),
-  "Byte cap: preview index is too large (1 MB > 0.5 MB).",
+  formatUserFacingError(new Error("Byte cap: index too large (1 MB > 0.5 MB).")),
+  "Byte cap: index too large (1 MB > 0.5 MB).",
   "prefixed byte-cap errors must stay stable",
 );
 assert.strictEqual(
-  formatUserFacingError(new Error("could not import preview index into Zotero")),
-  "Storage failed: could not import preview index into Zotero",
+  formatUserFacingError(new Error("preview index import failed")),
+  "Storage failed: preview index import failed",
   "import failures must gain storage prefix",
 );
 
@@ -2485,7 +2485,7 @@ async function runAsyncAssertions() {
       parentItem: htmlParent,
       scope: "page",
     }),
-    /Storage failed: all 2 Zotero original image imports failed/,
+    /Storage failed: all 2 original imports failed/,
     "all failed Zotero imports must be surfaced as an overall error",
   );
   assert.strictEqual(allFailureErrors.length, 2, "all failed Zotero imports must log each failed import");

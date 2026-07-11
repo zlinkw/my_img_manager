@@ -75,6 +75,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Tools/menu/tooltip wording densified; HTML Open action and original index titles shortened for scanability.
 - HTML index header/meta labels and original skip notes densified; source-region map labels shortened.
 - Capture/helper failure strings densified while preserving category prefixes and Clip fallback.
+- Storage/byte-cap failure strings and diagnostics helper line densified while preserving category prefixes.
 
 ### After UI Is Exhausted
 

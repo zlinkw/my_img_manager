@@ -463,8 +463,8 @@ var PdfImageSaver = (() => {
       `Plugin ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}; Zotero ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
       `On ${formatDiagnosticBoolean(safeReport.started)}; readers ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}; PDF ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
       `Q ${normalizeQualityKey(safeReport.default_quality)}; auto ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
-      `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; originals optional`,
-      `Temp ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)}); ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 240)}`,
+      `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; orig optional`,
+      `Temp ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)}); ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 160)}`,
     ];
     if (safeReport.pdf_attachment) {
       lines.push(
@@ -1416,7 +1416,7 @@ var PdfImageSaver = (() => {
       const htmlBytes = estimateUTF8Bytes(html);
       const maxBytes = getMaxIndexBytes();
       if (htmlBytes > maxBytes) {
-        throw new Error(`Byte cap: preview index is too large (${formatBytes(htmlBytes)} > ${formatBytes(maxBytes)}). Lower quality or reduce auto-detect count.`);
+        throw new Error(`Byte cap: index too large (${formatBytes(htmlBytes)} > ${formatBytes(maxBytes)}). Lower Q or auto count.`);
       }
       await Zotero.File.putContentsAsync(htmlPath, html);
       return htmlPath;
@@ -1589,7 +1589,7 @@ var PdfImageSaver = (() => {
         charset: "utf-8",
       });
     } catch (error) {
-      throw new Error(`Storage failed: could not import preview index into Zotero. ${getErrorMessage(error)}`);
+      throw new Error(`Storage failed: preview index import failed. ${getErrorMessage(error)}`);
     } finally {
       await removeDirectoryIfExists(PathUtils.parent(indexPath));
     }
@@ -1750,7 +1750,7 @@ var PdfImageSaver = (() => {
         }
       }
       if (importableImages.length && !count && importErrorCount === importableImages.length) {
-        throw new Error(`Storage failed: all ${importErrorCount} Zotero original image imports failed.`);
+        throw new Error(`Storage failed: all ${importErrorCount} original imports failed.`);
       }
       if (importedImages.length) {
         try {
@@ -3952,6 +3952,8 @@ var PdfImageSaver = (() => {
       text.includes("storage failed")
       || text.includes("zotero original image import")
       || text.includes("import preview index")
+      || text.includes("preview index import")
+      || text.includes("original imports failed")
       || text.includes("attachments.importfromfile")
       || text.includes("could not import")
     ) {

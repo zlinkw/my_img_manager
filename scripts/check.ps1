@@ -542,7 +542,7 @@ if ($mainJS -notmatch "try\s*\{\s*\r?\n\s*await\s+Zotero\.Attachments\.importFro
 if ($mainJS -notmatch "importableImages\.length\s*&&\s*!count\s*&&\s*importErrorCount\s*===\s*importableImages\.length") {
   throw "Original image import must detect all attempted Zotero imports failing"
 }
-if ($mainJS -notmatch "Storage failed: all\s+\$\{importErrorCount\}\s+Zotero original image imports failed") {
+if ($mainJS -notmatch "Storage failed: all\s+\$\{importErrorCount\}\s+original imports failed") {
   throw "Original image import must throw a clear all-imports-failed error"
 }
 if ($mainJS -notmatch "const\s+ORIGINAL_MAX_IMAGE_BYTES\s*=\s*25\s*\*\s*1024\s*\*\s*1024") {
@@ -686,10 +686,10 @@ if ($mainJS -notmatch "function\s+formatUserFacingError\s*\(") {
 if ($mainJS -notmatch "showReaderToast\(reader,\s*formatUserFacingError\(error\),\s*`"error`"\)") {
   throw "Reader error toasts must use classified user-facing errors"
 }
-if ($mainJS -notmatch "Byte cap: preview index is too large") {
+if ($mainJS -notmatch "Byte cap: index too large") {
   throw "Byte-cap preview index failure must stay labeled"
 }
-if ($mainJS -notmatch "Storage failed: could not import preview index into Zotero") {
+if ($mainJS -notmatch "Storage failed: preview index import failed") {
   throw "Preview index import failures must be labeled as storage errors"
 }
 
