@@ -102,6 +102,7 @@ After Zotero has been restarted or the add-on has been reloaded:
 - The HTML preview opens, shows the preview, source region map, compact index identity, Open action, and collapsed metadata / trace details containing `source_region`, `source_region_key`, `preview_index_key`, `preview_duplicate_key`, and `annotation_key`.
 - Clicking preview or page opens the source PDF page.
 - `Auto` disables or warns safely when image coordinates are unavailable.
+- Auto no-candidate toasts stay page-scoped and point back to Clip.
 - Duplicate-skip toasts distinguish session memory from already-synced HTML indexes, and auto-detect also reports byte-cap skips.
 - Error toasts identify capture, helper, duplicate, byte-cap, or Zotero storage failures.
 - Optional original helper absence stays quiet; diagnostics show whether Python is available.

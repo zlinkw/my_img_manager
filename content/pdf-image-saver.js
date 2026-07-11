@@ -801,7 +801,7 @@ var PdfImageSaver = (() => {
       if (!detection.candidates.length) {
         showReaderToast(
           reader,
-          `${detection.reason || "No auto images."} Use Clip.`,
+          formatAutoNoCandidatesReason(detection.reason, pageIndex),
           "warning",
         );
         return null;
@@ -972,6 +972,25 @@ var PdfImageSaver = (() => {
       return `Auto skip${pageToken}: all session dups.`;
     }
     return `Auto skip${pageToken}: byte cap.`;
+  }
+
+  function formatAutoNoCandidatesReason(reason, pageIndex = null) {
+    const pageToken = pageIndex === null || pageIndex === undefined ? "" : ` ${formatPageToastToken(pageIndex)}`;
+    const text = normalizeMetadataText(reason, "", 120);
+    const compact = !text
+      ? "no images"
+      : text === "PDF.js render API unavailable." || text === "render API missing"
+        ? "render API missing"
+        : text === "Auto unavailable in this PDF.js runtime." || text === "runtime no coords"
+          ? "runtime no coords"
+          : text === "No PDF.js image coordinates." || text === "no image coords"
+            ? "no image coords"
+            : text === "Auto detection unavailable." || text === "detect failed"
+              ? "detect failed"
+              : text === "No auto images."
+                ? "no images"
+                : text.replace(/\.$/, "");
+    return `Auto skip${pageToken}: ${compact}. Use Clip.`;
   }
 
   function formatPreviewDuplicateSkipReason(scope, reason, pageIndex = null) {
@@ -1222,10 +1241,10 @@ var PdfImageSaver = (() => {
     const pageView = getPageView(context, pageIndex);
     const pdfPage = pageView?.pdfPage || await context?.app?.pdfDocument?.getPage?.(pageIndex + 1);
     if (!pdfPage?.render || !pdfPage?.getViewport) {
-      return { candidates: [], reason: "PDF.js render API unavailable.", pageLabel: getPageLabel(context, pageIndex) };
+      return { candidates: [], reason: "render API missing", pageLabel: getPageLabel(context, pageIndex) };
     }
     if (!supportsPDFJSImageCoordinates(pdfPage)) {
-      return { candidates: [], reason: "Auto unavailable in this PDF.js runtime.", pageLabel: getPageLabel(context, pageIndex) };
+      return { candidates: [], reason: "runtime no coords", pageLabel: getPageLabel(context, pageIndex) };
     }
 
     const doc = pageElement.ownerDocument;
@@ -1250,7 +1269,7 @@ var PdfImageSaver = (() => {
       await renderTask.promise;
       const coordinates = pdfPage.imageCoordinates;
       if (!coordinates?.length) {
-        return { candidates: [], reason: "No PDF.js image coordinates.", pageLabel: getPageLabel(context, pageIndex) };
+        return { candidates: [], reason: "no image coords", pageLabel: getPageLabel(context, pageIndex) };
       }
       return {
         candidates: imageCoordinatesToCandidates({
@@ -1264,7 +1283,7 @@ var PdfImageSaver = (() => {
     } catch (error) {
       renderTask?.cancel?.();
       logError(error);
-      return { candidates: [], reason: "Auto detection unavailable.", pageLabel: getPageLabel(context, pageIndex) };
+      return { candidates: [], reason: "detect failed", pageLabel: getPageLabel(context, pageIndex) };
     } finally {
       scratchCanvas.width = 0;
       scratchCanvas.height = 0;
@@ -3987,6 +4006,7 @@ var PdfImageSaver = (() => {
       formatDiagnosticsReport,
       formatOptionalHelperStatus,
       formatAutoDuplicateSkipReason,
+      formatAutoNoCandidatesReason,
       formatPreviewDuplicateSkipReason,
       classifyPreviewDuplicateSkipReason,
       formatHelperFailure,

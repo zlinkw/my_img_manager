@@ -113,6 +113,7 @@ const {
   confirmAndSaveOriginalImagesFromReader,
   filterExistingOriginalImagesForImport,
   formatAutoDuplicateSkipReason,
+  formatAutoNoCandidatesReason,
   formatPreviewDuplicateSkipReason,
   classifyPreviewDuplicateSkipReason,
   formatDiagnosticsReport,
@@ -926,6 +927,26 @@ assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSavedDuplicates: 1, pageIndex: 4 }),
   "Auto skip p5: all saved-index dups.",
   "auto duplicate feedback can include page token",
+);
+assert.strictEqual(
+  formatAutoNoCandidatesReason("no image coords", 4),
+  "Auto skip p5: no image coords. Use Clip.",
+  "auto no-candidate toast must include page token and clip fallback",
+);
+assert.strictEqual(
+  formatAutoNoCandidatesReason("PDF.js render API unavailable."),
+  "Auto skip: render API missing. Use Clip.",
+  "legacy auto no-candidate reason must densify",
+);
+assert.strictEqual(
+  formatAutoNoCandidatesReason("runtime no coords", 0),
+  "Auto skip p1: runtime no coords. Use Clip.",
+  "runtime no-coords toast must stay compact",
+);
+assert.strictEqual(
+  formatAutoNoCandidatesReason(""),
+  "Auto skip: no images. Use Clip.",
+  "empty auto no-candidate reason must fall back compactly",
 );
 
 const singleIndexKey = getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "medium");
