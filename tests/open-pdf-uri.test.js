@@ -120,6 +120,8 @@ const {
   getToastDuration,
   normalizeToastLevel,
   getErrorMessage,
+  classifyErrorCategory,
+  formatUserFacingError,
   getActiveReader,
   applyAutoRasterButtonState,
   buildToolbarActionTooltip,
@@ -1527,6 +1529,27 @@ for (const noisyErrorValue of [{ bad: true }, ["bad"], null, undefined, new Erro
   );
 }
 assert.strictEqual(getErrorMessage("x".repeat(400)).length, 320, "oversized error messages must be capped");
+assert.strictEqual(classifyErrorCategory("Byte cap: preview index is too large"), "byte_cap", "byte-cap errors must classify");
+assert.strictEqual(classifyErrorCategory("Helper unavailable: Python missing."), "helper", "helper absence must classify as helper");
+assert.strictEqual(classifyErrorCategory("Storage failed: could not import preview index into Zotero."), "storage", "storage import failures must classify");
+assert.strictEqual(classifyErrorCategory("Capture failed: rendered PDF page canvas was not found."), "capture", "canvas failures must classify as capture");
+assert.strictEqual(classifyErrorCategory("Clip skipped: already in this session."), "duplicate", "session duplicate skips must classify");
+assert.strictEqual(
+  formatUserFacingError(new Error("rendered PDF page canvas was not found")),
+  "Capture failed: rendered PDF page canvas was not found",
+  "unprefixed capture errors must gain capture prefix",
+);
+assert.strictEqual(
+  formatUserFacingError(new Error("Byte cap: preview index is too large (1 MB > 0.5 MB).")),
+  "Byte cap: preview index is too large (1 MB > 0.5 MB).",
+  "prefixed byte-cap errors must stay stable",
+);
+assert.strictEqual(
+  formatUserFacingError(new Error("could not import preview index into Zotero")),
+  "Storage failed: could not import preview index into Zotero",
+  "import failures must gain storage prefix",
+);
+
 assert.strictEqual(
   buildToolbarActionTooltip("Clip a figure preview", "high"),
   "Clip a figure preview; High, 180-750 KB/image",
@@ -2274,7 +2297,7 @@ async function runAsyncAssertions() {
       parentItem: htmlParent,
       scope: "page",
     }),
-    /All 2 Zotero original image imports failed/,
+    /Storage failed: all 2 Zotero original image imports failed/,
     "all failed Zotero imports must be surfaced as an overall error",
   );
   assert.strictEqual(allFailureErrors.length, 2, "all failed Zotero imports must log each failed import");
@@ -2351,22 +2374,22 @@ async function runAsyncAssertions() {
   await assertSaveEntryHandlesMalformedOptions(
     saveAutoDetectedPageImagePreviews,
     "auto-raster",
-    "Rendered PDF page canvas was not found",
+    "Capture failed: rendered PDF page canvas was not found",
   );
   await assertSaveEntryHandlesMalformedOptions(
     savePagePreviewIndex,
     "page-preview",
-    "Rendered PDF page canvas was not found",
+    "Capture failed: rendered PDF page canvas was not found",
   );
   await assertSaveEntryHandlesMalformedOptions(
     saveClipPreviewIndex,
     "clip-preview",
-    "Active reader item is not a PDF attachment",
+    "Capture failed: active reader item is not a PDF attachment",
   );
   await assertSaveEntryHandlesMalformedOptions(
     saveOriginalImagesFromReader,
     "original-image",
-    "Active reader item is not a PDF attachment",
+    "Capture failed: active reader item is not a PDF attachment",
   );
 }
 

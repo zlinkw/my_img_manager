@@ -633,7 +633,7 @@ if ($mainJS -notmatch "\.\.\.normalizeHelperWarningMessages\(missingPyMuPDFRepor
 if ($mainJS -match "Unexpected helper schema:\s*\$\{report\.schema_version\}") {
   throw "Helper schema mismatch errors must not interpolate raw schema_version"
 }
-if ($mainJS -notmatch "Unexpected helper schema:\s*\$\{normalizeHelperSchemaText\(report\.schema_version\)\}") {
+if ($mainJS -notmatch "Helper failed: unexpected schema\s*\$\{normalizeHelperSchemaText\(report\.schema_version\)\}") {
   throw "Helper schema mismatch errors must normalize schema_version"
 }
 if ($mainJS -notmatch "function\s+normalizeHelperSchemaText\s*\(\s*schemaVersion\s*\)") {
@@ -660,6 +660,22 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*formatDiagnosticsReport") {
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*getErrorMessage") {
   throw "Error message helper must remain exported for regression tests"
 }
+if ($mainJS -notmatch "function\s+classifyErrorCategory\s*\(") {
+  throw "Error category classifier missing"
+}
+if ($mainJS -notmatch "function\s+formatUserFacingError\s*\(") {
+  throw "User-facing error formatter missing"
+}
+if ($mainJS -notmatch "showReaderToast\(reader,\s*formatUserFacingError\(error\),\s*`"error`"\)") {
+  throw "Reader error toasts must use classified user-facing errors"
+}
+if ($mainJS -notmatch "Byte cap: preview index is too large") {
+  throw "Byte-cap preview index failure must stay labeled"
+}
+if ($mainJS -notmatch "Storage failed: could not import preview index into Zotero") {
+  throw "Preview index import failures must be labeled as storage errors"
+}
+
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildToolbarActionTooltip") {
   throw "Toolbar tooltip helper must remain exported for regression tests"
 }

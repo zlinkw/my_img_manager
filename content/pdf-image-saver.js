@@ -305,7 +305,7 @@ var PdfImageSaver = (() => {
   async function startClipFromActiveReader(win, qualityKey) {
     const reader = getActiveReader(win);
     if (!reader) {
-      Services.prompt.alert(win, "PDF Image Saver", "No active Zotero PDF reader was found.");
+      Services.prompt.alert(win, "PDF Image Saver", "Capture failed: no active Zotero PDF reader was found.");
       return;
     }
     await startClipFromReader(reader, qualityKey);
@@ -437,7 +437,7 @@ var PdfImageSaver = (() => {
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
       if (!pageElement || !canvas) {
-        throw new Error("Rendered PDF page canvas was not found.");
+        throw new Error("Capture failed: rendered PDF page canvas was not found.");
       }
       showReaderToast(reader, "Drag on this page to clip. Esc cancels.", "info");
       installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex, {
@@ -445,7 +445,7 @@ var PdfImageSaver = (() => {
       });
     } catch (error) {
       logError(error);
-      showReaderToast(reader, getErrorMessage(error), "error");
+      showReaderToast(reader, formatUserFacingError(error), "error");
       onSessionEnd?.();
     }
   }
@@ -668,7 +668,7 @@ var PdfImageSaver = (() => {
       return imported;
     } catch (error) {
       logError(error);
-      showReaderToast(reader, getErrorMessage(error), "error");
+      showReaderToast(reader, formatUserFacingError(error), "error");
       return null;
     } finally {
       if (jobAdded) {
@@ -697,7 +697,7 @@ var PdfImageSaver = (() => {
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
       if (!pageElement || !canvas) {
-        throw new Error("Rendered PDF page canvas was not found.");
+        throw new Error("Capture failed: rendered PDF page canvas was not found.");
       }
 
       const detection = await detectPageImageCandidates({
@@ -832,7 +832,7 @@ var PdfImageSaver = (() => {
       return imported;
     } catch (error) {
       logError(error);
-      showReaderToast(reader, getErrorMessage(error), "error");
+      showReaderToast(reader, formatUserFacingError(error), "error");
       return null;
     } finally {
       if (jobAdded) {
@@ -913,7 +913,7 @@ var PdfImageSaver = (() => {
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
       if (!pageElement || !canvas) {
-        throw new Error("Rendered PDF page canvas was not found.");
+        throw new Error("Capture failed: rendered PDF page canvas was not found.");
       }
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
@@ -967,7 +967,7 @@ var PdfImageSaver = (() => {
       showReaderToast(reader, `Saved page (${formatBytes(preview.byteCount)}).`, "success");
     } catch (error) {
       logError(error);
-      showReaderToast(reader, getErrorMessage(error), "error");
+      showReaderToast(reader, formatUserFacingError(error), "error");
     } finally {
       if (jobAdded) {
         activeJobs.delete(jobKey);
@@ -1049,7 +1049,7 @@ var PdfImageSaver = (() => {
 
   function calculateCanvasCrop({ selectionRect, pageRect, canvasRect, canvasWidth, canvasHeight }) {
     if (!pageRect?.width || !pageRect?.height || !canvasRect?.width || !canvasRect?.height) {
-      throw new Error("Rendered PDF page geometry is unavailable.");
+      throw new Error("Capture failed: rendered PDF page geometry is unavailable.");
     }
     const normalizedPageRect = rectWithEdges(pageRect);
     const normalizedCanvasRect = rectWithEdges(canvasRect);
@@ -1061,7 +1061,7 @@ var PdfImageSaver = (() => {
     };
     const cropClient = intersectRects(selectionClientRect, normalizedCanvasRect);
     if (cropClient.width <= 0 || cropClient.height <= 0) {
-      throw new Error("Selection does not overlap the rendered page canvas.");
+      throw new Error("Capture failed: selection does not overlap the rendered page canvas.");
     }
 
     const sourceX = clampInteger(
@@ -1295,7 +1295,7 @@ var PdfImageSaver = (() => {
       const htmlBytes = estimateUTF8Bytes(html);
       const maxBytes = getMaxIndexBytes();
       if (htmlBytes > maxBytes) {
-        throw new Error(`Preview index is too large (${formatBytes(htmlBytes)} > ${formatBytes(maxBytes)}). Lower preview quality or reduce auto-detect count.`);
+        throw new Error(`Byte cap: preview index is too large (${formatBytes(htmlBytes)} > ${formatBytes(maxBytes)}). Lower quality or reduce auto-detect count.`);
       }
       await Zotero.File.putContentsAsync(htmlPath, html);
       return htmlPath;
@@ -1466,6 +1466,8 @@ var PdfImageSaver = (() => {
         contentType: "text/html",
         charset: "utf-8",
       });
+    } catch (error) {
+      throw new Error(`Storage failed: could not import preview index into Zotero. ${getErrorMessage(error)}`);
     } finally {
       await removeDirectoryIfExists(PathUtils.parent(indexPath));
     }
@@ -1510,7 +1512,7 @@ var PdfImageSaver = (() => {
       return await saveOriginalImagesFromReader(reader, { ...safeOptions, scope });
     } catch (error) {
       logError(error);
-      showReaderToast(reader, getErrorMessage(error), "error");
+      showReaderToast(reader, formatUserFacingError(error), "error");
       return null;
     }
   }
@@ -1580,7 +1582,7 @@ var PdfImageSaver = (() => {
       );
     } catch (error) {
       logError(error);
-      showReaderToast(reader, getErrorMessage(error), "error");
+      showReaderToast(reader, formatUserFacingError(error), "error");
     } finally {
       if (jobAdded) {
         activeJobs.delete(jobKey);
@@ -1619,7 +1621,7 @@ var PdfImageSaver = (() => {
         }
       }
       if (importableImages.length && !count && importErrorCount === importableImages.length) {
-        throw new Error(`All ${importErrorCount} Zotero original image imports failed.`);
+        throw new Error(`Storage failed: all ${importErrorCount} Zotero original image imports failed.`);
       }
       if (importedImages.length) {
         try {
@@ -2079,7 +2081,7 @@ var PdfImageSaver = (() => {
         await removeFileIfExists(reportPath);
         const exitCode = await runProcess(pythonCommand, argsBase);
         if (!(await IOUtils.exists(reportPath))) {
-          throw new Error(`Helper exited with ${exitCode} and did not create a report.`);
+          throw new Error(`Helper failed: exited with ${exitCode} and did not create a report.`);
         }
         const report = await readJSONReport(reportPath);
         report.output_dir = outputDir;
@@ -2128,7 +2130,7 @@ var PdfImageSaver = (() => {
         config.rootURI + "content/helper/pdf_image_extract.py",
       );
       if (typeof helperScript !== "string" || !helperScript.includes(HELPER_SCHEMA_VERSION)) {
-        throw new Error("Bundled helper script could not be loaded.");
+        throw new Error("Helper failed: bundled helper script could not be loaded.");
       }
       await Zotero.File.putContentsAsync(helperPath, helperScript);
       return helperPath;
@@ -2304,12 +2306,12 @@ var PdfImageSaver = (() => {
 
   async function readJSONReport(path) {
     if (!(await IOUtils.exists(path))) {
-      throw new Error("Helper did not create a report.");
+      throw new Error("Helper failed: report was not created.");
     }
     const raw = await Zotero.File.getContentsAsync(path);
     const report = JSON.parse(raw);
     if (report.schema_version !== HELPER_SCHEMA_VERSION) {
-      throw new Error(`Unexpected helper schema: ${normalizeHelperSchemaText(report.schema_version)}`);
+      throw new Error(`Helper failed: unexpected schema ${normalizeHelperSchemaText(report.schema_version)}`);
     }
     return report;
   }
@@ -2427,13 +2429,13 @@ var PdfImageSaver = (() => {
     if (item?.isAttachment?.() && item.attachmentContentType === "application/pdf") {
       return item;
     }
-    throw new Error("Active reader item is not a PDF attachment.");
+    throw new Error("Capture failed: active reader item is not a PDF attachment.");
   }
 
   async function getAttachmentPath(attachment) {
     const filePath = await attachment.getFilePathAsync();
     if (!filePath || !(await IOUtils.exists(filePath))) {
-      throw new Error("PDF file path could not be resolved.");
+      throw new Error("Helper failed: PDF file path could not be resolved.");
     }
     return filePath;
   }
@@ -3732,6 +3734,82 @@ var PdfImageSaver = (() => {
     return text;
   }
 
+  function classifyErrorCategory(message) {
+    const text = String(message || "").toLowerCase();
+    if (!text) {
+      return "unknown";
+    }
+    if (
+      text.includes("byte cap")
+      || text.includes("too large")
+      || text.includes("preview cap")
+      || text.includes("byte safety cap")
+      || (text.includes("exceeded the") && text.includes("byte"))
+    ) {
+      return "byte_cap";
+    }
+    if (
+      text.includes("duplicate")
+      || text.includes("already saved")
+      || text.includes("already in this session")
+      || text.includes("already in a synced")
+      || (text.includes("skipped:") && (text.includes("session") || text.includes("saved")))
+    ) {
+      return "duplicate";
+    }
+    if (
+      text.includes("helper failed")
+      || text.includes("helper unavailable")
+      || text.includes("pymupdf")
+      || text.includes("python helper")
+      || text.includes("optional helper")
+      || text.includes("bundled helper")
+    ) {
+      return "helper";
+    }
+    if (
+      text.includes("storage failed")
+      || text.includes("zotero original image import")
+      || text.includes("import preview index")
+      || text.includes("attachments.importfromfile")
+      || text.includes("could not import")
+    ) {
+      return "storage";
+    }
+    if (
+      text.includes("capture failed")
+      || text.includes("canvas")
+      || text.includes("selection")
+      || text.includes("page geometry")
+      || text.includes("pdf attachment")
+      || text.includes("active zotero pdf reader")
+    ) {
+      return "capture";
+    }
+    return "unknown";
+  }
+
+  function formatUserFacingError(error) {
+    const message = getErrorMessage(error);
+    const category = classifyErrorCategory(message);
+    if (category === "byte_cap") {
+      return message.startsWith("Byte cap:") ? message : `Byte cap: ${message}`;
+    }
+    if (category === "helper") {
+      return message.startsWith("Helper ") || message.startsWith("Helper:") ? message : `Helper failed: ${message}`;
+    }
+    if (category === "storage") {
+      return message.startsWith("Storage failed:") ? message : `Storage failed: ${message}`;
+    }
+    if (category === "duplicate") {
+      return message.startsWith("Duplicate:") ? message : `Duplicate: ${message}`;
+    }
+    if (category === "capture") {
+      return message.startsWith("Capture failed:") ? message : `Capture failed: ${message}`;
+    }
+    return message === "Unknown error." ? "Unknown error." : message;
+  }
+
   return {
     init,
     startup,
@@ -3758,6 +3836,8 @@ var PdfImageSaver = (() => {
       formatHelperFailure,
       getToastDuration,
       getErrorMessage,
+      classifyErrorCategory,
+      formatUserFacingError,
       normalizeToastLevel,
       getActiveReader,
       getContextPageIndex,
