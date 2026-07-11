@@ -263,7 +263,7 @@ var PdfImageSaver = (() => {
     });
     const updateQualityTooltips = () => {
       const qualityKey = normalizeQualityKey(select.value);
-      select.title = `Quality: ${getQualityLabelWithEstimate(qualityKey)}`;
+      select.title = `Q ${getQualityLabelWithEstimate(qualityKey)}`;
       button.title = buildToolbarActionTooltip("Clip current page to synced HTML index", qualityKey);
       refreshAutoButtonState(qualityKey);
     };
@@ -3258,7 +3258,7 @@ var PdfImageSaver = (() => {
   function getQualityLabelWithEstimate(qualityKey) {
     const normalizedQualityKey = normalizeQualityKey(qualityKey);
     const quality = QUALITY[normalizedQualityKey];
-    return `${quality.label}, ${quality.estimate}`;
+    return `${quality.label}; ${formatQualityEstimateShort(normalizedQualityKey)}`;
   }
 
   function formatQualityEstimateShort(qualityKey) {

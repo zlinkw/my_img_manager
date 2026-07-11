@@ -303,7 +303,10 @@ if ($toolbarEntry.Value -notmatch "if\s*\(\s*toolbarMode\s*!==\s*`"idle`"\s*\)[\
 if ($mainJS -notmatch "function\s+buildToolbarActionTooltip\s*\(\s*action\s*,\s*qualityKey\s*\)[\s\S]*getQualityLabelWithEstimate\(qualityKey\)") {
   throw "Toolbar tooltip helper must use quality label and estimate"
 }
-if ($mainJS -notmatch "function\s+getQualityLabelWithEstimate\s*\(\s*qualityKey\s*\)[\s\S]*const\s+normalizedQualityKey\s*=\s*normalizeQualityKey\(qualityKey\)[\s\S]*quality\.estimate") {
+if ($mainJS -notmatch "function\s+getQualityLabelWithEstimate[\s\S]*formatQualityEstimateShort\(normalizedQualityKey\)") {
+  throw "Quality tooltip labels must use dense short estimates"
+}
+if ($mainJS -notmatch "function\s+getQualityLabelWithEstimate\s*\(\s*qualityKey\s*\)[\s\S]*const\s+normalizedQualityKey\s*=\s*normalizeQualityKey\(qualityKey\)[\s\S]*formatQualityEstimateShort\(normalizedQualityKey\)") {
   throw "Toolbar quality label helper must normalize quality and include estimate"
 }
 if ($mainJS -match "Default:\s*Medium,\s*60-220 KB/image") {

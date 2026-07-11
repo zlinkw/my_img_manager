@@ -1572,12 +1572,12 @@ assert.strictEqual(
 
 assert.strictEqual(
   buildToolbarActionTooltip("Clip a figure preview", "high"),
-  "Clip a figure preview; High, 180-750 KB/image",
+  "Clip a figure preview; High; 180-750 KB",
   "toolbar tooltip must show selected high quality estimate",
 );
 assert.strictEqual(
   buildToolbarActionTooltip("Clip a figure preview", "constructor"),
-  "Clip a figure preview; Medium, 60-220 KB/image",
+  "Clip a figure preview; Medium; 60-220 KB",
   "toolbar tooltip must normalize malformed quality to medium",
 );
 const autoRasterStateButton = { disabled: false, title: "" };
@@ -1591,7 +1591,7 @@ applyAutoRasterButtonState(autoRasterStateButton, true, "high");
 assert.strictEqual(autoRasterStateButton.disabled, false, "available auto-raster state must re-enable the button");
 assert.strictEqual(
   autoRasterStateButton.title,
-  "Auto current-page raster previews; High, 180-750 KB/image",
+  "Auto current-page raster previews; High; 180-750 KB",
   "available auto-raster state must restore selected quality tooltip",
 );
 
