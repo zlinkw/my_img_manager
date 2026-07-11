@@ -764,7 +764,7 @@ assert.strictEqual(metadata.entries[0].annotation_key, null);
 assert.ok(html.includes("<details>"), "full JSON metadata must be in a details block");
 assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
-assert.ok(html.includes(">Open</a>"), "HTML entry must expose an explicit source PDF action");
+assert.ok(html.includes(">Open PDF</a>"), "HTML entry must expose an explicit source PDF action");
 assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region identity must keep full source key in a title");
 assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");
 assert.ok(html.includes('<details class="entry-details">'), "trace metadata must be in a per-entry details block");
@@ -1638,7 +1638,7 @@ applyAutoRasterButtonState(autoRasterStateButton, true, "high");
 assert.strictEqual(autoRasterStateButton.disabled, false, "available auto-raster state must re-enable the button");
 assert.strictEqual(
   autoRasterStateButton.title,
-  "Auto current-page raster previews; High; 180-750 KB",
+  "Auto current-page raster; High; 180-750 KB",
   "available auto-raster state must restore selected quality tooltip",
 );
 
@@ -1852,7 +1852,7 @@ assert.ok(
   "context menu page-original label must show the page max image count",
 );
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Originals PDF; max 34"),
+  contextMenuItems.some((item) => item.label === "Originals doc; max 34"),
   "context menu document-original label must show the document max image count",
 );
 const contextMenuCalls = [];
@@ -1874,7 +1874,7 @@ const commandActions = buildContextMenuActions(testReader, { pageIndex: 2 }, {
 commandActions.find((item) => item.label.startsWith("Auto "))?.onCommand();
 commandActions.find((item) => item.label.startsWith("Page "))?.onCommand();
 commandActions.find((item) => item.label.startsWith("Originals page;"))?.onCommand();
-commandActions.find((item) => item.label.startsWith("Originals PDF;"))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Originals doc;"))?.onCommand();
 commandActions.find((item) => item.label === "Diag")?.onCommand();
 assert.strictEqual(contextMenuCalls.length, 5, "context menu commands must call auto, page, original, and diagnostics handlers");
 assert.strictEqual(contextMenuCalls[0].action, "auto", "first default-quality command must be auto-raster");
@@ -2296,7 +2296,7 @@ async function runAsyncAssertions() {
     scope: "page",
   });
   const existingOriginalIndexChild = stubItem(
-    { title: "Existing original image index" },
+    { title: "Existing original index" },
     {
       attachmentContentType: "text/html",
       async getFilePathAsync() {

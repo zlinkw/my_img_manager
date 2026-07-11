@@ -285,7 +285,7 @@ $toolbarEntry = [regex]::Match($mainJS, "function\s+onRenderToolbar\s*\([\s\S]*?
 if (!$toolbarEntry.Success) {
   throw "Reader toolbar render function block not found"
 }
-if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip current page to synced HTML index`",\s*qualityKey\)[\s\S]*refreshAutoButtonState\(qualityKey\)") {
+if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip current page to HTML index`",\s*qualityKey\)[\s\S]*refreshAutoButtonState\(qualityKey\)") {
   throw "Reader toolbar tooltips must be built from selected quality metadata"
 }
 if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*updateQualityTooltips\(\)") {
@@ -334,7 +334,7 @@ if ($contextMenuEntry.Value -notmatch "pageOriginalMaxImages\s*=\s*getHelperMaxI
 if ($contextMenuEntry.Value -notmatch "Originals page; max \$\{pageOriginalMaxImages\}[\s\S]*scope:\s*`"page`"[\s\S]*pageIndex:\s*getContextPageIndex\(params\)") {
   throw "Context menu page-original action must show cap and pass page scope"
 }
-if ($contextMenuEntry.Value -notmatch "Originals PDF; max \$\{documentOriginalMaxImages\}[\s\S]*scope:\s*`"document`"") {
+if ($contextMenuEntry.Value -notmatch "Originals doc; max \$\{documentOriginalMaxImages\}[\s\S]*scope:\s*`"document`"") {
   throw "Context menu whole-PDF original action must show cap and pass document scope"
 }
 if ($contextMenuEntry.Value -match "Save whole page; Medium|qualityKey:\s*`"medium`"") {
@@ -354,7 +354,7 @@ $autoRasterApplyEntry = [regex]::Match($mainJS, "function\s+applyAutoRasterButto
 if (!$autoRasterApplyEntry.Success) {
   throw "Auto-raster button state apply helper function block not found"
 }
-if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*button\.disabled\s*=\s*false[\s\S]*buildToolbarActionTooltip\(`"Auto current-page raster previews`",\s*qualityKey\)") {
+if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*button\.disabled\s*=\s*false[\s\S]*buildToolbarActionTooltip\(`"Auto current-page raster`",\s*qualityKey\)") {
   throw "Auto-raster available state must re-enable button and restore quality tooltip"
 }
 if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto unavailable\. Use Clip\.") {
@@ -859,7 +859,7 @@ if ($mainJS -match "<details\s+open") {
 if ($mainJS -notmatch "Index\s+\$\{escapeHTML\(getPreviewIndexFingerprint\(previewIndexKey\)\s*\|\|\s*`"unknown`"\)") {
   throw "HTML preview header must expose compact index fingerprint"
 }
-if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}">Open</a>') {
+if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}" title="Open source PDF page">Open PDF</a>') {
   throw "HTML preview entries must expose a visible source PDF action"
 }
 if ($mainJS -notmatch 'title="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
@@ -1471,7 +1471,7 @@ if ($mainJS -notmatch "Page \$\{defaultQuality\.label\}; \$\{formatQualityEstima
 if ($mainJS -notmatch "Originals page; max") {
   throw "Context menu original page labels must stay dense"
 }
-if ($mainJS -notmatch "Originals PDF; max") {
+if ($mainJS -notmatch "Originals doc; max") {
   throw "Context menu original document labels must stay dense"
 }
 if ($mainJS -notmatch "setToolbarMode\(`"clip`"\)[\s\S]*onSessionEnd\(\)\s*\{[\s\S]*setToolbarMode\(`"idle`"\)") {

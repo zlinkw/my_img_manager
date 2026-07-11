@@ -72,6 +72,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Clip start/cancel/too-small toasts and original cancel feedback now carry the same page/doc tokens as progress/success toasts.
 - Auto no-candidate warnings now use the same page-scoped `Auto skip` pattern and denser runtime reasons.
 - Busy toolbar titles now match locked aria labels instead of idle quality tooltips; original confirm and diagnostics titles densified.
+- Tools/menu/tooltip wording densified; HTML Open action and original index titles shortened for scanability.
 
 ### After UI Is Exhausted
 

@@ -78,7 +78,7 @@ var PdfImageSaver = (() => {
       : doc.createElement("menuitem");
     menuitem.id = "pdf-image-saver-tools-menuitem";
     menuitem.setAttribute("label", "PDF Img: Clip");
-    menuitem.setAttribute("tooltiptext", "Clip current-page figure to synced HTML index");
+    menuitem.setAttribute("tooltiptext", "Clip current page to HTML index");
     menuitem.addEventListener("command", () => {
       void startClipFromActiveReader(win, getDefaultQualityKey());
     });
@@ -87,7 +87,7 @@ var PdfImageSaver = (() => {
       : doc.createElement("menuitem");
     diagnosticsItem.id = "pdf-image-saver-diagnostics-menuitem";
     diagnosticsItem.setAttribute("label", "PDF Img: Diag");
-    diagnosticsItem.setAttribute("tooltiptext", "Runtime status, open-PDF URI, helper, temp leftovers");
+    diagnosticsItem.setAttribute("tooltiptext", "Runtime status, open-PDF, helper, temp");
     diagnosticsItem.addEventListener("command", () => {
       void showDiagnostics(win);
     });
@@ -152,7 +152,7 @@ var PdfImageSaver = (() => {
     const select = doc.createElement("select");
     select.className = "pdf-image-saver-quality";
     select.setAttribute?.("aria-label", "Preview quality");
-    select.title = "Preview quality; approx sync size";
+    select.title = "Q; approx sync size";
     for (const key of Object.keys(QUALITY)) {
       const option = doc.createElement("option");
       option.value = key;
@@ -270,7 +270,7 @@ var PdfImageSaver = (() => {
         return;
       }
       select.title = `Q ${getQualityLabelWithEstimate(qualityKey)}`;
-      button.title = buildToolbarActionTooltip("Clip current page to synced HTML index", qualityKey);
+      button.title = buildToolbarActionTooltip("Clip current page to HTML index", qualityKey);
       refreshAutoButtonState(qualityKey);
     };
     select.addEventListener("change", () => {
@@ -351,7 +351,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: `Originals PDF; max ${documentOriginalMaxImages}`,
+      label: `Originals doc; max ${documentOriginalMaxImages}`,
       onCommand() {
         void saveOriginal(reader, {
           scope: "document",
@@ -1369,7 +1369,7 @@ var PdfImageSaver = (() => {
     }
     if (isAvailable) {
       button.disabled = false;
-      button.title = buildToolbarActionTooltip("Auto current-page raster previews", qualityKey);
+      button.title = buildToolbarActionTooltip("Auto current-page raster", qualityKey);
       return;
     }
     button.disabled = true;
@@ -1468,7 +1468,7 @@ var PdfImageSaver = (() => {
                 <img src="${escapeHTML(entry.dataURL)}" alt="Saved PDF preview ${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion)}
-              <a class="source-action" href="${escapeHTML(uri)}">Open</a>
+              <a class="source-action" href="${escapeHTML(uri)}" title="Open source PDF page">Open PDF</a>
             </div>
             <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
@@ -2008,7 +2008,7 @@ var PdfImageSaver = (() => {
   function buildOriginalImageIndexTitle(parentItem, attachment, images, scope) {
     const base = sanitizeTitle(getSourceTitle(parentItem, attachment)).slice(0, 70);
     const count = Array.isArray(images) ? images.length : 0;
-    return `${base} - original image index ${normalizeOriginalScope(scope)} ${count}img`.slice(0, 140);
+    return `${base} - original index ${normalizeOriginalScope(scope)} ${count}img`.slice(0, 140);
   }
 
   function buildOriginalImageIndexHTML({ attachment, parentItem, images, scope }) {
@@ -2062,7 +2062,7 @@ var PdfImageSaver = (() => {
 </head>
 <body>
   <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
-  <p class="meta">Originals; ${normalizedImages.length} attachment${normalizedImages.length === 1 ? "" : "s"}; page links open PDF.</p>
+  <p class="meta">Originals ${escapeHTML(normalizedScope)}; ${normalizedImages.length} img; page links open PDF.</p>
   <table>
     <thead><tr><th>Page</th><th>ID</th><th>Size</th><th>Box</th></tr></thead>
     <tbody>${rows}</tbody>
