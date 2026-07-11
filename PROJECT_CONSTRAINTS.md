@@ -68,6 +68,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Session vs saved duplicate wording and page/doc scope tokens remain required.
 - Toolbar widths/aria stay stable in busy modes; toast reuses one element; quality estimates stay visible.
 - UI-first densify backlog is exhausted for inventable wording/chrome churn. Further UI work only for concrete clarity gaps or user-reported runtime wording.
+- Source-map fallback title and README smoke wording aligned with densified UI.
 
 ### After UI Is Exhausted
 

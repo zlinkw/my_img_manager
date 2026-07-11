@@ -3018,7 +3018,7 @@ var PdfImageSaver = (() => {
     if (!region) {
       return "";
     }
-    return `<div class="source-map" title="${escapeHTML(region.label || "Source region")}"><span style="left:${formatCSSPercent(region.left)};top:${formatCSSPercent(region.top)};width:${formatCSSPercent(region.width)};height:${formatCSSPercent(region.height)}"></span></div>`;
+    return `<div class="source-map" title="${escapeHTML(region.label || "Region")}"><span style="left:${formatCSSPercent(region.left)};top:${formatCSSPercent(region.top)};width:${formatCSSPercent(region.width)};height:${formatCSSPercent(region.height)}"></span></div>`;
   }
 
   function normalizeAnnotationKey(value) {
