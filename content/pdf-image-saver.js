@@ -207,22 +207,28 @@ var PdfImageSaver = (() => {
       if (toolbarMode === "clip") {
         button.disabled = true;
         button.textContent = "Drag...";
+        button.setAttribute?.("aria-label", "Clip selection active; drag on page");
         autoButton.disabled = true;
         autoButton.textContent = "Auto";
+        autoButton.setAttribute?.("aria-label", "Auto locked while clipping");
         refreshAutoButtonState();
         return;
       }
       if (toolbarMode === "auto") {
         button.disabled = true;
         button.textContent = "Clip";
+        button.setAttribute?.("aria-label", "Clip locked while auto runs");
         autoButton.disabled = true;
         autoButton.textContent = "Auto...";
+        autoButton.setAttribute?.("aria-label", "Auto detection running");
         refreshAutoButtonState();
         return;
       }
       button.disabled = false;
       button.textContent = "Clip";
+      button.setAttribute?.("aria-label", "Clip figure preview");
       autoButton.textContent = "Auto";
+      autoButton.setAttribute?.("aria-label", "Auto raster previews");
       refreshAutoButtonState();
     };
 
@@ -685,7 +691,7 @@ var PdfImageSaver = (() => {
     if (sizeBadge) {
       const width = Math.max(0, Math.round(rect.width));
       const height = Math.max(0, Math.round(rect.height));
-      sizeBadge.textContent = `${width}×${height}`;
+      sizeBadge.textContent = `${width} x ${height}`;
       sizeBadge.hidden = width < 1 && height < 1;
     }
   }
@@ -2887,11 +2893,10 @@ var PdfImageSaver = (() => {
       }
       .pdf-image-saver-selection-size {
         position: absolute;
-        left: 0;
-        top: 0;
-        transform: translateY(calc(-100% - 3px));
+        right: 0;
+        bottom: 0;
         padding: 1px 5px;
-        border-radius: 3px;
+        border-radius: 3px 0 0 0;
         background: rgba(17, 24, 39, 0.88);
         color: #fff;
         font: 11px system-ui, sans-serif;

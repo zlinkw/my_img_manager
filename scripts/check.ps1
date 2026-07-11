@@ -1423,6 +1423,15 @@ if ($mainJS -notmatch "pdf-image-saver-progress") {
   throw "Reader styles must include progress toast styling"
 }
 
+if ($mainJS -notmatch "Clip selection active; drag on page") {
+  throw "Clip busy mode must update aria-label"
+}
+if ($mainJS -notmatch "Auto detection running") {
+  throw "Auto busy mode must update aria-label"
+}
+if ($mainJS -notmatch 'sizeBadge\.textContent\s*=\s*`\$\{width\} x \$\{height\}`') {
+  throw "Selection size badge must use stable ascii pixel format"
+}
 if ($mainJS -notmatch "pdf-image-saver-selection-size") {
   throw "Clip selection overlay must show live size badge"
 }

@@ -461,7 +461,7 @@ const sizeBadge = (selectionBox.children || []).find((node) => node.className ==
 assert.ok(sizeBadge, "selection box must include live size badge");
 sessionPage.child.dispatch("pointerdown", { button: 0, pointerId: 1, clientX: 10, clientY: 12 });
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
-assert.strictEqual(sizeBadge.textContent, "60×40", "selection size badge must show live pixel size");
+assert.strictEqual(sizeBadge.textContent, "60 x 40", "selection size badge must show live pixel size");
 sessionPage.child.dispatch("keydown", { key: "Escape" });
 assert.strictEqual(clipSessionEnded, 1, "onSessionEnd must fire when overlay is cancelled");
 assert.strictEqual(sessionPage.child.removed, true, "cancelled overlay must be removed");
