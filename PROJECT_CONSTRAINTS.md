@@ -77,6 +77,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Capture/helper failure strings densified while preserving category prefixes and Clip fallback.
 - Storage/byte-cap failure strings and diagnostics helper line densified while preserving category prefixes.
 - Helper hard-fail and original save toasts densified while preserving page/doc scope tokens.
+- Toolbar aria labels, prefs status/intro, and attachment title suffixes densified for scanability.
 
 ### After UI Is Exhausted
 

@@ -1571,7 +1571,7 @@ $prefsJS = Get-Content -Encoding UTF8 -Raw -LiteralPath .\content\preferences.js
 if ($prefsJS -notmatch "pdf-image-saver-max-page-images" -or $prefsJS -notmatch "getHelperPageMax") {
   throw "Preference status must track helper page/doc/timeout/python controls"
 }
-if ($prefsJS -notmatch "Helper: optional; page") {
+if ($prefsJS -notmatch "Helper: opt; page") {
   throw "Preference status must show dense helper caps"
 }
 if ($mainJS -notmatch "const\s+toast\s*=\s*existing\s*\|\|\s*doc\.createElement\(`"div`"\)") {

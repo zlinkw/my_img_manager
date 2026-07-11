@@ -151,7 +151,7 @@ var PdfImageSaver = (() => {
     group.className = "pdf-image-saver-toolbar-group";
     const select = doc.createElement("select");
     select.className = "pdf-image-saver-quality";
-    select.setAttribute?.("aria-label", "Preview quality");
+    select.setAttribute?.("aria-label", "Preview Q");
     select.title = "Q; approx sync size";
     for (const key of Object.keys(QUALITY)) {
       const option = doc.createElement("option");
@@ -165,12 +165,12 @@ var PdfImageSaver = (() => {
     button.type = "button";
     button.className = "pdf-image-saver-toolbar-button";
     button.textContent = "Clip";
-    button.setAttribute?.("aria-label", "Clip figure preview");
+    button.setAttribute?.("aria-label", "Clip figure");
     const autoButton = doc.createElement("button");
     autoButton.type = "button";
     autoButton.className = "pdf-image-saver-toolbar-button";
     autoButton.textContent = "Auto";
-    autoButton.setAttribute?.("aria-label", "Auto raster previews");
+    autoButton.setAttribute?.("aria-label", "Auto raster");
 
     let toolbarMode = "idle";
     let autoRasterAvailable = false;
@@ -228,9 +228,9 @@ var PdfImageSaver = (() => {
       }
       button.disabled = false;
       button.textContent = "Clip";
-      button.setAttribute?.("aria-label", "Clip figure preview");
+      button.setAttribute?.("aria-label", "Clip figure");
       autoButton.textContent = "Auto";
-      autoButton.setAttribute?.("aria-label", "Auto raster previews");
+      autoButton.setAttribute?.("aria-label", "Auto raster");
       refreshAutoButtonState();
       updateQualityTooltips();
     };
@@ -1604,7 +1604,7 @@ var PdfImageSaver = (() => {
     const normalizedIndexKey = normalizePreviewIndexKey(indexKey);
     const fingerprint = normalizedIndexKey ? getPreviewIndexFingerprint(normalizedIndexKey) : null;
     const suffix = [
-      "image index",
+      "img index",
       target,
       normalizedQuality,
       entryCount ? `${entryCount}img` : null,
@@ -1934,7 +1934,7 @@ var PdfImageSaver = (() => {
     const pageNumber = normalizePageNumber(image?.pageNumber ?? image?.page_number, 1);
     const occurrence = normalizePositiveInteger(image?.occurrence, 1);
     const key = getOriginalImageFingerprint(image?.originalImageKey || getOriginalImageKey(attachment, image));
-    return `${base} - original p${pageNumber} image ${occurrence} ${key}`.slice(0, 140);
+    return `${base} - orig p${pageNumber} #${occurrence} ${key}`.slice(0, 140);
   }
 
   function buildOriginalImportSkippedText(importResult) {
@@ -3612,7 +3612,7 @@ var PdfImageSaver = (() => {
 
   function isLegacyPreviewIndexTitleCandidate(item) {
     const title = normalizeMetadataText(getItemField(item, "title"), "", 240);
-    return title.includes("image index");
+    return title.includes("image index") || title.includes("img index");
   }
 
   async function readPreviewIndexMetadataFromAttachment(item) {

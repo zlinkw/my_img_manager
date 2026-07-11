@@ -876,7 +876,7 @@ assert.deepStrictEqual(noisySourceMetadata.pdf_attachment, {
 });
 assert.strictEqual(
   buildIndexTitle(noisyParent, noisyAttachment, { bad: true }, { page: 1 }),
-  "PDF - image index unknown",
+  "PDF - img index unknown",
   "index title must normalize malformed title, scope, and page target",
 );
 assert.strictEqual(
@@ -1367,7 +1367,7 @@ assert.deepStrictEqual(
 );
 assert.match(
   buildOriginalImageTitle(noisyParent, noisyAttachment, { page_number: { bad: true }, occurrence: ["bad"] }),
-  /^PDF - original p1 image 1 [a-z0-9]+$/,
+  /^PDF - orig p1 #1 [a-z0-9]+$/,
   "original attachment title must normalize malformed source, page, occurrence, and append compact identity",
 );
 const noisyHelperWarnings = normalizeHelperWarningMessages([
@@ -2670,7 +2670,7 @@ function assertPreferenceStatusRendering() {
   assert.ok(status.textContent.includes("Dups: on; session + saved"), "preference status must render duplicate guard state");
   assert.ok(status.textContent.includes("Auto: 6 max; 3 MB"), "preference status must render auto caps");
   assert.ok(status.textContent.includes("Index: 5 MB"), "preference status must render HTML index cap");
-  assert.ok(status.textContent.includes("Helper: optional; page 12; doc 34; 45s; custom py"), "preference status must render helper caps and python path mode");
+  assert.ok(status.textContent.includes("Helper: opt; page 12; doc 34; 45s; custom py"), "preference status must render helper caps and python path mode");
   prefDoc.getElementById("pdf-image-saver-default-quality").value = "low";
   prefDoc.getElementById("pdf-image-saver-default-quality").dispatch("change");
   assert.ok(status.textContent.includes("Q Low; 20-80 KB"), "preference status must refresh after quality change");
