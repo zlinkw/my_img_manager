@@ -412,11 +412,11 @@ var PdfImageSaver = (() => {
       report.temp_leftovers = tempStats.count;
       report.temp_bytes = tempStats.bytes;
     } catch (error) {
-      report.warnings.push(`Temp check failed: ${getErrorMessage(error)}`);
+      report.warnings.push(`Temp check fail: ${getErrorMessage(error)}`);
     }
 
     if (!reader || !isPDFReader(reader)) {
-      report.warnings.push("No active PDF reader.");
+      report.warnings.push("No active PDF.");
       return report;
     }
 
@@ -524,7 +524,7 @@ var PdfImageSaver = (() => {
       if (!pageElement || !canvas) {
         throw new Error("Capture failed: page canvas missing.");
       }
-      showReaderToast(reader, `Drag ${formatPageToastToken(pageIndex)}; Esc cancels.`, "info");
+      showReaderToast(reader, `Drag ${formatPageToastToken(pageIndex)}; Esc cancel.`, "info");
       installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex, {
         onSessionEnd,
       });
@@ -554,7 +554,7 @@ var PdfImageSaver = (() => {
     overlay.className = "pdf-image-saver-selection-overlay";
     overlay.setAttribute?.("role", "application");
     const pageToken = formatPageToastToken(pageIndex);
-    const dragHint = `Drag ${pageToken}; Esc cancels`;
+    const dragHint = `Drag ${pageToken}; Esc cancel`;
     overlay.setAttribute?.("aria-label", `Clip ${pageToken}. ${dragHint}.`);
     overlay.title = dragHint;
     overlay.__pdfImageSaverOnSessionEnd = onSessionEnd;
@@ -1373,7 +1373,7 @@ var PdfImageSaver = (() => {
       return;
     }
     button.disabled = true;
-    button.title = "Auto unavailable. Use Clip.";
+    button.title = "Auto n/a. Use Clip.";
   }
 
   function supportsPDFJSImageCoordinates(pdfPage) {
@@ -1468,7 +1468,7 @@ var PdfImageSaver = (() => {
                 <img src="${escapeHTML(entry.dataURL)}" alt="Preview ${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion)}
-              <a class="source-action" href="${escapeHTML(uri)}" title="Open source PDF page">Open PDF</a>
+              <a class="source-action" href="${escapeHTML(uri)}" title="Open PDF page">Open PDF</a>
             </div>
             <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
@@ -1553,7 +1553,7 @@ var PdfImageSaver = (() => {
 <body>
   <header>
     <h1>${escapeHTML(sourceTitle)}</h1>
-    <p class="meta">Saved ${escapeHTML(createdAt)}. HTML index; syncs with PDF.</p>
+    <p class="meta">Saved ${escapeHTML(createdAt)}. HTML index; sync PDF.</p>
     <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(previewQualityKey)}</p>
   </header>
   ${entriesHTML}
@@ -2062,7 +2062,7 @@ var PdfImageSaver = (() => {
 </head>
 <body>
   <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
-  <p class="meta">Originals ${escapeHTML(normalizedScope)}; ${normalizedImages.length} img; page links open PDF.</p>
+  <p class="meta">Originals ${escapeHTML(normalizedScope)}; ${normalizedImages.length} img; links open PDF.</p>
   <table>
     <thead><tr><th>Page</th><th>ID</th><th>Size</th><th>Box</th></tr></thead>
     <tbody>${rows}</tbody>

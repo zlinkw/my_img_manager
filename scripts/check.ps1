@@ -357,7 +357,7 @@ if (!$autoRasterApplyEntry.Success) {
 if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*button\.disabled\s*=\s*false[\s\S]*buildToolbarActionTooltip\(`"Auto current-page raster`",\s*qualityKey\)") {
   throw "Auto-raster available state must re-enable button and restore quality tooltip"
 }
-if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto unavailable\. Use Clip\.") {
+if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto n/a\. Use Clip\.") {
   throw "Auto-raster unavailable state must disable button with fallback tooltip"
 }
 $imageCoordinateEntry = [regex]::Match($mainJS, "function\s+imageCoordinatesToCandidates\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+updateAutoRasterButtonState")
@@ -859,7 +859,7 @@ if ($mainJS -match "<details\s+open") {
 if ($mainJS -notmatch "Index\s+\$\{escapeHTML\(getPreviewIndexFingerprint\(previewIndexKey\)\s*\|\|\s*`"unknown`"\)") {
   throw "HTML preview header must expose compact index fingerprint"
 }
-if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}" title="Open source PDF page">Open PDF</a>') {
+if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}" title="Open PDF page">Open PDF</a>') {
   throw "HTML preview entries must expose a visible source PDF action"
 }
 if ($mainJS -notmatch 'title="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {

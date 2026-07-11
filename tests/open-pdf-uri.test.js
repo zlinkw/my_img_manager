@@ -462,14 +462,14 @@ const selectionBox = (sessionPage.child.children || []).find((node) => node.clas
 assert.ok(selectionBox, "selection overlay must include selection box");
 const sizeBadge = (selectionBox.children || []).find((node) => node.className === "pdf-image-saver-selection-size");
 assert.ok(sizeBadge, "selection box must include live size badge");
-assert.strictEqual(sessionPage.child.title, "Drag p1; Esc cancels", "clip overlay title must include page token");
+assert.strictEqual(sessionPage.child.title, "Drag p1; Esc cancel", "clip overlay title must include page token");
 assert.strictEqual(
   sessionPage.child.getAttribute("aria-label"),
-  "Clip p1. Drag p1; Esc cancels.",
+  "Clip p1. Drag p1; Esc cancel.",
   "clip overlay aria-label must include page token",
 );
 const sessionHint = (sessionPage.child.children || []).find((node) => node.className === "pdf-image-saver-selection-hint");
-assert.strictEqual(sessionHint?.textContent, "Drag p1; Esc cancels", "clip overlay hint must include page token");
+assert.strictEqual(sessionHint?.textContent, "Drag p1; Esc cancel", "clip overlay hint must include page token");
 sessionPage.child.dispatch("pointerdown", { button: 0, pointerId: 1, clientX: 10, clientY: 12 });
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
 assert.strictEqual(sizeBadge.textContent, "60 x 40", "selection size badge must show live pixel size");
@@ -1632,7 +1632,7 @@ const autoRasterStateButton = { disabled: false, title: "" };
 applyAutoRasterButtonState(autoRasterStateButton, false, "high");
 assert.strictEqual(autoRasterStateButton.disabled, true, "unavailable auto-raster state must disable the button");
 assert.ok(
-  autoRasterStateButton.title.includes("unavailable"),
+  autoRasterStateButton.title.includes("n/a"),
   "unavailable auto-raster state must explain fallback to Clip",
 );
 applyAutoRasterButtonState(autoRasterStateButton, true, "high");
@@ -1677,7 +1677,7 @@ async function assertToolbarUnavailableStateSurvivesQualityChange() {
   const [toolbarSelect, , toolbarAutoButton] = toolbarChildren[0].children;
   assert.strictEqual(toolbarAutoButton.disabled, true, "unsupported auto-raster toolbar button must be disabled");
   assert.ok(
-    toolbarAutoButton.title.includes("unavailable"),
+    toolbarAutoButton.title.includes("n/a"),
     "unsupported auto-raster toolbar button must explain unavailable state",
   );
   toolbarSelect.value = "high";
@@ -1685,7 +1685,7 @@ async function assertToolbarUnavailableStateSurvivesQualityChange() {
   await flushAsyncToolbarState();
   assert.strictEqual(toolbarAutoButton.disabled, true, "quality change must preserve disabled auto-raster state");
   assert.ok(
-    toolbarAutoButton.title.includes("unavailable"),
+    toolbarAutoButton.title.includes("n/a"),
     "quality change must preserve unavailable auto-raster explanation",
   );
 }
