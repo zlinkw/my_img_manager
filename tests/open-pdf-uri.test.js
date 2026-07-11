@@ -128,6 +128,7 @@ const {
   buildToolbarActionTooltip,
   formatQualityEstimateShort,
   formatPageToastToken,
+  formatOriginalScopeToken,
   getContextPageIndex,
   getPDFViewerContextCandidate,
   getPreviewDuplicateKey,
@@ -1583,6 +1584,9 @@ assert.strictEqual(
 
 assert.strictEqual(formatPageToastToken(0), "p1", "page toast token must be 1-based");
 assert.strictEqual(formatPageToastToken(4), "p5", "page toast token must map pageIndex to pN");
+assert.strictEqual(formatOriginalScopeToken("page", 2), "p3", "original page scope token must use page number");
+assert.strictEqual(formatOriginalScopeToken("document"), "doc", "original document scope token must stay compact");
+
 assert.strictEqual(
   buildToolbarActionTooltip("Clip a figure preview", "high"),
   "Clip a figure preview; High; 180-750 KB",

@@ -1418,8 +1418,8 @@ if ($mainJS -notmatch "Detecting auto \$\{formatPageToastToken\(pageIndex\)\}\.\
 if ($mainJS -notmatch "Saving page \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
   throw "Page save path must show page-scoped progress toast"
 }
-if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Helper running\.\.\.`",\s*`"progress`"\)") {
-  throw "Original helper path must show progress toast"
+if ($mainJS -notmatch "Helper running \$\{formatOriginalScopeToken\(scope, pageIndex\)\}\.\.\.") {
+  throw "Original helper path must show scope-scoped progress toast"
 }
 if ($mainJS -notmatch "if\s*\(\s*!pythonCommands\.length\s*\)\s*\{[\s\S]*formatHelperFailure\(\{\s*status:\s*`"no_python`"") {
   throw "Original helper path must quiet-fail before progress toast when Python is missing"

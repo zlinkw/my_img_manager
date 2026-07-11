@@ -1626,7 +1626,7 @@ var PdfImageSaver = (() => {
           : null;
       jobKey = getReaderJobKey(reader, { scope, pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, "Original already running.", "warning");
+        showReaderToast(reader, `Original already running ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
         return;
       }
 
@@ -1638,7 +1638,7 @@ var PdfImageSaver = (() => {
         showReaderToast(reader, formatHelperFailure({ status: "no_python" }), "warning");
         return;
       }
-      showReaderToast(reader, "Helper running...", "progress");
+      showReaderToast(reader, `Helper running ${formatOriginalScopeToken(scope, pageIndex)}...`, "progress");
       const report = await runHelperExtraction({
         attachment,
         pdfPath,
@@ -1660,7 +1660,7 @@ var PdfImageSaver = (() => {
       }
       if (!report.images?.length) {
         await removeDirectoryIfExists(report.output_dir);
-        showReaderToast(reader, "No originals matched.", "warning");
+        showReaderToast(reader, `No originals matched ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
         return;
       }
       const importResult = await importOriginalImages({
@@ -1673,12 +1673,12 @@ var PdfImageSaver = (() => {
         ? buildOriginalImportSkippedText(importResult)
         : "";
       if (!importResult.count) {
-        showReaderToast(reader, `No new originals.${skippedText}`, "warning");
+        showReaderToast(reader, `No new originals ${formatOriginalScopeToken(scope, pageIndex)}.${skippedText}`, "warning");
         return;
       }
       showReaderToast(
         reader,
-        `Saved ${importResult.count} original${importResult.count === 1 ? "" : "s"}.${skippedText}`,
+        `Saved ${importResult.count} original${importResult.count === 1 ? "" : "s"} ${formatOriginalScopeToken(scope, pageIndex)}.${skippedText}`,
         importResult.omittedCount || importResult.indexErrorCount ? "warning" : "success",
       );
     } catch (error) {
@@ -3274,6 +3274,16 @@ var PdfImageSaver = (() => {
     return `p${normalizePageIndex(pageIndex, 0) + 1}`;
   }
 
+  function formatOriginalScopeToken(scope, pageIndex = null) {
+    if (normalizeOriginalScope(scope) === "document") {
+      return "doc";
+    }
+    if (pageIndex === null || pageIndex === undefined) {
+      return "page";
+    }
+    return formatPageToastToken(pageIndex);
+  }
+
   function buildToolbarActionTooltip(action, qualityKey) {
     const actionText = normalizeMetadataText(action, "Save preview", 90);
     return `${actionText}; ${getQualityLabelWithEstimate(qualityKey)}`;
@@ -3990,6 +4000,7 @@ var PdfImageSaver = (() => {
       buildToolbarActionTooltip,
       formatQualityEstimateShort,
       formatPageToastToken,
+      formatOriginalScopeToken,
       imageCoordinatesToCandidates,
       getPreviewDuplicateKey,
       getPreviewIndexFingerprint,
