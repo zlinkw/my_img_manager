@@ -2665,7 +2665,7 @@ function assertPreferenceStatusRendering() {
   vm.runInContext(preferencesSource, prefContext, { filename: "preferences.js" });
   prefContext.PdfImageSaverPreferences.init();
   const status = prefDoc.getElementById("pdf-image-saver-prefs-status");
-  assert.ok(status.textContent.includes("Store: HTML indexes"), "preference status must render storage mode");
+  assert.ok(status.textContent.includes("Store: HTML"), "preference status must render storage mode");
   assert.ok(status.textContent.includes("Q High; 180-750 KB"), "preference status must render selected quality estimate");
   assert.ok(status.textContent.includes("Dups: on; session+saved"), "preference status must render duplicate guard state");
   assert.ok(status.textContent.includes("Auto: 6 max; 3 MB"), "preference status must render auto caps");

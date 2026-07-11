@@ -10,7 +10,7 @@ Zotero plugin for clipping figure previews from the open PDF reader and saving a
 
 - Runs independently inside Zotero by using the rendered PDF reader canvas.
 - Toolbar button starts box selection on the current page.
-- `Auto Raster` tries current-page embedded raster detection when the bundled Zotero PDF.js runtime exposes image coordinates; manual clipping remains the main path.
+- `Auto` tries current-page embedded raster detection when the bundled Zotero PDF.js runtime exposes image coordinates; manual clipping remains the main path.
 - Context menu offers low, medium, and high preview quality with estimated size.
 - Saves one HTML child attachment containing the preview, compact metadata, and a `zotero://open-pdf` source link.
 - Does not save full original image bytes by default, reducing Zotero storage and sync load.
@@ -97,7 +97,7 @@ After Zotero has been restarted or the add-on has been reloaded:
 - `npm.cmd run smoke:preflight` passes and reports at least one ready Zotero 9.0.5 profile.
 - `npm.cmd run runtime:status` shows `summary.readyProfiles >= 1` and `registered: true` for `pdf-image-saver@zlk.local`.
 - Manual package handoff remains preferred on Zotero 9.0.5: Tools > Add-ons > Install Add-on From File...
-- A PDF reader toolbar shows one compact `Clip` / `Auto` control group with quality estimates.
+- A PDF reader toolbar shows one compact `Clip` / `Auto` group with quality estimates.
 - A manual clip creates one Zotero stored HTML child attachment.
 - The HTML preview opens, shows the preview, source region map, compact index identity, `Open PDF` action, and collapsed metadata / trace details containing `source_region`, `source_region_key`, `preview_index_key`, `preview_duplicate_key`, and `annotation_key`.
 - Clicking preview or page opens the source PDF page.

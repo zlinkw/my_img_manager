@@ -99,7 +99,7 @@ var PdfImageSaverPreferences = {
     const pythonPath = this.getControlText(doc, "pdf-image-saver-python-path") || this.getTextPref("pythonPath", "");
     const helperPython = pythonPath ? "custom py" : "auto py";
     status.textContent = [
-      "Store: HTML indexes; sync PDF",
+      "Store: HTML; sync PDF",
       `Q ${quality.label}; ${this.formatEstimateShort(quality.estimate)}`,
       `Dups: ${duplicateGuard ? "on; session+saved" : "off"}`,
       `Auto: ${autoMaxImages} max; ${autoCapMB} MB`,

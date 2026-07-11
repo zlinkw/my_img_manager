@@ -1530,23 +1530,23 @@ var PdfImageSaver = (() => {
   <meta charset="utf-8">
   <title>${escapeHTML(sourceTitle)} - img index</title>
   <style>
-    body { margin: 18px; font: 13px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
-    header { margin-bottom: 12px; }
-    h1 { font-size: 16px; margin: 0 0 4px; }
-    .meta { color: #555; margin: 0 0 2px; line-height: 1.35; }
-    .entry { display: grid; grid-template-columns: minmax(140px, 300px) 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid #ddd; }
-    .preview-column { display: grid; gap: 6px; align-content: start; }
-    .source-action { display: inline-block; width: fit-content; padding: 3px 8px; border: 1px solid #9ab; border-radius: 4px; color: #0645ad; text-decoration: none; background: #f7faff; }
+    body { margin: 12px; font: 12.5px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
+    header { margin-bottom: 8px; }
+    h1 { font-size: 14px; margin: 0 0 3px; }
+    .meta { color: #555; margin: 0 0 1px; line-height: 1.3; }
+    .entry { display: grid; grid-template-columns: minmax(120px, 260px) 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid #ddd; }
+    .preview-column { display: grid; gap: 5px; align-content: start; }
+    .source-action { display: inline-block; width: fit-content; padding: 2px 7px; border: 1px solid #9ab; border-radius: 3px; color: #0645ad; text-decoration: none; background: #f7faff; }
     img { max-width: 100%; height: auto; border: 1px solid #ccc; background: #f6f6f6; }
-    .source-map { position: relative; width: 88px; aspect-ratio: 0.72; border: 1px solid #bbb; background: #fafafa; }
+    .source-map { position: relative; width: 76px; aspect-ratio: 0.72; border: 1px solid #bbb; background: #fafafa; }
     .source-map span { position: absolute; min-width: 2px; min-height: 2px; border: 2px solid #1f73b7; background: rgba(31, 115, 183, 0.18); box-sizing: border-box; }
-    dl { margin: 0; display: grid; gap: 4px; align-content: start; }
-    dl div { display: grid; grid-template-columns: 48px 1fr; gap: 8px; }
+    dl { margin: 0; display: grid; gap: 3px; align-content: start; }
+    dl div { display: grid; grid-template-columns: 40px 1fr; gap: 6px; }
     dt { color: #666; }
     dd { margin: 0; word-break: break-word; }
     .entry-details { grid-column: 2; }
     .entry-details summary { cursor: pointer; color: #444; }
-    pre { white-space: pre-wrap; word-break: break-word; padding: 10px; background: #f6f8fa; border: 1px solid #ddd; font-size: 12px; }
+    pre { white-space: pre-wrap; word-break: break-word; padding: 8px; background: #f6f8fa; border: 1px solid #ddd; font-size: 11.5px; }
     @media (max-width: 720px) { .entry { grid-template-columns: 1fr; } .entry-details { grid-column: 1; } }
   </style>
 </head>
@@ -2051,13 +2051,13 @@ var PdfImageSaver = (() => {
   <meta charset="utf-8">
   <title>${escapeHTML(getSourceTitle(parentItem, attachment))} - orig</title>
   <style>
-    body { margin: 18px; font: 13px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
-    h1 { font-size: 16px; margin: 0 0 4px; }
-    .meta { color: #555; margin: 0 0 8px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 8px; }
-    th, td { border-top: 1px solid #ddd; padding: 5px 6px; text-align: left; vertical-align: top; }
+    body { margin: 12px; font: 12.5px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
+    h1 { font-size: 14px; margin: 0 0 3px; }
+    .meta { color: #555; margin: 0 0 6px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+    th, td { border-top: 1px solid #ddd; padding: 4px 5px; text-align: left; vertical-align: top; }
     th { color: #555; font-weight: 600; }
-    pre { white-space: pre-wrap; word-break: break-word; padding: 10px; background: #f6f8fa; border: 1px solid #ddd; font-size: 12px; }
+    pre { white-space: pre-wrap; word-break: break-word; padding: 8px; background: #f6f8fa; border: 1px solid #ddd; font-size: 11.5px; }
   </style>
 </head>
 <body>
@@ -2874,17 +2874,17 @@ var PdfImageSaver = (() => {
       }
       .pdf-image-saver-toast {
         position: fixed;
-        right: 14px;
-        bottom: 14px;
+        right: 12px;
+        bottom: 12px;
         z-index: 999999;
-        max-width: min(360px, calc(100vw - 28px));
-        padding: 7px 9px;
-        border-radius: 4px;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+        max-width: min(320px, calc(100vw - 24px));
+        padding: 6px 8px;
+        border-radius: 3px;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
         background: #222;
         color: #fff;
         font: 12px system-ui, sans-serif;
-        line-height: 1.3;
+        line-height: 1.28;
       }
       .pdf-image-saver-success { background: #176b3a; }
       .pdf-image-saver-warning { background: #8a5a00; }
