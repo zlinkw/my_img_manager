@@ -856,42 +856,42 @@ assert.strictEqual(
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 2 }),
-  "Auto skipped: all already in this session.",
+  "Auto skip: all session dups.",
   "session duplicate feedback must remain session-specific",
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSavedDuplicates: 2 }),
-  "Auto skipped: all already in saved HTML indexes.",
+  "Auto skip: all saved-index dups.",
   "persisted duplicate feedback must not claim current-session-only saves",
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 1, skippedSavedDuplicates: 1 }),
-  "Auto skipped: all already in saved indexes or this session.",
+  "Auto skip: all saved/session dups.",
   "mixed duplicate feedback must mention both persisted and session sources",
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSavedDuplicates: 1, skippedByteLimit: 1 }),
-  "Auto skipped: saved-index dups; also hit total byte cap.",
+  "Auto skip: saved dups; total byte cap.",
   "mixed persisted duplicate and byte-cap feedback must mention both causes",
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 1, skippedOversized: 1 }),
-  "Auto skipped: session dups; also hit per-item byte cap.",
+  "Auto skip: session dups; item byte cap.",
   "mixed session duplicate and oversized feedback must mention both causes",
 );
 assert.strictEqual(
   formatPreviewDuplicateSkipReason("clip", "session"),
-  "Clip skipped: already in this session.",
+  "Clip skip: session dup.",
   "clip duplicate feedback must distinguish session memory",
 );
 assert.strictEqual(
   formatPreviewDuplicateSkipReason("page", "saved"),
-  "Page skipped: already in a synced HTML index.",
+  "Page skip: saved-index dup.",
   "page duplicate feedback must distinguish synced indexes",
 );
 assert.strictEqual(
   formatPreviewDuplicateSkipReason("auto-page", "saved"),
-  "Auto index skipped: already in a synced HTML index.",
+  "Auto skip: saved-index dup.",
   "auto-page duplicate feedback must distinguish synced indexes",
 );
 
@@ -1540,7 +1540,7 @@ assert.strictEqual(classifyErrorCategory("Byte cap: preview index is too large")
 assert.strictEqual(classifyErrorCategory("Helper unavailable: Python missing."), "helper", "helper absence must classify as helper");
 assert.strictEqual(classifyErrorCategory("Storage failed: could not import preview index into Zotero."), "storage", "storage import failures must classify");
 assert.strictEqual(classifyErrorCategory("Capture failed: rendered PDF page canvas was not found."), "capture", "canvas failures must classify as capture");
-assert.strictEqual(classifyErrorCategory("Clip skipped: already in this session."), "duplicate", "session duplicate skips must classify");
+assert.strictEqual(classifyErrorCategory("Clip skip: session dup."), "duplicate", "session duplicate skips must classify");
 assert.strictEqual(
   formatUserFacingError(new Error("rendered PDF page canvas was not found")),
   "Capture failed: rendered PDF page canvas was not found",

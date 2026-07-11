@@ -1277,16 +1277,16 @@ if ($mainJS -notmatch "async\s+function\s+classifyPreviewDuplicateSkipReason\s*\
 if ($mainJS -notmatch "function\s+formatPreviewDuplicateSkipReason\s*\(\s*scope,\s*reason\s*\)") {
   throw "Manual preview duplicate feedback formatter missing"
 }
-if ($mainJS -notmatch "already in this session" -or $mainJS -notmatch "already in a synced HTML index") {
+if ($mainJS -notmatch "session dup" -or $mainJS -notmatch "saved-index dup") {
   throw "Manual preview duplicate feedback must distinguish session memory and synced indexes"
 }
 if ($mainJS -notmatch "function\s+formatAutoDuplicateSkipReason\s*\(\s*\{[\s\S]*skippedSessionDuplicates\s*=\s*0,[\s\S]*skippedSavedDuplicates\s*=\s*0,[\s\S]*skippedByteLimit\s*=\s*0,[\s\S]*skippedOversized\s*=\s*0,[\s\S]*\}\s*=\s*\{\}\s*\)") {
   throw "Auto-page duplicate feedback formatter missing"
 }
-if ($mainJS -notmatch "saved HTML indexes" -and $mainJS -notmatch "saved-index") {
+if ($mainJS -notmatch "saved-index dups" -and $mainJS -notmatch "saved dups") {
   throw "Auto-page persisted duplicate feedback must mention synced HTML indexes"
 }
-if ($mainJS -notmatch 'Auto skipped: \$\{duplicateReason\}; also hit \$\{capReason\}\.') {
+if ($mainJS -notmatch 'Auto skip: \$\{duplicateReason\}; \$\{capReason\}\.') {
   throw "Auto-page mixed duplicate and byte-cap feedback must mention both causes"
 }
 if ($mainJS -notmatch "recentIndexSaves\.set\(getSourceRegionKey\(attachment,\s*entry\),\s*now\)") {
@@ -1397,13 +1397,13 @@ if ($mainJS -notmatch "function\s+getToastDuration\s*\(\s*level\s*\)[\s\S]*progr
 if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Saving clip\.\.\.`",\s*`"progress`"\)") {
   throw "Clip save path must show progress toast"
 }
-if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Detecting auto previews\.\.\.`",\s*`"progress`"\)") {
+if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Detecting auto\.\.\.`",\s*`"progress`"\)") {
   throw "Auto-detect path must show progress toast"
 }
 if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Saving page\.\.\.`",\s*`"progress`"\)") {
   throw "Page save path must show progress toast"
 }
-if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Running optional helper\.\.\.`",\s*`"progress`"\)") {
+if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Helper running\.\.\.`",\s*`"progress`"\)") {
   throw "Original helper path must show progress toast"
 }
 if ($mainJS -notmatch "if\s*\(\s*!pythonCommands\.length\s*\)\s*\{[\s\S]*formatHelperFailure\(\{\s*status:\s*`"no_python`"") {

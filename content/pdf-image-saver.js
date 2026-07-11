@@ -513,7 +513,7 @@ var PdfImageSaver = (() => {
       if (!pageElement || !canvas) {
         throw new Error("Capture failed: rendered PDF page canvas was not found.");
       }
-      showReaderToast(reader, "Drag on this page to clip. Esc cancels.", "info");
+      showReaderToast(reader, "Drag page; Esc cancels.", "info");
       installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex, {
         onSessionEnd,
       });
@@ -542,13 +542,13 @@ var PdfImageSaver = (() => {
     overlay.tabIndex = 0;
     overlay.className = "pdf-image-saver-selection-overlay";
     overlay.setAttribute?.("role", "application");
-    overlay.setAttribute?.("aria-label", "Clip figure on current page. Drag to select. Esc cancels.");
-    overlay.title = "Drag on this page; Esc cancels";
+    overlay.setAttribute?.("aria-label", "Clip figure. Drag page; Esc cancels.");
+    overlay.title = "Drag page; Esc cancels";
     overlay.__pdfImageSaverOnSessionEnd = onSessionEnd;
     prepareSelectionOverlayHost(pageElement, overlay);
     const hint = doc.createElement("div");
     hint.className = "pdf-image-saver-selection-hint";
-    hint.textContent = "Drag on this page; Esc cancels";
+    hint.textContent = "Drag page; Esc cancels";
     const selection = doc.createElement("div");
     selection.className = "pdf-image-saver-selection-box";
     overlay.append(hint, selection);
@@ -573,7 +573,7 @@ var PdfImageSaver = (() => {
     overlay.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         endSession();
-        showReaderToast(reader, "Clip cancelled on current page.", "warning");
+        showReaderToast(reader, "Clip cancelled.", "warning");
       }
     });
 
@@ -620,7 +620,7 @@ var PdfImageSaver = (() => {
       const rect = normalizedRect(start, end);
       endSession();
       if (rect.width < 12 || rect.height < 12) {
-        showReaderToast(reader, "Selection too small on this page.", "warning");
+        showReaderToast(reader, "Selection too small.", "warning");
         return;
       }
       void saveClipPreviewIndex(reader, {
@@ -692,7 +692,7 @@ var PdfImageSaver = (() => {
         pageIndex,
       });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, "Clip already running on this page.", "warning");
+        showReaderToast(reader, "Clip already running.", "warning");
         return;
       }
       activeJobs.add(jobKey);
@@ -760,13 +760,13 @@ var PdfImageSaver = (() => {
       const pageIndex = await getCurrentPageIndex(reader, safeOptions.pageIndex);
       jobKey = getReaderJobKey(reader, { scope: "auto-page", pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, "Auto already running on this page.", "warning");
+        showReaderToast(reader, "Auto already running.", "warning");
         return null;
       }
 
       activeJobs.add(jobKey);
       jobAdded = true;
-      showReaderToast(reader, "Detecting auto previews...", "progress");
+      showReaderToast(reader, "Detecting auto...", "progress");
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -783,7 +783,7 @@ var PdfImageSaver = (() => {
       if (!detection.candidates.length) {
         showReaderToast(
           reader,
-          `${detection.reason || "No embedded images on this page."} Use Clip.`,
+          `${detection.reason || "No auto images."} Use Clip.`,
           "warning",
         );
         return null;
@@ -865,7 +865,7 @@ var PdfImageSaver = (() => {
         }
       }
 
-      showReaderToast(reader, `Saving ${previews.length} auto preview${previews.length === 1 ? "" : "s"}...`, "progress");
+      showReaderToast(reader, `Saving ${previews.length} auto...`, "progress");
       const indexPath = await createIndexHTML({
         attachment,
         parentItem,
@@ -900,7 +900,7 @@ var PdfImageSaver = (() => {
       }
       showReaderToast(
         reader,
-        `Saved ${previews.length} auto preview${previews.length === 1 ? "" : "s"} (${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
+        `Saved ${previews.length} auto (${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
         "success",
       );
       return imported;
@@ -922,50 +922,50 @@ var PdfImageSaver = (() => {
     skippedOversized = 0,
   } = {}) {
     const duplicateReason = skippedSavedDuplicates && skippedSessionDuplicates
-      ? "saved-index or session dups"
+      ? "saved/session dups"
       : skippedSavedDuplicates
-        ? "saved-index dups"
+        ? "saved dups"
         : skippedSessionDuplicates
           ? "session dups"
           : null;
     const capReason = skippedOversized && skippedByteLimit
-      ? "per-item and total byte caps"
+      ? "item+total byte caps"
       : skippedOversized
-        ? "per-item byte cap"
+        ? "item byte cap"
         : skippedByteLimit
           ? "total byte cap"
           : null;
     if (duplicateReason && capReason) {
-      return `Auto skipped: ${duplicateReason}; also hit ${capReason}.`;
+      return `Auto skip: ${duplicateReason}; ${capReason}.`;
     }
     if (capReason) {
-      return `Auto skipped: hit ${capReason}.`;
+      return `Auto skip: ${capReason}.`;
     }
     if (skippedSavedDuplicates && skippedSessionDuplicates) {
-      return "Auto skipped: all already in saved indexes or this session.";
+      return "Auto skip: all saved/session dups.";
     }
     if (skippedSavedDuplicates) {
-      return "Auto skipped: all already in saved HTML indexes.";
+      return "Auto skip: all saved-index dups.";
     }
     if (skippedSessionDuplicates) {
-      return "Auto skipped: all already in this session.";
+      return "Auto skip: all session dups.";
     }
-    return "Auto skipped: hit auto-save byte cap.";
+    return "Auto skip: byte cap.";
   }
 
   function formatPreviewDuplicateSkipReason(scope, reason) {
     const kind = reason === "session"
-      ? "already in this session"
+      ? "session dup"
       : reason === "saved"
-        ? "already in a synced HTML index"
-        : "already saved";
+        ? "saved-index dup"
+        : "dup";
     if (scope === "page") {
-      return `Page skipped: ${kind}.`;
+      return `Page skip: ${kind}.`;
     }
     if (scope === "auto-page") {
-      return `Auto index skipped: ${kind}.`;
+      return `Auto skip: ${kind}.`;
     }
-    return `Clip skipped: ${kind}.`;
+    return `Clip skip: ${kind}.`;
   }
 
   async function savePagePreviewIndex(reader, options = {}) {
@@ -977,7 +977,7 @@ var PdfImageSaver = (() => {
       const qualityKey = normalizeQualityKey(safeOptions.qualityKey);
       jobKey = getReaderJobKey(reader, { scope: "page", pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, "Page save already running.", "warning");
+        showReaderToast(reader, "Page already running.", "warning");
         return;
       }
       activeJobs.add(jobKey);
@@ -1578,7 +1578,7 @@ var PdfImageSaver = (() => {
       const ok = Services.prompt.confirm(
         win,
         "PDF Image Saver",
-        `Save original embeds from the ${scopeLabel}? Up to ${maxImages} attachments; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/image and ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Clip previews stay safer for sync.`,
+        `Save originals from ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/image, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Clip safer for sync.`,
       );
       if (!ok) {
         showReaderToast(reader, "Original cancelled.", "warning");
@@ -1618,7 +1618,7 @@ var PdfImageSaver = (() => {
         showReaderToast(reader, formatHelperFailure({ status: "no_python" }), "warning");
         return;
       }
-      showReaderToast(reader, "Running optional helper...", "progress");
+      showReaderToast(reader, "Helper running...", "progress");
       const report = await runHelperExtraction({
         attachment,
         pdfPath,
@@ -1640,7 +1640,7 @@ var PdfImageSaver = (() => {
       }
       if (!report.images?.length) {
         await removeDirectoryIfExists(report.output_dir);
-        showReaderToast(reader, "No original embeds matched filters.", "warning");
+        showReaderToast(reader, "No originals matched.", "warning");
         return;
       }
       const importResult = await importOriginalImages({
@@ -1653,7 +1653,7 @@ var PdfImageSaver = (() => {
         ? buildOriginalImportSkippedText(importResult)
         : "";
       if (!importResult.count) {
-        showReaderToast(reader, `No new originals saved.${skippedText}`, "warning");
+        showReaderToast(reader, `No new originals.${skippedText}`, "warning");
         return;
       }
       showReaderToast(
@@ -3842,7 +3842,12 @@ var PdfImageSaver = (() => {
       || text.includes("already saved")
       || text.includes("already in this session")
       || text.includes("already in a synced")
-      || (text.includes("skipped:") && (text.includes("session") || text.includes("saved")))
+      || text.includes("session dup")
+      || text.includes("saved-index dup")
+      || text.includes("saved/session dups")
+      || text.includes("saved dups")
+      || text.includes("session dups")
+      || ((text.includes("skip:") || text.includes("skipped:")) && (text.includes("session") || text.includes("saved") || text.includes("dup")))
     ) {
       return "duplicate";
     }
