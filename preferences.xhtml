@@ -4,12 +4,12 @@
       onload="PdfImageSaverPreferences.init();">
   <groupbox>
     <label><html:h2>PDF Image Saver</html:h2></label>
-    <html:p class="pdf-image-saver-prefs-intro">Default mode saves a compact synced HTML preview index. Original image extraction is optional.</html:p>
+    <html:p class="pdf-image-saver-prefs-intro">Saves compact synced HTML preview indexes. Original embeds stay optional.</html:p>
 
     <html:section class="pdf-image-saver-prefs-section" aria-labelledby="pdf-image-saver-prefs-workflow-title">
       <html:h3 id="pdf-image-saver-prefs-workflow-title" class="pdf-image-saver-prefs-section-title">Preview workflow</html:h3>
       <html:div class="pdf-image-saver-prefs-grid">
-        <html:label for="pdf-image-saver-default-quality">Default preview quality</html:label>
+        <html:label for="pdf-image-saver-default-quality">Preview quality</html:label>
         <html:select id="pdf-image-saver-default-quality"
                      preference="extensions.pdfImageSaver.defaultQuality">
           <html:option value="low">Low, about 20-80 KB per image</html:option>
@@ -30,7 +30,7 @@
     <html:section class="pdf-image-saver-prefs-section" aria-labelledby="pdf-image-saver-prefs-caps-title">
       <html:h3 id="pdf-image-saver-prefs-caps-title" class="pdf-image-saver-prefs-section-title">Caps</html:h3>
       <html:div class="pdf-image-saver-prefs-grid">
-        <html:label for="pdf-image-saver-min-auto-area">Auto-detect min image area</html:label>
+        <html:label for="pdf-image-saver-min-auto-area">Auto min area</html:label>
         <html:input id="pdf-image-saver-min-auto-area"
                     type="number"
                     step="0.001"
@@ -38,14 +38,14 @@
                     max="0.5"
                     preference="extensions.pdfImageSaver.minAutoImageArea"/>
 
-        <html:label for="pdf-image-saver-auto-max-images">Auto-detect max page images</html:label>
+        <html:label for="pdf-image-saver-auto-max-images">Auto max images</html:label>
         <html:input id="pdf-image-saver-auto-max-images"
                     type="number"
                     min="1"
                     max="50"
                     preference="extensions.pdfImageSaver.autoDetectMaxImages"/>
 
-        <html:label for="pdf-image-saver-auto-max-preview-mb">Auto-save preview cap MB</html:label>
+        <html:label for="pdf-image-saver-auto-max-preview-mb">Auto preview cap MB</html:label>
         <html:input id="pdf-image-saver-auto-max-preview-mb"
                     type="number"
                     step="0.5"
@@ -53,7 +53,7 @@
                     max="8"
                     preference="extensions.pdfImageSaver.autoMaxPreviewBytesMB"/>
 
-        <html:label for="pdf-image-saver-max-index-mb">Max synced HTML index MB</html:label>
+        <html:label for="pdf-image-saver-max-index-mb">HTML index cap MB</html:label>
         <html:input id="pdf-image-saver-max-index-mb"
                     type="number"
                     step="0.5"
@@ -66,7 +66,7 @@
     <html:section class="pdf-image-saver-prefs-section" aria-labelledby="pdf-image-saver-prefs-helper-title">
       <html:h3 id="pdf-image-saver-prefs-helper-title" class="pdf-image-saver-prefs-section-title">Optional helper</html:h3>
       <html:div class="pdf-image-saver-prefs-grid">
-        <html:label for="pdf-image-saver-min-area">Min image area</html:label>
+        <html:label for="pdf-image-saver-min-area">Helper min area</html:label>
         <html:input id="pdf-image-saver-min-area"
                     type="number"
                     step="0.001"
@@ -74,31 +74,31 @@
                     max="0.5"
                     preference="extensions.pdfImageSaver.minImageArea"/>
 
-        <html:label for="pdf-image-saver-max-page-images">Max page images</html:label>
+        <html:label for="pdf-image-saver-max-page-images">Helper page max</html:label>
         <html:input id="pdf-image-saver-max-page-images"
                     type="number"
                     min="1"
                     max="500"
                     preference="extensions.pdfImageSaver.maxPageImages"/>
 
-        <html:label for="pdf-image-saver-max-document-images">Max document images</html:label>
+        <html:label for="pdf-image-saver-max-document-images">Helper doc max</html:label>
         <html:input id="pdf-image-saver-max-document-images"
                     type="number"
                     min="1"
                     max="2000"
                     preference="extensions.pdfImageSaver.maxDocumentImages"/>
 
-        <html:label for="pdf-image-saver-helper-timeout">Timeout seconds</html:label>
+        <html:label for="pdf-image-saver-helper-timeout">Helper timeout s</html:label>
         <html:input id="pdf-image-saver-helper-timeout"
                     type="number"
                     min="5"
                     max="600"
                     preference="extensions.pdfImageSaver.helperTimeoutSeconds"/>
 
-        <html:label for="pdf-image-saver-python-path">Python path</html:label>
+        <html:label for="pdf-image-saver-python-path">Helper Python path</html:label>
         <html:input id="pdf-image-saver-python-path"
                     type="text"
-                    placeholder="blank = auto discover"
+                    placeholder="blank = auto"
                     preference="extensions.pdfImageSaver.pythonPath"/>
       </html:div>
     </html:section>

@@ -587,7 +587,7 @@ var PdfImageSaver = (() => {
         pageIndex,
       });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, "Save already running for this page.", "warning");
+        showReaderToast(reader, "Clip already running on this page.", "warning");
         return;
       }
       activeJobs.add(jobKey);
@@ -629,7 +629,7 @@ var PdfImageSaver = (() => {
       });
       showReaderToast(
         reader,
-        `Saved preview index (${formatBytes(preview.byteCount)}).`,
+        `Saved clip (${formatBytes(preview.byteCount)}).`,
         "success",
       );
       rememberPreviewIndexSave(attachment, [preview], indexKey);
@@ -654,7 +654,7 @@ var PdfImageSaver = (() => {
       const pageIndex = await getCurrentPageIndex(reader, safeOptions.pageIndex);
       jobKey = getReaderJobKey(reader, { scope: "auto-page", pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, "Auto image save already running for this page.", "warning");
+        showReaderToast(reader, "Auto already running on this page.", "warning");
         return null;
       }
 
@@ -676,7 +676,7 @@ var PdfImageSaver = (() => {
       if (!detection.candidates.length) {
         showReaderToast(
           reader,
-          `${detection.reason || "No embedded images were detected on this page."} Use Clip for manual save.`,
+          `${detection.reason || "No embedded images on this page."} Use Clip.`,
           "warning",
         );
         return null;
@@ -779,20 +779,20 @@ var PdfImageSaver = (() => {
       rememberPreviewIndexSave(attachment, previews, indexKey);
       const notes = [];
       if (skippedSavedDuplicates) {
-        notes.push(`${skippedSavedDuplicates} already-saved skipped`);
+        notes.push(`${skippedSavedDuplicates} saved-dup`);
       }
       if (skippedSessionDuplicates) {
-        notes.push(`${skippedSessionDuplicates} session duplicate skipped`);
+        notes.push(`${skippedSessionDuplicates} session-dup`);
       }
       if (skippedByteLimit) {
-        notes.push("byte cap reached");
+        notes.push("byte-cap");
       }
       if (skippedOversized) {
-        notes.push(`${skippedOversized} oversized skipped`);
+        notes.push(`${skippedOversized} oversized`);
       }
       showReaderToast(
         reader,
-        `Saved ${previews.length} detected image preview${previews.length === 1 ? "" : "s"} (${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
+        `Saved ${previews.length} auto preview${previews.length === 1 ? "" : "s"} (${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
         "success",
       );
       return imported;
@@ -814,50 +814,50 @@ var PdfImageSaver = (() => {
     skippedOversized = 0,
   } = {}) {
     const duplicateReason = skippedSavedDuplicates && skippedSessionDuplicates
-      ? "already saved in synced HTML indexes or this Zotero session"
+      ? "saved-index or session dups"
       : skippedSavedDuplicates
-        ? "already saved in synced HTML indexes"
+        ? "saved-index dups"
         : skippedSessionDuplicates
-          ? "already saved in this Zotero session"
+          ? "session dups"
           : null;
     const capReason = skippedOversized && skippedByteLimit
-      ? "exceeded per-preview and total preview byte caps"
+      ? "per-item and total byte caps"
       : skippedOversized
-        ? "exceeded the per-preview byte cap"
+        ? "per-item byte cap"
         : skippedByteLimit
-          ? "exceeded the total preview byte cap"
+          ? "total byte cap"
           : null;
     if (duplicateReason && capReason) {
-      return `No detected previews were saved: some were ${duplicateReason}; others ${capReason}.`;
+      return `Auto skipped: ${duplicateReason}; also hit ${capReason}.`;
     }
     if (capReason) {
-      return `Detected previews ${capReason}.`;
+      return `Auto skipped: hit ${capReason}.`;
     }
     if (skippedSavedDuplicates && skippedSessionDuplicates) {
-      return "All detected previews were already saved in synced HTML indexes or this Zotero session.";
+      return "Auto skipped: all already in saved indexes or this session.";
     }
     if (skippedSavedDuplicates) {
-      return "All detected previews were already saved in synced HTML indexes.";
+      return "Auto skipped: all already in saved HTML indexes.";
     }
     if (skippedSessionDuplicates) {
-      return "All detected previews were already saved in this Zotero session.";
+      return "Auto skipped: all already in this session.";
     }
-    return "Detected previews exceeded the auto-save byte cap.";
+    return "Auto skipped: hit auto-save byte cap.";
   }
 
   function formatPreviewDuplicateSkipReason(scope, reason) {
     const kind = reason === "session"
-      ? "already saved in this Zotero session"
+      ? "already in this session"
       : reason === "saved"
-        ? "already saved in a synced HTML index"
+        ? "already in a synced HTML index"
         : "already saved";
     if (scope === "page") {
-      return `This page preview was ${kind}.`;
+      return `Page skipped: ${kind}.`;
     }
     if (scope === "auto-page") {
-      return `This detected preview index was ${kind}.`;
+      return `Auto index skipped: ${kind}.`;
     }
-    return `This preview was ${kind}.`;
+    return `Clip skipped: ${kind}.`;
   }
 
   async function savePagePreviewIndex(reader, options = {}) {
@@ -869,7 +869,7 @@ var PdfImageSaver = (() => {
       const qualityKey = normalizeQualityKey(safeOptions.qualityKey);
       jobKey = getReaderJobKey(reader, { scope: "page", pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, "Save already running for this page.", "warning");
+        showReaderToast(reader, "Page save already running.", "warning");
         return;
       }
       activeJobs.add(jobKey);
@@ -929,7 +929,7 @@ var PdfImageSaver = (() => {
         indexKey,
       });
       rememberPreviewIndexSave(attachment, [preview], indexKey);
-      showReaderToast(reader, `Saved page preview index (${formatBytes(preview.byteCount)}).`, "success");
+      showReaderToast(reader, `Saved page (${formatBytes(preview.byteCount)}).`, "success");
     } catch (error) {
       logError(error);
       showReaderToast(reader, getErrorMessage(error), "error");
@@ -1469,7 +1469,7 @@ var PdfImageSaver = (() => {
         `Save original embedded images from the ${scopeLabel}? This can store up to ${maxImages} original image attachments in Zotero, with a safety limit of ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)} per image and ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)} total per run. Preview clipping is safer for sync storage.`,
       );
       if (!ok) {
-        showReaderToast(reader, "Original extraction cancelled.", "warning");
+        showReaderToast(reader, "Original cancelled.", "warning");
         return null;
       }
       return await saveOriginalImagesFromReader(reader, { ...safeOptions, scope });
@@ -1494,14 +1494,14 @@ var PdfImageSaver = (() => {
           : null;
       jobKey = getReaderJobKey(reader, { scope, pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, "Original extraction already running for this target.", "warning");
+        showReaderToast(reader, "Original already running.", "warning");
         return;
       }
 
       activeJobs.add(jobKey);
       jobAdded = true;
       const pdfPath = await getAttachmentPath(attachment);
-      showReaderToast(reader, "Trying optional original-image helper...", "info");
+      showReaderToast(reader, "Trying optional helper...", "info");
       const report = await runHelperExtraction({
         attachment,
         pdfPath,
@@ -1509,12 +1509,12 @@ var PdfImageSaver = (() => {
         scope,
       });
       if (report.status !== "ok") {
-        showReaderToast(reader, `${formatHelperFailure(report)} Default clip mode still works.`, "warning");
+        showReaderToast(reader, `${formatHelperFailure(report)} Clip still works.`, "warning");
         return;
       }
       if (!report.images?.length) {
         await removeDirectoryIfExists(report.output_dir);
-        showReaderToast(reader, "No embedded original images matched helper filters.", "warning");
+        showReaderToast(reader, "No original embeds matched filters.", "warning");
         return;
       }
       const importResult = await importOriginalImages({
@@ -1527,12 +1527,12 @@ var PdfImageSaver = (() => {
         ? buildOriginalImportSkippedText(importResult)
         : "";
       if (!importResult.count) {
-        showReaderToast(reader, `No new original image attachments saved.${skippedText}`, "warning");
+        showReaderToast(reader, `No new originals saved.${skippedText}`, "warning");
         return;
       }
       showReaderToast(
         reader,
-        `Saved ${importResult.count} original image attachment${importResult.count === 1 ? "" : "s"}.${skippedText}`,
+        `Saved ${importResult.count} original${importResult.count === 1 ? "" : "s"}.${skippedText}`,
         importResult.omittedCount || importResult.indexErrorCount ? "warning" : "success",
       );
     } catch (error) {
@@ -2659,17 +2659,17 @@ var PdfImageSaver = (() => {
       }
       .pdf-image-saver-toast {
         position: fixed;
-        right: 18px;
-        bottom: 18px;
+        right: 16px;
+        bottom: 16px;
         z-index: 999999;
-        max-width: min(420px, calc(100vw - 36px));
-        padding: 9px 11px;
-        border-radius: 6px;
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
+        max-width: min(380px, calc(100vw - 32px));
+        padding: 8px 10px;
+        border-radius: 5px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
         background: #222;
         color: #fff;
-        font: 12.5px system-ui, sans-serif;
-        line-height: 1.35;
+        font: 12px system-ui, sans-serif;
+        line-height: 1.3;
       }
       .pdf-image-saver-success { background: #176b3a; }
       .pdf-image-saver-warning { background: #8a5a00; }

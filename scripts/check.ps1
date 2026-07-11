@@ -1308,16 +1308,16 @@ if ($mainJS -notmatch "async\s+function\s+classifyPreviewDuplicateSkipReason\s*\
 if ($mainJS -notmatch "function\s+formatPreviewDuplicateSkipReason\s*\(\s*scope,\s*reason\s*\)") {
   throw "Manual preview duplicate feedback formatter missing"
 }
-if ($mainJS -notmatch "already saved in this Zotero session" -or $mainJS -notmatch "already saved in a synced HTML index") {
+if ($mainJS -notmatch "already in this session" -or $mainJS -notmatch "already in a synced HTML index") {
   throw "Manual preview duplicate feedback must distinguish session memory and synced indexes"
 }
 if ($mainJS -notmatch "function\s+formatAutoDuplicateSkipReason\s*\(\s*\{[\s\S]*skippedSessionDuplicates\s*=\s*0,[\s\S]*skippedSavedDuplicates\s*=\s*0,[\s\S]*skippedByteLimit\s*=\s*0,[\s\S]*skippedOversized\s*=\s*0,[\s\S]*\}\s*=\s*\{\}\s*\)") {
   throw "Auto-page duplicate feedback formatter missing"
 }
-if ($mainJS -notmatch "already saved in synced HTML indexes") {
+if ($mainJS -notmatch "saved HTML indexes" -and $mainJS -notmatch "saved-index") {
   throw "Auto-page persisted duplicate feedback must mention synced HTML indexes"
 }
-if ($mainJS -notmatch 'No detected previews were saved: some were \$\{duplicateReason\}; others \$\{capReason\}\.') {
+if ($mainJS -notmatch 'Auto skipped: \$\{duplicateReason\}; also hit \$\{capReason\}\.') {
   throw "Auto-page mixed duplicate and byte-cap feedback must mention both causes"
 }
 if ($mainJS -notmatch "recentIndexSaves\.set\(getSourceRegionKey\(attachment,\s*entry\),\s*now\)") {

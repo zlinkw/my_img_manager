@@ -758,42 +758,42 @@ assert.strictEqual(
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 2 }),
-  "All detected previews were already saved in this Zotero session.",
+  "Auto skipped: all already in this session.",
   "session duplicate feedback must remain session-specific",
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSavedDuplicates: 2 }),
-  "All detected previews were already saved in synced HTML indexes.",
+  "Auto skipped: all already in saved HTML indexes.",
   "persisted duplicate feedback must not claim current-session-only saves",
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 1, skippedSavedDuplicates: 1 }),
-  "All detected previews were already saved in synced HTML indexes or this Zotero session.",
+  "Auto skipped: all already in saved indexes or this session.",
   "mixed duplicate feedback must mention both persisted and session sources",
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSavedDuplicates: 1, skippedByteLimit: 1 }),
-  "No detected previews were saved: some were already saved in synced HTML indexes; others exceeded the total preview byte cap.",
+  "Auto skipped: saved-index dups; also hit total byte cap.",
   "mixed persisted duplicate and byte-cap feedback must mention both causes",
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 1, skippedOversized: 1 }),
-  "No detected previews were saved: some were already saved in this Zotero session; others exceeded the per-preview byte cap.",
+  "Auto skipped: session dups; also hit per-item byte cap.",
   "mixed session duplicate and oversized feedback must mention both causes",
 );
 assert.strictEqual(
   formatPreviewDuplicateSkipReason("clip", "session"),
-  "This preview was already saved in this Zotero session.",
+  "Clip skipped: already in this session.",
   "clip duplicate feedback must distinguish session memory",
 );
 assert.strictEqual(
   formatPreviewDuplicateSkipReason("page", "saved"),
-  "This page preview was already saved in a synced HTML index.",
+  "Page skipped: already in a synced HTML index.",
   "page duplicate feedback must distinguish synced indexes",
 );
 assert.strictEqual(
   formatPreviewDuplicateSkipReason("auto-page", "saved"),
-  "This detected preview index was already saved in a synced HTML index.",
+  "Auto index skipped: already in a synced HTML index.",
   "auto-page duplicate feedback must distinguish synced indexes",
 );
 
@@ -1845,7 +1845,7 @@ async function runAsyncAssertions() {
   );
   assert.strictEqual(
     context.Services.prompt.alerts[0].message,
-    "Original extraction cancelled.",
+    "Original cancelled.",
     "cancelled original confirmation must show compact reader feedback",
   );
 
@@ -2335,15 +2335,15 @@ function assertPreferenceStatusRendering() {
   vm.runInContext(preferencesSource, prefContext, { filename: "preferences.js" });
   prefContext.PdfImageSaverPreferences.init();
   const status = prefDoc.getElementById("pdf-image-saver-prefs-status");
-  assert.ok(status.textContent.includes("Storage: compact HTML preview indexes"), "preference status must render storage mode");
-  assert.ok(status.textContent.includes("Quality: High, 180-750 KB/image"), "preference status must render selected quality estimate");
+  assert.ok(status.textContent.includes("Storage: compact HTML indexes"), "preference status must render storage mode");
+  assert.ok(status.textContent.includes("Quality: High; 180-750 KB/image"), "preference status must render selected quality estimate");
   assert.ok(status.textContent.includes("Duplicates: on; session + saved indexes"), "preference status must render duplicate guard state");
-  assert.ok(status.textContent.includes("Auto limit: 6 candidates; 3 MB preview cap"), "preference status must render auto caps");
-  assert.ok(status.textContent.includes("Index cap: 5 MB per synced HTML index"), "preference status must render HTML index cap");
-  assert.ok(status.textContent.includes("Helper: optional; Python/PyMuPDF only for original embeds"), "preference status must render helper note");
+  assert.ok(status.textContent.includes("Auto: 6 candidates; 3 MB cap"), "preference status must render auto caps");
+  assert.ok(status.textContent.includes("Index: 5 MB max"), "preference status must render HTML index cap");
+  assert.ok(status.textContent.includes("Helper: optional; Python/PyMuPDF for originals only"), "preference status must render helper note");
   prefDoc.getElementById("pdf-image-saver-default-quality").value = "low";
   prefDoc.getElementById("pdf-image-saver-default-quality").dispatch("change");
-  assert.ok(status.textContent.includes("Quality: Low, 20-80 KB/image"), "preference status must refresh after quality change");
+  assert.ok(status.textContent.includes("Quality: Low; 20-80 KB/image"), "preference status must refresh after quality change");
 }
 
 runAsyncAssertions()

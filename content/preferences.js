@@ -90,12 +90,12 @@ var PdfImageSaverPreferences = {
     const autoCapMB = this.getAutoMaxPreviewMB(doc);
     const indexCapMB = this.getMaxIndexMB(doc);
     status.textContent = [
-      "Storage: compact HTML preview indexes (sync with attachment)",
-      `Quality: ${quality.label}, ${quality.estimate}`,
+      "Storage: compact HTML indexes (attachment sync)",
+      `Quality: ${quality.label}; ${quality.estimate}`,
       `Duplicates: ${duplicateGuard ? "on; session + saved indexes" : "off"}`,
-      `Auto limit: ${autoMaxImages} candidates; ${autoCapMB} MB preview cap`,
-      `Index cap: ${indexCapMB} MB per synced HTML index`,
-      "Helper: optional; Python/PyMuPDF only for original embeds",
+      `Auto: ${autoMaxImages} candidates; ${autoCapMB} MB cap`,
+      `Index: ${indexCapMB} MB max`,
+      "Helper: optional; Python/PyMuPDF for originals only",
     ].join("\n");
   },
 

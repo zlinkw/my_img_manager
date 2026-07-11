@@ -61,12 +61,11 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 ### UI First
 
-- Preference pane groups and denser status landed; keep verifying live refresh and cap wording stay accurate.
-- Reader toolbar now uses short `Clip` / `Auto` labels with quality tooltips; keep labels dense as actions evolve.
-- Selection overlay now shows page-bound drag/Esc cues; keep save/cancel toasts page-specific.
-- Diagnostics and Tools menu wording densified; keep install/runtime checks actionable.
-- Keep duplicate-skip messaging specific across clip, page, and auto paths.
-- Continue UI polish on toast density, preference control labels, and context-menu scanability before non-UI feature work.
+- Preference pane groups, denser status, and shorter control labels landed; keep live refresh accurate.
+- Reader toolbar `Clip` / `Auto`, denser menus/diagnostics, and page-bound overlay cues landed.
+- Toast and duplicate-skip messages densified while preserving session vs saved distinctions.
+- Continue UI polish only where remaining clarity gaps are still higher value than non-UI work: toast hierarchy, preference help text, and any remaining long-running-action feedback.
+- Keep duplicate-skip messaging specific across clip, page, and auto paths as save paths evolve.
 
 ### After UI Is Exhausted
 
