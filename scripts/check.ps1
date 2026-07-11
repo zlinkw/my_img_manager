@@ -650,7 +650,7 @@ if ($mainJS -notmatch "\.\.\.normalizeHelperWarningMessages\(missingPyMuPDFRepor
 if ($mainJS -match "Unexpected helper schema:\s*\$\{report\.schema_version\}") {
   throw "Helper schema mismatch errors must not interpolate raw schema_version"
 }
-if ($mainJS -notmatch "Helper failed: unexpected schema\s*\$\{normalizeHelperSchemaText\(report\.schema_version\)\}") {
+if ($mainJS -notmatch "Helper failed: bad schema\s*\$\{normalizeHelperSchemaText\(report\.schema_version\)\}") {
   throw "Helper schema mismatch errors must normalize schema_version"
 }
 if ($mainJS -notmatch "function\s+normalizeHelperSchemaText\s*\(\s*schemaVersion\s*\)") {

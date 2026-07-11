@@ -1688,7 +1688,7 @@ var PdfImageSaver = (() => {
       }
       if (!report.images?.length) {
         await removeDirectoryIfExists(report.output_dir);
-        showReaderToast(reader, `No originals matched ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
+        showReaderToast(reader, `No originals ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
         return;
       }
       const importResult = await importOriginalImages({
@@ -1701,12 +1701,12 @@ var PdfImageSaver = (() => {
         ? buildOriginalImportSkippedText(importResult)
         : "";
       if (!importResult.count) {
-        showReaderToast(reader, `No new originals ${formatOriginalScopeToken(scope, pageIndex)}.${skippedText}`, "warning");
+        showReaderToast(reader, `No new orig ${formatOriginalScopeToken(scope, pageIndex)}.${skippedText}`, "warning");
         return;
       }
       showReaderToast(
         reader,
-        `Saved ${importResult.count} original${importResult.count === 1 ? "" : "s"} ${formatOriginalScopeToken(scope, pageIndex)}.${skippedText}`,
+        `Saved ${importResult.count} orig${importResult.count === 1 ? "" : "s"} ${formatOriginalScopeToken(scope, pageIndex)}.${skippedText}`,
         importResult.omittedCount || importResult.indexErrorCount ? "warning" : "success",
       );
     } catch (error) {
@@ -2213,7 +2213,7 @@ var PdfImageSaver = (() => {
         await removeFileIfExists(reportPath);
         const exitCode = await runProcess(pythonCommand, argsBase);
         if (!(await IOUtils.exists(reportPath))) {
-          throw new Error(`Helper failed: exited with ${exitCode} and did not create a report.`);
+          throw new Error(`Helper failed: exit ${exitCode}, no report.`);
         }
         const report = await readJSONReport(reportPath);
         report.output_dir = outputDir;
@@ -2262,7 +2262,7 @@ var PdfImageSaver = (() => {
         config.rootURI + "content/helper/pdf_image_extract.py",
       );
       if (typeof helperScript !== "string" || !helperScript.includes(HELPER_SCHEMA_VERSION)) {
-        throw new Error("Helper failed: bundled helper script could not be loaded.");
+        throw new Error("Helper failed: bundled script missing.");
       }
       await Zotero.File.putContentsAsync(helperPath, helperScript);
       return helperPath;
@@ -2438,12 +2438,12 @@ var PdfImageSaver = (() => {
 
   async function readJSONReport(path) {
     if (!(await IOUtils.exists(path))) {
-      throw new Error("Helper failed: report was not created.");
+      throw new Error("Helper failed: no report.");
     }
     const raw = await Zotero.File.getContentsAsync(path);
     const report = JSON.parse(raw);
     if (report.schema_version !== HELPER_SCHEMA_VERSION) {
-      throw new Error(`Helper failed: unexpected schema ${normalizeHelperSchemaText(report.schema_version)}`);
+      throw new Error(`Helper failed: bad schema ${normalizeHelperSchemaText(report.schema_version)}`);
     }
     return report;
   }
@@ -2567,7 +2567,7 @@ var PdfImageSaver = (() => {
   async function getAttachmentPath(attachment) {
     const filePath = await attachment.getFilePathAsync();
     if (!filePath || !(await IOUtils.exists(filePath))) {
-      throw new Error("Helper failed: PDF file path could not be resolved.");
+      throw new Error("Helper failed: PDF path unresolved.");
     }
     return filePath;
   }
