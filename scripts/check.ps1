@@ -285,7 +285,7 @@ $toolbarEntry = [regex]::Match($mainJS, "function\s+onRenderToolbar\s*\([\s\S]*?
 if (!$toolbarEntry.Success) {
   throw "Reader toolbar render function block not found"
 }
-if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip page HTML`",\s*qualityKey\)[\s\S]*refreshAutoButtonState\(qualityKey\)") {
+if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip HTML`",\s*qualityKey\)[\s\S]*refreshAutoButtonState\(qualityKey\)") {
   throw "Reader toolbar tooltips must be built from selected quality metadata"
 }
 if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*updateQualityTooltips\(\)") {
@@ -686,7 +686,7 @@ if ($mainJS -notmatch "function\s+formatUserFacingError\s*\(") {
 if ($mainJS -notmatch "showReaderToast\(reader,\s*formatUserFacingError\(error\),\s*`"error`"\)") {
   throw "Reader error toasts must use classified user-facing errors"
 }
-if ($mainJS -notmatch "Byte cap: index too large") {
+if ($mainJS -notmatch "Byte cap: index large") {
   throw "Byte-cap preview index failure must stay labeled"
 }
 if ($mainJS -notmatch "Storage failed: index import failed") {
@@ -859,7 +859,7 @@ if ($mainJS -match "<details\s+open") {
 if ($mainJS -notmatch "Index\s+\$\{escapeHTML\(getPreviewIndexFingerprint\(previewIndexKey\)\s*\|\|\s*`"unknown`"\)") {
   throw "HTML preview header must expose compact index fingerprint"
 }
-if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}" title="Open PDF">Open PDF</a>') {
+if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}" title="Open">Open</a>') {
   throw "HTML preview entries must expose a visible source PDF action"
 }
 if ($mainJS -notmatch 'title="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
@@ -880,7 +880,7 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexHTML") {
 if ($mainJS -notmatch "function\s+normalizePreviewEntries\s*\(\s*entries\s*\)") {
   throw "HTML preview entry-list normalizer missing"
 }
-if ($mainJS -notmatch "Preview index invalid") {
+if ($mainJS -notmatch "Preview index bad") {
   throw "HTML preview non-array entry lists must fail clearly"
 }
 if ($mainJS -notmatch "Preview index empty") {

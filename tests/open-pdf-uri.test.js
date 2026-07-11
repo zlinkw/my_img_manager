@@ -765,7 +765,7 @@ assert.strictEqual(metadata.entries[0].annotation_key, null);
 assert.ok(html.includes("<details>"), "full JSON metadata must be in a details block");
 assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
-assert.ok(html.includes(">Open PDF</a>"), "HTML entry must expose an explicit source PDF action");
+assert.ok(html.includes(">Open</a>"), "HTML entry must expose an explicit source PDF action");
 assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region identity must keep full source key in a title");
 assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");
 assert.ok(html.includes('<details class="entry-details">'), "trace metadata must be in a per-entry details block");
@@ -1157,7 +1157,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview data URL invalid/,
+  /Preview data URL bad/,
   "malformed preview data URL must be rejected before HTML output",
 );
 assert.throws(
@@ -1172,7 +1172,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview data URL invalid/,
+  /Preview data URL bad/,
   "preview data URL base64 payload length must be canonical before byte counting",
 );
 const canonicalBase64HTML = buildIndexHTML({
@@ -1195,7 +1195,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview index invalid/,
+  /Preview index bad/,
   "non-array preview entries must fail with a clear validation error",
 );
 assert.throws(
@@ -1217,7 +1217,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview data URL invalid/,
+  /Preview data URL bad/,
   "null preview entries must be normalized before data URL validation",
 );
 assert.throws(
@@ -1228,7 +1228,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview data URL invalid/,
+  /Preview data URL bad/,
   "scalar preview entries must be normalized before field mutation",
 );
 
@@ -1591,7 +1591,7 @@ for (const noisyErrorValue of [{ bad: true }, ["bad"], null, undefined, new Erro
   );
 }
 assert.strictEqual(getErrorMessage("x".repeat(400)).length, 320, "oversized error messages must be capped");
-assert.strictEqual(classifyErrorCategory("Byte cap: index too large"), "byte_cap", "byte-cap errors must classify");
+assert.strictEqual(classifyErrorCategory("Byte cap: index large"), "byte_cap", "byte-cap errors must classify");
 assert.strictEqual(classifyErrorCategory("Helper: Python n/a."), "helper", "helper absence must classify as helper");
 assert.strictEqual(classifyErrorCategory("Storage failed: index import failed."), "storage", "storage import failures must classify");
 assert.strictEqual(classifyErrorCategory("Capture failed: canvas missing."), "capture", "canvas failures must classify as capture");
@@ -1602,8 +1602,8 @@ assert.strictEqual(
   "unprefixed capture errors must gain capture prefix",
 );
 assert.strictEqual(
-  formatUserFacingError(new Error("Byte cap: index too large (1 MB > 0.5 MB).")),
-  "Byte cap: index too large (1 MB > 0.5 MB).",
+  formatUserFacingError(new Error("Byte cap: index large (1 MB > 0.5 MB).")),
+  "Byte cap: index large (1 MB > 0.5 MB).",
   "prefixed byte-cap errors must stay stable",
 );
 assert.strictEqual(

@@ -78,7 +78,7 @@ var PdfImageSaver = (() => {
       : doc.createElement("menuitem");
     menuitem.id = "pdf-image-saver-tools-menuitem";
     menuitem.setAttribute("label", "PDF Img Clip");
-    menuitem.setAttribute("tooltiptext", "Clip page HTML");
+    menuitem.setAttribute("tooltiptext", "Clip HTML");
     menuitem.addEventListener("command", () => {
       void startClipFromActiveReader(win, getDefaultQualityKey());
     });
@@ -87,7 +87,7 @@ var PdfImageSaver = (() => {
       : doc.createElement("menuitem");
     diagnosticsItem.id = "pdf-image-saver-diagnostics-menuitem";
     diagnosticsItem.setAttribute("label", "PDF Img Diag");
-    diagnosticsItem.setAttribute("tooltiptext", "Runtime/open/helper/temp");
+    diagnosticsItem.setAttribute("tooltiptext", "Runtime/open/helper");
     diagnosticsItem.addEventListener("command", () => {
       void showDiagnostics(win);
     });
@@ -152,7 +152,7 @@ var PdfImageSaver = (() => {
     const select = doc.createElement("select");
     select.className = "pdf-image-saver-quality";
     select.setAttribute?.("aria-label", "Q");
-    select.title = "Q; est size";
+    select.title = "Q; size est";
     for (const key of Object.keys(QUALITY)) {
       const option = doc.createElement("option");
       option.value = key;
@@ -270,7 +270,7 @@ var PdfImageSaver = (() => {
         return;
       }
       select.title = `Q ${getQualityLabelWithEstimate(qualityKey)}`;
-      button.title = buildToolbarActionTooltip("Clip page HTML", qualityKey);
+      button.title = buildToolbarActionTooltip("Clip HTML", qualityKey);
       refreshAutoButtonState(qualityKey);
     };
     select.addEventListener("change", () => {
@@ -1170,7 +1170,7 @@ var PdfImageSaver = (() => {
 
   function calculateCanvasCrop({ selectionRect, pageRect, canvasRect, canvasWidth, canvasHeight }) {
     if (!pageRect?.width || !pageRect?.height || !canvasRect?.width || !canvasRect?.height) {
-      throw new Error("Capture failed: page geometry n/a.");
+      throw new Error("Capture failed: geometry n/a.");
     }
     const normalizedPageRect = rectWithEdges(pageRect);
     const normalizedCanvasRect = rectWithEdges(canvasRect);
@@ -1416,7 +1416,7 @@ var PdfImageSaver = (() => {
       const htmlBytes = estimateUTF8Bytes(html);
       const maxBytes = getMaxIndexBytes();
       if (htmlBytes > maxBytes) {
-        throw new Error(`Byte cap: index too large (${formatBytes(htmlBytes)} > ${formatBytes(maxBytes)}). Lower Q/auto.`);
+        throw new Error(`Byte cap: index large (${formatBytes(htmlBytes)} > ${formatBytes(maxBytes)}). Lower Q/auto.`);
       }
       await Zotero.File.putContentsAsync(htmlPath, html);
       return htmlPath;
@@ -1468,7 +1468,7 @@ var PdfImageSaver = (() => {
                 <img src="${escapeHTML(entry.dataURL)}" alt="Preview ${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion)}
-              <a class="source-action" href="${escapeHTML(uri)}" title="Open PDF">Open PDF</a>
+              <a class="source-action" href="${escapeHTML(uri)}" title="Open">Open</a>
             </div>
             <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
@@ -1567,7 +1567,7 @@ var PdfImageSaver = (() => {
 
   function normalizePreviewEntries(entries) {
     if (!Array.isArray(entries)) {
-      throw new Error("Preview index invalid.");
+      throw new Error("Preview index bad.");
     }
     if (!entries.length) {
       throw new Error("Preview index empty.");
@@ -1701,7 +1701,7 @@ var PdfImageSaver = (() => {
         ? buildOriginalImportSkippedText(importResult)
         : "";
       if (!importResult.count) {
-        showReaderToast(reader, `No new orig ${formatOriginalScopeToken(scope, pageIndex)}.${skippedText}`, "warning");
+        showReaderToast(reader, `No new ${formatOriginalScopeToken(scope, pageIndex)}.${skippedText}`, "warning");
         return;
       }
       showReaderToast(
@@ -3410,7 +3410,7 @@ var PdfImageSaver = (() => {
     if (match?.[1]?.length % 4 === 0) {
       return text;
     }
-    throw new Error("Preview data URL invalid.");
+    throw new Error("Preview data URL bad.");
   }
 
   function getAutoMaxPreviewBytes() {
