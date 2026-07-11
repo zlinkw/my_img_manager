@@ -103,7 +103,7 @@ var PdfImageSaverPreferences = {
     status.textContent = [
       "Store: HTML; sync PDF",
       `Q ${quality.label}; ${this.formatEstimateShort(quality.estimate)}`,
-      `Dups: ${duplicateGuard ? "on; session+saved" : "off"}`,
+      `Dups: ${duplicateGuard ? "on; sess+saved" : "off"}`,
       `Auto: ${autoMaxImages} max; ${autoCapMB} MB`,
       `Index: ${indexCapMB} MB`,
       `Helper: opt; page ${helperPageMax}; doc ${helperDocMax}; ${helperTimeout}s; ${helperPython}`,

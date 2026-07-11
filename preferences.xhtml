@@ -4,12 +4,12 @@
       onload="PdfImageSaverPreferences.init();">
   <groupbox>
     <label><html:h2>PDF Image Saver</html:h2></label>
-    <html:p class="pdf-image-saver-prefs-intro">Clip/Auto save compact HTML; sync PDF. Helper opt.</html:p>
+    <html:p class="pdf-image-saver-prefs-intro">Clip/Auto save HTML; sync PDF. Helper opt.</html:p>
 
     <html:section class="pdf-image-saver-prefs-section" aria-labelledby="pdf-image-saver-prefs-workflow-title">
       <html:h3 id="pdf-image-saver-prefs-workflow-title" class="pdf-image-saver-prefs-section-title">Workflow</html:h3>
       <html:div class="pdf-image-saver-prefs-grid">
-        <html:label for="pdf-image-saver-default-quality">Quality</html:label>
+        <html:label for="pdf-image-saver-default-quality">Q</html:label>
         <html:select id="pdf-image-saver-default-quality"
                      preference="extensions.pdfImageSaver.defaultQuality">
           <html:option value="low">Low; 20-80 KB</html:option>
@@ -17,7 +17,7 @@
           <html:option value="high">High; 180-750 KB</html:option>
         </html:select>
 
-        <html:label for="pdf-image-saver-duplicate-guard">Duplicates</html:label>
+        <html:label for="pdf-image-saver-duplicate-guard">Dups</html:label>
         <html:div class="pdf-image-saver-prefs-check">
           <html:input id="pdf-image-saver-duplicate-guard"
                       type="checkbox"
@@ -53,7 +53,7 @@
                     max="8"
                     preference="extensions.pdfImageSaver.autoMaxPreviewBytesMB"/>
 
-        <html:label for="pdf-image-saver-max-index-mb">Index cap MB</html:label>
+        <html:label for="pdf-image-saver-max-index-mb">Index MB</html:label>
         <html:input id="pdf-image-saver-max-index-mb"
                     type="number"
                     step="0.5"
@@ -95,7 +95,7 @@
                     max="600"
                     preference="extensions.pdfImageSaver.helperTimeoutSeconds"/>
 
-        <html:label for="pdf-image-saver-python-path">Python path</html:label>
+        <html:label for="pdf-image-saver-python-path">Python</html:label>
         <html:input id="pdf-image-saver-python-path"
                     type="text"
                     placeholder="auto"

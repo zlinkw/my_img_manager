@@ -759,7 +759,7 @@ var PdfImageSaver = (() => {
       });
       showReaderToast(
         reader,
-        `Saved clip ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`,
+        `OK clip ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`,
         "success",
       );
       rememberPreviewIndexSave(attachment, [preview], indexKey);
@@ -925,7 +925,7 @@ var PdfImageSaver = (() => {
       }
       showReaderToast(
         reader,
-        `Saved ${previews.length} auto ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
+        `OK ${previews.length} auto ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
         "success",
       );
       return imported;
@@ -1085,7 +1085,7 @@ var PdfImageSaver = (() => {
         indexKey,
       });
       rememberPreviewIndexSave(attachment, [preview], indexKey);
-      showReaderToast(reader, `Saved page ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`, "success");
+      showReaderToast(reader, `OK page ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`, "success");
     } catch (error) {
       logError(error);
       showReaderToast(reader, formatUserFacingError(error), "error");
@@ -1706,7 +1706,7 @@ var PdfImageSaver = (() => {
       }
       showReaderToast(
         reader,
-        `Saved ${importResult.count} orig${importResult.count === 1 ? "" : "s"} ${formatOriginalScopeToken(scope, pageIndex)}.${skippedText}`,
+        `OK ${importResult.count} orig${importResult.count === 1 ? "" : "s"} ${formatOriginalScopeToken(scope, pageIndex)}.${skippedText}`,
         importResult.omittedCount || importResult.indexErrorCount ? "warning" : "success",
       );
     } catch (error) {
@@ -2768,9 +2768,9 @@ var PdfImageSaver = (() => {
 
   function normalizeToastMessage(message) {
     if (message && typeof message.message === "string") {
-      return normalizeMetadataText(message.message, "PDF Img notice.", 280);
+      return normalizeMetadataText(message.message, "PDF Img note.", 280);
     }
-    return normalizeMetadataText(message, "PDF Img notice.", 280);
+    return normalizeMetadataText(message, "PDF Img note.", 280);
   }
 
   function normalizeToastLevel(level) {

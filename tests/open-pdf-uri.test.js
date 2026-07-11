@@ -508,7 +508,7 @@ showReaderToast(
   { level: "bad" },
 );
 assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "toast updates must reuse the existing toast element");
-assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img notice.", "malformed toast messages must normalize to compact fallback text");
+assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img note.", "malformed toast messages must normalize to compact fallback text");
 assert.strictEqual(readerToastDoc.bodyChildren[0].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
 
 context.Services.prompt.alerts = [];
@@ -2667,7 +2667,7 @@ function assertPreferenceStatusRendering() {
   const status = prefDoc.getElementById("pdf-image-saver-prefs-status");
   assert.ok(status.textContent.includes("Store: HTML"), "preference status must render storage mode");
   assert.ok(status.textContent.includes("Q High; 180-750 KB"), "preference status must render selected quality estimate");
-  assert.ok(status.textContent.includes("Dups: on; session+saved"), "preference status must render duplicate guard state");
+  assert.ok(status.textContent.includes("Dups: on; sess+saved"), "preference status must render duplicate guard state");
   assert.ok(status.textContent.includes("Auto: 6 max; 3 MB"), "preference status must render auto caps");
   assert.ok(status.textContent.includes("Index: 5 MB"), "preference status must render HTML index cap");
   assert.ok(status.textContent.includes("Helper: opt; page 12; doc 34; 45s; custom py"), "preference status must render helper caps and python path mode");

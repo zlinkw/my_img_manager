@@ -1391,7 +1391,7 @@ if ($readerToastEntry.Value -match "showToastInDocument\(immediateContext\?\.doc
 if ($readerToastEntry.Value -match "Services\.prompt\.alert") {
   throw "Reader toast should route fallback prompts through showFallbackAlert"
 }
-if ($mainJS -notmatch "function\s+normalizeToastMessage\s*\(\s*message\s*\)[\s\S]*normalizeMetadataText\(message,\s*`"PDF Img notice\.`",\s*280\)") {
+if ($mainJS -notmatch "function\s+normalizeToastMessage\s*\(\s*message\s*\)[\s\S]*normalizeMetadataText\(message,\s*`"PDF Img note\.`",\s*280\)") {
   throw "Reader toast message normalizer missing compact fallback"
 }
 if ($mainJS -notmatch "function\s+normalizeToastLevel\s*\(\s*level\s*\)[\s\S]*\[`"info`",\s*`"success`",\s*`"warning`",\s*`"error`",\s*`"progress`"\]\.includes\(text\)\s*\?\s*text\s*:\s*`"info`"") {
@@ -1400,13 +1400,13 @@ if ($mainJS -notmatch "function\s+normalizeToastLevel\s*\(\s*level\s*\)[\s\S]*\[
 if ($mainJS -notmatch "function\s+getToastDuration\s*\(\s*level\s*\)[\s\S]*progress[\s\S]*120000") {
   throw "Reader toast duration helper must keep progress toasts sticky"
 }
-if ($mainJS -notmatch "Saved clip \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
+if ($mainJS -notmatch "OK clip \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
   throw "Clip success toast must include page, quality, and size"
 }
-if ($mainJS -notmatch "Saved page \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
+if ($mainJS -notmatch "OK page \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
   throw "Page success toast must include page, quality, and size"
 }
-if ($mainJS -notmatch "Saved \$\{previews\.length\} auto \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\};") {
+if ($mainJS -notmatch "OK \$\{previews\.length\} auto \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\};") {
   throw "Auto success toast must include page, quality, and size"
 }
 if ($mainJS -notmatch "Save clip \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
