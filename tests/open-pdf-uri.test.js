@@ -1627,6 +1627,109 @@ async function assertToolbarUnavailableStateSurvivesQualityChange() {
     "quality change must preserve unavailable auto-raster explanation",
   );
 }
+
+async function assertToolbarBusyModeLocksSiblingControls() {
+  const toolbarDoc = createFakeToolbarDocument();
+  const toolbarChildren = [];
+  const originalLogError = context.Zotero.logError;
+  context.Zotero.logError = () => {};
+  try {
+    const toolbarReader = {
+      type: "pdf",
+      _iframeWindow: {
+        document: {},
+        PDFViewerApplication: {
+          pdfViewer: {
+            currentPageNumber: 1,
+            getPageView() {
+              return {
+                pdfPage: {
+                  render() {},
+                  imageCoordinates: [],
+                },
+              };
+            },
+          },
+        },
+      },
+    };
+    onRenderToolbar({
+      reader: toolbarReader,
+      doc: toolbarDoc,
+      append(element) {
+        toolbarChildren.push(element);
+      },
+    });
+    await flushAsyncToolbarState();
+    await flushAsyncToolbarState();
+    const [toolbarSelect, toolbarClipButton, toolbarAutoButton] = toolbarChildren[0].children;
+    assert.strictEqual(toolbarClipButton.textContent, "Clip", "idle clip button label");
+    assert.strictEqual(toolbarAutoButton.textContent, "Auto", "idle auto button label");
+    assert.strictEqual(toolbarSelect.disabled, false, "quality select enabled when idle");
+    assert.strictEqual(toolbarAutoButton.disabled, false, "supported auto-raster toolbar button must enable after sync");
+
+    toolbarClipButton.dispatch("click");
+    assert.strictEqual(toolbarClipButton.textContent, "Drag...", "clip click must enter Drag state");
+    assert.strictEqual(toolbarClipButton.disabled, true, "clip click must disable clip button");
+    assert.strictEqual(toolbarAutoButton.disabled, true, "clip click must disable auto button");
+    assert.strictEqual(toolbarSelect.disabled, true, "clip click must disable quality select");
+
+    // Quality change and second clip click must stay no-ops while busy.
+    toolbarSelect.value = "high";
+    toolbarSelect.dispatch("change");
+    toolbarClipButton.dispatch("click");
+    assert.strictEqual(toolbarClipButton.textContent, "Drag...", "busy clip click must remain no-op");
+    assert.strictEqual(toolbarSelect.disabled, true, "busy quality select must stay disabled");
+    assert.strictEqual(toolbarAutoButton.disabled, true, "busy auto button must stay disabled");
+
+    // Failed clip (no canvas) ends session and restores idle + available auto.
+    await flushAsyncToolbarState();
+    await flushAsyncToolbarState();
+    assert.strictEqual(toolbarClipButton.textContent, "Clip", "failed clip must restore idle clip label");
+    assert.strictEqual(toolbarClipButton.disabled, false, "failed clip must re-enable clip");
+    assert.strictEqual(toolbarSelect.disabled, false, "failed clip must re-enable quality select");
+    assert.strictEqual(toolbarAutoButton.disabled, false, "failed clip must restore available auto");
+    assert.strictEqual(toolbarAutoButton.textContent, "Auto", "failed clip must restore idle auto label");
+
+    // Unavailable runtime must re-disable Auto after idle restore.
+    const unavailableDoc = createFakeToolbarDocument();
+    const unavailableChildren = [];
+    const unavailableReader = {
+      type: "pdf",
+      _iframeWindow: {
+        document: {},
+        PDFViewerApplication: {
+          pdfViewer: {
+            currentPageNumber: 1,
+            getPageView() {
+              return { pdfPage: {} };
+            },
+          },
+        },
+      },
+    };
+    onRenderToolbar({
+      reader: unavailableReader,
+      doc: unavailableDoc,
+      append(element) {
+        unavailableChildren.push(element);
+      },
+    });
+    await flushAsyncToolbarState();
+    await flushAsyncToolbarState();
+    const [, unavailableClipButton, unavailableAutoButton] = unavailableChildren[0].children;
+    assert.strictEqual(unavailableAutoButton.disabled, true, "unsupported auto must stay disabled when idle");
+    unavailableClipButton.dispatch("click");
+    assert.strictEqual(unavailableClipButton.textContent, "Drag...", "unavailable runtime clip still enters Drag");
+    assert.strictEqual(unavailableAutoButton.disabled, true, "unavailable auto stays locked during clip");
+    await flushAsyncToolbarState();
+    await flushAsyncToolbarState();
+    assert.strictEqual(unavailableClipButton.textContent, "Clip", "unavailable runtime clip restores idle");
+    assert.strictEqual(unavailableAutoButton.disabled, true, "unavailable auto must remain disabled after clip ends");
+  } finally {
+    context.Zotero.logError = originalLogError;
+  }
+}
 const autoCandidatePage = {
   getBoundingClientRect: () => ({ left: 100, top: 50, width: 1000, height: 800 }),
 };
@@ -1738,6 +1841,7 @@ delete context.Zotero.Prefs.values["extensions.pdfImageSaver.maxDocumentImages"]
 
 async function runAsyncAssertions() {
   await assertToolbarUnavailableStateSurvivesQualityChange();
+  await assertToolbarBusyModeLocksSiblingControls();
   const duplicateIndexHTML = buildIndexHTML({
     attachment: htmlAttachment,
     parentItem: htmlParent,

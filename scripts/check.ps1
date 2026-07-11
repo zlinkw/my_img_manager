@@ -285,17 +285,20 @@ $toolbarEntry = [regex]::Match($mainJS, "function\s+onRenderToolbar\s*\([\s\S]*?
 if (!$toolbarEntry.Success) {
   throw "Reader toolbar render function block not found"
 }
-if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip current-page figure to synced HTML index`",\s*qualityKey\)[\s\S]*autoButton\.title\s*=\s*buildToolbarActionTooltip") {
+if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip current-page figure to synced HTML index`",\s*qualityKey\)[\s\S]*refreshAutoButtonState\(qualityKey\)") {
   throw "Reader toolbar tooltips must be built from selected quality metadata"
 }
 if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*updateQualityTooltips\(\)") {
   throw "Reader toolbar must refresh tooltips when quality selection changes"
 }
-if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*const\s+qualityKey\s*=\s*normalizeQualityKey\(select\.value\)[\s\S]*updateQualityTooltips\(\)[\s\S]*updateAutoRasterButtonState\(reader,\s*autoButton,\s*qualityKey\)") {
+if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*const\s+qualityKey\s*=\s*normalizeQualityKey\(select\.value\)[\s\S]*updateQualityTooltips\(\)[\s\S]*syncAutoRasterAvailability\(qualityKey\)") {
   throw "Reader toolbar quality changes must reapply auto-raster availability state"
 }
-if ($toolbarEntry.Value -notmatch "updateQualityTooltips\(\)[\s\S]*updateAutoRasterButtonState") {
+if ($toolbarEntry.Value -notmatch "updateQualityTooltips\(\)[\s\S]*syncAutoRasterAvailability") {
   throw "Reader toolbar must initialize quality tooltips before auto-raster state update"
+}
+if ($toolbarEntry.Value -notmatch "if\s*\(\s*toolbarMode\s*!==\s*`"idle`"\s*\)[\s\S]*return;") {
+  throw "Reader toolbar busy mode must keep quality and sibling controls locked"
 }
 if ($mainJS -notmatch "function\s+buildToolbarActionTooltip\s*\(\s*action\s*,\s*qualityKey\s*\)[\s\S]*getQualityLabelWithEstimate\(qualityKey\)") {
   throw "Toolbar tooltip helper must use quality label and estimate"
@@ -1423,8 +1426,26 @@ if ($mainJS -notmatch "pdf-image-saver-progress") {
 if ($mainJS -notmatch "onSessionEnd") {
   throw "Clip selection overlay must support onSessionEnd lifecycle callback"
 }
-if ($mainJS -notmatch "button\.textContent\s*=\s*`"Drag\.\.\.`"[\s\S]*onSessionEnd\(\)\s*\{[\s\S]*button\.textContent\s*=\s*`"Clip`"") {
+if ($mainJS -notmatch "setToolbarMode\(`"clip`"\)[\s\S]*onSessionEnd\(\)\s*\{[\s\S]*setToolbarMode\(`"idle`"\)") {
   throw "Clip toolbar button must stay in Drag state until selection session ends"
+}
+if ($mainJS -notmatch "let\s+toolbarMode\s*=\s*`"idle`"") {
+  throw "Reader toolbar must track clip/auto busy mode"
+}
+if ($mainJS -notmatch "select\.disabled\s*=\s*busy") {
+  throw "Reader toolbar must disable quality changes while clip/auto is busy"
+}
+if ($mainJS -notmatch "setToolbarMode\(`"auto`"\)") {
+  throw "Auto toolbar path must enter shared busy mode"
+}
+if ($mainJS -notmatch 'PDF Image Saver: Clip"') {
+  throw "Tools menu clip label must stay dense"
+}
+if ($mainJS -notmatch "syncAutoRasterAvailability") {
+  throw "Toolbar must sync auto availability without unlocking busy controls"
+}
+if ($mainJS -notmatch "refreshAutoButtonState") {
+  throw "Toolbar must refresh auto button state through shared busy-aware helper"
 }
 if ($mainJS -notmatch "helperStatus\s*===\s*`"missing_pymupdf`"\s*\|\|\s*helperStatus\s*===\s*`"no_python`"") {
   throw "Helper absence feedback must stay quieter than generic helper failures"

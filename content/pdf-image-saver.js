@@ -77,8 +77,8 @@ var PdfImageSaver = (() => {
       ? doc.createXULElement("menuitem")
       : doc.createElement("menuitem");
     menuitem.id = "pdf-image-saver-tools-menuitem";
-    menuitem.setAttribute("label", "PDF Image Saver: Clip figure");
-    menuitem.setAttribute("tooltiptext", "Clip current PDF page figure into a synced HTML preview index");
+    menuitem.setAttribute("label", "PDF Image Saver: Clip");
+    menuitem.setAttribute("tooltiptext", "Clip current-page figure to synced HTML preview index");
     menuitem.addEventListener("command", () => {
       void startClipFromActiveReader(win, getDefaultQualityKey());
     });
@@ -87,7 +87,7 @@ var PdfImageSaver = (() => {
       : doc.createElement("menuitem");
     diagnosticsItem.id = "pdf-image-saver-diagnostics-menuitem";
     diagnosticsItem.setAttribute("label", "PDF Image Saver: Diagnostics");
-    diagnosticsItem.setAttribute("tooltiptext", "Show install/runtime status, active PDF URI, and temp leftovers");
+    diagnosticsItem.setAttribute("tooltiptext", "Runtime status, active PDF URI, helper availability, temp leftovers");
     diagnosticsItem.addEventListener("command", () => {
       void showDiagnostics(win);
     });
@@ -166,57 +166,112 @@ var PdfImageSaver = (() => {
     button.className = "pdf-image-saver-toolbar-button";
     button.textContent = "Clip";
     button.setAttribute?.("aria-label", "Clip figure preview");
-    button.addEventListener("click", (domEvent) => {
-      domEvent.preventDefault();
-      domEvent.stopPropagation();
-      if (button.disabled) {
-        return;
-      }
-      button.disabled = true;
-      button.textContent = "Drag...";
-      void startClipFromReader(reader, normalizeQualityKey(select.value), null, {
-        onSessionEnd() {
-          button.disabled = false;
-          button.textContent = "Clip";
-        },
-      });
-    });
-
     const autoButton = doc.createElement("button");
     autoButton.type = "button";
     autoButton.className = "pdf-image-saver-toolbar-button";
     autoButton.textContent = "Auto";
     autoButton.setAttribute?.("aria-label", "Auto raster previews");
+
+    let toolbarMode = "idle";
+    let autoRasterAvailable = false;
+    const refreshAutoButtonState = (qualityKey = normalizeQualityKey(select.value)) => {
+      const normalizedQualityKey = normalizeQualityKey(qualityKey);
+      if (toolbarMode !== "idle") {
+        if (autoRasterAvailable) {
+          autoButton.title = buildToolbarActionTooltip("Auto-detect current-page raster previews", normalizedQualityKey);
+        } else {
+          autoButton.title = "Auto unavailable in this PDF.js runtime. Use Clip.";
+        }
+        return;
+      }
+      applyAutoRasterButtonState(autoButton, autoRasterAvailable, normalizedQualityKey);
+    };
+    const syncAutoRasterAvailability = async (qualityKey = normalizeQualityKey(select.value)) => {
+      try {
+        const pageIndex = await getCurrentPageIndex(reader);
+        const context = await getPDFViewerContext(reader);
+        const pageView = getPageView(context, pageIndex);
+        const pdfPage = pageView?.pdfPage || await context?.app?.pdfDocument?.getPage?.(pageIndex + 1);
+        if (pdfPage) {
+          autoRasterAvailable = supportsPDFJSImageCoordinates(pdfPage);
+        }
+      } catch (error) {
+        logError(error);
+      }
+      refreshAutoButtonState(qualityKey);
+    };
+    const setToolbarMode = (mode) => {
+      toolbarMode = mode === "clip" || mode === "auto" ? mode : "idle";
+      const busy = toolbarMode !== "idle";
+      select.disabled = busy;
+      if (toolbarMode === "clip") {
+        button.disabled = true;
+        button.textContent = "Drag...";
+        autoButton.disabled = true;
+        autoButton.textContent = "Auto";
+        refreshAutoButtonState();
+        return;
+      }
+      if (toolbarMode === "auto") {
+        button.disabled = true;
+        button.textContent = "Clip";
+        autoButton.disabled = true;
+        autoButton.textContent = "Auto...";
+        refreshAutoButtonState();
+        return;
+      }
+      button.disabled = false;
+      button.textContent = "Clip";
+      autoButton.textContent = "Auto";
+      refreshAutoButtonState();
+    };
+
+    button.addEventListener("click", (domEvent) => {
+      domEvent.preventDefault();
+      domEvent.stopPropagation();
+      if (toolbarMode !== "idle" || button.disabled) {
+        return;
+      }
+      setToolbarMode("clip");
+      void startClipFromReader(reader, normalizeQualityKey(select.value), null, {
+        onSessionEnd() {
+          setToolbarMode("idle");
+          void syncAutoRasterAvailability(normalizeQualityKey(select.value));
+        },
+      });
+    });
+
     autoButton.addEventListener("click", (domEvent) => {
       domEvent.preventDefault();
       domEvent.stopPropagation();
-      if (autoButton.disabled) {
+      if (toolbarMode !== "idle" || autoButton.disabled) {
         return;
       }
-      autoButton.disabled = true;
-      autoButton.textContent = "Auto...";
+      setToolbarMode("auto");
       Promise.resolve(saveAutoDetectedPageImagePreviews(reader, {
         qualityKey: normalizeQualityKey(select.value),
       })).finally(() => {
-        autoButton.disabled = false;
-        autoButton.textContent = "Auto";
-        void updateAutoRasterButtonState(reader, autoButton, normalizeQualityKey(select.value));
+        setToolbarMode("idle");
+        void syncAutoRasterAvailability(normalizeQualityKey(select.value));
       });
     });
     const updateQualityTooltips = () => {
       const qualityKey = normalizeQualityKey(select.value);
       select.title = `Quality: ${getQualityLabelWithEstimate(qualityKey)}`;
       button.title = buildToolbarActionTooltip("Clip current-page figure to synced HTML index", qualityKey);
-      autoButton.title = buildToolbarActionTooltip("Auto-detect current-page raster previews", qualityKey);
+      refreshAutoButtonState(qualityKey);
     };
     select.addEventListener("change", () => {
+      if (toolbarMode !== "idle") {
+        return;
+      }
       const qualityKey = normalizeQualityKey(select.value);
       setStringPref("defaultQuality", qualityKey);
       updateQualityTooltips();
-      void updateAutoRasterButtonState(reader, autoButton, qualityKey);
+      void syncAutoRasterAvailability(qualityKey);
     });
     updateQualityTooltips();
-    updateAutoRasterButtonState(reader, autoButton, normalizeQualityKey(select.value));
+    void syncAutoRasterAvailability(normalizeQualityKey(select.value));
     group.append(select, button, autoButton);
     append(group);
   }
