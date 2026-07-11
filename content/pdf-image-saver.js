@@ -412,11 +412,11 @@ var PdfImageSaver = (() => {
       report.temp_leftovers = tempStats.count;
       report.temp_bytes = tempStats.bytes;
     } catch (error) {
-      report.warnings.push(`Temp check fail: ${getErrorMessage(error)}`);
+      report.warnings.push(`Temp check: ${getErrorMessage(error)}`);
     }
 
     if (!reader || !isPDFReader(reader)) {
-      report.warnings.push("No active PDF.");
+      report.warnings.push("No PDF.");
       return report;
     }
 
@@ -2178,7 +2178,7 @@ var PdfImageSaver = (() => {
         schema_version: HELPER_SCHEMA_VERSION,
         status: "no_python",
         images: [],
-        warnings: ["No usable Python executable was found."],
+        warnings: ["Python n/a."],
         output_dir: null,
       };
     }

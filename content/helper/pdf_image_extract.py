@@ -70,7 +70,7 @@ def main() -> int:
                 "status": "missing_pymupdf",
                 "images": [],
                 "warnings": [
-                    "Optional PyMuPDF helper unavailable. Default reader preview mode still works."
+                    "PyMuPDF n/a. Clip/auto still work."
                 ],
                 "error": str(exc),
                 "elapsed_ms": elapsed_ms(started),
@@ -113,7 +113,7 @@ def extract_images(fitz: Any, args: argparse.Namespace, started: float) -> dict[
 
         for page_index in page_indexes:
             if len(images) >= args.max_images:
-                warnings.append(f"Stopped after max image count: {args.max_images}")
+                warnings.append(f"Stopped at max images: {args.max_images}")
                 break
             page = doc[page_index]
             page_rect = Rect(
@@ -145,11 +145,11 @@ def extract_images(fitz: Any, args: argparse.Namespace, started: float) -> dict[
                 image_byte_count = len(image_bytes)
                 if image_byte_count > MAX_IMAGE_BYTES:
                     warnings.append(
-                        f"Skipped xref {xref} on page {page_index + 1}: image exceeds byte cap"
+                        f"Skip xref {xref} p{page_index + 1}: byte cap"
                     )
                     continue
                 if total_bytes + image_byte_count > MAX_TOTAL_BYTES:
-                    warnings.append("Stopped before exceeding total helper byte cap")
+                    warnings.append("Stopped at total byte cap")
                     break
                 width = int(extracted.get("width") or image_info.get("width") or 0)
                 height = int(extracted.get("height") or image_info.get("height") or 0)
