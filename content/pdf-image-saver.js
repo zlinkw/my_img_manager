@@ -1465,7 +1465,7 @@ var PdfImageSaver = (() => {
           <article class="entry">
             <div class="preview-column">
               <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
-                <img src="${escapeHTML(entry.dataURL)}" alt="Saved PDF preview ${index + 1}">
+                <img src="${escapeHTML(entry.dataURL)}" alt="Preview ${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion)}
               <a class="source-action" href="${escapeHTML(uri)}" title="Open source PDF page">Open PDF</a>
@@ -1553,12 +1553,12 @@ var PdfImageSaver = (() => {
 <body>
   <header>
     <h1>${escapeHTML(sourceTitle)}</h1>
-    <p class="meta">Saved ${escapeHTML(createdAt)}. HTML preview index; syncs with PDF.</p>
-    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} preview${normalizedEntries.length === 1 ? "" : "s"}; ${escapeHTML(previewQualityKey)}</p>
+    <p class="meta">Saved ${escapeHTML(createdAt)}. HTML index; syncs with PDF.</p>
+    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(previewQualityKey)}</p>
   </header>
   ${entriesHTML}
   <details>
-    <summary>Meta JSON</summary>
+    <summary>Meta</summary>
     <pre>${escapeHTML(JSON.stringify(metadata, null, 2))}</pre>
   </details>
 </body>
@@ -1949,7 +1949,7 @@ var PdfImageSaver = (() => {
       parts.push(`${importResult.errorCount} unreadable file${importResult.errorCount === 1 ? "" : "s"}`);
     }
     if (importResult.byteCapCount) {
-      parts.push(`${importResult.byteCapCount} over byte cap`);
+      parts.push(`${importResult.byteCapCount} byte-cap`);
     }
     if (importResult.duplicateCount) {
       parts.push(`${importResult.duplicateCount} dup${importResult.duplicateCount === 1 ? "" : "s"}`);
@@ -1958,7 +1958,7 @@ var PdfImageSaver = (() => {
       parts.push(`${importResult.importErrorCount} import fail${importResult.importErrorCount === 1 ? "" : "s"}`);
     }
     if (importResult.indexErrorCount) {
-      parts.push("index metadata failed");
+      parts.push("index fail");
     }
     if (importResult.overCapCount) {
       parts.push(`${importResult.overCapCount} over cap ${importResult.maxImages}`);
@@ -2068,7 +2068,7 @@ var PdfImageSaver = (() => {
     <tbody>${rows}</tbody>
   </table>
   <details>
-    <summary>Meta JSON</summary>
+    <summary>Meta</summary>
     <pre>${escapeHTML(JSON.stringify(metadata, null, 2))}</pre>
   </details>
 </body>
@@ -2996,7 +2996,7 @@ var PdfImageSaver = (() => {
       center_x: round6(left + width / 2),
       center_y: round6(top + height / 2),
       area,
-      label: `x ${formatPercent(left)}-${formatPercent(right)}, y ${formatPercent(top)}-${formatPercent(bottom)}, size ${formatPercent(width)} x ${formatPercent(height)}`,
+      label: `x ${formatPercent(left)}-${formatPercent(right)}; y ${formatPercent(top)}-${formatPercent(bottom)}; ${formatPercent(width)}x${formatPercent(height)}`,
     };
   }
 

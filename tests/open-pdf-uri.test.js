@@ -538,6 +538,7 @@ assert.strictEqual(region.bottom, 0.6);
 assert.strictEqual(region.width, 0.3);
 assert.strictEqual(region.height, 0.4);
 assert.ok(region.label.includes("x 10.0%-40.0%"));
+assert.ok(region.label.includes("30.0%x40.0%"), "source region label must densify size token");
 
 const pageRect = { left: 10, top: 20, width: 100, height: 200 };
 const canvasRect = { left: 20, top: 40, width: 80, height: 160 };

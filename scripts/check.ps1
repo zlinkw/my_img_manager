@@ -533,7 +533,7 @@ if ($mainJS -notmatch "omittedCount:\s*prepared\.omittedCount\s*\+\s*duplicateCo
 if ($mainJS -notmatch "\$\{importResult\.importErrorCount\}\s+import fail") {
   throw "Original helper import toast must expose failed Zotero imports separately"
 }
-if ($mainJS -notmatch "index metadata failed") {
+if ($mainJS -notmatch "index fail") {
   throw "Original helper import toast must expose HTML index metadata failure"
 }
 if ($mainJS -notmatch "try\s*\{\s*\r?\n\s*await\s+Zotero\.Attachments\.importFromFile") {
@@ -560,7 +560,7 @@ if ($mainJS -notmatch "byteCount\s*>\s*ORIGINAL_MAX_IMAGE_BYTES\s*\|\|\s*totalBy
 if ($mainJS -notmatch "byteCapCount:\s*prepared\.byteCapCount") {
   throw "Original image import result must expose byte-cap skip count"
 }
-if ($mainJS -notmatch "\$\{importResult\.byteCapCount\}\s+over byte cap") {
+if ($mainJS -notmatch "\$\{importResult\.byteCapCount\}\s+byte-cap") {
   throw "Original helper import toast must expose byte-cap skips"
 }
 if ($mainJS -notmatch "const\s+existingOriginalKeys\s*=\s*await\s+getExistingOriginalImageKeys\(parentItem,\s*attachment\)") {
@@ -850,7 +850,7 @@ if ($mainJS -notmatch "preview_index_fingerprint:\s*getPreviewIndexFingerprint\(
 if ($mainJS -notmatch "entry\.previewDuplicateKey\s*=\s*getPreviewDuplicateKey\(attachment,\s*entry\)") {
   throw "HTML preview entries must persist normalized duplicate keys"
 }
-if ($mainJS -notmatch "<details>[\s\S]*<summary>Meta JSON</summary>[\s\S]*<pre>\$\{escapeHTML\(JSON\.stringify\(metadata,\s*null,\s*2\)\)\}</pre>[\s\S]*</details>") {
+if ($mainJS -notmatch "<details>[\s\S]*<summary>Meta</summary>[\s\S]*<pre>\$\{escapeHTML\(JSON\.stringify\(metadata,\s*null,\s*2\)\)\}</pre>[\s\S]*</details>") {
   throw "HTML preview metadata JSON must be collapsed in a details block"
 }
 if ($mainJS -match "<details\s+open") {
