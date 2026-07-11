@@ -33,6 +33,14 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Error messages must explain whether the failure is capture, helper, duplicate, byte cap, or Zotero storage related.
 - Avoid adding UI that previews or manages large image libraries unless the storage contract is deliberately changed.
 
+## Optimization Priority
+
+- Future work must optimize UI first.
+- Keep working on UI until remaining UI issues are exhausted or blocked by missing user design choices.
+- Only after UI is no longer the highest-value remaining surface should batches move to non-UI feature work.
+- UI here means reader toolbar, context menu, selection overlay, toasts/alerts, diagnostics text, preference pane layout/status, and any user-facing wording that affects operation clarity.
+- Do not expand feature scope while there are still clear UI clarity, density, labeling, feedback, or preference-status problems that can be fixed safely.
+
 ## Modification Rules
 
 - Keep changes scoped to one coherent behavior surface per batch.
@@ -51,8 +59,17 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 ## Optimization Backlog
 
-- Improve preference/status UI further with install/source diagnostics when needed; current prefs already surface storage mode, quality, caps, and duplicate-guard state.
-- Keep duplicate-skip messaging specific as new save paths are added; clip/page/auto already distinguish session memory, synced HTML indexes, and byte caps.
+### UI First
+
+- Restructure the preference pane into clearer groups: preview workflow, caps, optional helper, and status.
+- Make preference status shorter and scannable, with live refresh for quality, caps, and duplicate-guard state.
+- Improve reader toolbar labeling and tooltips so clip, quality, auto-raster, and optional original actions are obvious without reading docs.
+- Improve selection overlay affordances: start/cancel cues, page-bound feedback, and less ambiguous save progress toasts.
+- Make diagnostics and Tools menu wording denser and more actionable for install/runtime checks.
+- Keep duplicate-skip messaging specific across clip, page, and auto paths.
+
+### After UI Is Exhausted
+
 - Tighten smoke scripts around Zotero 9.0.5 registration and manual add-on install status.
 - Keep optional original extraction isolated from the main preview workflow and make helper absence quieter.
 - Compact or archive old historical target-mode notes when they slow navigation, while preserving useful failure IDs and lessons.

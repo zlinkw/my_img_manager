@@ -2,6 +2,8 @@
 
 Before modifying this project, read [PROJECT_CONSTRAINTS.md](PROJECT_CONSTRAINTS.md). It is the active project contract and explicitly disables background agents, target-mode loops, and autonomous review/planning agents for this repository.
 
+Optimization priority: improve UI first until remaining UI work is exhausted, then optimize non-UI features. See the Optimization Priority section in [PROJECT_CONSTRAINTS.md](PROJECT_CONSTRAINTS.md).
+
 Zotero plugin for clipping figure previews from the open PDF reader and saving a small synced index attachment.
 
 ## Features
