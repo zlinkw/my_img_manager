@@ -85,6 +85,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Residual toolbar/diag and HTML index labels densified further (Q/est, Clip page HTML, Auto page, Open PDF title, img/orig index titles).
 - Progress toasts and original confirm densified; HTML size labels shortened.
 - HTML index/original CSS densified; toast footprint tightened; prefs store status shortened.
+- Busy toolbar labels, capture errors, and selection overlay chrome densified further.
 
 ### After UI Is Exhausted
 

@@ -1594,11 +1594,11 @@ assert.strictEqual(getErrorMessage("x".repeat(400)).length, 320, "oversized erro
 assert.strictEqual(classifyErrorCategory("Byte cap: index too large"), "byte_cap", "byte-cap errors must classify");
 assert.strictEqual(classifyErrorCategory("Helper: Python missing."), "helper", "helper absence must classify as helper");
 assert.strictEqual(classifyErrorCategory("Storage failed: preview index import failed."), "storage", "storage import failures must classify");
-assert.strictEqual(classifyErrorCategory("Capture failed: page canvas missing."), "capture", "canvas failures must classify as capture");
+assert.strictEqual(classifyErrorCategory("Capture failed: canvas missing."), "capture", "canvas failures must classify as capture");
 assert.strictEqual(classifyErrorCategory("Clip skip: session dup."), "duplicate", "session duplicate skips must classify");
 assert.strictEqual(
-  formatUserFacingError(new Error("page canvas missing")),
-  "Capture failed: page canvas missing",
+  formatUserFacingError(new Error("canvas missing")),
+  "Capture failed: canvas missing",
   "unprefixed capture errors must gain capture prefix",
 );
 assert.strictEqual(
@@ -1735,8 +1735,8 @@ async function assertToolbarBusyModeLocksSiblingControls() {
     assert.strictEqual(toolbarClipButton.disabled, true, "clip click must disable clip button");
     assert.strictEqual(toolbarAutoButton.disabled, true, "clip click must disable auto button");
     assert.strictEqual(toolbarSelect.disabled, true, "clip click must disable quality select");
-    assert.strictEqual(toolbarClipButton.title, "Clip drag active", "busy clip title must describe active selection");
-    assert.strictEqual(toolbarAutoButton.title, "Auto locked (clip)", "busy auto title must describe clip lock");
+    assert.strictEqual(toolbarClipButton.title, "Clip drag", "busy clip title must describe active selection");
+    assert.strictEqual(toolbarAutoButton.title, "Auto lock (clip)", "busy auto title must describe clip lock");
 
     // Quality change and second clip click must stay no-ops while busy.
     toolbarSelect.value = "high";
@@ -2562,22 +2562,22 @@ async function runAsyncAssertions() {
   await assertSaveEntryHandlesMalformedOptions(
     saveAutoDetectedPageImagePreviews,
     "auto-raster",
-    "Capture failed: page canvas missing",
+    "Capture failed: canvas missing",
   );
   await assertSaveEntryHandlesMalformedOptions(
     savePagePreviewIndex,
     "page-preview",
-    "Capture failed: page canvas missing",
+    "Capture failed: canvas missing",
   );
   await assertSaveEntryHandlesMalformedOptions(
     saveClipPreviewIndex,
     "clip-preview",
-    "Capture failed: reader item is not a PDF",
+    "Capture failed: not a PDF",
   );
   await assertSaveEntryHandlesMalformedOptions(
     saveOriginalImagesFromReader,
     "original-image",
-    "Capture failed: reader item is not a PDF",
+    "Capture failed: not a PDF",
   );
 }
 

@@ -1438,7 +1438,7 @@ if ($mainJS -notmatch "pdf-image-saver-progress") {
   throw "Reader styles must include progress toast styling"
 }
 
-if ($mainJS -notmatch "Clip drag active") {
+if ($mainJS -notmatch "Clip drag") {
   throw "Clip busy mode must update aria-label"
 }
 if ($mainJS -notmatch "Auto running") {

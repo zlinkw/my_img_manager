@@ -178,7 +178,7 @@ var PdfImageSaver = (() => {
       const normalizedQualityKey = normalizeQualityKey(qualityKey);
       if (toolbarMode !== "idle") {
         if (toolbarMode === "clip") {
-          autoButton.title = "Auto locked (clip)";
+          autoButton.title = "Auto lock (clip)";
         } else if (toolbarMode === "auto") {
           autoButton.title = "Auto running";
         }
@@ -207,19 +207,19 @@ var PdfImageSaver = (() => {
       if (toolbarMode === "clip") {
         button.disabled = true;
         button.textContent = "Drag...";
-        button.setAttribute?.("aria-label", "Clip drag active");
-        button.title = "Clip drag active";
+        button.setAttribute?.("aria-label", "Clip drag");
+        button.title = "Clip drag";
         autoButton.disabled = true;
         autoButton.textContent = "Auto";
-        autoButton.setAttribute?.("aria-label", "Auto locked (clip)");
+        autoButton.setAttribute?.("aria-label", "Auto lock (clip)");
         refreshAutoButtonState();
         return;
       }
       if (toolbarMode === "auto") {
         button.disabled = true;
         button.textContent = "Clip";
-        button.setAttribute?.("aria-label", "Clip locked (auto)");
-        button.title = "Clip locked (auto)";
+        button.setAttribute?.("aria-label", "Clip lock (auto)");
+        button.title = "Clip lock (auto)";
         autoButton.disabled = true;
         autoButton.textContent = "Auto...";
         autoButton.setAttribute?.("aria-label", "Auto running");
@@ -371,7 +371,7 @@ var PdfImageSaver = (() => {
   async function startClipFromActiveReader(win, qualityKey) {
     const reader = getActiveReader(win);
     if (!reader) {
-      Services.prompt.alert(win, "PDF Img", "Capture failed: no active PDF.");
+      Services.prompt.alert(win, "PDF Img", "Capture failed: no PDF.");
       return;
     }
     await startClipFromReader(reader, qualityKey);
@@ -522,7 +522,7 @@ var PdfImageSaver = (() => {
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
       if (!pageElement || !canvas) {
-        throw new Error("Capture failed: page canvas missing.");
+        throw new Error("Capture failed: canvas missing.");
       }
       showReaderToast(reader, `Drag ${formatPageToastToken(pageIndex)}; Esc cancel.`, "info");
       installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex, {
@@ -795,7 +795,7 @@ var PdfImageSaver = (() => {
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
       if (!pageElement || !canvas) {
-        throw new Error("Capture failed: page canvas missing.");
+        throw new Error("Capture failed: canvas missing.");
       }
 
       const detection = await detectPageImageCandidates({
@@ -1034,7 +1034,7 @@ var PdfImageSaver = (() => {
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
       if (!pageElement || !canvas) {
-        throw new Error("Capture failed: page canvas missing.");
+        throw new Error("Capture failed: canvas missing.");
       }
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
@@ -1182,7 +1182,7 @@ var PdfImageSaver = (() => {
     };
     const cropClient = intersectRects(selectionClientRect, normalizedCanvasRect);
     if (cropClient.width <= 0 || cropClient.height <= 0) {
-      throw new Error("Capture failed: selection outside canvas.");
+      throw new Error("Capture failed: selection outside.");
     }
 
     const sourceX = clampInteger(
@@ -1416,7 +1416,7 @@ var PdfImageSaver = (() => {
       const htmlBytes = estimateUTF8Bytes(html);
       const maxBytes = getMaxIndexBytes();
       if (htmlBytes > maxBytes) {
-        throw new Error(`Byte cap: index too large (${formatBytes(htmlBytes)} > ${formatBytes(maxBytes)}). Lower Q or auto count.`);
+        throw new Error(`Byte cap: index too large (${formatBytes(htmlBytes)} > ${formatBytes(maxBytes)}). Lower Q/auto.`);
       }
       await Zotero.File.putContentsAsync(htmlPath, html);
       return htmlPath;
@@ -2561,7 +2561,7 @@ var PdfImageSaver = (() => {
     if (item?.isAttachment?.() && item.attachmentContentType === "application/pdf") {
       return item;
     }
-    throw new Error("Capture failed: reader item is not a PDF.");
+    throw new Error("Capture failed: not a PDF.");
   }
 
   async function getAttachmentPath(attachment) {
@@ -2904,15 +2904,15 @@ var PdfImageSaver = (() => {
       }
       .pdf-image-saver-selection-hint {
         position: absolute;
-        top: 8px;
+        top: 6px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 1;
-        padding: 4px 8px;
-        border-radius: 999px;
-        background: rgba(17, 24, 39, 0.82);
+        padding: 3px 7px;
+        border-radius: 3px;
+        background: rgba(17, 24, 39, 0.84);
         color: #fff;
-        font: 12px system-ui, sans-serif;
+        font: 11.5px system-ui, sans-serif;
         white-space: nowrap;
         pointer-events: none;
       }
@@ -2927,11 +2927,11 @@ var PdfImageSaver = (() => {
         position: absolute;
         right: 0;
         bottom: 0;
-        padding: 1px 5px;
-        border-radius: 3px 0 0 0;
-        background: rgba(17, 24, 39, 0.88);
+        padding: 1px 4px;
+        border-radius: 2px 0 0 0;
+        background: rgba(17, 24, 39, 0.9);
         color: #fff;
-        font: 11px system-ui, sans-serif;
+        font: 10.5px system-ui, sans-serif;
         white-space: nowrap;
         pointer-events: none;
       }
@@ -3968,8 +3968,10 @@ var PdfImageSaver = (() => {
       || text.includes("active zotero pdf reader")
       || text.includes("active pdf reader")
       || text.includes("page canvas missing")
-      || text.includes("selection outside canvas")
+      || text.includes("canvas missing")
+      || text.includes("selection outside")
       || text.includes("reader item is not a pdf")
+      || text.includes("not a pdf")
     ) {
       return "capture";
     }
