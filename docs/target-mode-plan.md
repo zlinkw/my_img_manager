@@ -19,7 +19,7 @@ Priority that shaped the project:
 
 - Storage: compact Zotero HTML preview-index child attachments
 - Main path: manual current-page clip
-- Optional: Auto raster when PDF.js image coordinates exist
+- Optional: Auto when PDF.js image coordinates exist
 - Optional helper must not block clip
 - Runtime: Zotero 9.0.5 (`strict_max_version: 9.0.*`)
 - Never read/write Zotero internal `zotero.sqlite*`

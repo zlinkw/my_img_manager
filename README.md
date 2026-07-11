@@ -15,7 +15,7 @@ Zotero plugin for clipping figure previews from the open PDF reader and saving a
 - Saves one HTML child attachment containing the preview, compact metadata, and a `zotero://open-pdf` source link.
 - Does not save full original image bytes by default, reducing Zotero storage and sync load.
 - Auto-detected previews are capped by count, preview bytes, and final synced HTML index size.
-- Optional helper can try PyMuPDF original image extraction when Python is available, but the main workflow does not depend on it.
+- Optional helper can try PyMuPDF original image extraction when Python is present, but the main workflow does not depend on it.
 
 ## Runtime Independence
 
