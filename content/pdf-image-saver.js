@@ -376,6 +376,14 @@ var PdfImageSaver = (() => {
     } catch (error) {
       report.warnings.push(getErrorMessage(error));
     }
+
+    try {
+      const pythonCommands = await getPythonCommands();
+      report.optional_helper = pythonCommands.length ? "python-available" : "python-missing";
+    } catch (error) {
+      report.optional_helper = "unknown";
+      report.warnings.push(`Helper probe failed: ${getErrorMessage(error)}`);
+    }
     return report;
   }
 
@@ -389,6 +397,7 @@ var PdfImageSaver = (() => {
       `Plugin ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}; Zotero ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
       `Started ${formatDiagnosticBoolean(safeReport.started)}; readers ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}; active PDF ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
       `Quality ${normalizeQualityKey(safeReport.default_quality)}; auto cap ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index cap ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
+      `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; originals optional only`,
       `Temp leftovers ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)})`,
       `Temp dir ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 240)}`,
     ];
@@ -426,6 +435,17 @@ var PdfImageSaver = (() => {
 
   function formatDiagnosticBoolean(value) {
     return value === true ? "true" : value === false ? "false" : "unknown";
+  }
+
+  function formatOptionalHelperStatus(value) {
+    const key = normalizeDiagnosticText(value, "unknown", 40);
+    if (key === "python-available") {
+      return "python available";
+    }
+    if (key === "python-missing") {
+      return "python missing";
+    }
+    return "unknown";
   }
 
   async function startClipFromReader(reader, qualityKey, explicitPageIndex, options = {}) {
@@ -1538,6 +1558,11 @@ var PdfImageSaver = (() => {
       activeJobs.add(jobKey);
       jobAdded = true;
       const pdfPath = await getAttachmentPath(attachment);
+      const pythonCommands = await getPythonCommands();
+      if (!pythonCommands.length) {
+        showReaderToast(reader, formatHelperFailure({ status: "no_python" }), "warning");
+        return;
+      }
       showReaderToast(reader, "Running optional helper...", "progress");
       const report = await runHelperExtraction({
         attachment,
@@ -1548,6 +1573,7 @@ var PdfImageSaver = (() => {
       if (report.status !== "ok") {
         const helperStatus = normalizeHelperStatusText(report?.status);
         const helperMessage = formatHelperFailure(report);
+        // Absence stays compact; only hard helper failures remind that clip still works.
         showReaderToast(
           reader,
           helperStatus === "missing_pymupdf" || helperStatus === "no_python"
@@ -1811,30 +1837,30 @@ var PdfImageSaver = (() => {
   function buildOriginalImportSkippedText(importResult) {
     const parts = [];
     if (importResult.invalidCount) {
-      parts.push(`skipped ${importResult.invalidCount} malformed helper record${importResult.invalidCount === 1 ? "" : "s"}`);
+      parts.push(`${importResult.invalidCount} bad record${importResult.invalidCount === 1 ? "" : "s"}`);
     }
     if (importResult.missingCount) {
-      parts.push(`skipped ${importResult.missingCount} missing helper file${importResult.missingCount === 1 ? "" : "s"}`);
+      parts.push(`${importResult.missingCount} missing file${importResult.missingCount === 1 ? "" : "s"}`);
     }
     if (importResult.errorCount) {
-      parts.push(`skipped ${importResult.errorCount} unreadable helper file${importResult.errorCount === 1 ? "" : "s"}`);
+      parts.push(`${importResult.errorCount} unreadable file${importResult.errorCount === 1 ? "" : "s"}`);
     }
     if (importResult.byteCapCount) {
-      parts.push(`skipped ${importResult.byteCapCount} over byte safety cap`);
+      parts.push(`${importResult.byteCapCount} over byte cap`);
     }
     if (importResult.duplicateCount) {
-      parts.push(`skipped ${importResult.duplicateCount} duplicate original image${importResult.duplicateCount === 1 ? "" : "s"}`);
+      parts.push(`${importResult.duplicateCount} dup${importResult.duplicateCount === 1 ? "" : "s"}`);
     }
     if (importResult.importErrorCount) {
-      parts.push(`skipped ${importResult.importErrorCount} failed Zotero import${importResult.importErrorCount === 1 ? "" : "s"}`);
+      parts.push(`${importResult.importErrorCount} import fail${importResult.importErrorCount === 1 ? "" : "s"}`);
     }
     if (importResult.indexErrorCount) {
-      parts.push("original image index metadata failed");
+      parts.push("index metadata failed");
     }
     if (importResult.overCapCount) {
-      parts.push(`skipped ${importResult.overCapCount} over safety cap ${importResult.maxImages}`);
+      parts.push(`${importResult.overCapCount} over cap ${importResult.maxImages}`);
     }
-    return parts.length ? ` ${parts.join("; ")}.` : "";
+    return parts.length ? ` Skipped ${parts.join("; ")}.` : "";
   }
 
   function getOriginalImageKey(attachment, image) {
@@ -3830,6 +3856,7 @@ var PdfImageSaver = (() => {
       confirmAndSaveOriginalImagesFromReader,
       filterExistingOriginalImagesForImport,
       formatDiagnosticsReport,
+      formatOptionalHelperStatus,
       formatAutoDuplicateSkipReason,
       formatPreviewDuplicateSkipReason,
       classifyPreviewDuplicateSkipReason,

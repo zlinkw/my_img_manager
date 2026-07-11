@@ -513,10 +513,10 @@ if ($mainJS -notmatch "importResult\.omittedCount\s*\|\|\s*importResult\.indexEr
 if ($mainJS -notmatch "omittedCount:\s*prepared\.omittedCount\s*\+\s*duplicateCount\s*\+\s*importErrorCount") {
   throw "Original image import result must add duplicate skips and Zotero import failures to omission count"
 }
-if ($mainJS -notmatch "skipped\s+\$\{importResult\.importErrorCount\}\s+failed Zotero import") {
+if ($mainJS -notmatch "\$\{importResult\.importErrorCount\}\s+import fail") {
   throw "Original helper import toast must expose failed Zotero imports separately"
 }
-if ($mainJS -notmatch "original image index metadata failed") {
+if ($mainJS -notmatch "index metadata failed") {
   throw "Original helper import toast must expose HTML index metadata failure"
 }
 if ($mainJS -notmatch "try\s*\{\s*\r?\n\s*await\s+Zotero\.Attachments\.importFromFile") {
@@ -525,7 +525,7 @@ if ($mainJS -notmatch "try\s*\{\s*\r?\n\s*await\s+Zotero\.Attachments\.importFro
 if ($mainJS -notmatch "importableImages\.length\s*&&\s*!count\s*&&\s*importErrorCount\s*===\s*importableImages\.length") {
   throw "Original image import must detect all attempted Zotero imports failing"
 }
-if ($mainJS -notmatch "All\s+\$\{importErrorCount\}\s+Zotero original image imports failed") {
+if ($mainJS -notmatch "Storage failed: all\s+\$\{importErrorCount\}\s+Zotero original image imports failed") {
   throw "Original image import must throw a clear all-imports-failed error"
 }
 if ($mainJS -notmatch "const\s+ORIGINAL_MAX_IMAGE_BYTES\s*=\s*25\s*\*\s*1024\s*\*\s*1024") {
@@ -543,7 +543,7 @@ if ($mainJS -notmatch "byteCount\s*>\s*ORIGINAL_MAX_IMAGE_BYTES\s*\|\|\s*totalBy
 if ($mainJS -notmatch "byteCapCount:\s*prepared\.byteCapCount") {
   throw "Original image import result must expose byte-cap skip count"
 }
-if ($mainJS -notmatch "skipped\s+\$\{importResult\.byteCapCount\}\s+over byte safety cap") {
+if ($mainJS -notmatch "\$\{importResult\.byteCapCount\}\s+over byte cap") {
   throw "Original helper import toast must expose byte-cap skips"
 }
 if ($mainJS -notmatch "const\s+existingOriginalKeys\s*=\s*await\s+getExistingOriginalImageKeys\(parentItem,\s*attachment\)") {
@@ -750,7 +750,7 @@ if ($mainJS -notmatch "IOUtils\.exists\(filePath\)") {
 if ($mainJS -notmatch "error:\s*true") {
   throw "Original helper file status checker must expose IO errors separately"
 }
-if ($mainJS -notmatch "skipped\s+\$\{importResult\.errorCount\}\s+unreadable helper file") {
+if ($mainJS -notmatch "\$\{importResult\.errorCount\}\s+unreadable file") {
   throw "Original helper import toast must expose unreadable helper files separately"
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*importOriginalImages") {
@@ -1392,6 +1392,19 @@ if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Saving page\.\.\.`",\s*`"pro
 if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Running optional helper\.\.\.`",\s*`"progress`"\)") {
   throw "Original helper path must show progress toast"
 }
+if ($mainJS -notmatch "if\s*\(\s*!pythonCommands\.length\s*\)\s*\{[\s\S]*formatHelperFailure\(\{\s*status:\s*`"no_python`"") {
+  throw "Original helper path must quiet-fail before progress toast when Python is missing"
+}
+if ($mainJS -notmatch "report\.optional_helper\s*=") {
+  throw "Diagnostics must probe optional helper availability"
+}
+if ($mainJS -notmatch "function\s+formatOptionalHelperStatus\s*\(") {
+  throw "Diagnostics helper status formatter missing"
+}
+if ($mainJS -notmatch "Helper\s*\$\{formatOptionalHelperStatus\(safeReport\.optional_helper\)\}") {
+  throw "Diagnostics report must include optional helper status line"
+}
+
 if ($mainJS -notmatch "pdf-image-saver-progress") {
   throw "Reader styles must include progress toast styling"
 }

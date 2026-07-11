@@ -104,5 +104,6 @@ After Zotero has been restarted or the add-on has been reloaded:
 - `Auto` disables or warns safely when image coordinates are unavailable.
 - Duplicate-skip toasts distinguish session memory from already-synced HTML indexes, and auto-detect also reports byte-cap skips.
 - Error toasts identify capture, helper, duplicate, byte-cap, or Zotero storage failures.
+- Optional original helper absence stays quiet; diagnostics show whether Python is available.
 - Preferences pane groups preview workflow / caps / optional helper / status, with live scannable status.
 - `%TEMP%\pdf-image-saver` has no leftover child directories after the save.
