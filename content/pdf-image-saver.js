@@ -77,8 +77,8 @@ var PdfImageSaver = (() => {
       ? doc.createXULElement("menuitem")
       : doc.createElement("menuitem");
     menuitem.id = "pdf-image-saver-tools-menuitem";
-    menuitem.setAttribute("label", "PDF Image Saver: clip figure");
-    menuitem.setAttribute("tooltiptext", "Draw a box in the active PDF reader and save a synced preview index");
+    menuitem.setAttribute("label", "PDF Image Saver: Clip figure");
+    menuitem.setAttribute("tooltiptext", "Clip current PDF page figure into a synced HTML preview index");
     menuitem.addEventListener("command", () => {
       void startClipFromActiveReader(win, getDefaultQualityKey());
     });
@@ -86,8 +86,8 @@ var PdfImageSaver = (() => {
       ? doc.createXULElement("menuitem")
       : doc.createElement("menuitem");
     diagnosticsItem.id = "pdf-image-saver-diagnostics-menuitem";
-    diagnosticsItem.setAttribute("label", "PDF Image Saver: diagnostics");
-    diagnosticsItem.setAttribute("tooltiptext", "Show runtime status, active PDF link, and temp cleanup state");
+    diagnosticsItem.setAttribute("label", "PDF Image Saver: Diagnostics");
+    diagnosticsItem.setAttribute("tooltiptext", "Show install/runtime status, active PDF URI, and temp leftovers");
     diagnosticsItem.addEventListener("command", () => {
       void showDiagnostics(win);
     });
@@ -151,11 +151,12 @@ var PdfImageSaver = (() => {
     group.className = "pdf-image-saver-toolbar-group";
     const select = doc.createElement("select");
     select.className = "pdf-image-saver-quality";
+    select.setAttribute?.("aria-label", "Preview quality");
     select.title = "Preview quality and approximate Zotero sync size";
     for (const key of Object.keys(QUALITY)) {
       const option = doc.createElement("option");
       option.value = key;
-      option.textContent = `${QUALITY[key].label} (${QUALITY[key].estimate})`;
+      option.textContent = `${QUALITY[key].label}; ${QUALITY[key].estimate}`;
       option.selected = key === getDefaultQualityKey();
       select.appendChild(option);
     }
@@ -163,40 +164,42 @@ var PdfImageSaver = (() => {
     const button = doc.createElement("button");
     button.type = "button";
     button.className = "pdf-image-saver-toolbar-button";
-    button.textContent = "Clip Figure";
+    button.textContent = "Clip";
+    button.setAttribute?.("aria-label", "Clip figure preview");
     button.addEventListener("click", (domEvent) => {
       domEvent.preventDefault();
       domEvent.stopPropagation();
       button.disabled = true;
-      button.textContent = "Select Area";
+      button.textContent = "Drag...";
       Promise.resolve(startClipFromReader(reader, normalizeQualityKey(select.value))).finally(() => {
         button.disabled = false;
-        button.textContent = "Clip Figure";
+        button.textContent = "Clip";
       });
     });
 
     const autoButton = doc.createElement("button");
     autoButton.type = "button";
     autoButton.className = "pdf-image-saver-toolbar-button";
-    autoButton.textContent = "Auto Raster";
+    autoButton.textContent = "Auto";
+    autoButton.setAttribute?.("aria-label", "Auto raster previews");
     autoButton.addEventListener("click", (domEvent) => {
       domEvent.preventDefault();
       domEvent.stopPropagation();
       autoButton.disabled = true;
-      autoButton.textContent = "Saving...";
+      autoButton.textContent = "...";
       Promise.resolve(saveAutoDetectedPageImagePreviews(reader, {
         qualityKey: normalizeQualityKey(select.value),
       })).finally(() => {
         autoButton.disabled = false;
-        autoButton.textContent = "Auto Raster";
+        autoButton.textContent = "Auto";
         void updateAutoRasterButtonState(reader, autoButton, normalizeQualityKey(select.value));
       });
     });
     const updateQualityTooltips = () => {
       const qualityKey = normalizeQualityKey(select.value);
-      select.title = `Preview quality: ${getQualityLabelWithEstimate(qualityKey)}`;
-      button.title = buildToolbarActionTooltip("Clip a figure preview", qualityKey);
-      autoButton.title = buildToolbarActionTooltip("Auto-detect embedded raster previews on the current page", qualityKey);
+      select.title = `Quality: ${getQualityLabelWithEstimate(qualityKey)}`;
+      button.title = buildToolbarActionTooltip("Clip current-page figure to synced HTML index", qualityKey);
+      autoButton.title = buildToolbarActionTooltip("Auto-detect current-page raster previews", qualityKey);
     };
     select.addEventListener("change", () => {
       const qualityKey = normalizeQualityKey(select.value);
@@ -236,7 +239,7 @@ var PdfImageSaver = (() => {
     for (const key of ["low", "medium", "high"]) {
       const quality = QUALITY[key];
       actions.push({
-        label: `Clip figure preview: ${quality.label} (${quality.estimate})`,
+        label: `Clip; ${quality.label} (${quality.estimate})`,
         onCommand() {
           void startClip(reader, key, getContextPageIndex(params));
         },
@@ -244,7 +247,7 @@ var PdfImageSaver = (() => {
     }
 
     actions.push({
-      label: `Try auto raster image previews: ${defaultQuality.label} (${defaultQuality.estimate})`,
+      label: `Auto raster; ${defaultQuality.label} (${defaultQuality.estimate})`,
       onCommand() {
         void saveAuto(reader, {
           qualityKey: defaultQualityKey,
@@ -254,7 +257,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: `Save current page preview index: ${defaultQuality.label} (${defaultQuality.estimate})`,
+      label: `Save whole page; ${defaultQuality.label} (${defaultQuality.estimate})`,
       onCommand() {
         void savePage(reader, {
           qualityKey: defaultQualityKey,
@@ -264,7 +267,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: `Optional: save original embedded images from this page (up to ${pageOriginalMaxImages} images)`,
+      label: `Original embeds; this page (max ${pageOriginalMaxImages})`,
       onCommand() {
         void saveOriginal(reader, {
           scope: "page",
@@ -274,7 +277,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: `Optional: save original embedded images from whole PDF (up to ${documentOriginalMaxImages} images)`,
+      label: `Original embeds; whole PDF (max ${documentOriginalMaxImages})`,
       onCommand() {
         void saveOriginal(reader, {
           scope: "document",
@@ -283,7 +286,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: "PDF Image Saver diagnostics",
+      label: "Diagnostics",
       onCommand() {
         void diagnostics(reader);
       },
@@ -375,29 +378,21 @@ var PdfImageSaver = (() => {
     const pageLabel = normalizeDiagnosticText(safeReport.page_label, null, 80);
     const warnings = normalizeDiagnosticWarningMessages(safeReport.warnings);
     const lines = [
-      `Plugin: ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}`,
-      `Zotero: ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
-      `Started: ${formatDiagnosticBoolean(safeReport.started)}`,
-      `Reader count: ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}`,
-      `Active PDF reader: ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
-      `Default quality: ${normalizeQualityKey(safeReport.default_quality)}`,
-      `Auto preview cap: ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}`,
-      `Max HTML index: ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
-      `Temp dir: ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 240)}`,
-      `Temp leftovers: ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)})`,
+      `Plugin ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}; Zotero ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
+      `Started ${formatDiagnosticBoolean(safeReport.started)}; readers ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}; active PDF ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
+      `Quality ${normalizeQualityKey(safeReport.default_quality)}; auto cap ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index cap ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
+      `Temp leftovers ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)})`,
+      `Temp dir ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 240)}`,
     ];
     if (safeReport.pdf_attachment) {
       lines.push(
-        `PDF key: ${normalizeItemKey(pdfAttachment.key, "UNKNOWN")}`,
-        `Library: ${normalizeDiagnosticText(safeReport.library_prefix, "library", 80)}`,
-        `Parent item: ${normalizeDiagnosticText(pdfAttachment.parent_id, "none", 80)}`,
-        `Page: ${pageNumber}${pageLabel ? ` (${pageLabel})` : ""}`,
-        `Open PDF URI: ${normalizeDiagnosticText(safeReport.open_pdf_uri, "unavailable", 240)}`,
-        `Auto raster available: ${formatDiagnosticBoolean(safeReport.auto_raster_available)}`,
+        `PDF ${normalizeItemKey(pdfAttachment.key, "UNKNOWN")}; library ${normalizeDiagnosticText(safeReport.library_prefix, "library", 80)}; parent ${normalizeDiagnosticText(pdfAttachment.parent_id, "none", 80)}`,
+        `Page ${pageNumber}${pageLabel ? ` (${pageLabel})` : ""}; auto raster ${formatDiagnosticBoolean(safeReport.auto_raster_available)}`,
+        `Open ${normalizeDiagnosticText(safeReport.open_pdf_uri, "unavailable", 240)}`,
       );
     }
     if (warnings.length) {
-      lines.push("", "Warnings:", ...warnings.map((warning) => `- ${warning}`));
+      lines.push("Warnings:", ...warnings.map((warning) => `- ${warning}`));
     }
     return lines.join("\n");
   }
@@ -434,7 +429,7 @@ var PdfImageSaver = (() => {
       if (!pageElement || !canvas) {
         throw new Error("Rendered PDF page canvas was not found.");
       }
-      showReaderToast(reader, "Drag over a figure to save its preview index. Esc cancels.", "info");
+      showReaderToast(reader, "Drag on this page to clip. Esc cancels.", "info");
       installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex);
     } catch (error) {
       logError(error);
@@ -450,10 +445,16 @@ var PdfImageSaver = (() => {
     overlay.id = "pdf-image-saver-selection-overlay";
     overlay.tabIndex = 0;
     overlay.className = "pdf-image-saver-selection-overlay";
+    overlay.setAttribute?.("role", "application");
+    overlay.setAttribute?.("aria-label", "Clip figure on current page. Drag to select. Esc cancels.");
+    overlay.title = "Drag on this page; Esc cancels";
     prepareSelectionOverlayHost(pageElement, overlay);
+    const hint = doc.createElement("div");
+    hint.className = "pdf-image-saver-selection-hint";
+    hint.textContent = "Drag on this page; Esc cancels";
     const selection = doc.createElement("div");
     selection.className = "pdf-image-saver-selection-box";
-    overlay.appendChild(selection);
+    overlay.append(hint, selection);
     pageElement.appendChild(overlay);
     overlay.focus();
 
@@ -468,7 +469,7 @@ var PdfImageSaver = (() => {
     overlay.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         cleanup();
-        showReaderToast(reader, "Clip cancelled.", "warning");
+        showReaderToast(reader, "Clip cancelled on current page.", "warning");
       }
     });
 
@@ -514,7 +515,7 @@ var PdfImageSaver = (() => {
       const rect = normalizedRect(start, end);
       cleanup();
       if (rect.width < 12 || rect.height < 12) {
-        showReaderToast(reader, "Selection too small.", "warning");
+        showReaderToast(reader, "Selection too small on this page.", "warning");
         return;
       }
       void saveClipPreviewIndex(reader, {
@@ -675,7 +676,7 @@ var PdfImageSaver = (() => {
       if (!detection.candidates.length) {
         showReaderToast(
           reader,
-          `${detection.reason || "No embedded images were detected on this page."} Use Clip Figure for manual save.`,
+          `${detection.reason || "No embedded images were detected on this page."} Use Clip for manual save.`,
           "warning",
         );
         return null;
@@ -1212,11 +1213,11 @@ var PdfImageSaver = (() => {
     }
     if (isAvailable) {
       button.disabled = false;
-      button.title = buildToolbarActionTooltip("Auto-detect embedded raster previews on the current page", qualityKey);
+      button.title = buildToolbarActionTooltip("Auto-detect current-page raster previews", qualityKey);
       return;
     }
     button.disabled = true;
-    button.title = "Auto raster detection is unavailable in this Zotero PDF.js runtime. Use Clip Figure.";
+    button.title = "Auto unavailable in this PDF.js runtime. Use Clip.";
   }
 
   function supportsPDFJSImageCoordinates(pdfPage) {
@@ -2628,8 +2629,8 @@ var PdfImageSaver = (() => {
     style.id = "pdf-image-saver-style";
     style.textContent = `
       .pdf-image-saver-toolbar-button {
-        margin: 0 4px;
-        padding: 3px 8px;
+        margin: 0;
+        padding: 3px 9px;
         border: 1px solid var(--fill-quinary, #b8b8b8);
         border-radius: 4px;
         background: var(--material-background, #fff);
@@ -2637,6 +2638,7 @@ var PdfImageSaver = (() => {
         font: inherit;
         cursor: pointer;
         min-height: 26px;
+        min-width: 52px;
       }
       .pdf-image-saver-toolbar-button:hover { background: var(--fill-quinary, #eee); }
       .pdf-image-saver-toolbar-button:disabled {
@@ -2647,10 +2649,11 @@ var PdfImageSaver = (() => {
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        margin: 0 4px;
+        margin: 0 6px;
+        padding: 0 2px;
       }
       .pdf-image-saver-quality {
-        max-width: 170px;
+        max-width: 168px;
         min-height: 26px;
         font: inherit;
       }
@@ -2659,13 +2662,13 @@ var PdfImageSaver = (() => {
         right: 18px;
         bottom: 18px;
         z-index: 999999;
-        max-width: min(460px, calc(100vw - 36px));
-        padding: 10px 12px;
+        max-width: min(420px, calc(100vw - 36px));
+        padding: 9px 11px;
         border-radius: 6px;
         box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
         background: #222;
         color: #fff;
-        font: 13px system-ui, sans-serif;
+        font: 12.5px system-ui, sans-serif;
         line-height: 1.35;
       }
       .pdf-image-saver-success { background: #176b3a; }
@@ -2676,8 +2679,23 @@ var PdfImageSaver = (() => {
         inset: 0;
         z-index: 999998;
         cursor: crosshair;
-        background: rgba(0, 0, 0, 0.04);
-        outline: 2px solid rgba(31, 115, 183, 0.4);
+        background: rgba(0, 0, 0, 0.05);
+        outline: 2px solid rgba(31, 115, 183, 0.55);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+      }
+      .pdf-image-saver-selection-hint {
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(17, 24, 39, 0.82);
+        color: #fff;
+        font: 12px system-ui, sans-serif;
+        white-space: nowrap;
+        pointer-events: none;
       }
       .pdf-image-saver-selection-box {
         position: absolute;
@@ -3045,8 +3063,8 @@ var PdfImageSaver = (() => {
   }
 
   function buildToolbarActionTooltip(action, qualityKey) {
-    const actionText = normalizeMetadataText(action, "Save preview", 80);
-    return `${actionText}. Selected: ${getQualityLabelWithEstimate(qualityKey)}.`;
+    const actionText = normalizeMetadataText(action, "Save preview", 90);
+    return `${actionText}; ${getQualityLabelWithEstimate(qualityKey)}`;
   }
 
   function normalizePreviewText(value, fallback, maxLength = 120) {

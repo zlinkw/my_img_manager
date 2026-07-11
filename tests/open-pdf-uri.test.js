@@ -1397,12 +1397,12 @@ for (const forbiddenDiagnosticsText of ["[object Object]", "undefined", "NaN", "
     `diagnostics text must not contain ${forbiddenDiagnosticsText}`,
   );
 }
-assert.ok(noisyDiagnostics.includes("Plugin: unknown"), "diagnostics plugin must normalize malformed text");
-assert.ok(noisyDiagnostics.includes("Started: unknown"), "diagnostics booleans must normalize malformed values");
-assert.ok(noisyDiagnostics.includes("Default quality: medium"), "diagnostics quality must normalize malformed values");
-assert.ok(noisyDiagnostics.includes("PDF key: UNKNOWN"), "diagnostics PDF key must normalize malformed values");
-assert.ok(noisyDiagnostics.includes("Parent item: none"), "diagnostics parent item must normalize malformed values");
-assert.ok(noisyDiagnostics.includes("Page: 1"), "diagnostics page target must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Plugin unknown"), "diagnostics plugin must normalize malformed text");
+assert.ok(noisyDiagnostics.includes("Started unknown"), "diagnostics booleans must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Quality medium"), "diagnostics quality must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("PDF UNKNOWN"), "diagnostics PDF key must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("parent none"), "diagnostics parent item must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Page 1"), "diagnostics page target must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("- ok"), "diagnostics warnings must keep valid compact warning text");
 
 assert.strictEqual(getErrorMessage(new Error("Readable failure")), "Readable failure", "Error.message text must be preserved");
@@ -1418,12 +1418,12 @@ for (const noisyErrorValue of [{ bad: true }, ["bad"], null, undefined, new Erro
 assert.strictEqual(getErrorMessage("x".repeat(400)).length, 320, "oversized error messages must be capped");
 assert.strictEqual(
   buildToolbarActionTooltip("Clip a figure preview", "high"),
-  "Clip a figure preview. Selected: High, 180-750 KB/image.",
+  "Clip a figure preview; High, 180-750 KB/image",
   "toolbar tooltip must show selected high quality estimate",
 );
 assert.strictEqual(
   buildToolbarActionTooltip("Clip a figure preview", "constructor"),
-  "Clip a figure preview. Selected: Medium, 60-220 KB/image.",
+  "Clip a figure preview; Medium, 60-220 KB/image",
   "toolbar tooltip must normalize malformed quality to medium",
 );
 const autoRasterStateButton = { disabled: false, title: "" };
@@ -1431,13 +1431,13 @@ applyAutoRasterButtonState(autoRasterStateButton, false, "high");
 assert.strictEqual(autoRasterStateButton.disabled, true, "unavailable auto-raster state must disable the button");
 assert.ok(
   autoRasterStateButton.title.includes("unavailable"),
-  "unavailable auto-raster state must explain fallback to Clip Figure",
+  "unavailable auto-raster state must explain fallback to Clip",
 );
 applyAutoRasterButtonState(autoRasterStateButton, true, "high");
 assert.strictEqual(autoRasterStateButton.disabled, false, "available auto-raster state must re-enable the button");
 assert.strictEqual(
   autoRasterStateButton.title,
-  "Auto-detect embedded raster previews on the current page. Selected: High, 180-750 KB/image.",
+  "Auto-detect current-page raster previews; High, 180-750 KB/image",
   "available auto-raster state must restore selected quality tooltip",
 );
 
@@ -1530,11 +1530,11 @@ onCreateViewContextMenu({
   },
 });
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Try auto raster image previews: High (180-750 KB/image)"),
+  contextMenuItems.some((item) => item.label === "Auto raster; High (180-750 KB/image)"),
   "context menu auto-raster label must show the default quality estimate",
 );
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Save current page preview index: High (180-750 KB/image)"),
+  contextMenuItems.some((item) => item.label === "Save whole page; High (180-750 KB/image)"),
   "context menu page-preview label must show the default quality estimate",
 );
 assert.ok(
@@ -1542,11 +1542,11 @@ assert.ok(
   "context menu page-preview label must not hardcode Medium",
 );
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Optional: save original embedded images from this page (up to 12 images)"),
+  contextMenuItems.some((item) => item.label === "Original embeds; this page (max 12)"),
   "context menu page-original label must show the page max image count",
 );
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Optional: save original embedded images from whole PDF (up to 34 images)"),
+  contextMenuItems.some((item) => item.label === "Original embeds; whole PDF (max 34)"),
   "context menu document-original label must show the document max image count",
 );
 const contextMenuCalls = [];
@@ -1565,11 +1565,11 @@ const commandActions = buildContextMenuActions(testReader, { pageIndex: 2 }, {
     contextMenuCalls.push({ action: "diagnostics", reader });
   },
 });
-commandActions.find((item) => item.label.startsWith("Try auto raster"))?.onCommand();
-commandActions.find((item) => item.label.startsWith("Save current page preview"))?.onCommand();
-commandActions.find((item) => item.label.startsWith("Optional: save original embedded images from this page"))?.onCommand();
-commandActions.find((item) => item.label.startsWith("Optional: save original embedded images from whole PDF"))?.onCommand();
-commandActions.find((item) => item.label === "PDF Image Saver diagnostics")?.onCommand();
+commandActions.find((item) => item.label.startsWith("Auto raster;"))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Save whole page;"))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Original embeds; this page"))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Original embeds; whole PDF"))?.onCommand();
+commandActions.find((item) => item.label === "Diagnostics")?.onCommand();
 assert.strictEqual(contextMenuCalls.length, 5, "context menu commands must call auto, page, original, and diagnostics handlers");
 assert.strictEqual(contextMenuCalls[0].action, "auto", "first default-quality command must be auto-raster");
 assert.strictEqual(contextMenuCalls[0].reader, testReader, "auto-raster command must receive the reader");
@@ -2335,15 +2335,15 @@ function assertPreferenceStatusRendering() {
   vm.runInContext(preferencesSource, prefContext, { filename: "preferences.js" });
   prefContext.PdfImageSaverPreferences.init();
   const status = prefDoc.getElementById("pdf-image-saver-prefs-status");
-  assert.ok(status.textContent.includes("Storage mode: compact Zotero HTML preview indexes"), "preference status must render storage mode");
-  assert.ok(status.textContent.includes("Preview quality: High, 180-750 KB/image"), "preference status must render selected quality estimate");
-  assert.ok(status.textContent.includes("Duplicate guard: on"), "preference status must render duplicate guard state");
-  assert.ok(status.textContent.includes("Auto page limit: up to 6 candidates"), "preference status must render auto page limit");
-  assert.ok(status.textContent.includes("Auto preview cap: 3 MB"), "preference status must render auto preview cap");
-  assert.ok(status.textContent.includes("Synced HTML index cap: 5 MB"), "preference status must render HTML index cap");
+  assert.ok(status.textContent.includes("Storage: compact HTML preview indexes"), "preference status must render storage mode");
+  assert.ok(status.textContent.includes("Quality: High, 180-750 KB/image"), "preference status must render selected quality estimate");
+  assert.ok(status.textContent.includes("Duplicates: on; session + saved indexes"), "preference status must render duplicate guard state");
+  assert.ok(status.textContent.includes("Auto limit: 6 candidates; 3 MB preview cap"), "preference status must render auto caps");
+  assert.ok(status.textContent.includes("Index cap: 5 MB per synced HTML index"), "preference status must render HTML index cap");
+  assert.ok(status.textContent.includes("Helper: optional; Python/PyMuPDF only for original embeds"), "preference status must render helper note");
   prefDoc.getElementById("pdf-image-saver-default-quality").value = "low";
   prefDoc.getElementById("pdf-image-saver-default-quality").dispatch("change");
-  assert.ok(status.textContent.includes("Preview quality: Low, 20-80 KB/image"), "preference status must refresh after quality change");
+  assert.ok(status.textContent.includes("Quality: Low, 20-80 KB/image"), "preference status must refresh after quality change");
 }
 
 runAsyncAssertions()

@@ -96,11 +96,11 @@ After Zotero has been restarted or the add-on has been reloaded:
 - Optional: `npm.cmd run smoke:wait` waits until registration is ready.
 - `npm.cmd run smoke:preflight` passes.
 - `npm.cmd run runtime:status` shows `registered: true` for `pdf-image-saver@zlk.local`.
-- A PDF reader toolbar shows one `Clip Figure` control group.
+- A PDF reader toolbar shows one compact `Clip` / `Auto` control group with quality estimates.
 - A manual clip creates one Zotero stored HTML child attachment.
 - The HTML preview opens, shows the preview, source region map, compact index identity, and collapsed metadata containing `source_region`, `source_region_key`, `preview_index_key`, `preview_duplicate_key`, and `annotation_key`.
 - Clicking preview or page opens the source PDF page.
-- `Auto Raster` disables or warns safely when image coordinates are unavailable.
+- `Auto` disables or warns safely when image coordinates are unavailable.
 - Duplicate-skip toasts distinguish session memory from already-synced HTML indexes, and auto-detect also reports byte-cap skips.
-- Preferences status shows storage mode, selected quality estimate, duplicate guard state, and active caps.
+- Preferences pane groups preview workflow / caps / optional helper / status, with live scannable status.
 - `%TEMP%\pdf-image-saver` has no leftover child directories after the save.

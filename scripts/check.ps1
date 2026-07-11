@@ -335,7 +335,7 @@ $toolbarEntry = [regex]::Match($mainJS, "function\s+onRenderToolbar\s*\([\s\S]*?
 if (!$toolbarEntry.Success) {
   throw "Reader toolbar render function block not found"
 }
-if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip a figure preview`",\s*qualityKey\)[\s\S]*autoButton\.title\s*=\s*buildToolbarActionTooltip") {
+if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip current-page figure to synced HTML index`",\s*qualityKey\)[\s\S]*autoButton\.title\s*=\s*buildToolbarActionTooltip") {
   throw "Reader toolbar tooltips must be built from selected quality metadata"
 }
 if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*updateQualityTooltips\(\)") {
@@ -366,22 +366,22 @@ if ($contextMenuEntry.Value -notmatch "const\s+defaultQualityKey\s*=\s*getDefaul
 if ($contextMenuEntry.Value -notmatch "function\s+buildContextMenuActions\s*\(\s*reader\s*,\s*params\s*,\s*commands\s*=\s*\{\s*\}\s*\)") {
   throw "Context menu actions must be built by a testable helper"
 }
-if ($contextMenuEntry.Value -notmatch "Try auto raster image previews:\s*\$\{defaultQuality\.label\}\s*\(\$\{defaultQuality\.estimate\}\)[\s\S]*qualityKey:\s*defaultQualityKey") {
+if ($contextMenuEntry.Value -notmatch "Auto raster;\s*\$\{defaultQuality\.label\}\s*\(\$\{defaultQuality\.estimate\}\)[\s\S]*qualityKey:\s*defaultQualityKey") {
   throw "Context menu auto-raster action must show and use the default quality estimate"
 }
-if ($contextMenuEntry.Value -notmatch "Save current page preview index:\s*\$\{defaultQuality\.label\}\s*\(\$\{defaultQuality\.estimate\}\)[\s\S]*qualityKey:\s*defaultQualityKey") {
+if ($contextMenuEntry.Value -notmatch "Save whole page;\s*\$\{defaultQuality\.label\}\s*\(\$\{defaultQuality\.estimate\}\)[\s\S]*qualityKey:\s*defaultQualityKey") {
   throw "Context menu page-preview action must show and use the default quality estimate"
 }
 if ($contextMenuEntry.Value -notmatch "pageOriginalMaxImages\s*=\s*getHelperMaxImages\(`"page`"\)[\s\S]*documentOriginalMaxImages\s*=\s*getHelperMaxImages\(`"document`"\)") {
   throw "Context menu original actions must compute page and document image caps"
 }
-if ($contextMenuEntry.Value -notmatch "Optional: save original embedded images from this page \(up to \$\{pageOriginalMaxImages\} images\)[\s\S]*scope:\s*`"page`"[\s\S]*pageIndex:\s*getContextPageIndex\(params\)") {
+if ($contextMenuEntry.Value -notmatch "Original embeds; this page \(max \$\{pageOriginalMaxImages\}\)[\s\S]*scope:\s*`"page`"[\s\S]*pageIndex:\s*getContextPageIndex\(params\)") {
   throw "Context menu page-original action must show cap and pass page scope"
 }
-if ($contextMenuEntry.Value -notmatch "Optional: save original embedded images from whole PDF \(up to \$\{documentOriginalMaxImages\} images\)[\s\S]*scope:\s*`"document`"") {
+if ($contextMenuEntry.Value -notmatch "Original embeds; whole PDF \(max \$\{documentOriginalMaxImages\}\)[\s\S]*scope:\s*`"document`"") {
   throw "Context menu whole-PDF original action must show cap and pass document scope"
 }
-if ($contextMenuEntry.Value -match "Save current page preview index \(Medium\)|qualityKey:\s*`"medium`"") {
+if ($contextMenuEntry.Value -match "Save whole page; Medium|qualityKey:\s*`"medium`"") {
   throw "Context menu page-preview action must not hardcode Medium quality"
 }
 $autoRasterStateEntry = [regex]::Match($mainJS, "async\s+function\s+updateAutoRasterButtonState\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+applyAutoRasterButtonState")
@@ -398,10 +398,10 @@ $autoRasterApplyEntry = [regex]::Match($mainJS, "function\s+applyAutoRasterButto
 if (!$autoRasterApplyEntry.Success) {
   throw "Auto-raster button state apply helper function block not found"
 }
-if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*button\.disabled\s*=\s*false[\s\S]*buildToolbarActionTooltip\(`"Auto-detect embedded raster previews on the current page`",\s*qualityKey\)") {
+if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*button\.disabled\s*=\s*false[\s\S]*buildToolbarActionTooltip\(`"Auto-detect current-page raster previews`",\s*qualityKey\)") {
   throw "Auto-raster available state must re-enable button and restore quality tooltip"
 }
-if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto raster detection is unavailable") {
+if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto unavailable in this PDF\.js runtime\. Use Clip\.") {
   throw "Auto-raster unavailable state must disable button with fallback tooltip"
 }
 $imageCoordinateEntry = [regex]::Match($mainJS, "function\s+imageCoordinatesToCandidates\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+updateAutoRasterButtonState")

@@ -16,9 +16,28 @@ var PdfImageSaverPreferences = {
   injectStyle(doc) {
     const style = doc.createElement("style");
     style.textContent = `
+      .pdf-image-saver-prefs-intro {
+        margin: 0 0 10px;
+        color: #555;
+        max-width: 760px;
+      }
+      .pdf-image-saver-prefs-section {
+        margin: 0 0 14px;
+        padding: 0 0 10px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      }
+      .pdf-image-saver-prefs-section:last-of-type {
+        border-bottom: 0;
+        padding-bottom: 0;
+      }
+      .pdf-image-saver-prefs-section-title {
+        margin: 0 0 8px;
+        font-size: 13px;
+        font-weight: 600;
+      }
       .pdf-image-saver-prefs-grid {
         display: grid;
-        grid-template-columns: minmax(160px, 240px) minmax(220px, 1fr);
+        grid-template-columns: minmax(160px, 220px) minmax(220px, 1fr);
         gap: 8px 12px;
         align-items: center;
       }
@@ -27,10 +46,17 @@ var PdfImageSaverPreferences = {
       .pdf-image-saver-prefs-grid select {
         width: min(420px, 100%);
       }
-      #pdf-image-saver-prefs-status {
-        color: #555;
-        line-height: 1.45;
+      .pdf-image-saver-prefs-check {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .pdf-image-saver-prefs-status {
         max-width: 760px;
+        color: #444;
+        line-height: 1.4;
+        font-size: 12.5px;
+        white-space: pre-line;
       }
     `;
     doc.documentElement.appendChild(style);
@@ -64,14 +90,13 @@ var PdfImageSaverPreferences = {
     const autoCapMB = this.getAutoMaxPreviewMB(doc);
     const indexCapMB = this.getMaxIndexMB(doc);
     status.textContent = [
-      "Storage mode: compact Zotero HTML preview indexes that follow attachment sync.",
-      `Preview quality: ${quality.label}, ${quality.estimate}.`,
-      `Duplicate guard: ${duplicateGuard ? "on; skips session memory and existing synced HTML indexes" : "off"}.`,
-      `Auto page limit: up to ${autoMaxImages} candidates.`,
-      `Auto preview cap: ${autoCapMB} MB.`,
-      `Synced HTML index cap: ${indexCapMB} MB.`,
-      "Optional original extraction stays separate and may need Python/PyMuPDF.",
-    ].join(" ");
+      "Storage: compact HTML preview indexes (sync with attachment)",
+      `Quality: ${quality.label}, ${quality.estimate}`,
+      `Duplicates: ${duplicateGuard ? "on; session + saved indexes" : "off"}`,
+      `Auto limit: ${autoMaxImages} candidates; ${autoCapMB} MB preview cap`,
+      `Index cap: ${indexCapMB} MB per synced HTML index`,
+      "Helper: optional; Python/PyMuPDF only for original embeds",
+    ].join("\n");
   },
 
   getPreviewQuality(doc) {
