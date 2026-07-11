@@ -508,7 +508,7 @@ showReaderToast(
   { level: "bad" },
 );
 assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "toast updates must reuse the existing toast element");
-assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img notification.", "malformed toast messages must normalize to compact fallback text");
+assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img notice.", "malformed toast messages must normalize to compact fallback text");
 assert.strictEqual(readerToastDoc.bodyChildren[0].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
 
 context.Services.prompt.alerts = [];
@@ -1157,7 +1157,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview image data URL is invalid/,
+  /Preview data URL invalid/,
   "malformed preview data URL must be rejected before HTML output",
 );
 assert.throws(
@@ -1172,7 +1172,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview image data URL is invalid/,
+  /Preview data URL invalid/,
   "preview data URL base64 payload length must be canonical before byte counting",
 );
 const canonicalBase64HTML = buildIndexHTML({
@@ -1195,7 +1195,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview index entries must be an array/,
+  /Preview index entries invalid/,
   "non-array preview entries must fail with a clear validation error",
 );
 assert.throws(
@@ -1206,7 +1206,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview index must include at least one entry/,
+  /Preview index empty/,
   "empty preview entries must fail with a clear validation error",
 );
 assert.throws(
@@ -1217,7 +1217,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview image data URL is invalid/,
+  /Preview data URL invalid/,
   "null preview entries must be normalized before data URL validation",
 );
 assert.throws(
@@ -1228,7 +1228,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview image data URL is invalid/,
+  /Preview data URL invalid/,
   "scalar preview entries must be normalized before field mutation",
 );
 
@@ -2153,7 +2153,7 @@ async function runAsyncAssertions() {
   );
   assert.strictEqual(
     context.Services.prompt.alerts[0].message,
-    "Original cancelled page.",
+    "Orig cancel page.",
     "cancelled original confirmation must show compact reader feedback",
   );
 
@@ -2167,7 +2167,7 @@ async function runAsyncAssertions() {
   assert.strictEqual(cancelledDocumentOriginalSave, null, "document original cancel must not reject");
   assert.strictEqual(
     context.Services.prompt.alerts[0].message,
-    "Original cancelled doc.",
+    "Orig cancel doc.",
     "document original cancel must use compact doc scope token",
   );
 
@@ -2667,7 +2667,7 @@ function assertPreferenceStatusRendering() {
   const status = prefDoc.getElementById("pdf-image-saver-prefs-status");
   assert.ok(status.textContent.includes("Store: HTML indexes"), "preference status must render storage mode");
   assert.ok(status.textContent.includes("Q High; 180-750 KB"), "preference status must render selected quality estimate");
-  assert.ok(status.textContent.includes("Dups: on; session + saved"), "preference status must render duplicate guard state");
+  assert.ok(status.textContent.includes("Dups: on; session+saved"), "preference status must render duplicate guard state");
   assert.ok(status.textContent.includes("Auto: 6 max; 3 MB"), "preference status must render auto caps");
   assert.ok(status.textContent.includes("Index: 5 MB"), "preference status must render HTML index cap");
   assert.ok(status.textContent.includes("Helper: opt; page 12; doc 34; 45s; custom py"), "preference status must render helper caps and python path mode");

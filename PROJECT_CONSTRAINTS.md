@@ -79,6 +79,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Helper hard-fail and original save toasts densified while preserving page/doc scope tokens.
 - Toolbar aria labels, prefs status/intro, and attachment title suffixes densified for scanability.
 - Busy toolbar labels, progress/already-running toasts, and original skip notes densified further.
+- Cancel/tooltip/validation strings and prefs duplicate labels densified; toast fallback shortened.
 
 ### After UI Is Exhausted
 

@@ -78,7 +78,7 @@ var PdfImageSaver = (() => {
       : doc.createElement("menuitem");
     menuitem.id = "pdf-image-saver-tools-menuitem";
     menuitem.setAttribute("label", "PDF Img: Clip");
-    menuitem.setAttribute("tooltiptext", "Clip current page to HTML index");
+    menuitem.setAttribute("tooltiptext", "Clip page to HTML index");
     menuitem.addEventListener("command", () => {
       void startClipFromActiveReader(win, getDefaultQualityKey());
     });
@@ -87,7 +87,7 @@ var PdfImageSaver = (() => {
       : doc.createElement("menuitem");
     diagnosticsItem.id = "pdf-image-saver-diagnostics-menuitem";
     diagnosticsItem.setAttribute("label", "PDF Img: Diag");
-    diagnosticsItem.setAttribute("tooltiptext", "Runtime status, open-PDF, helper, temp");
+    diagnosticsItem.setAttribute("tooltiptext", "Runtime, open-PDF, helper, temp");
     diagnosticsItem.addEventListener("command", () => {
       void showDiagnostics(win);
     });
@@ -270,7 +270,7 @@ var PdfImageSaver = (() => {
         return;
       }
       select.title = `Q ${getQualityLabelWithEstimate(qualityKey)}`;
-      button.title = buildToolbarActionTooltip("Clip current page to HTML index", qualityKey);
+      button.title = buildToolbarActionTooltip("Clip page to HTML index", qualityKey);
       refreshAutoButtonState(qualityKey);
     };
     select.addEventListener("change", () => {
@@ -448,7 +448,7 @@ var PdfImageSaver = (() => {
       report.optional_helper = pythonCommands.length ? "python-available" : "python-missing";
     } catch (error) {
       report.optional_helper = "unknown";
-      report.warnings.push(`Helper probe failed: ${getErrorMessage(error)}`);
+      report.warnings.push(`Helper probe fail: ${getErrorMessage(error)}`);
     }
     return report;
   }
@@ -590,7 +590,7 @@ var PdfImageSaver = (() => {
     overlay.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         endSession();
-        showReaderToast(reader, `Clip cancelled ${formatPageToastToken(pageIndex)}.`, "warning");
+        showReaderToast(reader, `Clip cancel ${formatPageToastToken(pageIndex)}.`, "warning");
       }
     });
 
@@ -1567,10 +1567,10 @@ var PdfImageSaver = (() => {
 
   function normalizePreviewEntries(entries) {
     if (!Array.isArray(entries)) {
-      throw new Error("Preview index entries must be an array.");
+      throw new Error("Preview index entries invalid.");
     }
     if (!entries.length) {
-      throw new Error("Preview index must include at least one entry.");
+      throw new Error("Preview index empty.");
     }
     return entries.map((entry) => (
       entry && typeof entry === "object" && !Array.isArray(entry) ? entry : {}
@@ -1629,7 +1629,7 @@ var PdfImageSaver = (() => {
       );
       if (!ok) {
         const pageIndex = normalizePageIndex(safeOptions.pageIndex, null);
-        showReaderToast(reader, `Original cancelled ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
+        showReaderToast(reader, `Orig cancel ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
         return null;
       }
       return await saveOriginalImagesFromReader(reader, { ...safeOptions, scope });
@@ -1955,13 +1955,13 @@ var PdfImageSaver = (() => {
       parts.push(`${importResult.duplicateCount} dup${importResult.duplicateCount === 1 ? "" : "s"}`);
     }
     if (importResult.importErrorCount) {
-      parts.push(`${importResult.importErrorCount} import fail${importResult.importErrorCount === 1 ? "" : "s"}`);
+      parts.push(`${importResult.importErrorCount} import-fail`);
     }
     if (importResult.indexErrorCount) {
       parts.push("index fail");
     }
     if (importResult.overCapCount) {
-      parts.push(`${importResult.overCapCount} over cap ${importResult.maxImages}`);
+      parts.push(`${importResult.overCapCount} over-cap ${importResult.maxImages}`);
     }
     return parts.length ? ` Skipped ${parts.join("; ")}.` : "";
   }
@@ -2768,9 +2768,9 @@ var PdfImageSaver = (() => {
 
   function normalizeToastMessage(message) {
     if (message && typeof message.message === "string") {
-      return normalizeMetadataText(message.message, "PDF Img notification.", 280);
+      return normalizeMetadataText(message.message, "PDF Img notice.", 280);
     }
-    return normalizeMetadataText(message, "PDF Img notification.", 280);
+    return normalizeMetadataText(message, "PDF Img notice.", 280);
   }
 
   function normalizeToastLevel(level) {
@@ -3410,7 +3410,7 @@ var PdfImageSaver = (() => {
     if (match?.[1]?.length % 4 === 0) {
       return text;
     }
-    throw new Error("Preview image data URL is invalid.");
+    throw new Error("Preview data URL invalid.");
   }
 
   function getAutoMaxPreviewBytes() {

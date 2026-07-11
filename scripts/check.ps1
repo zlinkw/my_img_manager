@@ -285,7 +285,7 @@ $toolbarEntry = [regex]::Match($mainJS, "function\s+onRenderToolbar\s*\([\s\S]*?
 if (!$toolbarEntry.Success) {
   throw "Reader toolbar render function block not found"
 }
-if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip current page to HTML index`",\s*qualityKey\)[\s\S]*refreshAutoButtonState\(qualityKey\)") {
+if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip page to HTML index`",\s*qualityKey\)[\s\S]*refreshAutoButtonState\(qualityKey\)") {
   throw "Reader toolbar tooltips must be built from selected quality metadata"
 }
 if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*updateQualityTooltips\(\)") {
@@ -530,7 +530,7 @@ if ($mainJS -notmatch "importResult\.omittedCount\s*\|\|\s*importResult\.indexEr
 if ($mainJS -notmatch "omittedCount:\s*prepared\.omittedCount\s*\+\s*duplicateCount\s*\+\s*importErrorCount") {
   throw "Original image import result must add duplicate skips and Zotero import failures to omission count"
 }
-if ($mainJS -notmatch "\$\{importResult\.importErrorCount\}\s+import fail") {
+if ($mainJS -notmatch "\$\{importResult\.importErrorCount\}\s+import-fail") {
   throw "Original helper import toast must expose failed Zotero imports separately"
 }
 if ($mainJS -notmatch "index fail") {
@@ -880,10 +880,10 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexHTML") {
 if ($mainJS -notmatch "function\s+normalizePreviewEntries\s*\(\s*entries\s*\)") {
   throw "HTML preview entry-list normalizer missing"
 }
-if ($mainJS -notmatch "Preview index entries must be an array") {
+if ($mainJS -notmatch "Preview index entries invalid") {
   throw "HTML preview non-array entry lists must fail clearly"
 }
-if ($mainJS -notmatch "Preview index must include at least one entry") {
+if ($mainJS -notmatch "Preview index empty") {
   throw "HTML preview empty entry lists must fail clearly"
 }
 if ($mainJS -notmatch "const\s+normalizedEntries\s*=\s*normalizePreviewEntries\(entries\)") {
@@ -1391,7 +1391,7 @@ if ($readerToastEntry.Value -match "showToastInDocument\(immediateContext\?\.doc
 if ($readerToastEntry.Value -match "Services\.prompt\.alert") {
   throw "Reader toast should route fallback prompts through showFallbackAlert"
 }
-if ($mainJS -notmatch "function\s+normalizeToastMessage\s*\(\s*message\s*\)[\s\S]*normalizeMetadataText\(message,\s*`"PDF Img notification\.`",\s*280\)") {
+if ($mainJS -notmatch "function\s+normalizeToastMessage\s*\(\s*message\s*\)[\s\S]*normalizeMetadataText\(message,\s*`"PDF Img notice\.`",\s*280\)") {
   throw "Reader toast message normalizer missing compact fallback"
 }
 if ($mainJS -notmatch "function\s+normalizeToastLevel\s*\(\s*level\s*\)[\s\S]*\[`"info`",\s*`"success`",\s*`"warning`",\s*`"error`",\s*`"progress`"\]\.includes\(text\)\s*\?\s*text\s*:\s*`"info`"") {
