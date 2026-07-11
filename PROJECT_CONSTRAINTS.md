@@ -69,6 +69,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Clip toolbar now stays in session state until selection ends; helper absence feedback is quieter than hard failures.
 - Duplicate-skip messages densified while preserving session vs saved distinctions.
 - UI-first backlog is largely exhausted; dense labels cover main surfaces including quality tooltips and page/doc-scoped progress/success/skip toasts, toast reuses one element, toolbar widths/aria stay stable in busy modes, prefs status includes live helper caps, and clip selection size badge stays on-box. Further UI work only for concrete clarity gaps.
+- Clip start/cancel/too-small toasts and original cancel feedback now carry the same page/doc tokens as progress/success toasts.
 
 ### After UI Is Exhausted
 

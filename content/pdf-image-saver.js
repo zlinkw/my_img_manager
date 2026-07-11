@@ -518,7 +518,7 @@ var PdfImageSaver = (() => {
       if (!pageElement || !canvas) {
         throw new Error("Capture failed: rendered PDF page canvas was not found.");
       }
-      showReaderToast(reader, "Drag page; Esc cancels.", "info");
+      showReaderToast(reader, `Drag ${formatPageToastToken(pageIndex)}; Esc cancels.`, "info");
       installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex, {
         onSessionEnd,
       });
@@ -547,13 +547,15 @@ var PdfImageSaver = (() => {
     overlay.tabIndex = 0;
     overlay.className = "pdf-image-saver-selection-overlay";
     overlay.setAttribute?.("role", "application");
-    overlay.setAttribute?.("aria-label", "Clip figure. Drag page; Esc cancels.");
-    overlay.title = "Drag page; Esc cancels";
+    const pageToken = formatPageToastToken(pageIndex);
+    const dragHint = `Drag ${pageToken}; Esc cancels`;
+    overlay.setAttribute?.("aria-label", `Clip ${pageToken}. ${dragHint}.`);
+    overlay.title = dragHint;
     overlay.__pdfImageSaverOnSessionEnd = onSessionEnd;
     prepareSelectionOverlayHost(pageElement, overlay);
     const hint = doc.createElement("div");
     hint.className = "pdf-image-saver-selection-hint";
-    hint.textContent = "Drag page; Esc cancels";
+    hint.textContent = dragHint;
     const selection = doc.createElement("div");
     selection.className = "pdf-image-saver-selection-box";
     const sizeBadge = doc.createElement("div");
@@ -582,7 +584,7 @@ var PdfImageSaver = (() => {
     overlay.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         endSession();
-        showReaderToast(reader, "Clip cancelled.", "warning");
+        showReaderToast(reader, `Clip cancelled ${formatPageToastToken(pageIndex)}.`, "warning");
       }
     });
 
@@ -629,7 +631,7 @@ var PdfImageSaver = (() => {
       const rect = normalizedRect(start, end);
       endSession();
       if (rect.width < 12 || rect.height < 12) {
-        showReaderToast(reader, "Selection too small.", "warning");
+        showReaderToast(reader, `Selection too small ${formatPageToastToken(pageIndex)}.`, "warning");
         return;
       }
       void saveClipPreviewIndex(reader, {
@@ -1601,7 +1603,8 @@ var PdfImageSaver = (() => {
         `Save originals from ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/image, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Clip safer for sync.`,
       );
       if (!ok) {
-        showReaderToast(reader, "Original cancelled.", "warning");
+        const pageIndex = normalizePageIndex(safeOptions.pageIndex, null);
+        showReaderToast(reader, `Original cancelled ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
         return null;
       }
       return await saveOriginalImagesFromReader(reader, { ...safeOptions, scope });

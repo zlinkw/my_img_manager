@@ -461,6 +461,14 @@ const selectionBox = (sessionPage.child.children || []).find((node) => node.clas
 assert.ok(selectionBox, "selection overlay must include selection box");
 const sizeBadge = (selectionBox.children || []).find((node) => node.className === "pdf-image-saver-selection-size");
 assert.ok(sizeBadge, "selection box must include live size badge");
+assert.strictEqual(sessionPage.child.title, "Drag p1; Esc cancels", "clip overlay title must include page token");
+assert.strictEqual(
+  sessionPage.child.getAttribute("aria-label"),
+  "Clip p1. Drag p1; Esc cancels.",
+  "clip overlay aria-label must include page token",
+);
+const sessionHint = (sessionPage.child.children || []).find((node) => node.className === "pdf-image-saver-selection-hint");
+assert.strictEqual(sessionHint?.textContent, "Drag p1; Esc cancels", "clip overlay hint must include page token");
 sessionPage.child.dispatch("pointerdown", { button: 0, pointerId: 1, clientX: 10, clientY: 12 });
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
 assert.strictEqual(sizeBadge.textContent, "60 x 40", "selection size badge must show live pixel size");
@@ -1586,6 +1594,7 @@ assert.strictEqual(formatPageToastToken(0), "p1", "page toast token must be 1-ba
 assert.strictEqual(formatPageToastToken(4), "p5", "page toast token must map pageIndex to pN");
 assert.strictEqual(formatOriginalScopeToken("page", 2), "p3", "original page scope token must use page number");
 assert.strictEqual(formatOriginalScopeToken("document"), "doc", "original document scope token must stay compact");
+assert.strictEqual(formatOriginalScopeToken("page", null), "page", "original page scope without page must stay compact");
 
 assert.strictEqual(
   buildToolbarActionTooltip("Clip a figure preview", "high"),
@@ -2120,8 +2129,22 @@ async function runAsyncAssertions() {
   );
   assert.strictEqual(
     context.Services.prompt.alerts[0].message,
-    "Original cancelled.",
+    "Original cancelled page.",
     "cancelled original confirmation must show compact reader feedback",
+  );
+
+  context.Services.prompt.confirms = [];
+  context.Services.prompt.alerts = [];
+  context.Services.prompt.confirmResult = false;
+  const cancelledDocumentOriginalSave = await confirmAndSaveOriginalImagesFromReader(null, {
+    scope: "document",
+    pageIndex: 4,
+  });
+  assert.strictEqual(cancelledDocumentOriginalSave, null, "document original cancel must not reject");
+  assert.strictEqual(
+    context.Services.prompt.alerts[0].message,
+    "Original cancelled doc.",
+    "document original cancel must use compact doc scope token",
   );
 
   const existingOriginalFile = `${helperOutputDir}\\existing.jpg`;
