@@ -17,12 +17,12 @@ var PdfImageSaverPreferences = {
     const style = doc.createElement("style");
     style.textContent = `
       .pdf-image-saver-prefs-intro {
-        margin: 0 0 10px;
+        margin: 0 0 8px;
         color: #555;
         max-width: 760px;
       }
       .pdf-image-saver-prefs-section {
-        margin: 0 0 14px;
+        margin: 0 0 12px;
         padding: 0 0 10px;
         border-bottom: 1px solid rgba(0, 0, 0, 0.08);
       }
@@ -37,7 +37,7 @@ var PdfImageSaverPreferences = {
       }
       .pdf-image-saver-prefs-grid {
         display: grid;
-        grid-template-columns: minmax(160px, 220px) minmax(220px, 1fr);
+        grid-template-columns: minmax(120px, 160px) minmax(220px, 1fr);
         gap: 8px 12px;
         align-items: center;
       }
