@@ -17,13 +17,15 @@ var PdfImageSaverPreferences = {
     const style = doc.createElement("style");
     style.textContent = `
       .pdf-image-saver-prefs-intro {
-        margin: 0 0 8px;
+        margin: 0 0 6px;
         color: #555;
-        max-width: 760px;
+        max-width: 720px;
+        font-size: 12.5px;
+        line-height: 1.35;
       }
       .pdf-image-saver-prefs-section {
-        margin: 0 0 12px;
-        padding: 0 0 10px;
+        margin: 0 0 10px;
+        padding: 0 0 8px;
         border-bottom: 1px solid rgba(0, 0, 0, 0.08);
       }
       .pdf-image-saver-prefs-section:last-of-type {
@@ -31,31 +33,31 @@ var PdfImageSaverPreferences = {
         padding-bottom: 0;
       }
       .pdf-image-saver-prefs-section-title {
-        margin: 0 0 8px;
-        font-size: 13px;
+        margin: 0 0 6px;
+        font-size: 12.5px;
         font-weight: 600;
       }
       .pdf-image-saver-prefs-grid {
         display: grid;
-        grid-template-columns: minmax(120px, 160px) minmax(220px, 1fr);
-        gap: 8px 12px;
+        grid-template-columns: minmax(108px, 148px) minmax(220px, 1fr);
+        gap: 6px 10px;
         align-items: center;
       }
       .pdf-image-saver-prefs-grid input[type="text"],
       .pdf-image-saver-prefs-grid input[type="number"],
       .pdf-image-saver-prefs-grid select {
-        width: min(420px, 100%);
+        width: min(400px, 100%);
       }
       .pdf-image-saver-prefs-check {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
       }
       .pdf-image-saver-prefs-status {
-        max-width: 760px;
+        max-width: 720px;
         color: #444;
-        line-height: 1.4;
-        font-size: 12.5px;
+        line-height: 1.32;
+        font-size: 12px;
         white-space: pre-line;
       }
     `;

@@ -63,30 +63,11 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 ### UI First
 
-- Preference pane groups, denser status/control labels, and shorter intro help landed.
-- Reader toolbar `Clip` / `Auto`, denser menus/diagnostics, and page-bound overlay cues landed.
-- Toast hierarchy includes sticky `progress` feedback for clip/auto/page/helper work.
-- Clip toolbar now stays in session state until selection ends; helper absence feedback is quieter than hard failures.
-- Duplicate-skip messages densified while preserving session vs saved distinctions.
-- UI-first backlog is largely exhausted; dense labels cover main surfaces including quality tooltips and page/doc-scoped progress/success/skip toasts, toast reuses one element, toolbar widths/aria stay stable in busy modes, prefs status includes live helper caps, and clip selection size badge stays on-box. Further UI work only for concrete clarity gaps.
-- Clip start/cancel/too-small toasts and original cancel feedback now carry the same page/doc tokens as progress/success toasts.
-- Auto no-candidate warnings now use the same page-scoped `Auto skip` pattern and denser runtime reasons.
-- Busy toolbar titles now match locked aria labels instead of idle quality tooltips; original confirm and diagnostics titles densified.
-- Tools/menu/tooltip wording densified; HTML Open action and original index titles shortened for scanability.
-- HTML index header/meta labels and original skip notes densified; source-region map labels shortened.
-- Capture/helper failure strings densified while preserving category prefixes and Clip fallback.
-- Storage/byte-cap failure strings and diagnostics helper line densified while preserving category prefixes.
-- Helper hard-fail and original save toasts densified while preserving page/doc scope tokens.
-- Toolbar aria labels, prefs status/intro, and attachment title suffixes densified for scanability.
-- Busy toolbar labels, progress/already-running toasts, and original skip notes densified further.
-- Cancel/tooltip/validation strings and prefs duplicate labels densified; toast fallback shortened.
-- Overlay drag hints, diagnostics warnings, HTML index headers, and prefs caps labels densified.
-- Context-menu original labels, original confirm/busy toasts, and auto tooltip densified.
-- Residual toolbar/diag and HTML index labels densified further (Q/est, Clip page HTML, Auto page, Open PDF title, img/orig index titles).
-- Progress toasts and original confirm densified; HTML size labels shortened.
-- HTML index/original CSS densified; toast footprint tightened; prefs store status shortened.
-- Busy toolbar labels, capture errors, and selection overlay chrome densified further.
-- Storage/helper failure and original skip strings densified; selection size badge compact.
+- Dense reader toolbar, menus, overlays, toasts, diagnostics, prefs, and HTML index labels landed.
+- Category prefixes stay fixed: `Capture failed:`, `Helper:`, `Storage failed:`, `Byte cap:`, `Auto/Clip/Page skip`.
+- Session vs saved duplicate wording and page/doc scope tokens remain required.
+- Toolbar widths/aria stay stable in busy modes; toast reuses one element; quality estimates stay visible.
+- UI-first backlog is exhausted for inventable densify churn. Further UI work only for concrete clarity gaps or user-reported runtime wording.
 
 ### After UI Is Exhausted
 
