@@ -1639,7 +1639,7 @@ applyAutoRasterButtonState(autoRasterStateButton, true, "high");
 assert.strictEqual(autoRasterStateButton.disabled, false, "available auto-raster state must re-enable the button");
 assert.strictEqual(
   autoRasterStateButton.title,
-  "Auto current-page raster; High; 180-750 KB",
+  "Auto page raster; High; 180-750 KB",
   "available auto-raster state must restore selected quality tooltip",
 );
 
@@ -1849,11 +1849,11 @@ assert.ok(
   "context menu page-preview label must not hardcode Medium",
 );
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Originals page; max 12"),
+  contextMenuItems.some((item) => item.label === "Orig page; max 12"),
   "context menu page-original label must show the page max image count",
 );
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Originals doc; max 34"),
+  contextMenuItems.some((item) => item.label === "Orig doc; max 34"),
   "context menu document-original label must show the document max image count",
 );
 const contextMenuCalls = [];
@@ -1874,8 +1874,8 @@ const commandActions = buildContextMenuActions(testReader, { pageIndex: 2 }, {
 });
 commandActions.find((item) => item.label.startsWith("Auto "))?.onCommand();
 commandActions.find((item) => item.label.startsWith("Page "))?.onCommand();
-commandActions.find((item) => item.label.startsWith("Originals page;"))?.onCommand();
-commandActions.find((item) => item.label.startsWith("Originals doc;"))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Orig page;"))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Orig doc;"))?.onCommand();
 commandActions.find((item) => item.label === "Diag")?.onCommand();
 assert.strictEqual(contextMenuCalls.length, 5, "context menu commands must call auto, page, original, and diagnostics handlers");
 assert.strictEqual(contextMenuCalls[0].action, "auto", "first default-quality command must be auto-raster");
@@ -2143,7 +2143,7 @@ async function runAsyncAssertions() {
   assert.strictEqual(cancelledOriginalSave, null, "malformed original confirmation options must not reject");
   assert.strictEqual(context.Services.prompt.confirms.length, 1, "original confirmation must still require an explicit prompt");
   assert.ok(
-    context.Services.prompt.confirms[0].message.includes("Originals page?"),
+    context.Services.prompt.confirms[0].message.includes("Orig page?"),
     "malformed original confirmation options must fall back to page scope",
   );
   assert.ok(

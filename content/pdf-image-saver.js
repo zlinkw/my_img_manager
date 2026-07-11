@@ -341,7 +341,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: `Originals page; max ${pageOriginalMaxImages}`,
+      label: `Orig page; max ${pageOriginalMaxImages}`,
       onCommand() {
         void saveOriginal(reader, {
           scope: "page",
@@ -351,7 +351,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: `Originals doc; max ${documentOriginalMaxImages}`,
+      label: `Orig doc; max ${documentOriginalMaxImages}`,
       onCommand() {
         void saveOriginal(reader, {
           scope: "document",
@@ -371,7 +371,7 @@ var PdfImageSaver = (() => {
   async function startClipFromActiveReader(win, qualityKey) {
     const reader = getActiveReader(win);
     if (!reader) {
-      Services.prompt.alert(win, "PDF Img", "Capture failed: no active PDF reader.");
+      Services.prompt.alert(win, "PDF Img", "Capture failed: no active PDF.");
       return;
     }
     await startClipFromReader(reader, qualityKey);
@@ -1170,7 +1170,7 @@ var PdfImageSaver = (() => {
 
   function calculateCanvasCrop({ selectionRect, pageRect, canvasRect, canvasWidth, canvasHeight }) {
     if (!pageRect?.width || !pageRect?.height || !canvasRect?.width || !canvasRect?.height) {
-      throw new Error("Capture failed: page geometry unavailable.");
+      throw new Error("Capture failed: page geometry n/a.");
     }
     const normalizedPageRect = rectWithEdges(pageRect);
     const normalizedCanvasRect = rectWithEdges(canvasRect);
@@ -1369,7 +1369,7 @@ var PdfImageSaver = (() => {
     }
     if (isAvailable) {
       button.disabled = false;
-      button.title = buildToolbarActionTooltip("Auto current-page raster", qualityKey);
+      button.title = buildToolbarActionTooltip("Auto page raster", qualityKey);
       return;
     }
     button.disabled = true;
@@ -1625,7 +1625,7 @@ var PdfImageSaver = (() => {
       const ok = Services.prompt.confirm(
         win,
         "PDF Img",
-        `Originals ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/image, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Clip safer.`,
+        `Orig ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/image, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Clip safer.`,
       );
       if (!ok) {
         const pageIndex = normalizePageIndex(safeOptions.pageIndex, null);
@@ -1654,7 +1654,7 @@ var PdfImageSaver = (() => {
           : null;
       jobKey = getReaderJobKey(reader, { scope, pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, `Original busy ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
+        showReaderToast(reader, `Orig busy ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
         return;
       }
 
@@ -1688,7 +1688,7 @@ var PdfImageSaver = (() => {
       }
       if (!report.images?.length) {
         await removeDirectoryIfExists(report.output_dir);
-        showReaderToast(reader, `No originals ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
+        showReaderToast(reader, `No orig ${formatOriginalScopeToken(scope, pageIndex)}.`, "warning");
         return;
       }
       const importResult = await importOriginalImages({

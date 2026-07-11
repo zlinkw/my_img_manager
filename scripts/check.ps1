@@ -331,10 +331,10 @@ if ($contextMenuEntry.Value -notmatch "Page \$\{defaultQuality\.label\};\s*\$\{f
 if ($contextMenuEntry.Value -notmatch "pageOriginalMaxImages\s*=\s*getHelperMaxImages\(`"page`"\)[\s\S]*documentOriginalMaxImages\s*=\s*getHelperMaxImages\(`"document`"\)") {
   throw "Context menu original actions must compute page and document image caps"
 }
-if ($contextMenuEntry.Value -notmatch "Originals page; max \$\{pageOriginalMaxImages\}[\s\S]*scope:\s*`"page`"[\s\S]*pageIndex:\s*getContextPageIndex\(params\)") {
+if ($contextMenuEntry.Value -notmatch "Orig page; max \$\{pageOriginalMaxImages\}[\s\S]*scope:\s*`"page`"[\s\S]*pageIndex:\s*getContextPageIndex\(params\)") {
   throw "Context menu page-original action must show cap and pass page scope"
 }
-if ($contextMenuEntry.Value -notmatch "Originals doc; max \$\{documentOriginalMaxImages\}[\s\S]*scope:\s*`"document`"") {
+if ($contextMenuEntry.Value -notmatch "Orig doc; max \$\{documentOriginalMaxImages\}[\s\S]*scope:\s*`"document`"") {
   throw "Context menu whole-PDF original action must show cap and pass document scope"
 }
 if ($contextMenuEntry.Value -match "Save whole page; Medium|qualityKey:\s*`"medium`"") {
@@ -354,7 +354,7 @@ $autoRasterApplyEntry = [regex]::Match($mainJS, "function\s+applyAutoRasterButto
 if (!$autoRasterApplyEntry.Success) {
   throw "Auto-raster button state apply helper function block not found"
 }
-if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*button\.disabled\s*=\s*false[\s\S]*buildToolbarActionTooltip\(`"Auto current-page raster`",\s*qualityKey\)") {
+if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*button\.disabled\s*=\s*false[\s\S]*buildToolbarActionTooltip\(`"Auto page raster`",\s*qualityKey\)") {
   throw "Auto-raster available state must re-enable button and restore quality tooltip"
 }
 if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto n/a\. Use Clip\.") {
@@ -1468,10 +1468,10 @@ if ($mainJS -notmatch "Auto \$\{defaultQuality\.label\}; \$\{formatQualityEstima
 if ($mainJS -notmatch "Page \$\{defaultQuality\.label\}; \$\{formatQualityEstimateShort\(defaultQualityKey\)\}") {
   throw "Context menu page labels must stay dense"
 }
-if ($mainJS -notmatch "Originals page; max") {
+if ($mainJS -notmatch "Orig page; max") {
   throw "Context menu original page labels must stay dense"
 }
-if ($mainJS -notmatch "Originals doc; max") {
+if ($mainJS -notmatch "Orig doc; max") {
   throw "Context menu original document labels must stay dense"
 }
 if ($mainJS -notmatch "setToolbarMode\(`"clip`"\)[\s\S]*onSessionEnd\(\)\s*\{[\s\S]*setToolbarMode\(`"idle`"\)") {

@@ -81,6 +81,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Busy toolbar labels, progress/already-running toasts, and original skip notes densified further.
 - Cancel/tooltip/validation strings and prefs duplicate labels densified; toast fallback shortened.
 - Overlay drag hints, diagnostics warnings, HTML index headers, and prefs caps labels densified.
+- Context-menu original labels, original confirm/busy toasts, and auto tooltip densified.
 
 ### After UI Is Exhausted
 
