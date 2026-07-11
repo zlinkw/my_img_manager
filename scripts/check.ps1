@@ -45,7 +45,9 @@ if ($manifest.description -notmatch "preview indexes") {
 }
 
 $targetPlan = Get-Content -Encoding UTF8 -Raw -LiteralPath .\docs\target-mode-plan.md
-if ($targetPlan -notmatch "Retired") {
+$targetPlanLines = @($targetPlan -split "`r?`n").Count
+$targetPlanBytes = [Text.Encoding]::UTF8.GetByteCount($targetPlan)
+if ($targetPlan -notmatch "Retired|historical only") {
   throw "Target plan must remain marked retired/historical"
 }
 if ($targetPlan -notmatch "PROJECT_CONSTRAINTS\.md") {
@@ -63,8 +65,17 @@ if ($targetPlan -notmatch "manual current-page clip") {
 if ($targetPlan -notmatch "Optional") {
   throw "Target plan snapshot must keep optional helper isolation"
 }
+if ($targetPlan -notmatch "Compress|compress|rewrite instead of appending|never append") {
+  throw "Target plan must document compression/no-ledger maintenance rule"
+}
 if ($targetPlan -match "(?m)^- Use local Python and PyMuPDF for original embedded image extraction\.$") {
   throw "Target plan must not present local Python helper as required"
+}
+if ($targetPlanLines -gt 80) {
+  throw "Target plan is too long ($targetPlanLines lines). Compress the historical snapshot before continuing."
+}
+if ($targetPlanBytes -gt 4096) {
+  throw "Target plan is too large ($targetPlanBytes bytes). Compress the historical snapshot before continuing."
 }
 
 $package = Get-Content -Encoding UTF8 -Raw -LiteralPath .\package.json | ConvertFrom-Json
@@ -842,7 +853,7 @@ if ($mainJS -match "<details\s+open") {
 if ($mainJS -notmatch "Index\s+\$\{escapeHTML\(getPreviewIndexFingerprint\(previewIndexKey\)\s*\|\|\s*`"unknown`"\)") {
   throw "HTML preview header must expose compact index fingerprint"
 }
-if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}">Open source PDF</a>') {
+if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}">Open PDF</a>') {
   throw "HTML preview entries must expose a visible source PDF action"
 }
 if ($mainJS -notmatch 'title="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
@@ -851,7 +862,7 @@ if ($mainJS -notmatch 'title="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
 if ($mainJS -notmatch "const\s+regionIdentity\s*=\s*getSourceRegionFingerprint\(entry\.sourceRegionKey\)") {
   throw "HTML preview entries must show compact source region identity"
 }
-if ($mainJS -notmatch '<details class="entry-details">[\s\S]*<summary>Details</summary>[\s\S]*<dt>Detector</dt>[\s\S]*<dt>BBox</dt>[\s\S]*<dt>Source key</dt>') {
+if ($mainJS -notmatch '<details class="entry-details">[\s\S]*<summary>Trace</summary>[\s\S]*<dt>Detector</dt>[\s\S]*<dt>BBox</dt>[\s\S]*<dt>Key</dt>') {
   throw "HTML preview entry technical fields must be collapsed in per-entry details"
 }
 if ($mainJS -notmatch 'data-source-region-key="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {

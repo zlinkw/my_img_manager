@@ -99,7 +99,7 @@ After Zotero has been restarted or the add-on has been reloaded:
 - Manual package handoff remains preferred on Zotero 9.0.5: Tools > Add-ons > Install Add-on From File...
 - A PDF reader toolbar shows one compact `Clip` / `Auto` control group with quality estimates.
 - A manual clip creates one Zotero stored HTML child attachment.
-- The HTML preview opens, shows the preview, source region map, compact index identity, and collapsed metadata containing `source_region`, `source_region_key`, `preview_index_key`, `preview_duplicate_key`, and `annotation_key`.
+- The HTML preview opens, shows the preview, source region map, compact index identity, Open PDF action, and collapsed metadata / trace details containing `source_region`, `source_region_key`, `preview_index_key`, `preview_duplicate_key`, and `annotation_key`.
 - Clicking preview or page opens the source PDF page.
 - `Auto` disables or warns safely when image coordinates are unavailable.
 - Duplicate-skip toasts distinguish session memory from already-synced HTML indexes, and auto-detect also reports byte-cap skips.

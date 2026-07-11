@@ -8,6 +8,8 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Do not create or restart target-mode, GoalPulse, review-agent, planning-agent, subagent, watcher, daemon, or auto-iteration loops inside this repository.
 - Do not create `.agents/`, `.goalpulse/`, `agent-state/`, or similar local agent state directories.
 - `docs/target-mode-plan.md` is historical only. It must not be used as an active execution plan.
+- Compress `docs/target-mode-plan.md` on a schedule and whenever it grows past a short snapshot: rewrite in place, never append batch ledgers.
+- Keep `docs/target-mode-plan.md` under roughly 80 lines / 4 KB. If longer, compress before other documentation work.
 - New work must be driven by explicit user requests plus this constraint file, not by autonomous background planning.
 
 ## Product Scope
@@ -66,12 +68,12 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Toast hierarchy includes sticky `progress` feedback for clip/auto/page/helper work.
 - Clip toolbar now stays in session state until selection ends; helper absence feedback is quieter than hard failures.
 - Duplicate-skip messages densified while preserving session vs saved distinctions.
-- UI-first backlog is largely exhausted for current surfaces; prefer after-UI work unless a new concrete clarity gap appears.
+- UI-first backlog is largely exhausted; remaining polish is opportunistic densification of saved HTML index cards and long-running control labels.
 
 ### After UI Is Exhausted
 
 - Smoke scripts now distinguish development-proxy vs manual/XPI readiness for Zotero 9.0.5; keep registration checks aligned with that split.
 - Optional original extraction remains isolated; missing Python is quiet-failed before helper progress toast, and diagnostics report helper availability.
 - User-facing errors now classify capture / helper / duplicate / byte-cap / storage failures.
-- Historical `docs/target-mode-plan.md` is compacted; keep it historical-only and redirect active work to this file.
+- Historical `docs/target-mode-plan.md` stays a short snapshot only; compress on schedule and whenever it grows, never append batch ledgers.
 - Next non-UI work should only proceed from concrete user-reported runtime/install gaps or feature requests.

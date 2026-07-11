@@ -194,7 +194,7 @@ var PdfImageSaver = (() => {
         return;
       }
       autoButton.disabled = true;
-      autoButton.textContent = "Busy";
+      autoButton.textContent = "Auto...";
       Promise.resolve(saveAutoDetectedPageImagePreviews(reader, {
         qualityKey: normalizeQualityKey(select.value),
       })).finally(() => {
@@ -1367,21 +1367,21 @@ var PdfImageSaver = (() => {
                 <img src="${escapeHTML(entry.dataURL)}" alt="Saved PDF preview ${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion)}
-              <a class="source-action" href="${escapeHTML(uri)}">Open source PDF</a>
+              <a class="source-action" href="${escapeHTML(uri)}">Open PDF</a>
             </div>
-            <dl>
+            <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
-              <div><dt>Quality</dt><dd>${escapeHTML(QUALITY[entry.quality].label)} (${escapeHTML(entry.qualityEstimate)})</dd></div>
-              <div><dt>Actual</dt><dd>${formatBytes(entry.byteCount)}, ${formatPreviewDimensions(entry.renderedWidth, entry.renderedHeight)}</dd></div>
+              <div><dt>Quality</dt><dd>${escapeHTML(QUALITY[entry.quality].label)}; ${escapeHTML(entry.qualityEstimate)}</dd></div>
+              <div><dt>Size</dt><dd>${formatBytes(entry.byteCount)}; ${formatPreviewDimensions(entry.renderedWidth, entry.renderedHeight)}</dd></div>
               <div><dt>Region</dt><dd title="${escapeHTML(entry.sourceRegionKey)}">${escapeHTML(regionIdentity)}</dd></div>
             </dl>
             <details class="entry-details">
-              <summary>Details</summary>
+              <summary>Trace</summary>
               <dl>
                 <div><dt>Detector</dt><dd>${escapeHTML(entry.detector)}</dd></div>
-                <div><dt>Region</dt><dd>${escapeHTML(sourceRegionLabel)}</dd></div>
+                <div><dt>Map</dt><dd>${escapeHTML(sourceRegionLabel)}</dd></div>
                 <div><dt>BBox</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
-                <div><dt>Source key</dt><dd>${escapeHTML(entry.sourceRegionKey)}</dd></div>
+                <div><dt>Key</dt><dd>${escapeHTML(entry.sourceRegionKey)}</dd></div>
               </dl>
             </details>
           </article>`;
@@ -1427,32 +1427,33 @@ var PdfImageSaver = (() => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${escapeHTML(sourceTitle)} - PDF image index</title>
+  <title>${escapeHTML(sourceTitle)} - preview index</title>
   <style>
-    body { margin: 24px; font: 14px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
-    header { margin-bottom: 18px; }
-    h1 { font-size: 18px; margin: 0 0 6px; }
-    .meta { color: #555; margin: 0; }
-    .entry { display: grid; grid-template-columns: minmax(160px, 360px) 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid #ddd; }
-    .preview-column { display: grid; gap: 8px; align-content: start; }
-    .source-action { display: inline-block; width: fit-content; padding: 4px 8px; border: 1px solid #aaa; color: #0645ad; text-decoration: none; }
+    body { margin: 18px; font: 13px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
+    header { margin-bottom: 12px; }
+    h1 { font-size: 16px; margin: 0 0 4px; }
+    .meta { color: #555; margin: 0 0 2px; line-height: 1.35; }
+    .entry { display: grid; grid-template-columns: minmax(140px, 300px) 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid #ddd; }
+    .preview-column { display: grid; gap: 6px; align-content: start; }
+    .source-action { display: inline-block; width: fit-content; padding: 3px 8px; border: 1px solid #9ab; border-radius: 4px; color: #0645ad; text-decoration: none; background: #f7faff; }
     img { max-width: 100%; height: auto; border: 1px solid #ccc; background: #f6f6f6; }
-    .source-map { position: relative; width: 96px; aspect-ratio: 0.72; border: 1px solid #bbb; background: #fafafa; }
+    .source-map { position: relative; width: 88px; aspect-ratio: 0.72; border: 1px solid #bbb; background: #fafafa; }
     .source-map span { position: absolute; min-width: 2px; min-height: 2px; border: 2px solid #1f73b7; background: rgba(31, 115, 183, 0.18); box-sizing: border-box; }
-    dl { margin: 0; display: grid; gap: 6px; align-content: start; }
-    dl div { display: grid; grid-template-columns: 80px 1fr; gap: 8px; }
+    dl { margin: 0; display: grid; gap: 4px; align-content: start; }
+    dl div { display: grid; grid-template-columns: 64px 1fr; gap: 8px; }
     dt { color: #666; }
-    dd { margin: 0; }
+    dd { margin: 0; word-break: break-word; }
     .entry-details { grid-column: 2; }
-    pre { white-space: pre-wrap; word-break: break-word; padding: 12px; background: #f6f8fa; border: 1px solid #ddd; }
+    .entry-details summary { cursor: pointer; color: #444; }
+    pre { white-space: pre-wrap; word-break: break-word; padding: 10px; background: #f6f8fa; border: 1px solid #ddd; font-size: 12px; }
     @media (max-width: 720px) { .entry { grid-template-columns: 1fr; } .entry-details { grid-column: 1; } }
   </style>
 </head>
 <body>
   <header>
     <h1>${escapeHTML(sourceTitle)}</h1>
-    <p class="meta">Saved ${escapeHTML(createdAt)}. Preview mode, Zotero synced attachment. No original image bytes stored unless explicitly requested.</p>
-    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")} - ${normalizedEntries.length} preview${normalizedEntries.length === 1 ? "" : "s"} - ${escapeHTML(previewQualityKey)}</p>
+    <p class="meta">Saved ${escapeHTML(createdAt)}. Compact HTML preview index; syncs with the PDF attachment.</p>
+    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")} ; ${normalizedEntries.length} preview${normalizedEntries.length === 1 ? "" : "s"} ; ${escapeHTML(previewQualityKey)}</p>
   </header>
   ${entriesHTML}
   <details>
@@ -1946,19 +1947,22 @@ var PdfImageSaver = (() => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${escapeHTML(getSourceTitle(parentItem, attachment))} - original image index</title>
+  <title>${escapeHTML(getSourceTitle(parentItem, attachment))} - original index</title>
   <style>
-    body { margin: 24px; font: 14px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
-    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
-    th, td { border-top: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; }
-    pre { white-space: pre-wrap; word-break: break-word; padding: 12px; background: #f6f8fa; border: 1px solid #ddd; }
+    body { margin: 18px; font: 13px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
+    h1 { font-size: 16px; margin: 0 0 4px; }
+    .meta { color: #555; margin: 0 0 8px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+    th, td { border-top: 1px solid #ddd; padding: 5px 6px; text-align: left; vertical-align: top; }
+    th { color: #555; font-weight: 600; }
+    pre { white-space: pre-wrap; word-break: break-word; padding: 10px; background: #f6f8fa; border: 1px solid #ddd; font-size: 12px; }
   </style>
 </head>
 <body>
   <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
-  <p>Original image index - ${normalizedImages.length} imported attachment${normalizedImages.length === 1 ? "" : "s"} - source links open the PDF page.</p>
+  <p class="meta">Original embeds ; ${normalizedImages.length} attachment${normalizedImages.length === 1 ? "" : "s"} ; page links open source PDF.</p>
   <table>
-    <thead><tr><th>Source</th><th>Image</th><th>Size</th><th>BBox</th></tr></thead>
+    <thead><tr><th>Page</th><th>Image</th><th>Size</th><th>BBox</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <details>

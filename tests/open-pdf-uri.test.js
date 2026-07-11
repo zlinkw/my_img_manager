@@ -739,10 +739,10 @@ assert.strictEqual(metadata.entries[0].annotation_key, null);
 assert.ok(html.includes("<details>"), "full JSON metadata must be in a details block");
 assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
-assert.ok(html.includes(">Open source PDF</a>"), "HTML entry must expose an explicit source PDF action");
+assert.ok(html.includes(">Open PDF</a>"), "HTML entry must expose an explicit source PDF action");
 assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region identity must keep full source key in a title");
 assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");
-assert.ok(html.includes('<details class="entry-details">'), "technical entry metadata must be in a per-entry details block");
+assert.ok(html.includes('<details class="entry-details">'), "trace metadata must be in a per-entry details block");
 assert.ok(!/<details class="entry-details"[^>]*open/i.test(html), "technical entry metadata must be collapsed by default");
 
 const originalIndexImage = normalizeOriginalImageForImport({
@@ -987,7 +987,7 @@ for (const forbiddenScalarText of ["NaN", "Infinity", "undefined", "[object Obje
     `malformed scalar HTML must not contain ${forbiddenScalarText}`,
   );
 }
-assert.ok(malformedScalarHTML.includes("3 B, unknown size"), "malformed scalar HTML must show concise actual size");
+assert.ok(malformedScalarHTML.includes("3 B; unknown size"), "malformed scalar HTML must show concise actual size");
 const malformedScalarMetadata = extractMetadata(malformedScalarHTML);
 assert.strictEqual(malformedScalarMetadata.entries[0].id, "preview-1");
 assert.strictEqual(malformedScalarMetadata.entries[0].mode, "reader_canvas_preview");
@@ -1012,7 +1012,7 @@ const paddedByteHTML = buildIndexHTML({
   scope: "clip",
   qualityKey: "medium",
 });
-assert.ok(paddedByteHTML.includes("1 B, 120 x 80px"), "base64 padding must be subtracted from visible byte count");
+assert.ok(paddedByteHTML.includes("1 B; 120 x 80px"), "base64 padding must be subtracted from visible byte count");
 const paddedByteMetadata = extractMetadata(paddedByteHTML);
 assert.strictEqual(paddedByteMetadata.entries[0].byte_count, 1, "base64 padding must be subtracted from metadata byte count");
 
@@ -1075,7 +1075,7 @@ const invalidQualityHTML = buildIndexHTML({
   scope: "clip",
   qualityKey: "constructor",
 });
-assert.ok(invalidQualityHTML.includes("Medium (60-220 KB/image)"), "invalid entry quality must fall back to Medium");
+assert.ok(invalidQualityHTML.includes("Medium; 60-220 KB/image"), "invalid entry quality must fall back to Medium");
 assert.strictEqual(invalidQualityEntry.quality, "medium", "invalid entry quality must be normalized on the entry");
 assert.strictEqual(invalidQualityEntry.qualityEstimate, "60-220 KB/image", "invalid quality estimate must be normalized");
 const invalidQualityMetadataText = invalidQualityHTML.match(/<pre>([\s\S]*?)<\/pre>/)[1]
@@ -1130,7 +1130,7 @@ const canonicalBase64HTML = buildIndexHTML({
   scope: "clip",
   qualityKey: "medium",
 });
-assert.ok(canonicalBase64HTML.includes("1 B, 120 x 80px"), "canonical padded preview data URLs must still pass");
+assert.ok(canonicalBase64HTML.includes("1 B; 120 x 80px"), "canonical padded preview data URLs must still pass");
 assert.throws(
   () => buildIndexHTML({
     attachment: htmlAttachment,
