@@ -530,7 +530,7 @@ if ($mainJS -notmatch "importResult\.omittedCount\s*\|\|\s*importResult\.indexEr
 if ($mainJS -notmatch "omittedCount:\s*prepared\.omittedCount\s*\+\s*duplicateCount\s*\+\s*importErrorCount") {
   throw "Original image import result must add duplicate skips and Zotero import failures to omission count"
 }
-if ($mainJS -notmatch "\$\{importResult\.importErrorCount\}\s+import-fail") {
+if ($mainJS -notmatch "\$\{importResult\.importErrorCount\}\s+import fail") {
   throw "Original helper import toast must expose failed Zotero imports separately"
 }
 if ($mainJS -notmatch "index fail") {
@@ -542,7 +542,7 @@ if ($mainJS -notmatch "try\s*\{\s*\r?\n\s*await\s+Zotero\.Attachments\.importFro
 if ($mainJS -notmatch "importableImages\.length\s*&&\s*!count\s*&&\s*importErrorCount\s*===\s*importableImages\.length") {
   throw "Original image import must detect all attempted Zotero imports failing"
 }
-if ($mainJS -notmatch "Storage failed: all\s+\$\{importErrorCount\}\s+original imports failed") {
+if ($mainJS -notmatch "Storage failed: all\s+\$\{importErrorCount\}\s+orig imports failed") {
   throw "Original image import must throw a clear all-imports-failed error"
 }
 if ($mainJS -notmatch "const\s+ORIGINAL_MAX_IMAGE_BYTES\s*=\s*25\s*\*\s*1024\s*\*\s*1024") {
@@ -689,7 +689,7 @@ if ($mainJS -notmatch "showReaderToast\(reader,\s*formatUserFacingError\(error\)
 if ($mainJS -notmatch "Byte cap: index too large") {
   throw "Byte-cap preview index failure must stay labeled"
 }
-if ($mainJS -notmatch "Storage failed: preview index import failed") {
+if ($mainJS -notmatch "Storage failed: index import failed") {
   throw "Preview index import failures must be labeled as storage errors"
 }
 
@@ -880,7 +880,7 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexHTML") {
 if ($mainJS -notmatch "function\s+normalizePreviewEntries\s*\(\s*entries\s*\)") {
   throw "HTML preview entry-list normalizer missing"
 }
-if ($mainJS -notmatch "Preview index entries invalid") {
+if ($mainJS -notmatch "Preview index invalid") {
   throw "HTML preview non-array entry lists must fail clearly"
 }
 if ($mainJS -notmatch "Preview index empty") {
@@ -1444,7 +1444,7 @@ if ($mainJS -notmatch "Clip drag") {
 if ($mainJS -notmatch "Auto running") {
   throw "Auto busy mode must update aria-label"
 }
-if ($mainJS -notmatch 'sizeBadge\.textContent\s*=\s*`\$\{width\} x \$\{height\}`') {
+if ($mainJS -notmatch 'sizeBadge\.textContent\s*=\s*`\$\{width\}x\$\{height\}`') {
   throw "Selection size badge must use stable ascii pixel format"
 }
 if ($mainJS -notmatch "pdf-image-saver-selection-size") {

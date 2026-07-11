@@ -699,7 +699,7 @@ var PdfImageSaver = (() => {
     if (sizeBadge) {
       const width = Math.max(0, Math.round(rect.width));
       const height = Math.max(0, Math.round(rect.height));
-      sizeBadge.textContent = `${width} x ${height}`;
+      sizeBadge.textContent = `${width}x${height}`;
       sizeBadge.hidden = width < 1 && height < 1;
     }
   }
@@ -1567,7 +1567,7 @@ var PdfImageSaver = (() => {
 
   function normalizePreviewEntries(entries) {
     if (!Array.isArray(entries)) {
-      throw new Error("Preview index entries invalid.");
+      throw new Error("Preview index invalid.");
     }
     if (!entries.length) {
       throw new Error("Preview index empty.");
@@ -1589,7 +1589,7 @@ var PdfImageSaver = (() => {
         charset: "utf-8",
       });
     } catch (error) {
-      throw new Error(`Storage failed: preview index import failed. ${getErrorMessage(error)}`);
+      throw new Error(`Storage failed: index import failed. ${getErrorMessage(error)}`);
     } finally {
       await removeDirectoryIfExists(PathUtils.parent(indexPath));
     }
@@ -1750,7 +1750,7 @@ var PdfImageSaver = (() => {
         }
       }
       if (importableImages.length && !count && importErrorCount === importableImages.length) {
-        throw new Error(`Storage failed: all ${importErrorCount} original imports failed.`);
+        throw new Error(`Storage failed: all ${importErrorCount} orig imports failed.`);
       }
       if (importedImages.length) {
         try {
@@ -1955,7 +1955,7 @@ var PdfImageSaver = (() => {
       parts.push(`${importResult.duplicateCount} dup${importResult.duplicateCount === 1 ? "" : "s"}`);
     }
     if (importResult.importErrorCount) {
-      parts.push(`${importResult.importErrorCount} import-fail`);
+      parts.push(`${importResult.importErrorCount} import fail`);
     }
     if (importResult.indexErrorCount) {
       parts.push("index fail");
@@ -1963,7 +1963,7 @@ var PdfImageSaver = (() => {
     if (importResult.overCapCount) {
       parts.push(`${importResult.overCapCount} over-cap ${importResult.maxImages}`);
     }
-    return parts.length ? ` Skipped ${parts.join("; ")}.` : "";
+    return parts.length ? ` Skip ${parts.join("; ")}.` : "";
   }
 
   function getOriginalImageKey(attachment, image) {
@@ -2262,7 +2262,7 @@ var PdfImageSaver = (() => {
         config.rootURI + "content/helper/pdf_image_extract.py",
       );
       if (typeof helperScript !== "string" || !helperScript.includes(HELPER_SCHEMA_VERSION)) {
-        throw new Error("Helper failed: bundled script missing.");
+        throw new Error("Helper failed: script missing.");
       }
       await Zotero.File.putContentsAsync(helperPath, helperScript);
       return helperPath;
@@ -2567,7 +2567,7 @@ var PdfImageSaver = (() => {
   async function getAttachmentPath(attachment) {
     const filePath = await attachment.getFilePathAsync();
     if (!filePath || !(await IOUtils.exists(filePath))) {
-      throw new Error("Helper failed: PDF path unresolved.");
+      throw new Error("Helper failed: PDF path n/a.");
     }
     return filePath;
   }
@@ -3056,10 +3056,10 @@ var PdfImageSaver = (() => {
   function formatHelperFailure(report) {
     const status = normalizeHelperStatusText(report?.status);
     if (status === "missing_pymupdf") {
-      return "Helper: PyMuPDF missing.";
+      return "Helper: PyMuPDF n/a.";
     }
     if (status === "no_python") {
-      return "Helper: Python missing.";
+      return "Helper: Python n/a.";
     }
     const details = normalizeHelperWarningMessages(report?.warnings).join("; ");
     return `Helper failed: ${status}${details ? ` (${details})` : ""}`;
@@ -3953,7 +3953,9 @@ var PdfImageSaver = (() => {
       || text.includes("zotero original image import")
       || text.includes("import preview index")
       || text.includes("preview index import")
+      || text.includes("index import failed")
       || text.includes("original imports failed")
+      || text.includes("orig imports failed")
       || text.includes("attachments.importfromfile")
       || text.includes("could not import")
     ) {

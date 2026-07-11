@@ -472,7 +472,7 @@ const sessionHint = (sessionPage.child.children || []).find((node) => node.class
 assert.strictEqual(sessionHint?.textContent, "Drag p1; Esc cancel", "clip overlay hint must include page token");
 sessionPage.child.dispatch("pointerdown", { button: 0, pointerId: 1, clientX: 10, clientY: 12 });
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
-assert.strictEqual(sizeBadge.textContent, "60 x 40", "selection size badge must show live pixel size");
+assert.strictEqual(sizeBadge.textContent, "60x40", "selection size badge must show live pixel size");
 sessionPage.child.dispatch("keydown", { key: "Escape" });
 assert.strictEqual(clipSessionEnded, 1, "onSessionEnd must fire when overlay is cancelled");
 assert.strictEqual(sessionPage.child.removed, true, "cancelled overlay must be removed");
@@ -1195,7 +1195,7 @@ assert.throws(
     scope: "clip",
     qualityKey: "medium",
   }),
-  /Preview index entries invalid/,
+  /Preview index invalid/,
   "non-array preview entries must fail with a clear validation error",
 );
 assert.throws(
@@ -1419,12 +1419,12 @@ assert.strictEqual(
 );
 assert.strictEqual(
   formatHelperFailure({ status: "no_python" }),
-  "Helper: Python missing.",
+  "Helper: Python n/a.",
   "missing python helper failure must stay compact",
 );
 assert.strictEqual(
   formatHelperFailure({ status: "missing_pymupdf" }),
-  "Helper: PyMuPDF missing.",
+  "Helper: PyMuPDF n/a.",
   "missing pymupdf helper failure must stay compact",
 );
 
@@ -1592,8 +1592,8 @@ for (const noisyErrorValue of [{ bad: true }, ["bad"], null, undefined, new Erro
 }
 assert.strictEqual(getErrorMessage("x".repeat(400)).length, 320, "oversized error messages must be capped");
 assert.strictEqual(classifyErrorCategory("Byte cap: index too large"), "byte_cap", "byte-cap errors must classify");
-assert.strictEqual(classifyErrorCategory("Helper: Python missing."), "helper", "helper absence must classify as helper");
-assert.strictEqual(classifyErrorCategory("Storage failed: preview index import failed."), "storage", "storage import failures must classify");
+assert.strictEqual(classifyErrorCategory("Helper: Python n/a."), "helper", "helper absence must classify as helper");
+assert.strictEqual(classifyErrorCategory("Storage failed: index import failed."), "storage", "storage import failures must classify");
 assert.strictEqual(classifyErrorCategory("Capture failed: canvas missing."), "capture", "canvas failures must classify as capture");
 assert.strictEqual(classifyErrorCategory("Clip skip: session dup."), "duplicate", "session duplicate skips must classify");
 assert.strictEqual(
@@ -1607,8 +1607,8 @@ assert.strictEqual(
   "prefixed byte-cap errors must stay stable",
 );
 assert.strictEqual(
-  formatUserFacingError(new Error("preview index import failed")),
-  "Storage failed: preview index import failed",
+  formatUserFacingError(new Error("index import failed")),
+  "Storage failed: index import failed",
   "import failures must gain storage prefix",
 );
 
@@ -2485,7 +2485,7 @@ async function runAsyncAssertions() {
       parentItem: htmlParent,
       scope: "page",
     }),
-    /Storage failed: all 2 original imports failed/,
+    /Storage failed: all 2 orig imports failed/,
     "all failed Zotero imports must be surfaced as an overall error",
   );
   assert.strictEqual(allFailureErrors.length, 2, "all failed Zotero imports must log each failed import");

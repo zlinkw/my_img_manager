@@ -86,6 +86,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Progress toasts and original confirm densified; HTML size labels shortened.
 - HTML index/original CSS densified; toast footprint tightened; prefs store status shortened.
 - Busy toolbar labels, capture errors, and selection overlay chrome densified further.
+- Storage/helper failure and original skip strings densified; selection size badge compact.
 
 ### After UI Is Exhausted
 
