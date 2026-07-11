@@ -365,11 +365,55 @@ $zoteroProcesses = @(Get-Process -Name Zotero -ErrorAction SilentlyContinue | Fo
   [ordered]@{ id = $_.Id; startTime = Format-ProcessDateTime $_.StartTime; path = Get-ProcessPathSafe $_ }
 })
 
+$readyProfiles = @($profiles | Where-Object { $_.registration.registered -and $_.registration.active }).Count
+$registeredProfiles = @($profiles | Where-Object { $_.registration.registered }).Count
+$rescanProfiles = @($profiles | Where-Object { $_.rescan.needsRescan }).Count
+$proxyReadyProfiles = @($profiles | Where-Object {
+  $_.source.developmentProxy.exists -and
+  $_.source.developmentProxy.targetExists -and
+  $_.source.developmentProxy.targetIsDirectory -and
+  !$_.source.developmentProxy.hasBOM -and
+  $_.source.developmentProxy.manifest -and
+  $_.source.developmentProxy.manifest.manifestReadable -and
+  $_.source.developmentProxy.manifest.idMatches -and
+  $_.source.developmentProxy.manifest.strictMaxVersionExpected -and
+  @($_.source.developmentProxy.manifest.missingPayload).Count -eq 0
+}).Count
+$xpiReadyProfiles = @($profiles | Where-Object {
+  $_.source.xpiInstall.exists -and
+  $_.source.xpiInstall.manifestReadable -and
+  $_.source.xpiInstall.idMatches -and
+  $_.source.xpiInstall.strictMaxVersionExpected
+}).Count
+
 $status = [ordered]@{
   addonID = $addonID
   workspace = $root
+  expectedRuntime = "Zotero 9.0.5"
+  expectedStrictMaxVersion = "9.0.*"
   zoteroProcessCount = $zoteroProcesses.Count
   zoteroProcesses = $zoteroProcesses
+  summary = [ordered]@{
+    profileCount = @($profiles).Count
+    registeredProfiles = $registeredProfiles
+    readyProfiles = $readyProfiles
+    proxyReadyProfiles = $proxyReadyProfiles
+    xpiReadyProfiles = $xpiReadyProfiles
+    rescanProfiles = $rescanProfiles
+    installReady = [bool]($readyProfiles -gt 0)
+    preferredHandoff = if ($readyProfiles -gt 0) {
+      "registered"
+    }
+    elseif ($xpiReadyProfiles -gt 0 -or (Test-Path -LiteralPath $xpiPath)) {
+      "manual-xpi"
+    }
+    elseif ($proxyReadyProfiles -gt 0) {
+      "development-proxy"
+    }
+    else {
+      "none"
+    }
+  }
   xpi = [ordered]@{
     path = $xpiPath
     exists = [bool](Test-Path -LiteralPath $xpiPath)

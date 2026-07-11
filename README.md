@@ -82,20 +82,21 @@ npm.cmd run smoke:preflight
 npm.cmd run runtime:status
 ```
 
-`verify:manual` is read-only. It summarizes the packaged XPI, Zotero process count, profile registration state, source hints, rescan state, temp children, and the next action.
+`verify:manual` is read-only. It summarizes the packaged XPI, Zotero 9.0.5 registration readiness, install mode, rescan note, temp children, and the next action.
 
 The global install script writes a Zotero extension proxy file into each detected Zotero profile for development testing. Restart Zotero to load a newly installed proxy.
 `install:xpi` is a profile XPI fallback for testing the packaged plugin rather than the development proxy; close Zotero before running it so the installer can switch the source cleanly. On Zotero 9.0.5, manual add-on manager installation is the preferred package handoff until the copied-profile-XPI fallback is verified.
 `runtime:status` reports whether the proxy is installed, whether the proxy target manifest is readable, whether expected payload files exist, whether Zotero has registered the add-on in the current session, whether startup cache/UUID hints exist, and whether temp files remain.
-If `runtime:status` reports `rescan.needsRescan: true`, close Zotero and run `npm.cmd run install:global` once more. The installer will then clear Zotero's extension scan cache prefs so the proxy is registered on the next Zotero launch.
+If `runtime:status` reports `rescan.needsRescan: true` for a development-proxy install that is not registered yet, close Zotero and run `npm.cmd run install:global` once more. For manual/XPI installs that already show `registered: true`, rescan prefs are informational.
 
 ## Runtime Smoke Checklist
 
 After Zotero has been restarted or the add-on has been reloaded:
 
 - Optional: `npm.cmd run smoke:wait` waits until registration is ready.
-- `npm.cmd run smoke:preflight` passes.
-- `npm.cmd run runtime:status` shows `registered: true` for `pdf-image-saver@zlk.local`.
+- `npm.cmd run smoke:preflight` passes and reports at least one ready Zotero 9.0.5 profile.
+- `npm.cmd run runtime:status` shows `summary.readyProfiles >= 1` and `registered: true` for `pdf-image-saver@zlk.local`.
+- Manual package handoff remains preferred on Zotero 9.0.5: Tools > Add-ons > Install Add-on From File...
 - A PDF reader toolbar shows one compact `Clip` / `Auto` control group with quality estimates.
 - A manual clip creates one Zotero stored HTML child attachment.
 - The HTML preview opens, shows the preview, source region map, compact index identity, and collapsed metadata containing `source_region`, `source_region_key`, `preview_index_key`, `preview_duplicate_key`, and `annotation_key`.

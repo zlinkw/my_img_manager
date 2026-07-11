@@ -70,6 +70,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 ### After UI Is Exhausted
 
-- Tighten smoke scripts around Zotero 9.0.5 registration and manual add-on install status.
-- Keep optional original extraction isolated from the main preview workflow and make helper absence quieter.
-- Compact or archive old historical target-mode notes when they slow navigation, while preserving useful failure IDs and lessons.
+- Smoke scripts now distinguish development-proxy vs manual/XPI readiness for Zotero 9.0.5; keep registration checks aligned with that split.
+- Optional original extraction remains isolated; helper absence feedback is quieter than hard failures.
+- Historical `docs/target-mode-plan.md` is compacted; keep it historical-only and redirect active work to this file.
+- Next non-UI work should only proceed from concrete user-reported runtime/install gaps or feature requests.

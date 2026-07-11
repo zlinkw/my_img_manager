@@ -45,123 +45,26 @@ if ($manifest.description -notmatch "preview indexes") {
 }
 
 $targetPlan = Get-Content -Encoding UTF8 -Raw -LiteralPath .\docs\target-mode-plan.md
-if ($targetPlan -notmatch 'Target Zotero range: `7\.0` to `9\.0\.\*`') {
-  throw "Target plan must document Zotero range 7.0 to 9.0.*"
+if ($targetPlan -notmatch "Retired") {
+  throw "Target plan must remain marked retired/historical"
 }
-if ($targetPlan -notmatch "Use Zotero reader rendered canvas for default preview index extraction") {
-  throw "Target plan must document reader canvas default extraction"
+if ($targetPlan -notmatch "PROJECT_CONSTRAINTS\.md") {
+  throw "Target plan must redirect new work to PROJECT_CONSTRAINTS.md"
+}
+if ($targetPlan -notmatch "Zotero 9\.0\.5") {
+  throw "Target plan snapshot must keep Zotero 9.0.5 runtime baseline"
+}
+if ($targetPlan -notmatch "strict_max_version:\s*9\.0\.\*") {
+  throw "Target plan snapshot must keep strict_max_version 9.0.*"
+}
+if ($targetPlan -notmatch "manual current-page clip") {
+  throw "Target plan snapshot must keep manual clip as main path"
+}
+if ($targetPlan -notmatch "Optional") {
+  throw "Target plan snapshot must keep optional helper isolation"
 }
 if ($targetPlan -match "(?m)^- Use local Python and PyMuPDF for original embedded image extraction\.$") {
   throw "Target plan must not present local Python helper as required"
-}
-if ($targetPlan -notmatch "(?m)^## Regression Loop Control\s*$") {
-  throw "Target plan must define regression loop control rules"
-}
-$metadataSchema = [regex]::Match($targetPlan, '(?ms)^## Metadata Schema\s*(.*?)(?=^##\s+|\z)')
-if (!$metadataSchema.Success) {
-  throw "Target plan must document metadata schema"
-}
-foreach ($requiredMetadataField in @(
-  "storage_mode",
-  "scope",
-  "preview_quality",
-  "preview_index_key",
-  "preview_index_fingerprint",
-  "zotero_version",
-  "source_region",
-  "source_region_key",
-  "preview_duplicate_key",
-  "annotation_key",
-  "quality_estimate",
-  "open_pdf_uri"
-)) {
-  if ($metadataSchema.Value -notmatch "(?m)^-\s+``$requiredMetadataField``\s*$") {
-    throw "Target plan metadata schema missing field: $requiredMetadataField"
-  }
-}
-foreach ($removedPreviewIndexField in @("source", "request", "helper", "warnings", "qualityEstimate")) {
-  if ($metadataSchema.Value -notmatch "(?m)^-\s+``$removedPreviewIndexField``") {
-    continue
-  }
-  throw "Target plan preview-index metadata schema must not list stale field: $removedPreviewIndexField"
-}
-foreach ($requiredRule in @(
-  "Every new fault must get a unique ``FAIL-*`` section before implementation",
-  "Every closed fault added from B60 onward must keep ``Close condition`` and ``Closure`` evidence",
-  "Every batch marked complete must replace ``Pending`` with real validation output",
-  "Fixes that reveal follow-up faults must record the new fault before changing that behavior",
-  "Every B62+ batch must declare a ``Regression guard:`` line naming prior ``FAIL-*`` IDs or ``validation family:`` names",
-  "For B69+ batches, treat roughly three times the earlier micro-batch size as the minimum default batch target before testing; combine related fixes or improvements that share a validation surface, do not split only to avoid temporary local breakage, and rely on git history for rollback",
-  "For all future implementation batches, prefer larger coherent batches over repeated tiny loops: update the plan once, modify the full same-surface final version, then run the relevant validation suite; git commits provide rollback, so fear of temporary breakage is not a valid reason to shrink the batch",
-  "Every B69+ batch must declare a ``Batch size guard:`` line explaining whether the batch used the 3x grouped-batch target or why isolation was required",
-  "``scripts/check.ps1`` must enforce these plan-state invariants"
-)) {
-  if ($targetPlan -notmatch [regex]::Escape($requiredRule)) {
-    throw "Target plan regression loop rule missing: $requiredRule"
-  }
-}
-$failureSections = [regex]::Matches($targetPlan, '(?ms)^###\s+(FAIL-\d{8}-\d{3})\s*(.*?)(?=^#{1,6}\s+|\z)')
-$seenFailureIDs = @{}
-foreach ($section in $failureSections) {
-  $failureID = $section.Groups[1].Value
-  $body = $section.Groups[2].Value
-  if ($seenFailureIDs.ContainsKey($failureID)) {
-    throw "Target plan duplicate failure id: $failureID"
-  }
-  $seenFailureIDs[$failureID] = $true
-  if ($body -match '(?m)^-\s+Status:\s+open\s*$' -and $body -match '(?m)^-\s+Closure:') {
-    throw "Target plan failure $failureID is open but contains closure evidence"
-  }
-  $requiresClosureEvidence = [int]($failureID.Substring(14)) -ge 125
-  if ($requiresClosureEvidence -and $body -match '(?m)^-\s+Status:\s+closed\s*$') {
-    if ($body -notmatch '(?m)^-\s+Close condition:') {
-      throw "Target plan failure $failureID is closed without a close condition"
-    }
-    if ($body -notmatch '(?m)^-\s+Closure:') {
-      throw "Target plan failure $failureID is closed without closure evidence"
-    }
-  }
-}
-$batchSections = [regex]::Matches($targetPlan, '(?ms)^###\s+(B\d+[^\r\n]*)\s*(.*?)(?=^###\s+B\d+|^##\s+|\z)')
-foreach ($section in $batchSections) {
-  $batchTitle = $section.Groups[1].Value
-  $body = $section.Groups[2].Value
-  $batchNumberMatch = [regex]::Match($batchTitle, '^B(\d+)')
-  $batchNumber = if ($batchNumberMatch.Success) { [int]$batchNumberMatch.Groups[1].Value } else { -1 }
-  if ($body -match '(?m)^Status:\s+complete\b' -and $body -match '(?ms)End batch validation checklist:\s*\r?\n\s*\r?\n-\s+Pending\.') {
-    throw "Target plan completed batch still has pending validation: $batchTitle"
-  }
-  if ($batchNumber -ge 62) {
-    $regressionGuard = [regex]::Match($body, '(?m)^-\s+Regression guard:\s*(.+?)\s*$')
-    if (!$regressionGuard.Success) {
-      throw "Target plan B62+ batch lacks regression guard: $batchTitle"
-    }
-    $guardText = $regressionGuard.Groups[1].Value.Trim()
-    if ($guardText -match '(?i)^\s*(pending|todo|tbd)\.?\s*$') {
-      throw "Target plan B62+ batch has pending regression guard: $batchTitle"
-    }
-    $hasFailureReference = $guardText -match 'FAIL-\d{8}-\d{3}'
-    $validationFamilyMatch = [regex]::Match($guardText, '(?i)\bvalidation famil(?:y|ies):\s*(\S.*)$')
-    $hasValidationFamily = $validationFamilyMatch.Success -and $validationFamilyMatch.Groups[1].Value.Trim() -notmatch '(?i)^\s*(pending|todo|tbd)\.?\s*$'
-    if (!$hasFailureReference -and !$hasValidationFamily) {
-      throw "Target plan B62+ batch regression guard lacks prior-fault or validation reference: $batchTitle"
-    }
-  }
-  if ($batchNumber -ge 69) {
-    $batchSizeGuard = [regex]::Match($body, '(?m)^-\s+Batch size guard:\s*(.+?)\s*$')
-    if (!$batchSizeGuard.Success) {
-      throw "Target plan B69+ batch lacks batch size guard: $batchTitle"
-    }
-    $batchSizeText = $batchSizeGuard.Groups[1].Value.Trim()
-    if ($batchSizeText -match '(?i)^\s*(pending|todo|tbd)\.?\s*$') {
-      throw "Target plan B69+ batch has pending batch size guard: $batchTitle"
-    }
-    $usesGroupedTarget = $batchSizeText -match '(?i)\b(3x|three times|roughly three times)\b'
-    $hasIsolationReason = $batchSizeText -match '(?i)\bisolat(e|ed|ion)\b'
-    if (!$usesGroupedTarget -and !$hasIsolationReason) {
-      throw "Target plan B69+ batch size guard must mention 3x grouping or isolation reason: $batchTitle"
-    }
-  }
 }
 
 $package = Get-Content -Encoding UTF8 -Raw -LiteralPath .\package.json | ConvertFrom-Json
@@ -264,6 +167,18 @@ $verifyManualScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\ver
 if ($verifyManualScript -notmatch [regex]::Escape("npm.cmd run smoke:preflight")) {
   throw "verify-manual-install.ps1 must print npm.cmd run smoke:preflight"
 }
+if ($verifyManualScript -notmatch "Zotero 9\.0\.5") {
+  throw "verify-manual-install.ps1 must name Zotero 9.0.5 expected runtime"
+}
+if ($verifyManualScript -notmatch "Install Add-on From File") {
+  throw "verify-manual-install.ps1 must guide manual XPI install"
+}
+if ($verifyManualScript -notmatch "manual install status: ready") {
+  throw "verify-manual-install.ps1 must report ready/pending status"
+}
+if ($verifyManualScript -notmatch "informational for manual/XPI installs") {
+  throw "verify-manual-install.ps1 must treat rescan as informational for manual installs"
+}
 
 foreach ($handoffScriptPath in @(
   ".\scripts\package-manual.ps1",
@@ -282,6 +197,18 @@ $runtimeStatusScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\ru
 if ($runtimeStatusScript -notmatch "optionalMissingPayload") {
   throw "runtime status must report optional missing payload separately"
 }
+if ($runtimeStatusScript -notmatch 'expectedRuntime\s*=\s*"Zotero 9\.0\.5"') {
+  throw "runtime status must report expected Zotero 9.0.5 runtime"
+}
+if ($runtimeStatusScript -notmatch "summary\s*=\s*\[ordered\]@\{") {
+  throw "runtime status must include install summary block"
+}
+if ($runtimeStatusScript -notmatch "preferredHandoff") {
+  throw "runtime status summary must include preferred handoff"
+}
+if ($runtimeStatusScript -notmatch "readyProfiles") {
+  throw "runtime status summary must include ready profile count"
+}
 if ($runtimeStatusScript -notmatch "rawBytesContainAddonID") {
   throw "startup cache add-on id scan must be labeled as a raw-byte hint"
 }
@@ -299,11 +226,23 @@ if ($runtimeStatusScript -notmatch "function\s+Get-ProcessPathSafe") {
 }
 
 $preflightScript = Get-Content -Encoding UTF8 -Raw -LiteralPath .\scripts\smoke-preflight.ps1
-if ($preflightScript -notmatch "xpiInstallValid") {
+if ($preflightScript -notmatch "function\s+Test-XpiInstallValid") {
   throw "smoke preflight must accept a valid XPI install source"
 }
 if ($preflightScript -notmatch '!\$devProxyValid\s+-and\s+!\$xpiInstallValid\s+-and\s+!\$registered') {
   throw "smoke preflight must not reject a registered manual install only because source hints are incomplete"
+}
+if ($preflightScript -notmatch "Zotero 9\.0\.5") {
+  throw "smoke preflight must name Zotero 9.0.5 as expected runtime"
+}
+if ($preflightScript -notmatch "strict_max_version") {
+  throw "smoke preflight must validate strict_max_version expectations"
+}
+if ($preflightScript -notmatch 'needsRescan\s+-and\s+\$devProxyValid\s+-and\s+!\$registered') {
+  throw "smoke preflight must only hard-fail rescan for unregistered development-proxy installs"
+}
+if ($preflightScript -notmatch "readyProfiles") {
+  throw "smoke preflight must report ready profile count"
 }
 if ($preflightScript -match "startupCache.*\.containsAddonID") {
   throw "smoke preflight must not hard-fail on raw startup cache add-on id hints"

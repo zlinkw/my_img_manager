@@ -2,6 +2,8 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $statusScript = Join-Path $root "scripts\runtime-status.ps1"
 $addonID = "pdf-image-saver@zlk.local"
+$expectedRuntime = "Zotero 9.0.5"
+$expectedStrictMaxVersion = "9.0.*"
 
 function Invoke-Status {
   $jsonText = & powershell -ExecutionPolicy Bypass -File $statusScript
@@ -48,25 +50,47 @@ function Test-ProfileSourceValid {
 
 $status = Invoke-Status
 $readyProfiles = 0
+$registeredProfiles = 0
 
 Write-Host "manual install verify"
+Write-Host "expected runtime: $expectedRuntime"
+Write-Host "expected strict_max_version: $expectedStrictMaxVersion"
 Write-Host "addon: $addonID"
 Write-Host "xpi: $($status.xpi.path)"
 Write-Host "xpi exists: $($status.xpi.exists)"
 Write-Host "sha256: $($status.xpi.sha256)"
 Write-Host "zotero process count: $($status.zoteroProcessCount)"
 Write-Host "temp children: $($status.temp.childCount)"
+Write-Host "preferred handoff: $($status.summary.preferredHandoff)"
+Write-Host "summary ready profiles: $($status.summary.readyProfiles)"
 
 foreach ($profile in $status.profiles) {
   $source = Test-ProfileSourceValid -Profile $profile
   $registered = [bool]$profile.registration.registered
   $active = [bool]$profile.registration.active
+  if ($registered) {
+    $registeredProfiles += 1
+  }
   if ($registered -and $active) {
     $readyProfiles += 1
   }
 
+  $mode = if ($source.developmentProxy) {
+    "development-proxy"
+  }
+  elseif ($source.profileXPI) {
+    "profile-xpi"
+  }
+  elseif ($registered) {
+    "registered-only"
+  }
+  else {
+    "none"
+  }
+
   Write-Host ""
   Write-Host "profile: $($profile.name)"
+  Write-Host "install mode: $mode"
   Write-Host "registered: $registered"
   Write-Host "active: $active"
   Write-Host "registration path: $($profile.registration.path)"
@@ -76,20 +100,25 @@ foreach ($profile in $status.profiles) {
   Write-Host "rescan needed: $($profile.rescan.needsRescan)"
 
   if (!$registered) {
-    Write-Host "next: install the XPI through Zotero Tools > Add-ons > gear > Install Add-on From File..."
+    Write-Host "next: on $expectedRuntime use Tools > Add-ons > gear > Install Add-on From File... and select outputs\pdf-image-saver-0.1.0.xpi"
   }
   elseif (!$active) {
     Write-Host "next: enable the add-on in Zotero Add-ons, then restart Zotero if requested."
   }
+  elseif ($profile.rescan.needsRescan -and $source.developmentProxy -and !$source.profileXPI) {
+    Write-Host "next: registration is active; for development-proxy installs only, rescan prefs can be cleared by closing Zotero and running npm.cmd run install:global."
+  }
   elseif ($profile.rescan.needsRescan) {
-    Write-Host "next: registration is active; rescan prefs are informational for this manual install state."
+    Write-Host "next: registration is active; rescan prefs are informational for manual/XPI installs on $expectedRuntime."
   }
   else {
-    Write-Host "next: run npm.cmd run smoke:preflight, then open a PDF reader and test Clip Figure."
+    Write-Host "next: run npm.cmd run smoke:preflight, then open a PDF reader and test Clip."
   }
 }
 
 Write-Host ""
+Write-Host "registered profiles: $registeredProfiles"
+Write-Host "ready profiles: $readyProfiles"
 if ($readyProfiles -gt 0) {
   Write-Host "manual install status: ready"
 }
