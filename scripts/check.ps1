@@ -865,7 +865,7 @@ if ($mainJS -notmatch 'title="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
 if ($mainJS -notmatch "const\s+regionIdentity\s*=\s*getSourceRegionFingerprint\(entry\.sourceRegionKey\)") {
   throw "HTML preview entries must show compact source region identity"
 }
-if ($mainJS -notmatch '<details class="entry-details">[\s\S]*<summary>Trace</summary>[\s\S]*<dt>Detector</dt>[\s\S]*<dt>BBox</dt>[\s\S]*<dt>Key</dt>') {
+if ($mainJS -notmatch '<details class="entry-details">[\s\S]*<summary>Trace</summary>[\s\S]*<dt>Det</dt>[\s\S]*<dt>Box</dt>[\s\S]*<dt>Key</dt>') {
   throw "HTML preview entry technical fields must be collapsed in per-entry details"
 }
 if ($mainJS -notmatch 'data-source-region-key="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
@@ -1423,6 +1423,12 @@ if ($mainJS -notmatch "pdf-image-saver-progress") {
   throw "Reader styles must include progress toast styling"
 }
 
+if ($mainJS -notmatch "pdf-image-saver-selection-size") {
+  throw "Clip selection overlay must show live size badge"
+}
+if ($mainJS -notmatch "sizeBadge.textContent") {
+  throw "Clip selection size badge must render pixel dimensions"
+}
 if ($mainJS -notmatch "onSessionEnd") {
   throw "Clip selection overlay must support onSessionEnd lifecycle callback"
 }

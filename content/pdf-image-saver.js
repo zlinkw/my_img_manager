@@ -550,6 +550,10 @@ var PdfImageSaver = (() => {
     hint.textContent = "Drag page; Esc cancels";
     const selection = doc.createElement("div");
     selection.className = "pdf-image-saver-selection-box";
+    const sizeBadge = doc.createElement("div");
+    sizeBadge.className = "pdf-image-saver-selection-size";
+    sizeBadge.textContent = "";
+    selection.append(sizeBadge);
     overlay.append(hint, selection);
     pageElement.appendChild(overlay);
     overlay.focus();
@@ -677,6 +681,13 @@ var PdfImageSaver = (() => {
       width: `${rect.width}px`,
       height: `${rect.height}px`,
     });
+    const sizeBadge = selection.querySelector?.(".pdf-image-saver-selection-size");
+    if (sizeBadge) {
+      const width = Math.max(0, Math.round(rect.width));
+      const height = Math.max(0, Math.round(rect.height));
+      sizeBadge.textContent = `${width}×${height}`;
+      sizeBadge.hidden = width < 1 && height < 1;
+    }
   }
 
   async function saveClipPreviewIndex(reader, options = {}) {
@@ -1431,9 +1442,9 @@ var PdfImageSaver = (() => {
             <details class="entry-details">
               <summary>Trace</summary>
               <dl>
-                <div><dt>Detector</dt><dd>${escapeHTML(entry.detector)}</dd></div>
+                <div><dt>Det</dt><dd>${escapeHTML(entry.detector)}</dd></div>
                 <div><dt>Map</dt><dd>${escapeHTML(sourceRegionLabel)}</dd></div>
-                <div><dt>BBox</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
+                <div><dt>Box</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
                 <div><dt>Key</dt><dd>${escapeHTML(entry.sourceRegionKey)}</dd></div>
               </dl>
             </details>
@@ -2015,7 +2026,7 @@ var PdfImageSaver = (() => {
   <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
   <p class="meta">Originals; ${normalizedImages.length} attachment${normalizedImages.length === 1 ? "" : "s"}; page links open PDF.</p>
   <table>
-    <thead><tr><th>Page</th><th>Image</th><th>Size</th><th>BBox</th></tr></thead>
+    <thead><tr><th>Page</th><th>ID</th><th>Size</th><th>Box</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <details>
@@ -2872,6 +2883,19 @@ var PdfImageSaver = (() => {
         border: 2px solid #1f73b7;
         background: rgba(31, 115, 183, 0.16);
         box-sizing: border-box;
+        pointer-events: none;
+      }
+      .pdf-image-saver-selection-size {
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform: translateY(calc(-100% - 3px));
+        padding: 1px 5px;
+        border-radius: 3px;
+        background: rgba(17, 24, 39, 0.88);
+        color: #fff;
+        font: 11px system-ui, sans-serif;
+        white-space: nowrap;
         pointer-events: none;
       }
     `;

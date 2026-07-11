@@ -389,6 +389,10 @@ const sessionDoc = {
         this.children.push(node);
         return node;
       },
+      querySelector(selector) {
+        const className = String(selector || "").replace(/^\./, "");
+        return (this.children || []).find((child) => child.className === className) || null;
+      },
       setAttribute(name, value) {
         this.attributes[name] = value;
       },
@@ -450,6 +454,14 @@ installSelectionOverlay(
   },
 );
 assert.ok(sessionPage.child, "selection overlay must mount on the page");
+// size badge should exist on selection box
+const selectionBox = (sessionPage.child.children || []).find((node) => node.className === "pdf-image-saver-selection-box");
+assert.ok(selectionBox, "selection overlay must include selection box");
+const sizeBadge = (selectionBox.children || []).find((node) => node.className === "pdf-image-saver-selection-size");
+assert.ok(sizeBadge, "selection box must include live size badge");
+sessionPage.child.dispatch("pointerdown", { button: 0, pointerId: 1, clientX: 10, clientY: 12 });
+sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
+assert.strictEqual(sizeBadge.textContent, "60×40", "selection size badge must show live pixel size");
 sessionPage.child.dispatch("keydown", { key: "Escape" });
 assert.strictEqual(clipSessionEnded, 1, "onSessionEnd must fire when overlay is cancelled");
 assert.strictEqual(sessionPage.child.removed, true, "cancelled overlay must be removed");
