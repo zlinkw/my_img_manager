@@ -68,7 +68,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Toast hierarchy includes sticky `progress` feedback for clip/auto/page/helper work.
 - Clip toolbar now stays in session state until selection ends; helper absence feedback is quieter than hard failures.
 - Duplicate-skip messages densified while preserving session vs saved distinctions.
-- UI-first backlog is largely exhausted; dense labels cover main surfaces, toast reuses one element, and toolbar controls keep stable widths during busy labels. Further UI work only for concrete clarity gaps.
+- UI-first backlog is largely exhausted; dense labels cover main surfaces, toast reuses one element, toolbar widths stay stable, and prefs status now includes live helper caps. Further UI work only for concrete clarity gaps.
 
 ### After UI Is Exhausted
 

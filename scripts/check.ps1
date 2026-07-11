@@ -1533,8 +1533,16 @@ if ($mainJS -notmatch "function\s+showToastInDocument\s*\(\s*doc\s*,\s*message\s
 if ($mainJS -notmatch "\.pdf-image-saver-toolbar-button[\s\S]*width:\s*60px[\s\S]*min-width:\s*60px") {
   throw "Reader toolbar buttons must keep stable width during busy labels"
 }
-if ($mainJS -notmatch "\.pdf-image-saver-quality[\s\S]*width:\s*118px[\s\S]*min-width:\s*118px") {
+if ($mainJS -notmatch "\.pdf-image-saver-quality[\s\S]*width:\s*132px[\s\S]*min-width:\s*132px") {
   throw "Reader toolbar quality select must keep stable width"
+}
+
+$prefsJS = Get-Content -Encoding UTF8 -Raw -LiteralPath .\content\preferences.js
+if ($prefsJS -notmatch "pdf-image-saver-max-page-images" -or $prefsJS -notmatch "getHelperPageMax") {
+  throw "Preference status must track helper page/doc/timeout/python controls"
+}
+if ($prefsJS -notmatch "Helper: optional; page") {
+  throw "Preference status must show dense helper caps"
 }
 if ($mainJS -notmatch "const\s+toast\s*=\s*existing\s*\|\|\s*doc\.createElement\(`"div`"\)") {
   throw "Reader toast must reuse existing toast element when updating"

@@ -2537,6 +2537,10 @@ function createPreferenceDocument() {
     "pdf-image-saver-auto-max-images",
     "pdf-image-saver-auto-max-preview-mb",
     "pdf-image-saver-max-index-mb",
+    "pdf-image-saver-max-page-images",
+    "pdf-image-saver-max-document-images",
+    "pdf-image-saver-helper-timeout",
+    "pdf-image-saver-python-path",
     "pdf-image-saver-prefs-status",
   ]) {
     elements.set(id, createPreferenceElement());
@@ -2560,6 +2564,10 @@ function assertPreferenceStatusRendering() {
   prefDoc.getElementById("pdf-image-saver-auto-max-images").value = "6";
   prefDoc.getElementById("pdf-image-saver-auto-max-preview-mb").value = "3";
   prefDoc.getElementById("pdf-image-saver-max-index-mb").value = "5";
+  prefDoc.getElementById("pdf-image-saver-max-page-images").value = "12";
+  prefDoc.getElementById("pdf-image-saver-max-document-images").value = "34";
+  prefDoc.getElementById("pdf-image-saver-helper-timeout").value = "45";
+  prefDoc.getElementById("pdf-image-saver-python-path").value = "C:\\py\\python.exe";
   const prefContext = {
     document: prefDoc,
     Zotero: {
@@ -2586,10 +2594,13 @@ function assertPreferenceStatusRendering() {
   assert.ok(status.textContent.includes("Dups: on; session + saved"), "preference status must render duplicate guard state");
   assert.ok(status.textContent.includes("Auto: 6 max; 3 MB"), "preference status must render auto caps");
   assert.ok(status.textContent.includes("Index: 5 MB"), "preference status must render HTML index cap");
-  assert.ok(status.textContent.includes("Helper: optional originals only"), "preference status must render helper note");
+  assert.ok(status.textContent.includes("Helper: optional; page 12; doc 34; 45s; custom py"), "preference status must render helper caps and python path mode");
   prefDoc.getElementById("pdf-image-saver-default-quality").value = "low";
   prefDoc.getElementById("pdf-image-saver-default-quality").dispatch("change");
   assert.ok(status.textContent.includes("Q Low; 20-80 KB"), "preference status must refresh after quality change");
+  prefDoc.getElementById("pdf-image-saver-python-path").value = "";
+  prefDoc.getElementById("pdf-image-saver-python-path").dispatch("input");
+  assert.ok(status.textContent.includes("auto py"), "preference status must refresh helper python mode");
 }
 
 runAsyncAssertions()

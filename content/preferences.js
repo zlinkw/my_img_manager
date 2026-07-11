@@ -69,6 +69,10 @@ var PdfImageSaverPreferences = {
       "pdf-image-saver-auto-max-images",
       "pdf-image-saver-auto-max-preview-mb",
       "pdf-image-saver-max-index-mb",
+      "pdf-image-saver-max-page-images",
+      "pdf-image-saver-max-document-images",
+      "pdf-image-saver-helper-timeout",
+      "pdf-image-saver-python-path",
     ]) {
       const control = doc.getElementById(id);
       if (!control || typeof control.addEventListener !== "function") {
@@ -89,13 +93,18 @@ var PdfImageSaverPreferences = {
     const autoMaxImages = this.getAutoMaxImages(doc);
     const autoCapMB = this.getAutoMaxPreviewMB(doc);
     const indexCapMB = this.getMaxIndexMB(doc);
+    const helperPageMax = this.getHelperPageMax(doc);
+    const helperDocMax = this.getHelperDocMax(doc);
+    const helperTimeout = this.getHelperTimeout(doc);
+    const pythonPath = this.getControlText(doc, "pdf-image-saver-python-path") || this.getTextPref("pythonPath", "");
+    const helperPython = pythonPath ? "custom py" : "auto py";
     status.textContent = [
       "Store: HTML indexes (sync with PDF)",
       `Q ${quality.label}; ${this.formatEstimateShort(quality.estimate)}`,
       `Dups: ${duplicateGuard ? "on; session + saved" : "off"}`,
       `Auto: ${autoMaxImages} max; ${autoCapMB} MB`,
       `Index: ${indexCapMB} MB`,
-      "Helper: optional originals only",
+      `Helper: optional; page ${helperPageMax}; doc ${helperDocMax}; ${helperTimeout}s; ${helperPython}`,
     ].join("\n");
   },
 
@@ -126,6 +135,18 @@ var PdfImageSaverPreferences = {
 
   getMaxIndexMB(doc) {
     return this.getClampedNumber(doc, "pdf-image-saver-max-index-mb", this.getPref("maxIndexBytesMB", 6), 1, 12, 1);
+  },
+
+  getHelperPageMax(doc) {
+    return this.getClampedNumber(doc, "pdf-image-saver-max-page-images", this.getPref("maxPageImages", 40), 1, 500);
+  },
+
+  getHelperDocMax(doc) {
+    return this.getClampedNumber(doc, "pdf-image-saver-max-document-images", this.getPref("maxDocumentImages", 200), 1, 2000);
+  },
+
+  getHelperTimeout(doc) {
+    return this.getClampedNumber(doc, "pdf-image-saver-helper-timeout", this.getPref("helperTimeoutSeconds", 60), 5, 600);
   },
 
   getClampedNumber(doc, id, fallback, min, max, decimals = 0) {

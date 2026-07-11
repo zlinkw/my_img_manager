@@ -2817,9 +2817,9 @@ var PdfImageSaver = (() => {
       }
       .pdf-image-saver-quality {
         box-sizing: border-box;
-        width: 118px;
-        min-width: 118px;
-        max-width: 118px;
+        width: 132px;
+        min-width: 132px;
+        max-width: 132px;
         min-height: 26px;
         font: inherit;
       }
