@@ -348,7 +348,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: "Diagnostics",
+      label: "Diag",
       onCommand() {
         void diagnostics(reader);
       },
@@ -359,7 +359,7 @@ var PdfImageSaver = (() => {
   async function startClipFromActiveReader(win, qualityKey) {
     const reader = getActiveReader(win);
     if (!reader) {
-      Services.prompt.alert(win, "PDF Image Saver", "Capture failed: no active Zotero PDF reader was found.");
+      Services.prompt.alert(win, "PDF Img", "Capture failed: no active Zotero PDF reader.");
       return;
     }
     await startClipFromReader(reader, qualityKey);
@@ -1199,10 +1199,10 @@ var PdfImageSaver = (() => {
     const pageView = getPageView(context, pageIndex);
     const pdfPage = pageView?.pdfPage || await context?.app?.pdfDocument?.getPage?.(pageIndex + 1);
     if (!pdfPage?.render || !pdfPage?.getViewport) {
-      return { candidates: [], reason: "PDF.js page render API is unavailable.", pageLabel: getPageLabel(context, pageIndex) };
+      return { candidates: [], reason: "PDF.js render API unavailable.", pageLabel: getPageLabel(context, pageIndex) };
     }
     if (!supportsPDFJSImageCoordinates(pdfPage)) {
-      return { candidates: [], reason: "Auto raster detection is unavailable in this Zotero PDF.js runtime.", pageLabel: getPageLabel(context, pageIndex) };
+      return { candidates: [], reason: "Auto unavailable in this PDF.js runtime.", pageLabel: getPageLabel(context, pageIndex) };
     }
 
     const doc = pageElement.ownerDocument;
@@ -1227,7 +1227,7 @@ var PdfImageSaver = (() => {
       await renderTask.promise;
       const coordinates = pdfPage.imageCoordinates;
       if (!coordinates?.length) {
-        return { candidates: [], reason: "No PDF.js image coordinates were recorded.", pageLabel: getPageLabel(context, pageIndex) };
+        return { candidates: [], reason: "No PDF.js image coordinates.", pageLabel: getPageLabel(context, pageIndex) };
       }
       return {
         candidates: imageCoordinatesToCandidates({
@@ -1241,7 +1241,7 @@ var PdfImageSaver = (() => {
     } catch (error) {
       renderTask?.cancel?.();
       logError(error);
-      return { candidates: [], reason: "Auto detection is unavailable in this Zotero/PDF.js runtime.", pageLabel: getPageLabel(context, pageIndex) };
+      return { candidates: [], reason: "Auto detection unavailable.", pageLabel: getPageLabel(context, pageIndex) };
     } finally {
       scratchCanvas.width = 0;
       scratchCanvas.height = 0;
@@ -1576,7 +1576,7 @@ var PdfImageSaver = (() => {
         : getHelperMaxImages("page");
       const ok = Services.prompt.confirm(
         win,
-        "PDF Image Saver",
+        "PDF Img",
         `Save originals from ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/image, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Clip safer for sync.`,
       );
       if (!ok) {
@@ -2719,9 +2719,9 @@ var PdfImageSaver = (() => {
 
   function normalizeToastMessage(message) {
     if (message && typeof message.message === "string") {
-      return normalizeMetadataText(message.message, "PDF Image Saver notification.", 280);
+      return normalizeMetadataText(message.message, "PDF Img notification.", 280);
     }
-    return normalizeMetadataText(message, "PDF Image Saver notification.", 280);
+    return normalizeMetadataText(message, "PDF Img notification.", 280);
   }
 
   function normalizeToastLevel(level) {
@@ -2772,7 +2772,7 @@ var PdfImageSaver = (() => {
   }
 
   function showFallbackAlert(fallbackWindow, message) {
-    Services.prompt.alert(fallbackWindow, "PDF Image Saver", message);
+    Services.prompt.alert(fallbackWindow, "PDF Img", message);
   }
 
   function ensureReaderStyles(doc) {

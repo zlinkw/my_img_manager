@@ -484,7 +484,7 @@ showReaderToast(
   { bad: true },
   { level: "bad" },
 );
-assert.strictEqual(readerToastDoc.bodyChildren[1].textContent, "PDF Image Saver notification.", "malformed toast messages must normalize to compact fallback text");
+assert.strictEqual(readerToastDoc.bodyChildren[1].textContent, "PDF Img notification.", "malformed toast messages must normalize to compact fallback text");
 assert.strictEqual(readerToastDoc.bodyChildren[1].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
 
 context.Services.prompt.alerts = [];
@@ -1813,7 +1813,7 @@ commandActions.find((item) => item.label.startsWith("Auto "))?.onCommand();
 commandActions.find((item) => item.label.startsWith("Page "))?.onCommand();
 commandActions.find((item) => item.label.startsWith("Originals page;"))?.onCommand();
 commandActions.find((item) => item.label.startsWith("Originals PDF;"))?.onCommand();
-commandActions.find((item) => item.label === "Diagnostics")?.onCommand();
+commandActions.find((item) => item.label === "Diag")?.onCommand();
 assert.strictEqual(contextMenuCalls.length, 5, "context menu commands must call auto, page, original, and diagnostics handlers");
 assert.strictEqual(contextMenuCalls[0].action, "auto", "first default-quality command must be auto-raster");
 assert.strictEqual(contextMenuCalls[0].reader, testReader, "auto-raster command must receive the reader");

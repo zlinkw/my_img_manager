@@ -1385,7 +1385,7 @@ if ($readerToastEntry.Value -match "showToastInDocument\(immediateContext\?\.doc
 if ($readerToastEntry.Value -match "Services\.prompt\.alert") {
   throw "Reader toast should route fallback prompts through showFallbackAlert"
 }
-if ($mainJS -notmatch "function\s+normalizeToastMessage\s*\(\s*message\s*\)[\s\S]*normalizeMetadataText\(message,\s*`"PDF Image Saver notification\.`",\s*280\)") {
+if ($mainJS -notmatch "function\s+normalizeToastMessage\s*\(\s*message\s*\)[\s\S]*normalizeMetadataText\(message,\s*`"PDF Img notification\.`",\s*280\)") {
   throw "Reader toast message normalizer missing compact fallback"
 }
 if ($mainJS -notmatch "function\s+normalizeToastLevel\s*\(\s*level\s*\)[\s\S]*\[`"info`",\s*`"success`",\s*`"warning`",\s*`"error`",\s*`"progress`"\]\.includes\(text\)\s*\?\s*text\s*:\s*`"info`"") {
@@ -1530,7 +1530,7 @@ if ($mainJS -notmatch "text\s*===\s*`"undefined`"[\s\S]*text\s*===\s*`"null`"[\s
 if ($mainJS -notmatch "function\s+showToastInDocument\s*\(\s*doc\s*,\s*message\s*,\s*level\s*\)[\s\S]*return\s+false;[\s\S]*doc\.body\.appendChild\(toast\)[\s\S]*return\s+true;") {
   throw "Reader toast document renderer must return whether toast display succeeded"
 }
-if ($mainJS -notmatch "function\s+showFallbackAlert\s*\(\s*fallbackWindow\s*,\s*message\s*\)[\s\S]*Services\.prompt\.alert\(fallbackWindow,\s*`"PDF Image Saver`",\s*message\)") {
+if ($mainJS -notmatch "function\s+showFallbackAlert\s*\(\s*fallbackWindow\s*,\s*message\s*\)[\s\S]*Services\.prompt\.alert\(fallbackWindow,\s*`"PDF Img`",\s*message\)") {
   throw "Reader toast fallback alert helper missing"
 }
 if ($mainJS -notmatch "annotation_key:\s*entry\.annotationKey") {
