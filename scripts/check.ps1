@@ -319,19 +319,19 @@ if ($contextMenuEntry.Value -notmatch "const\s+defaultQualityKey\s*=\s*getDefaul
 if ($contextMenuEntry.Value -notmatch "function\s+buildContextMenuActions\s*\(\s*reader\s*,\s*params\s*,\s*commands\s*=\s*\{\s*\}\s*\)") {
   throw "Context menu actions must be built by a testable helper"
 }
-if ($contextMenuEntry.Value -notmatch "Auto raster;\s*\$\{defaultQuality\.label\}\s*\(\$\{defaultQuality\.estimate\}\)[\s\S]*qualityKey:\s*defaultQualityKey") {
+if ($contextMenuEntry.Value -notmatch "Auto \$\{defaultQuality\.label\};\s*\$\{formatQualityEstimateShort\(defaultQualityKey\)\}[\s\S]*qualityKey:\s*defaultQualityKey") {
   throw "Context menu auto-raster action must show and use the default quality estimate"
 }
-if ($contextMenuEntry.Value -notmatch "Save whole page;\s*\$\{defaultQuality\.label\}\s*\(\$\{defaultQuality\.estimate\}\)[\s\S]*qualityKey:\s*defaultQualityKey") {
+if ($contextMenuEntry.Value -notmatch "Page \$\{defaultQuality\.label\};\s*\$\{formatQualityEstimateShort\(defaultQualityKey\)\}[\s\S]*qualityKey:\s*defaultQualityKey") {
   throw "Context menu page-preview action must show and use the default quality estimate"
 }
 if ($contextMenuEntry.Value -notmatch "pageOriginalMaxImages\s*=\s*getHelperMaxImages\(`"page`"\)[\s\S]*documentOriginalMaxImages\s*=\s*getHelperMaxImages\(`"document`"\)") {
   throw "Context menu original actions must compute page and document image caps"
 }
-if ($contextMenuEntry.Value -notmatch "Original embeds; this page \(max \$\{pageOriginalMaxImages\}\)[\s\S]*scope:\s*`"page`"[\s\S]*pageIndex:\s*getContextPageIndex\(params\)") {
+if ($contextMenuEntry.Value -notmatch "Originals page; max \$\{pageOriginalMaxImages\}[\s\S]*scope:\s*`"page`"[\s\S]*pageIndex:\s*getContextPageIndex\(params\)") {
   throw "Context menu page-original action must show cap and pass page scope"
 }
-if ($contextMenuEntry.Value -notmatch "Original embeds; whole PDF \(max \$\{documentOriginalMaxImages\}\)[\s\S]*scope:\s*`"document`"") {
+if ($contextMenuEntry.Value -notmatch "Originals PDF; max \$\{documentOriginalMaxImages\}[\s\S]*scope:\s*`"document`"") {
   throw "Context menu whole-PDF original action must show cap and pass document scope"
 }
 if ($contextMenuEntry.Value -match "Save whole page; Medium|qualityKey:\s*`"medium`"") {
@@ -1425,6 +1425,24 @@ if ($mainJS -notmatch "pdf-image-saver-progress") {
 
 if ($mainJS -notmatch "onSessionEnd") {
   throw "Clip selection overlay must support onSessionEnd lifecycle callback"
+}
+if ($mainJS -notmatch "formatQualityEstimateShort") {
+  throw "Quality estimates must support dense short labels"
+}
+if ($mainJS -notmatch "Clip \$\{QUALITY\[key\]\.label\}; \$\{formatQualityEstimateShort\(key\)\}") {
+  throw "Context menu clip labels must stay dense"
+}
+if ($mainJS -notmatch "Auto \$\{defaultQuality\.label\}; \$\{formatQualityEstimateShort\(defaultQualityKey\)\}") {
+  throw "Context menu auto labels must stay dense"
+}
+if ($mainJS -notmatch "Page \$\{defaultQuality\.label\}; \$\{formatQualityEstimateShort\(defaultQualityKey\)\}") {
+  throw "Context menu page labels must stay dense"
+}
+if ($mainJS -notmatch "Originals page; max") {
+  throw "Context menu original page labels must stay dense"
+}
+if ($mainJS -notmatch "Originals PDF; max") {
+  throw "Context menu original document labels must stay dense"
 }
 if ($mainJS -notmatch "setToolbarMode\(`"clip`"\)[\s\S]*onSessionEnd\(\)\s*\{[\s\S]*setToolbarMode\(`"idle`"\)") {
   throw "Clip toolbar button must stay in Drag state until selection session ends"

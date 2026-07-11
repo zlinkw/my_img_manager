@@ -4,7 +4,7 @@
       onload="PdfImageSaverPreferences.init();">
   <groupbox>
     <label><html:h2>PDF Image Saver</html:h2></label>
-    <html:p class="pdf-image-saver-prefs-intro">Clip/Auto save compact HTML indexes that sync with the PDF attachment. Helper is optional.</html:p>
+    <html:p class="pdf-image-saver-prefs-intro">Clip/Auto save compact HTML indexes that sync with the PDF. Helper optional.</html:p>
 
     <html:section class="pdf-image-saver-prefs-section" aria-labelledby="pdf-image-saver-prefs-workflow-title">
       <html:h3 id="pdf-image-saver-prefs-workflow-title" class="pdf-image-saver-prefs-section-title">Preview workflow</html:h3>
@@ -12,9 +12,9 @@
         <html:label for="pdf-image-saver-default-quality">Preview quality</html:label>
         <html:select id="pdf-image-saver-default-quality"
                      preference="extensions.pdfImageSaver.defaultQuality">
-          <html:option value="low">Low, about 20-80 KB per image</html:option>
-          <html:option value="medium">Medium, about 60-220 KB per image</html:option>
-          <html:option value="high">High, about 180-750 KB per image</html:option>
+          <html:option value="low">Low; 20-80 KB</html:option>
+          <html:option value="medium">Medium; 60-220 KB</html:option>
+          <html:option value="high">High; 180-750 KB</html:option>
         </html:select>
 
         <html:label for="pdf-image-saver-duplicate-guard">Skip duplicates</html:label>
@@ -22,7 +22,7 @@
           <html:input id="pdf-image-saver-duplicate-guard"
                       type="checkbox"
                       preference="extensions.pdfImageSaver.duplicateGuard"/>
-          <html:span>Session memory + existing HTML indexes</html:span>
+          <html:span>Session + saved indexes</html:span>
         </html:div>
       </html:div>
     </html:section>

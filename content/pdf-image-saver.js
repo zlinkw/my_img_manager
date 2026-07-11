@@ -156,7 +156,7 @@ var PdfImageSaver = (() => {
     for (const key of Object.keys(QUALITY)) {
       const option = doc.createElement("option");
       option.value = key;
-      option.textContent = `${QUALITY[key].label}; ${QUALITY[key].estimate}`;
+      option.textContent = `${QUALITY[key].label}; ${formatQualityEstimateShort(key)}`;
       option.selected = key === getDefaultQualityKey();
       select.appendChild(option);
     }
@@ -300,9 +300,8 @@ var PdfImageSaver = (() => {
     const documentOriginalMaxImages = getHelperMaxImages("document");
 
     for (const key of ["low", "medium", "high"]) {
-      const quality = QUALITY[key];
       actions.push({
-        label: `Clip; ${quality.label} (${quality.estimate})`,
+        label: `Clip ${QUALITY[key].label}; ${formatQualityEstimateShort(key)}`,
         onCommand() {
           void startClip(reader, key, getContextPageIndex(params));
         },
@@ -310,7 +309,7 @@ var PdfImageSaver = (() => {
     }
 
     actions.push({
-      label: `Auto raster; ${defaultQuality.label} (${defaultQuality.estimate})`,
+      label: `Auto ${defaultQuality.label}; ${formatQualityEstimateShort(defaultQualityKey)}`,
       onCommand() {
         void saveAuto(reader, {
           qualityKey: defaultQualityKey,
@@ -320,7 +319,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: `Save whole page; ${defaultQuality.label} (${defaultQuality.estimate})`,
+      label: `Page ${defaultQuality.label}; ${formatQualityEstimateShort(defaultQualityKey)}`,
       onCommand() {
         void savePage(reader, {
           qualityKey: defaultQualityKey,
@@ -330,7 +329,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: `Original embeds; this page (max ${pageOriginalMaxImages})`,
+      label: `Originals page; max ${pageOriginalMaxImages}`,
       onCommand() {
         void saveOriginal(reader, {
           scope: "page",
@@ -340,7 +339,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: `Original embeds; whole PDF (max ${documentOriginalMaxImages})`,
+      label: `Originals PDF; max ${documentOriginalMaxImages}`,
       onCommand() {
         void saveOriginal(reader, {
           scope: "document",
@@ -3222,6 +3221,11 @@ var PdfImageSaver = (() => {
     return `${quality.label}, ${quality.estimate}`;
   }
 
+  function formatQualityEstimateShort(qualityKey) {
+    const estimate = QUALITY[normalizeQualityKey(qualityKey)].estimate;
+    return String(estimate || "").replace(/\/image$/i, "");
+  }
+
   function buildToolbarActionTooltip(action, qualityKey) {
     const actionText = normalizeMetadataText(action, "Save preview", 90);
     return `${actionText}; ${getQualityLabelWithEstimate(qualityKey)}`;
@@ -3931,6 +3935,7 @@ var PdfImageSaver = (() => {
       applyAutoRasterButtonState,
       buildContextMenuActions,
       buildToolbarActionTooltip,
+      formatQualityEstimateShort,
       imageCoordinatesToCandidates,
       getPreviewDuplicateKey,
       getPreviewIndexFingerprint,

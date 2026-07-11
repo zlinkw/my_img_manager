@@ -126,6 +126,7 @@ const {
   getActiveReader,
   applyAutoRasterButtonState,
   buildToolbarActionTooltip,
+  formatQualityEstimateShort,
   getContextPageIndex,
   getPDFViewerContextCandidate,
   getPreviewDuplicateKey,
@@ -1773,11 +1774,11 @@ onCreateViewContextMenu({
   },
 });
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Auto raster; High (180-750 KB/image)"),
+  contextMenuItems.some((item) => item.label === "Auto High; 180-750 KB"),
   "context menu auto-raster label must show the default quality estimate",
 );
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Save whole page; High (180-750 KB/image)"),
+  contextMenuItems.some((item) => item.label === "Page High; 180-750 KB"),
   "context menu page-preview label must show the default quality estimate",
 );
 assert.ok(
@@ -1785,11 +1786,11 @@ assert.ok(
   "context menu page-preview label must not hardcode Medium",
 );
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Original embeds; this page (max 12)"),
+  contextMenuItems.some((item) => item.label === "Originals page; max 12"),
   "context menu page-original label must show the page max image count",
 );
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Original embeds; whole PDF (max 34)"),
+  contextMenuItems.some((item) => item.label === "Originals PDF; max 34"),
   "context menu document-original label must show the document max image count",
 );
 const contextMenuCalls = [];
@@ -1808,10 +1809,10 @@ const commandActions = buildContextMenuActions(testReader, { pageIndex: 2 }, {
     contextMenuCalls.push({ action: "diagnostics", reader });
   },
 });
-commandActions.find((item) => item.label.startsWith("Auto raster;"))?.onCommand();
-commandActions.find((item) => item.label.startsWith("Save whole page;"))?.onCommand();
-commandActions.find((item) => item.label.startsWith("Original embeds; this page"))?.onCommand();
-commandActions.find((item) => item.label.startsWith("Original embeds; whole PDF"))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Auto "))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Page "))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Originals page;"))?.onCommand();
+commandActions.find((item) => item.label.startsWith("Originals PDF;"))?.onCommand();
 commandActions.find((item) => item.label === "Diagnostics")?.onCommand();
 assert.strictEqual(contextMenuCalls.length, 5, "context menu commands must call auto, page, original, and diagnostics handlers");
 assert.strictEqual(contextMenuCalls[0].action, "auto", "first default-quality command must be auto-raster");
@@ -2579,15 +2580,15 @@ function assertPreferenceStatusRendering() {
   vm.runInContext(preferencesSource, prefContext, { filename: "preferences.js" });
   prefContext.PdfImageSaverPreferences.init();
   const status = prefDoc.getElementById("pdf-image-saver-prefs-status");
-  assert.ok(status.textContent.includes("Storage: compact HTML indexes"), "preference status must render storage mode");
-  assert.ok(status.textContent.includes("Quality: High; 180-750 KB/image"), "preference status must render selected quality estimate");
-  assert.ok(status.textContent.includes("Duplicates: on; session + saved indexes"), "preference status must render duplicate guard state");
-  assert.ok(status.textContent.includes("Auto: 6 candidates; 3 MB cap"), "preference status must render auto caps");
-  assert.ok(status.textContent.includes("Index: 5 MB max"), "preference status must render HTML index cap");
-  assert.ok(status.textContent.includes("Helper: optional; Python/PyMuPDF for originals only"), "preference status must render helper note");
+  assert.ok(status.textContent.includes("Store: HTML indexes"), "preference status must render storage mode");
+  assert.ok(status.textContent.includes("Q High; 180-750 KB"), "preference status must render selected quality estimate");
+  assert.ok(status.textContent.includes("Dups: on; session + saved"), "preference status must render duplicate guard state");
+  assert.ok(status.textContent.includes("Auto: 6 max; 3 MB"), "preference status must render auto caps");
+  assert.ok(status.textContent.includes("Index: 5 MB"), "preference status must render HTML index cap");
+  assert.ok(status.textContent.includes("Helper: optional originals only"), "preference status must render helper note");
   prefDoc.getElementById("pdf-image-saver-default-quality").value = "low";
   prefDoc.getElementById("pdf-image-saver-default-quality").dispatch("change");
-  assert.ok(status.textContent.includes("Quality: Low; 20-80 KB/image"), "preference status must refresh after quality change");
+  assert.ok(status.textContent.includes("Q Low; 20-80 KB"), "preference status must refresh after quality change");
 }
 
 runAsyncAssertions()
