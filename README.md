@@ -9,7 +9,7 @@ Zotero plugin for clipping figure previews from the open PDF reader and saving a
 ## Features
 
 - Runs independently inside Zotero by using the rendered PDF reader canvas.
-- Toolbar button starts box selection on the current page.
+- Toolbar `Clip` starts box selection on the current page.
 - `Auto` tries current-page embedded raster detection when the bundled Zotero PDF.js runtime exposes image coordinates; manual clipping remains the main path.
 - Context menu offers low, medium, and high preview quality with estimated size.
 - Saves one HTML child attachment containing the preview, compact metadata, and a `zotero://open-pdf` source link.
@@ -21,7 +21,7 @@ Zotero plugin for clipping figure previews from the open PDF reader and saving a
 
 The default save path is fully contained in the Zotero plugin package. It uses Zotero's own JavaScript runtime, the already-rendered PDF reader canvas, and Zotero stored HTML child attachments. No conda environment, Python interpreter, PyMuPDF install, local export directory, or machine-specific path is required for clipping and syncing previews.
 
-The bundled Python file is only an optional helper for explicit original-image extraction. If Python or PyMuPDF is missing, the plugin keeps the preview workflow available and reports the helper as unavailable.
+The bundled Python file is only an optional helper for explicit original-image extraction. If Python or PyMuPDF is missing, clip/auto still work and helper status shows as n/a.
 
 ## Preview Quality
 
@@ -33,7 +33,7 @@ Default toolbar action uses Medium.
 
 ## Optional Original Extraction
 
-Original embedded image extraction is optional and may require Python plus PyMuPDF. The plugin remains usable when this helper is unavailable.
+Original embedded image extraction is optional and may require Python plus PyMuPDF. Clip/auto remain usable when helper is n/a.
 
 ```powershell
 python -m pip install --user PyMuPDF
@@ -101,7 +101,7 @@ After Zotero has been restarted or the add-on has been reloaded:
 - A manual clip creates one Zotero stored HTML child attachment.
 - The HTML preview opens, shows the preview, source region map, compact index identity, `Open PDF` action, and collapsed metadata / trace details containing `source_region`, `source_region_key`, `preview_index_key`, `preview_duplicate_key`, and `annotation_key`.
 - Clicking preview or page opens the source PDF page.
-- `Auto` disables or warns safely when image coordinates are unavailable.
+- `Auto` disables or warns safely when image coordinates are n/a.
 - Auto no-candidate toasts stay page-scoped and point back to Clip.
 - Duplicate-skip toasts distinguish session memory from already-synced HTML indexes, and auto-detect also reports byte-cap skips.
 - Error toasts identify capture, helper, duplicate, byte-cap, or Zotero storage failures.

@@ -16,7 +16,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 - The plugin captures useful figures from the open Zotero PDF reader.
 - The primary workflow is manual current-page clipping from the rendered PDF reader canvas.
-- `Auto Raster` is optional and must degrade clearly when PDF.js image coordinate access is unavailable.
+- `Auto` is optional and must degrade clearly when PDF.js image coordinate access is n/a.
 - Optional original image extraction must not be required for normal clipping.
 - Zotero 9.0.5 compatibility is the current runtime baseline.
 
@@ -64,6 +64,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 ### UI First
 
 - Dense reader toolbar, menus, overlays, toasts, diagnostics, prefs, and HTML index labels landed.
+- Tools menu labels, diagnostic booleans, auto n/a tooltip, and toolbar chrome densified further.
 - Category prefixes stay fixed: `Capture failed:`, `Helper:`, `Storage failed:`, `Byte cap:`, `Auto/Clip/Page skip`.
 - Session vs saved duplicate wording and page/doc scope tokens remain required.
 - Toolbar widths/aria stay stable in busy modes; toast reuses one element; quality estimates stay visible.

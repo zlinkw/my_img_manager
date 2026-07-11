@@ -77,7 +77,7 @@ var PdfImageSaver = (() => {
       ? doc.createXULElement("menuitem")
       : doc.createElement("menuitem");
     menuitem.id = "pdf-image-saver-tools-menuitem";
-    menuitem.setAttribute("label", "PDF Img: Clip");
+    menuitem.setAttribute("label", "PDF Img Clip");
     menuitem.setAttribute("tooltiptext", "Clip page HTML");
     menuitem.addEventListener("command", () => {
       void startClipFromActiveReader(win, getDefaultQualityKey());
@@ -86,7 +86,7 @@ var PdfImageSaver = (() => {
       ? doc.createXULElement("menuitem")
       : doc.createElement("menuitem");
     diagnosticsItem.id = "pdf-image-saver-diagnostics-menuitem";
-    diagnosticsItem.setAttribute("label", "PDF Img: Diag");
+    diagnosticsItem.setAttribute("label", "PDF Img Diag");
     diagnosticsItem.setAttribute("tooltiptext", "Runtime/open/helper/temp");
     diagnosticsItem.addEventListener("command", () => {
       void showDiagnostics(win);
@@ -448,7 +448,7 @@ var PdfImageSaver = (() => {
       report.optional_helper = pythonCommands.length ? "python-available" : "python-missing";
     } catch (error) {
       report.optional_helper = "unknown";
-      report.warnings.push(`Helper probe fail: ${getErrorMessage(error)}`);
+      report.warnings.push(`Helper probe: ${getErrorMessage(error)}`);
     }
     return report;
   }
@@ -499,7 +499,7 @@ var PdfImageSaver = (() => {
   }
 
   function formatDiagnosticBoolean(value) {
-    return value === true ? "true" : value === false ? "false" : "unknown";
+    return value === true ? "on" : value === false ? "off" : "unknown";
   }
 
   function formatOptionalHelperStatus(value) {
@@ -1373,7 +1373,7 @@ var PdfImageSaver = (() => {
       return;
     }
     button.disabled = true;
-    button.title = "Auto n/a. Use Clip.";
+    button.title = "Auto n/a; use Clip.";
   }
 
   function supportsPDFJSImageCoordinates(pdfPage) {
@@ -1625,7 +1625,7 @@ var PdfImageSaver = (() => {
       const ok = Services.prompt.confirm(
         win,
         "PDF Img",
-        `Orig ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/img, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Prefer Clip.`,
+        `Orig ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/img, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Prefer clip.`,
       );
       if (!ok) {
         const pageIndex = normalizePageIndex(safeOptions.pageIndex, null);
@@ -2834,9 +2834,9 @@ var PdfImageSaver = (() => {
     style.textContent = `
       .pdf-image-saver-toolbar-button {
         margin: 0;
-        padding: 3px 8px;
+        padding: 2px 6px;
         border: 1px solid var(--fill-quinary, #b8b8b8);
-        border-radius: 4px;
+        border-radius: 3px;
         background: var(--material-background, #fff);
         color: var(--fill-primary, #111);
         font: inherit;
@@ -2859,9 +2859,9 @@ var PdfImageSaver = (() => {
       .pdf-image-saver-toolbar-group {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        margin: 0 6px;
-        padding: 0 2px;
+        gap: 3px;
+        margin: 0 5px;
+        padding: 0 1px;
         flex: 0 0 auto;
       }
       .pdf-image-saver-quality {

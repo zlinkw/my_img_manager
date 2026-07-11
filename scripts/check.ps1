@@ -357,7 +357,7 @@ if (!$autoRasterApplyEntry.Success) {
 if ($autoRasterApplyEntry.Value -notmatch "if\s*\(\s*isAvailable\s*\)[\s\S]*button\.disabled\s*=\s*false[\s\S]*buildToolbarActionTooltip\(`"Auto page`",\s*qualityKey\)") {
   throw "Auto-raster available state must re-enable button and restore quality tooltip"
 }
-if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto n/a\. Use Clip\.") {
+if ($autoRasterApplyEntry.Value -notmatch "button\.disabled\s*=\s*true[\s\S]*Auto n/a; use Clip\.") {
   throw "Auto-raster unavailable state must disable button with fallback tooltip"
 }
 $imageCoordinateEntry = [regex]::Match($mainJS, "function\s+imageCoordinatesToCandidates\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+updateAutoRasterButtonState")
@@ -1486,7 +1486,7 @@ if ($mainJS -notmatch "select\.disabled\s*=\s*busy") {
 if ($mainJS -notmatch "setToolbarMode\(`"auto`"\)") {
   throw "Auto toolbar path must enter shared busy mode"
 }
-if ($mainJS -notmatch 'PDF Img: Clip"') {
+if ($mainJS -notmatch 'PDF Img Clip"') {
   throw "Tools menu clip label must stay dense"
 }
 if ($mainJS -notmatch "syncAutoRasterAvailability") {
@@ -1532,8 +1532,8 @@ if ($mainJS -notmatch "function\s+normalizeDiagnosticText\s*\(\s*value[\s\S]*nor
 if ($mainJS -notmatch "function\s+normalizeDiagnosticWarningMessages\s*\(\s*warnings\s*\)[\s\S]*normalizeDiagnosticText\(warning,\s*null,\s*220\)[\s\S]*normalized\.length\s*>=\s*6") {
   throw "Diagnostics warnings must be scalar, length-limited, and count-limited"
 }
-if ($mainJS -notmatch "function\s+formatDiagnosticBoolean\s*\(\s*value\s*\)[\s\S]*value\s*===\s*true\s*\?\s*`"true`"\s*:\s*value\s*===\s*false\s*\?\s*`"false`"\s*:\s*`"unknown`"") {
-  throw "Diagnostics booleans must format to true, false, or unknown"
+if ($mainJS -notmatch "function\s+formatDiagnosticBoolean\s*\(\s*value\s*\)[\s\S]*value\s*===\s*true\s*\?\s*`"on`"\s*:\s*value\s*===\s*false\s*\?\s*`"off`"\s*:\s*`"unknown`"") {
+  throw "Diagnostics booleans must format to on, off, or unknown"
 }
 $errorMessageEntry = [regex]::Match($mainJS, "function\s+getErrorMessage\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*function\s+normalizeErrorMessageText")
 if (!$errorMessageEntry.Success) {
