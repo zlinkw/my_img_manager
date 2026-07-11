@@ -1397,14 +1397,14 @@ if ($mainJS -notmatch "function\s+normalizeToastLevel\s*\(\s*level\s*\)[\s\S]*\[
 if ($mainJS -notmatch "function\s+getToastDuration\s*\(\s*level\s*\)[\s\S]*progress[\s\S]*120000") {
   throw "Reader toast duration helper must keep progress toasts sticky"
 }
-if ($mainJS -notmatch "Saved clip \(\$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
-  throw "Clip success toast must include quality and size"
+if ($mainJS -notmatch "Saved clip \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
+  throw "Clip success toast must include page, quality, and size"
 }
-if ($mainJS -notmatch "Saved page \(\$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
-  throw "Page success toast must include quality and size"
+if ($mainJS -notmatch "Saved page \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
+  throw "Page success toast must include page, quality, and size"
 }
-if ($mainJS -notmatch "Saved \$\{previews\.length\} auto \(\$\{formatQualityEstimateShort\(qualityKey\)\};") {
-  throw "Auto success toast must include quality and size"
+if ($mainJS -notmatch "Saved \$\{previews\.length\} auto \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\};") {
+  throw "Auto success toast must include page, quality, and size"
 }
 if ($mainJS -notmatch "showReaderToast\(reader,\s*`"Saving clip\.\.\.`",\s*`"progress`"\)") {
   throw "Clip save path must show progress toast"

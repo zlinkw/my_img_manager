@@ -127,6 +127,7 @@ const {
   applyAutoRasterButtonState,
   buildToolbarActionTooltip,
   formatQualityEstimateShort,
+  formatPageToastToken,
   getContextPageIndex,
   getPDFViewerContextCandidate,
   getPreviewDuplicateKey,
@@ -1570,6 +1571,8 @@ assert.strictEqual(
   "import failures must gain storage prefix",
 );
 
+assert.strictEqual(formatPageToastToken(0), "p1", "page toast token must be 1-based");
+assert.strictEqual(formatPageToastToken(4), "p5", "page toast token must map pageIndex to pN");
 assert.strictEqual(
   buildToolbarActionTooltip("Clip a figure preview", "high"),
   "Clip a figure preview; High; 180-750 KB",

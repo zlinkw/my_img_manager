@@ -751,7 +751,7 @@ var PdfImageSaver = (() => {
       });
       showReaderToast(
         reader,
-        `Saved clip (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`,
+        `Saved clip ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`,
         "success",
       );
       rememberPreviewIndexSave(attachment, [preview], indexKey);
@@ -916,7 +916,7 @@ var PdfImageSaver = (() => {
       }
       showReaderToast(
         reader,
-        `Saved ${previews.length} auto (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
+        `Saved ${previews.length} auto ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
         "success",
       );
       return imported;
@@ -1054,7 +1054,7 @@ var PdfImageSaver = (() => {
         indexKey,
       });
       rememberPreviewIndexSave(attachment, [preview], indexKey);
-      showReaderToast(reader, `Saved page (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`, "success");
+      showReaderToast(reader, `Saved page ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`, "success");
     } catch (error) {
       logError(error);
       showReaderToast(reader, formatUserFacingError(error), "error");
@@ -3266,6 +3266,10 @@ var PdfImageSaver = (() => {
     return String(estimate || "").replace(/\/image$/i, "");
   }
 
+  function formatPageToastToken(pageIndex) {
+    return `p${normalizePageIndex(pageIndex, 0) + 1}`;
+  }
+
   function buildToolbarActionTooltip(action, qualityKey) {
     const actionText = normalizeMetadataText(action, "Save preview", 90);
     return `${actionText}; ${getQualityLabelWithEstimate(qualityKey)}`;
@@ -3981,6 +3985,7 @@ var PdfImageSaver = (() => {
       buildContextMenuActions,
       buildToolbarActionTooltip,
       formatQualityEstimateShort,
+      formatPageToastToken,
       imageCoordinatesToCandidates,
       getPreviewDuplicateKey,
       getPreviewIndexFingerprint,
