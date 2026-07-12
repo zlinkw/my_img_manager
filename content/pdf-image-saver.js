@@ -156,7 +156,7 @@ var PdfImageSaver = (() => {
     for (const key of Object.keys(QUALITY)) {
       const option = doc.createElement("option");
       option.value = key;
-      option.textContent = `${QUALITY[key].label}; ${formatQualityEstimateShort(key)}`;
+      option.textContent = getQualityLabelWithEstimate(key);
       option.selected = key === getDefaultQualityKey();
       select.appendChild(option);
     }
@@ -758,7 +758,7 @@ var PdfImageSaver = (() => {
       const tooSmall = width < 12 || height < 12;
       const qualityMark = selection.__pdfImageSaverQualityMark || getQualityMark("medium");
       sizeBadge.textContent = tooSmall
-        ? `${width}x${height} min12`
+        ? `${width}x${height} min12 ${qualityMark}`
         : `${width}x${height} ${qualityMark}`;
       sizeBadge.className = tooSmall
         ? "pdf-image-saver-selection-size is-min"
@@ -1538,7 +1538,7 @@ var PdfImageSaver = (() => {
             </div>
             <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
-              <div><dt>Q</dt><dd>${escapeHTML(QUALITY[entry.quality].label)}; ${escapeHTML(formatQualityEstimateShort(entry.quality))}</dd></div>
+              <div><dt>Q</dt><dd>${escapeHTML(getQualityLabelWithEstimate(entry.quality))}</dd></div>
               <div><dt>Det</dt><dd>${escapeHTML(formatPreviewDetectorLabel(entry.detector))}</dd></div>
               <div><dt>Size</dt><dd>${formatBytes(entry.byteCount)}; ${formatPreviewDimensions(entry.renderedWidth, entry.renderedHeight)}</dd></div>
               <div><dt>ID</dt><dd title="${escapeHTML(entry.sourceRegionKey)}">${escapeHTML(regionIdentity)}</dd></div>
@@ -3447,7 +3447,7 @@ var PdfImageSaver = (() => {
   function getQualityLabelWithEstimate(qualityKey) {
     const normalizedQualityKey = normalizeQualityKey(qualityKey);
     const quality = QUALITY[normalizedQualityKey];
-    return `${quality.label}; ${formatQualityEstimateShort(normalizedQualityKey)}`;
+    return `${getQualityMark(normalizedQualityKey)} ${quality.label}; ${formatQualityEstimateShort(normalizedQualityKey)}`;
   }
 
   function formatQualityEstimateShort(qualityKey) {

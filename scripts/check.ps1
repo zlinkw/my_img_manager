@@ -1923,4 +1923,17 @@ if ($mainJS -notmatch 'storage_mode:\s*"original_image_index"[\s\S]*position: st
   throw "Original index must stick header while scrolling"
 }
 
+if ($mainJS -notmatch 'getQualityMark\(normalizedQualityKey\)') {
+  throw "Quality labels must include quality mark"
+}
+if ($mainJS -notmatch 'min12 \$\{qualityMark\}') {
+  throw "Below-min selection badge must keep quality mark"
+}
+if ((Get-Content -Raw "preferences.xhtml") -notmatch 'L Low; 20-80 KB') {
+  throw "Preference quality options must include quality marks"
+}
+if ((Get-Content -Raw "content/preferences.js") -notmatch 'Q \$\{quality\.mark\}') {
+  throw "Preference status must include quality mark"
+}
+
 Write-Host "check ok"

@@ -1,9 +1,9 @@
 var PdfImageSaverPreferences = {
   PREF_PREFIX: "extensions.pdfImageSaver.",
   QUALITY: {
-    low: { label: "Low", estimate: "20-80 KB/image" },
-    medium: { label: "Medium", estimate: "60-220 KB/image" },
-    high: { label: "High", estimate: "180-750 KB/image" },
+    low: { label: "Low", mark: "L", estimate: "20-80 KB/image" },
+    medium: { label: "Medium", mark: "M", estimate: "60-220 KB/image" },
+    high: { label: "High", mark: "H", estimate: "180-750 KB/image" },
   },
 
   init() {
@@ -106,7 +106,7 @@ var PdfImageSaverPreferences = {
     const helperPython = pythonPath ? "custom py" : "auto py";
     status.textContent = [
       "Store: HTML; sync PDF",
-      `Q ${quality.label}; ${this.formatEstimateShort(quality.estimate)}`,
+      `Q ${quality.mark} ${quality.label}; ${this.formatEstimateShort(quality.estimate)}`,
       `Dups: ${duplicateGuard ? "on; sess+saved" : "off"}`,
       `Auto: min ${autoMinArea}; ${autoMaxImages} max; ${autoCapMB} MB`,
       `Index: ${indexCapMB} MB`,

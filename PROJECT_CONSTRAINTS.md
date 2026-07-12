@@ -77,6 +77,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Success toasts include quality mark L/M/H with estimate/size.
 - Index header is sticky; Open map title includes page; toast shows dismiss mark; Trace no longer duplicates Det.
 - Progress toasts and context-menu clip/auto/page labels include quality marks; entry badges include L/M/H; original index sticky header/thead.
+- Quality labels include mark L/M/H across toolbar, prefs, diagnostics, index Q lines, and min12 badges.
 
 ### After UI Is Exhausted
 
