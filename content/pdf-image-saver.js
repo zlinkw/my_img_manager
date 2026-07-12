@@ -475,7 +475,7 @@ var PdfImageSaver = (() => {
       `Dups: ${formatDiagnosticDups(safeReport.duplicate_guard)}`,
       `Auto: min ${formatDiagnosticArea(safeReport.auto_min_area)}; ${normalizeNonNegativeInteger(safeReport.auto_max_images, 0)} max; ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}`,
       `Index: ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
-      `Helper: ${formatOptionalHelperStatus(safeReport.optional_helper)}; min ${formatDiagnosticArea(safeReport.helper_min_area)}; page ${normalizeNonNegativeInteger(safeReport.helper_page_max, 0)}; doc ${normalizeNonNegativeInteger(safeReport.helper_doc_max, 0)}; ${normalizeNonNegativeInteger(safeReport.helper_timeout_s, 0)}s; ${formatHelperPythonMode(safeReport.helper_python_mode)}; orig opt`,
+      `Helper: opt; ${formatOptionalHelperStatus(safeReport.optional_helper)}; min ${formatDiagnosticArea(safeReport.helper_min_area)}; page ${normalizeNonNegativeInteger(safeReport.helper_page_max, 0)}; doc ${normalizeNonNegativeInteger(safeReport.helper_doc_max, 0)}; ${normalizeNonNegativeInteger(safeReport.helper_timeout_s, 0)}s; ${formatHelperPythonMode(safeReport.helper_python_mode)}`,
       `Temp ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)}); ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 160)}`,
     ];
     if (safeReport.pdf_attachment) {

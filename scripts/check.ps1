@@ -1440,7 +1440,7 @@ if ($mainJS -notmatch "report\.optional_helper\s*=") {
 if ($mainJS -notmatch "function\s+formatOptionalHelperStatus\s*\(") {
   throw "Diagnostics helper status formatter missing"
 }
-if ($mainJS -notmatch "Helper:\s*\$\{formatOptionalHelperStatus\(safeReport\.optional_helper\)\}") {
+if ($mainJS -notmatch "Helper: opt; \$\{formatOptionalHelperStatus\(safeReport\.optional_helper\)\}") {
   throw "Diagnostics report must include optional helper status line"
 }
 
@@ -1725,7 +1725,7 @@ if ($mainJS -notmatch "helper_min_area:\s*clamp\(getNumberPref\(\`"minImageArea`
 if ($mainJS -notmatch "Auto: min \$\{formatDiagnosticArea\(safeReport\.auto_min_area\)\}") {
   throw "Diagnostics report must densify auto min area"
 }
-if ($mainJS -notmatch "Helper: \$\{formatOptionalHelperStatus\(safeReport\.optional_helper\)\}; min \$\{formatDiagnosticArea\(safeReport\.helper_min_area\)\}") {
+if ($mainJS -notmatch "Helper: opt; \$\{formatOptionalHelperStatus\(safeReport\.optional_helper\)\}; min \$\{formatDiagnosticArea\(safeReport\.helper_min_area\)\}") {
   throw "Diagnostics report must densify helper min area"
 }
 if ($mainJS -notmatch "function\s+formatDiagnosticArea\s*\(") {
