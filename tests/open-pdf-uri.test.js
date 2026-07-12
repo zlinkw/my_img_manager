@@ -886,7 +886,7 @@ assert.strictEqual(
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSavedDuplicates: 2 }),
-  "Auto skip: all saved-index dups.",
+  "Auto skip: all saved dups.",
   "persisted duplicate feedback must not claim current-session-only saves",
 );
 assert.strictEqual(
@@ -911,12 +911,12 @@ assert.strictEqual(
 );
 assert.strictEqual(
   formatPreviewDuplicateSkipReason("page", "saved"),
-  "Page skip: saved-index dup.",
+  "Page skip: saved dup.",
   "page duplicate feedback must distinguish synced indexes",
 );
 assert.strictEqual(
   formatPreviewDuplicateSkipReason("auto-page", "saved"),
-  "Auto skip: saved-index dup.",
+  "Auto skip: saved dup.",
   "auto-page duplicate feedback must distinguish synced indexes",
 );
 assert.strictEqual(
@@ -926,7 +926,7 @@ assert.strictEqual(
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSavedDuplicates: 1, pageIndex: 4 }),
-  "Auto skip p5: all saved-index dups.",
+  "Auto skip p5: all saved dups.",
   "auto duplicate feedback can include page token",
 );
 assert.strictEqual(

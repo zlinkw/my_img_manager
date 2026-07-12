@@ -972,7 +972,7 @@ var PdfImageSaver = (() => {
       return `Auto skip${pageToken}: all saved/session dups.`;
     }
     if (skippedSavedDuplicates) {
-      return `Auto skip${pageToken}: all saved-index dups.`;
+      return `Auto skip${pageToken}: all saved dups.`;
     }
     if (skippedSessionDuplicates) {
       return `Auto skip${pageToken}: all session dups.`;
@@ -1004,7 +1004,7 @@ var PdfImageSaver = (() => {
     const kind = reason === "session"
       ? "session dup"
       : reason === "saved"
-        ? "saved-index dup"
+        ? "saved dup"
         : "dup";
     if (scope === "page") {
       return `Page skip${pageToken}: ${kind}.`;
@@ -3930,6 +3930,7 @@ var PdfImageSaver = (() => {
       || text.includes("already in a synced")
       || text.includes("session dup")
       || text.includes("saved-index dup")
+      || text.includes("saved dup")
       || text.includes("saved/session dups")
       || text.includes("saved dups")
       || text.includes("session dups")

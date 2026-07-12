@@ -1283,7 +1283,7 @@ if ($mainJS -notmatch "function\s+formatPreviewDuplicateSkipReason\s*\(\s*scope,
 if ($mainJS -notmatch "formatPreviewDuplicateSkipReason\(`"clip`",\s*skipReason,\s*pageIndex\)") {
   throw "Clip duplicate feedback must pass page token"
 }
-if ($mainJS -notmatch "session dup" -or $mainJS -notmatch "saved-index dup") {
+if ($mainJS -notmatch "session dup" -or ($mainJS -notmatch "saved-index dup" -and $mainJS -notmatch "saved dup")) {
   throw "Manual preview duplicate feedback must distinguish session memory and synced indexes"
 }
 if ($mainJS -notmatch "function\s+formatAutoDuplicateSkipReason\s*\(\s*\{[\s\S]*skippedSessionDuplicates\s*=\s*0,[\s\S]*skippedSavedDuplicates\s*=\s*0,[\s\S]*skippedByteLimit\s*=\s*0,[\s\S]*skippedOversized\s*=\s*0,[\s\S]*pageIndex\s*=\s*null,[\s\S]*\}\s*=\s*\{\}\s*\)") {
