@@ -1533,7 +1533,7 @@ var PdfImageSaver = (() => {
               <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
                 <img src="${escapeHTML(entry.dataURL)}" alt="Preview p${escapeHTML(String(entry.pageNumber))} #${index + 1}">
               </a>
-              ${buildSourceRegionMapHTML(entry.sourceRegion, uri)}
+              ${buildSourceRegionMapHTML(entry.sourceRegion, uri, entry.pageNumber)}
               <a class="source-action" href="${escapeHTML(uri)}" title="Open p${escapeHTML(String(entry.pageNumber))}">Open p${escapeHTML(String(entry.pageNumber))}</a>
             </div>
             <dl class="entry-summary">
@@ -1546,7 +1546,6 @@ var PdfImageSaver = (() => {
             <details class="entry-details">
               <summary>Trace</summary>
               <dl>
-                <div><dt>Det</dt><dd>${escapeHTML(formatPreviewDetectorLabel(entry.detector))}</dd></div>
                 <div><dt>Map</dt><dd>${escapeHTML(sourceRegionLabel)}</dd></div>
                 <div><dt>Box</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
                 <div><dt>Key</dt><dd>${escapeHTML(entry.sourceRegionKey)}</dd></div>
@@ -1599,7 +1598,7 @@ var PdfImageSaver = (() => {
   <title>${escapeHTML(sourceTitle)} - img index ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}</title>
   <style>
     body { margin: 12px; font: 12.5px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
-    header { margin-bottom: 8px; }
+    header { position: sticky; top: 0; z-index: 2; margin: 0 0 8px; padding: 8px 0 6px; background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid #e5e5e5; }
     h1 { font-size: 14px; margin: 0 0 3px; }
     .meta { color: #555; margin: 0 0 1px; line-height: 1.3; }
     .entry { display: grid; grid-template-columns: minmax(120px, 260px) 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid #ddd; }
@@ -2903,6 +2902,21 @@ var PdfImageSaver = (() => {
       toast.remove?.();
     };
     toast.onclick = dismissToast;
+    let messageNode = toast.querySelector?.(".pdf-image-saver-toast-msg");
+    if (!messageNode) {
+      messageNode = doc.createElement("span");
+      messageNode.className = "pdf-image-saver-toast-msg";
+      toast.appendChild(messageNode);
+    }
+    messageNode.textContent = message;
+    let dismissMark = toast.querySelector?.(".pdf-image-saver-toast-x");
+    if (!dismissMark) {
+      dismissMark = doc.createElement("span");
+      dismissMark.className = "pdf-image-saver-toast-x";
+      dismissMark.setAttribute?.("aria-hidden", "true");
+      dismissMark.textContent = "x";
+      toast.appendChild(dismissMark);
+    }
     if (!toast.__pdfImageSaverEscHandler && doc.addEventListener) {
       toast.__pdfImageSaverEscHandler = (event) => {
         if (event?.key !== "Escape") {
@@ -2917,7 +2931,6 @@ var PdfImageSaver = (() => {
       };
       doc.addEventListener("keydown", toast.__pdfImageSaverEscHandler, true);
     }
-    toast.textContent = message;
     if (!existing) {
       doc.body.appendChild(toast);
     }
@@ -3004,6 +3017,17 @@ var PdfImageSaver = (() => {
         color: #fff;
         font: 12px system-ui, sans-serif;
         line-height: 1.28;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .pdf-image-saver-toast-msg { flex: 1 1 auto; min-width: 0; }
+      .pdf-image-saver-toast-x {
+        flex: 0 0 auto;
+        opacity: 0.8;
+        font: 11px system-ui, sans-serif;
+        line-height: 1;
+        margin-top: 1px;
       }
       .pdf-image-saver-success { background: #176b3a; }
       .pdf-image-saver-warning { background: #8a5a00; }
@@ -3136,16 +3160,19 @@ var PdfImageSaver = (() => {
     ];
   }
 
-  function buildSourceRegionMapHTML(region, openURI = null) {
+  function buildSourceRegionMapHTML(region, openURI = null, pageNumber = null) {
     if (!region) {
       return "";
     }
+    const pageToken = pageNumber === null || pageNumber === undefined
+      ? ""
+      : ` p${normalizePageNumber(pageNumber, 1)}`;
     const map = `<div class="source-map" title="${escapeHTML(region.label || "Region")}"><span style="left:${formatCSSPercent(region.left)};top:${formatCSSPercent(region.top)};width:${formatCSSPercent(region.width)};height:${formatCSSPercent(region.height)}"></span></div>`;
     const uri = normalizeMetadataText(openURI, null, 500);
     if (!uri) {
       return map;
     }
-    return `<a class="source-map-link" href="${escapeHTML(uri)}" title="Open map">${map}</a>`;
+    return `<a class="source-map-link" href="${escapeHTML(uri)}" title="Open map${escapeHTML(pageToken)}">${map}</a>`;
   }
 
   function normalizeAnnotationKey(value) {

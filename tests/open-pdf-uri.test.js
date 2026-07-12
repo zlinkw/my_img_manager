@@ -272,11 +272,22 @@ function createFakeToastDocument() {
       tagName,
       id: "",
       className: "",
-      textContent: "",
+      _textContent: "",
       title: "",
       onclick: null,
       removed: false,
       attributes: Object.create(null),
+      children: [],
+      get textContent() {
+        if (this.children.length) {
+          return this.children.map((child) => child.textContent || "").join("");
+        }
+        return this._textContent;
+      },
+      set textContent(value) {
+        this._textContent = String(value);
+        this.children = [];
+      },
       setAttribute(name, value) {
         this.attributes[name] = String(value);
         if (name === "title") {
@@ -288,6 +299,17 @@ function createFakeToastDocument() {
           return this.title || null;
         }
         return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null;
+      },
+      appendChild(child) {
+        this.children.push(child);
+        return child;
+      },
+      querySelector(selector) {
+        const className = String(selector || "").replace(/^\./, "");
+        return (this.children || []).find((child) => {
+          const tokens = String(child.className || "").split(/\s+/).filter(Boolean);
+          return tokens.includes(className);
+        }) || null;
       },
       remove() {
         this.removed = true;
@@ -591,7 +613,9 @@ showReaderToast(
 assert.strictEqual(delayCallCount, 0, "available reader toast must not poll for PDF context");
 assert.strictEqual(context.Services.prompt.alerts.length, 0, "available reader toast must not use fallback alert");
 assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "available reader toast must render into the reader document");
-assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "Reader document toast", "reader toast must preserve message text");
+assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "Reader document toastx", "reader toast must preserve message text and dismiss mark");
+assert.ok(readerToastDoc.bodyChildren[0].querySelector(".pdf-image-saver-toast-msg"), "toast must use message node");
+assert.ok(readerToastDoc.bodyChildren[0].querySelector(".pdf-image-saver-toast-x"), "toast must show dismiss mark");
 
 showReaderToast(
   { type: "pdf", _iframeWindow: { PDFViewerApplication: {}, document: readerToastDoc } },
@@ -599,7 +623,7 @@ showReaderToast(
   { level: "bad" },
 );
 assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "toast updates must reuse the existing toast element");
-assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img note.", "malformed toast messages must normalize to compact fallback text");
+assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img note.x", "malformed toast messages must normalize to compact fallback text");
 assert.strictEqual(readerToastDoc.bodyChildren[0].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
 assert.strictEqual(readerToastDoc.bodyChildren[0].title, "Click/Esc dismiss", "toast must advertise click/Esc dismiss");
 assert.strictEqual(readerToastDoc.bodyChildren[0].getAttribute?.("aria-live") || readerToastDoc.bodyChildren[0].attributes?.["aria-live"], "polite", "info/success toast must use polite aria-live");
@@ -913,6 +937,7 @@ assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "auto", "a
 assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detector", "unknown detector must keep readable text");
 assert.ok(html.includes('alt="Preview p5 #1"'), "preview image alt must include page and entry index");
 assert.ok(html.includes('class="entry-badge"'), "preview entries must expose dense entry badge");
+assert.ok(html.includes("position: sticky"), "preview index header must stick while scrolling");
 assert.ok(html.includes(">#1</div>"), "preview entry badge must show 1-based index");
 assert.strictEqual(getQualityMark("medium"), "M", "medium quality mark");
 assert.strictEqual(getQualityMark("high"), "H", "high quality mark");
@@ -922,7 +947,7 @@ assert.ok(/Index [^;]+; 1 img; 3 B;/.test(html) || html.includes("1 img; 3 B;"),
 assert.ok(html.includes('title="Open p5"'), "HTML entry Open action title must include page");
 assert.ok(html.includes('class="source-map-link"'), "source region map must be clickable open link");
 assert.ok(html.includes(":focus-visible"), "index open targets must expose keyboard focus style");
-assert.ok(html.includes('title="Open map"'), "source region map link must advertise open action");
+assert.ok(html.includes('title="Open map p5"'), "source region map link must advertise open action with page");
 assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region identity must keep full source key in a title");
 assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");
 assert.ok(html.includes('<details class="entry-details">'), "trace metadata must be in a per-entry details block");

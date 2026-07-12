@@ -874,7 +874,7 @@ if ($mainJS -notmatch 'title="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
 if ($mainJS -notmatch "const\s+regionIdentity\s*=\s*getSourceRegionFingerprint\(entry\.sourceRegionKey\)") {
   throw "HTML preview entries must show compact source region identity"
 }
-if ($mainJS -notmatch '<details class="entry-details">[\s\S]*<summary>Trace</summary>[\s\S]*<dt>Det</dt>[\s\S]*<dt>Box</dt>[\s\S]*<dt>Key</dt>') {
+if ($mainJS -notmatch '<details class="entry-details">[\s\S]*<summary>Trace</summary>[\s\S]*<dt>Map</dt>[\s\S]*<dt>Box</dt>[\s\S]*<dt>Key</dt>') {
   throw "HTML preview entry technical fields must be collapsed in per-entry details"
 }
 if ($mainJS -notmatch 'data-source-region-key="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
@@ -1889,6 +1889,19 @@ if ($mainJS -notmatch '<th>#</th>') {
 }
 if ($mainJS -notmatch 'getQualityMark\(qualityKey\)') {
   throw "Success toasts must include quality mark"
+}
+
+if ($mainJS -notmatch 'pdf-image-saver-toast-msg') {
+  throw "Reader toast must use message node"
+}
+if ($mainJS -notmatch 'pdf-image-saver-toast-x') {
+  throw "Reader toast must show dismiss mark"
+}
+if ($mainJS -notmatch 'Open map') {
+  throw "Source map open title must remain present"
+}
+if ($mainJS -notmatch 'position: sticky') {
+  throw "Preview index header must stick while scrolling"
 }
 
 Write-Host "check ok"

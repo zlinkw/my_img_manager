@@ -75,6 +75,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Clip cancel: Esc/RMB; toast uses aria-live/data-level/progress aria-busy; index header shows total preview bytes; prefs short labels keep title tooltips.
 - Selection size badge includes quality mark L/M/H; preview entries show `#N` badge and summary Det; original index rows numbered.
 - Success toasts include quality mark L/M/H with estimate/size.
+- Index header is sticky; Open map title includes page; toast shows dismiss mark; Trace no longer duplicates Det.
 
 ### After UI Is Exhausted
 
