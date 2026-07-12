@@ -413,7 +413,7 @@ var PdfImageSaver = (() => {
       report.temp_leftovers = tempStats.count;
       report.temp_bytes = tempStats.bytes;
     } catch (error) {
-      report.warnings.push(`Temp check: ${getErrorMessage(error)}`);
+      report.warnings.push(`Temp: ${getErrorMessage(error)}`);
     }
 
     if (!reader || !isPDFReader(reader)) {
@@ -449,7 +449,7 @@ var PdfImageSaver = (() => {
       report.optional_helper = pythonCommands.length ? "python-available" : "python-missing";
     } catch (error) {
       report.optional_helper = "unknown";
-      report.warnings.push(`Helper probe: ${getErrorMessage(error)}`);
+      report.warnings.push(`Helper: ${getErrorMessage(error)}`);
     }
     return report;
   }

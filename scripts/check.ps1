@@ -1656,4 +1656,18 @@ if (Test-Path -LiteralPath .\outputs\pdf-image-saver-0.1.0.xpi) {
   Invoke-Native "powershell" @("-ExecutionPolicy", "Bypass", "-File", ".\scripts\check-xpi.ps1")
 }
 
+
+if ($mainJS -notmatch "Temp: \$\{getErrorMessage\(error\)\}") {
+  throw "Diagnostics temp warning prefix must stay dense"
+}
+if ($mainJS -notmatch "Helper: \$\{getErrorMessage\(error\)\}") {
+  throw "Diagnostics helper warning prefix must stay dense"
+}
+if ($mainJS -match "Temp check:") {
+  throw "Diagnostics must not use legacy Temp check: prefix"
+}
+if ($mainJS -match "Helper probe:") {
+  throw "Diagnostics must not use legacy Helper probe: prefix"
+}
+
 Write-Host "check ok"

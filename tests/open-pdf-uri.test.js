@@ -1659,6 +1659,44 @@ assert.strictEqual(formatOptionalHelperStatus("python-available"), "py ok", "hel
 assert.strictEqual(formatOptionalHelperStatus({ bad: true }), "unknown", "helper status formatter must fall back for malformed values");
 
 assert.ok(noisyDiagnostics.includes("- ok"), "diagnostics warnings must keep valid compact warning text");
+assert.ok(
+  formatDiagnosticsReport({
+    plugin: "pdf-image-saver@zlk.local 0.1.0",
+    zotero: "9.0.5",
+    started: true,
+    reader_count: 0,
+    active_pdf_reader: false,
+    default_quality: "medium",
+    duplicate_guard: true,
+    auto_cap: "4 MB",
+    max_index: "6 MB",
+    temp_dir: "C:\\Temp\\pdf-image-saver",
+    temp_leftovers: 0,
+    temp_bytes: 0,
+    optional_helper: "unknown",
+    warnings: ["Temp: access denied", "Helper: probe failed", "No PDF."],
+  }).includes("- Temp: access denied"),
+  "diagnostics temp warnings must use dense Temp: prefix",
+);
+assert.ok(
+  formatDiagnosticsReport({
+    plugin: "pdf-image-saver@zlk.local 0.1.0",
+    zotero: "9.0.5",
+    started: true,
+    reader_count: 0,
+    active_pdf_reader: false,
+    default_quality: "medium",
+    duplicate_guard: true,
+    auto_cap: "4 MB",
+    max_index: "6 MB",
+    temp_dir: "C:\\Temp\\pdf-image-saver",
+    temp_leftovers: 0,
+    temp_bytes: 0,
+    optional_helper: "unknown",
+    warnings: ["Temp: access denied", "Helper: probe failed", "No PDF."],
+  }).includes("- Helper: probe failed"),
+  "diagnostics helper warnings must use dense Helper: prefix",
+);
 
 assert.strictEqual(getErrorMessage(new Error("Readable failure")), "Readable failure", "Error.message text must be preserved");
 assert.strictEqual(getErrorMessage("plain failure"), "plain failure", "plain thrown strings must be preserved");

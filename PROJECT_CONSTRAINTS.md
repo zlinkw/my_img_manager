@@ -63,18 +63,12 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 ### UI First
 
-- Dense reader toolbar, menus, overlays, toasts, diagnostics, prefs, and HTML index labels landed.
-- Category prefixes stay fixed: `Capture failed:`, `Helper:`, `Storage failed:`, `Byte cap:`, `Auto/Clip/Page skip`.
-- Session vs saved duplicate wording and page/doc scope tokens remain required.
-- Toolbar widths/aria stay stable in busy modes; toast reuses one element; quality estimates stay visible.
-- UI-first densify backlog is exhausted for inventable wording/chrome churn. Further UI work only for concrete clarity gaps or user-reported runtime wording.
-- Auto success skip-notes now reuse the same `saved/session dups`, `byte cap`, and `item cap` tokens as skip toasts.
-- Original import skip notes now reuse dense `byte cap` / `over cap` / `dup` tokens with auto success notes.
-- Original HTML index now mirrors preview Open actions and denser header meta.
-- Prefs status now surfaces Auto min and Helper min with the other dense caps.
-- Diagnostics now surfaces dups on/off with quality and caps.
-- Preview HTML index densifies quality header labels and detector names (`manual`/`auto`).
-- Diagnostics and attachment titles densify quality to human labels with estimates where space allows.
+- Dense reader toolbar, menus, overlays, toasts, diagnostics, prefs, and HTML indexes landed.
+- Keep fixed category prefixes: `Capture failed:`, `Helper:`, `Storage failed:`, `Byte cap:`, `Auto/Clip/Page skip`.
+- Keep session vs saved dups, page/doc tokens, quality estimates, stable toolbar widths/aria, single toast element.
+- Shared dense tokens: `saved/session dups`, `byte cap`, `item/over cap`, quality labels with estimates, detector `manual`/`auto`.
+- Prefs status and diagnostics already surface Q/dups/caps/min areas; original/preview indexes share Open actions.
+- Inventable densify churn is exhausted. Further UI only for concrete clarity gaps or user-reported runtime wording.
 
 ### After UI Is Exhausted
 
