@@ -111,12 +111,14 @@ const {
   formatRoleHintSummary,
   formatInsertHintSummary,
   formatCaptionHintSummary,
+  formatStoryHintSummary,
   formatContrastPairLabel,
   formatPptAssistSummary,
   buildPptAssistToken,
   buildRolePackToken,
   buildInsertPackToken,
   buildCaptionPackToken,
+  buildStoryPackToken,
   buildDrawingStyleTags,
   deriveColorFamilyFromPalette,
   deriveLayoutHint,
@@ -124,6 +126,7 @@ const {
   deriveRoleHint,
   deriveInsertHint,
   deriveCaptionHint,
+  deriveStoryBeat,
   deriveContrastHex,
   normalizeColorFamily,
   normalizeLayoutHint,
@@ -131,11 +134,14 @@ const {
   normalizeRoleHint,
   normalizeInsertHint,
   normalizeCaptionHint,
+  normalizeStoryBeat,
   getLayoutHintMark,
   getSlideSlotMark,
   getRoleHintMark,
   getInsertSizeMark,
   getCaptionToneMark,
+  getStoryBeatMark,
+  getColorFamilyMark,
   formatStyleTagsLabel,
   formatPaletteLabel,
   normalizeStyleTags,
@@ -972,6 +978,8 @@ assert.ok(metadata.entries[0].insert_hint.size, "insert_hint must include size")
 assert.ok(metadata.entries[0].caption_hint, "metadata must include caption_hint for PPT caption assist");
 assert.ok(metadata.entries[0].caption_hint.tone, "caption_hint must include tone");
 assert.ok(metadata.entries[0].caption_hint.title, "caption_hint must include title");
+assert.ok(metadata.entries[0].story_order, "metadata must include story_order for PPT storyboard assist");
+assert.ok(metadata.entries[0].story_beat, "metadata must include story_beat for PPT storyboard assist");
 assert.ok("dominant_hex" in metadata.entries[0], "metadata must include dominant_hex");
 assert.ok("contrast_hex" in metadata.entries[0], "metadata must include contrast_hex");
 assert.ok(Array.isArray(metadata.entries[0].style_tags), "metadata must include style_tags array");
@@ -982,6 +990,8 @@ assert.ok(metadata.entries[0].ppt_assist_token.includes("slot="), "ppt token mus
 assert.ok(metadata.entries[0].ppt_assist_token.includes("role="), "ppt token must include role hint");
 assert.ok(metadata.entries[0].ppt_assist_token.includes("ins="), "ppt token must include insert size");
 assert.ok(metadata.entries[0].ppt_assist_token.includes("cap="), "ppt token must include caption tone");
+assert.ok(metadata.entries[0].ppt_assist_token.includes("beat="), "ppt token must include story beat");
+assert.ok(metadata.entries[0].ppt_assist_token.includes("ord="), "ppt token must include story order");
 assert.ok(metadata.entries[0].ppt_assist_token.includes("dom="), "ppt token must include dominant hex");
 assert.ok(metadata.ppt_assist?.token, "index metadata must include ppt_assist summary");
 assert.ok(metadata.entries[0].style_tags_json, "metadata must include style_tags_json for PPT consumers");
@@ -1017,12 +1027,14 @@ assert.ok(html.includes("Copy pair"), "preview index must expose contrast pair c
 assert.ok(html.includes("Copy role"), "preview index must expose role pack copy action");
 assert.ok(html.includes("Copy insert"), "preview index must expose insert pack copy action");
 assert.ok(html.includes("Copy cap"), "preview index must expose caption pack copy action");
+assert.ok(html.includes("Copy story"), "preview index must expose story pack copy action");
 assert.ok(html.includes("Cat "), "preview index header must densify category summary");
 assert.ok(html.includes("Lay "), "preview index header must densify layout summary");
 assert.ok(html.includes("Slot "), "preview index header must densify slide slot summary");
 assert.ok(html.includes("Role "), "preview index header must densify role summary");
 assert.ok(html.includes("Ins "), "preview index header must densify insert summary");
 assert.ok(html.includes("Cap "), "preview index header must densify caption summary");
+assert.ok(html.includes("Story "), "preview index header must densify story summary");
 assert.ok(html.includes("PPT:"), "preview index header must expose PPT assist summary");
 assert.ok(html.includes("data-category="), "entries must expose category filter attributes");
 assert.ok(html.includes("data-layout="), "entries must expose layout filter attributes");
@@ -1030,33 +1042,42 @@ assert.ok(html.includes("data-slot="), "entries must expose slide slot filter at
 assert.ok(html.includes("data-role="), "entries must expose role filter attributes");
 assert.ok(html.includes("data-insert="), "entries must expose insert filter attributes");
 assert.ok(html.includes("data-caption="), "entries must expose caption filter attributes");
+assert.ok(html.includes("data-hue="), "entries must expose hue filter attributes");
+assert.ok(html.includes("data-beat="), "entries must expose story beat filter attributes");
 assert.ok(html.includes("<dt>Lay</dt>"), "preview index must expose layout summary field");
 assert.ok(html.includes("<dt>Slot</dt>"), "preview index must expose slide slot field");
 assert.ok(html.includes("<dt>Role</dt>"), "preview index must expose role field");
 assert.ok(html.includes("<dt>Ins</dt>"), "preview index must expose insert field");
 assert.ok(html.includes("<dt>Cap</dt>"), "preview index must expose caption field");
+assert.ok(html.includes("<dt>Story</dt>"), "preview index must expose story field");
 assert.ok(html.includes("<dt>Pair</dt>"), "preview index must expose contrast pair field");
 assert.ok(html.includes("<dt>Pack</dt>"), "preview index must expose role pack field");
 assert.ok(html.includes("<dt>Insert</dt>"), "preview index must expose insert pack field");
 assert.ok(html.includes("<dt>Caption</dt>"), "preview index must expose caption pack field");
+assert.ok(html.includes("<dt>StoryPack</dt>"), "preview index must expose story pack field");
 assert.strictEqual(normalizeColorFamily("Blue"), "blue", "color family normalize");
 assert.strictEqual(deriveLayoutHint(2.0, "chart"), "wide", "wide aspect maps to wide layout");
 assert.strictEqual(deriveSlideSlot("wide", "chart", 2.0), "hero", "wide chart maps to hero slot");
 assert.strictEqual(deriveRoleHint("chart", "hero", "wide"), "result", "chart hero maps to result role");
 assert.strictEqual(deriveInsertHint("hero", "wide", 1.8, "result").size, "large", "hero result maps to large insert");
 assert.strictEqual(deriveCaptionHint({ imageCategory: "chart", roleHint: "result", slideSlot: "hero", layoutHint: "wide", pageNumber: 3, colorFamily: "blue" }).tone, "result", "chart result maps to result caption");
+assert.strictEqual(deriveStoryBeat({ roleHint: "method", captionHint: { tone: "method" }, order: 2, total: 4 }), "method", "method role maps to method beat");
 assert.strictEqual(getLayoutHintMark("tall"), "T", "layout mark densify");
 assert.strictEqual(getSlideSlotMark("side"), "Sd", "slot mark densify");
 assert.strictEqual(getRoleHintMark("method"), "Md", "role mark densify");
 assert.strictEqual(getInsertSizeMark("small"), "Sm", "insert size mark densify");
 assert.strictEqual(getCaptionToneMark("method"), "Mt", "caption tone mark densify");
+assert.strictEqual(getStoryBeatMark("hook"), "Hk", "story beat mark densify");
+assert.strictEqual(getColorFamilyMark("blue"), "Bl", "color family mark densify");
 assert.strictEqual(formatContrastPairLabel("#112233", "#abcdef"), "#112233/#abcdef", "contrast pair densify");
 assert.ok(buildPptAssistToken({ imageCategory: "chart", colorFamily: "blue", styleTags: ["cool"], palette: [{hex:"#0000ff"},{hex:"#ffaa00"}], pageNumber: 3, quality: "high", renderedWidth: 800, renderedHeight: 400 }).includes("ins=large"), "ppt token densify insert");
 assert.ok(buildRolePackToken({ imageCategory: "diagram", layoutHint: "wide", slideSlot: "hero", palette: [{hex:"#123456"},{hex:"#abcdef"}], dominantHex: "#123456", contrastHex: "#abcdef" }).includes("use=pipeline-or-steps"), "role pack densify usage");
 assert.ok(buildInsertPackToken({ imageCategory: "chart", layoutHint: "wide", slideSlot: "hero", roleHint: "result", aspectRatio: 1.8 }).includes("size=large"), "insert pack densify size");
 assert.ok(buildCaptionPackToken({ imageCategory: "diagram", roleHint: "method", slideSlot: "hero", layoutHint: "wide", pageNumber: 2 }).includes("tone=method"), "caption pack densify tone");
-assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], palette: [], colorFamily: "blue", layoutHint: "wide", slideSlot: "hero", roleHint: "result", insertHint: { size: "large", anchor: "center", width_pct: 72, height_pct: 40 }, captionHint: { tone: "result", title: "Key chart result", note: "p3" } }).includes("ins-large"), "drawing tags add insert hints");
-assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], palette: [], colorFamily: "blue", layoutHint: "wide", slideSlot: "hero", roleHint: "result", insertHint: { size: "large", anchor: "center", width_pct: 72, height_pct: 40 }, captionHint: { tone: "result", title: "Key chart result", note: "p3" } }).includes("cap-result"), "drawing tags add caption hints");
+assert.ok(buildStoryPackToken({ imageCategory: "chart", roleHint: "result", slideSlot: "hero", layoutHint: "wide", storyOrder: 1, storyBeat: "hook", pageNumber: 2 }).includes("beat=hook"), "story pack densify beat");
+assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], palette: [], colorFamily: "blue", layoutHint: "wide", slideSlot: "hero", roleHint: "result", insertHint: { size: "large", anchor: "center", width_pct: 72, height_pct: 40 }, captionHint: { tone: "result", title: "Key chart result", note: "p3" }, storyBeat: "result" }).includes("ins-large"), "drawing tags add insert hints");
+assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], palette: [], colorFamily: "blue", layoutHint: "wide", slideSlot: "hero", roleHint: "result", insertHint: { size: "large", anchor: "center", width_pct: 72, height_pct: 40 }, captionHint: { tone: "result", title: "Key chart result", note: "p3" }, storyBeat: "result" }).includes("cap-result"), "drawing tags add caption hints");
+assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], palette: [], colorFamily: "blue", layoutHint: "wide", slideSlot: "hero", roleHint: "result", insertHint: { size: "large", anchor: "center", width_pct: 72, height_pct: 40 }, captionHint: { tone: "result", title: "Key chart result", note: "p3" }, storyBeat: "result" }).includes("beat-result"), "drawing tags add story beat hints");
 assert.ok(deriveContrastHex([{hex:"#0000ff",saturation:1,lightness:0.5,hue:240,population:1},{hex:"#ffaa00",saturation:1,lightness:0.5,hue:40,population:0.4}], "#0000ff"), "contrast hex derived");
 assert.strictEqual(normalizeImageCategoryKey("Chart"), "chart", "category normalize must accept case variants");
 assert.strictEqual(getImageCategoryMark("auto"), "Aut", "auto category mark");
