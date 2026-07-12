@@ -67,12 +67,13 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Keep fixed category prefixes: `Capture failed:`, `Helper:`, `Storage failed:`, `Byte cap:`, `Auto/Clip/Page skip`.
 - Keep session vs saved dups, page/doc tokens, quality estimates, stable toolbar widths/aria, single toast element.
 - Shared dense tokens: `saved/session dups`, `byte cap`, `item/over cap`, quality labels with estimates, detector `manual`/`auto`.
-- Prefs status and diagnostics already surface Q/dups/caps/min areas; original/preview indexes share Open actions.
+- Prefs status and diagnostics surface Q/dups/caps/auto-helper min areas; original/preview indexes share Open actions.
 - Preview/original HTML headers densify scope labels (`clip`/`page`/`auto`/`doc`).
 - Preview attachment/document titles include densified scope tokens for library scanning.
 - Original attachment/document titles densify page/doc scope like preview titles.
 - Original confirmation reuses the same dense `Use clip.` guidance as auto-skip fallbacks.
 - Auto unavailable tooltip reuses dense `Use clip.` guidance.
+- Diagnostics densifies auto/helper min areas beside caps and helper status.
 - Inventable densify churn is exhausted. Further UI only for concrete clarity gaps or user-reported runtime wording.
 
 ### After UI Is Exhausted

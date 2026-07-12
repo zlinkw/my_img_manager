@@ -117,6 +117,7 @@ const {
   formatAutoNoCandidatesReason,
   formatPreviewDuplicateSkipReason,
   classifyPreviewDuplicateSkipReason,
+  formatDiagnosticArea,
   formatDiagnosticsReport,
   formatOptionalHelperStatus,
   buildOriginalImportSkippedText,
@@ -1640,44 +1641,48 @@ assert.ok(noisyDiagnostics.includes("Plugin unknown"), "diagnostics plugin must 
 assert.ok(noisyDiagnostics.includes("On unknown"), "diagnostics booleans must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Q Medium; 60-220 KB"), "diagnostics quality must densify malformed values");
 assert.ok(noisyDiagnostics.includes("dups unknown"), "diagnostics dups must normalize malformed values");
-assert.strictEqual(
-  formatDiagnosticsReport({
-    plugin: "pdf-image-saver@zlk.local 0.1.0",
-    zotero: "9.0.5",
-    started: true,
-    reader_count: 1,
-    active_pdf_reader: true,
-    default_quality: "high",
-    duplicate_guard: true,
-    auto_cap: "3 MB",
-    max_index: "5 MB",
-    temp_dir: "C:\\Temp\\pdf-image-saver",
-    temp_leftovers: 0,
-    temp_bytes: 0,
-    optional_helper: "python-available",
-  }).includes("Q High; 180-750 KB; dups on; auto 3 MB; index 5 MB"),
-  true,
-  "diagnostics must surface dups with quality/caps",
-);
-assert.strictEqual(
-  formatDiagnosticsReport({
-    plugin: "pdf-image-saver@zlk.local 0.1.0",
-    zotero: "9.0.5",
-    started: true,
-    reader_count: 0,
-    active_pdf_reader: false,
-    default_quality: "low",
-    duplicate_guard: false,
-    auto_cap: "1 MB",
-    max_index: "2 MB",
-    temp_dir: "C:\\Temp\\pdf-image-saver",
-    temp_leftovers: 0,
-    temp_bytes: 0,
-    optional_helper: "python-missing",
-  }).includes("Q Low; 20-80 KB; dups off; auto 1 MB; index 2 MB"),
-  true,
-  "diagnostics must show dups off when guard disabled",
-);
+assert.ok(noisyDiagnostics.includes("auto min unknown"), "diagnostics auto min must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Helper unknown; min unknown"), "diagnostics helper min must normalize malformed values");
+const denseDiagnostics = formatDiagnosticsReport({
+  plugin: "pdf-image-saver@zlk.local 0.1.0",
+  zotero: "9.0.5",
+  started: true,
+  reader_count: 1,
+  active_pdf_reader: true,
+  default_quality: "high",
+  duplicate_guard: true,
+  auto_min_area: 0.003,
+  helper_min_area: 0.004,
+  auto_cap: "3 MB",
+  max_index: "5 MB",
+  temp_dir: "C:\\Temp\\pdf-image-saver",
+  temp_leftovers: 0,
+  temp_bytes: 0,
+  optional_helper: "python-available",
+});
+assert.ok(denseDiagnostics.includes("Q High; 180-750 KB; dups on; auto min 0.003; auto 3 MB; index 5 MB"), "diagnostics must surface dups/min areas with quality/caps");
+assert.ok(denseDiagnostics.includes("Helper py ok; min 0.004; orig opt"), "diagnostics must surface helper min area");
+assert.strictEqual(formatDiagnosticArea(0.003), "0.003", "diagnostic area must densify numeric mins");
+assert.strictEqual(formatDiagnosticArea({ bad: true }), "unknown", "diagnostic area must fall back for malformed values");
+const denseDiagnosticsOff = formatDiagnosticsReport({
+  plugin: "pdf-image-saver@zlk.local 0.1.0",
+  zotero: "9.0.5",
+  started: true,
+  reader_count: 0,
+  active_pdf_reader: false,
+  default_quality: "low",
+  duplicate_guard: false,
+  auto_min_area: 0.01,
+  helper_min_area: 0.02,
+  auto_cap: "1 MB",
+  max_index: "2 MB",
+  temp_dir: "C:\\Temp\\pdf-image-saver",
+  temp_leftovers: 0,
+  temp_bytes: 0,
+  optional_helper: "python-missing",
+});
+assert.ok(denseDiagnosticsOff.includes("Q Low; 20-80 KB; dups off; auto min 0.01; auto 1 MB; index 2 MB"), "diagnostics must show dups off and auto min when guard disabled");
+assert.ok(denseDiagnosticsOff.includes("Helper py missing; min 0.02; orig opt"), "diagnostics must show helper min with missing python");
 assert.ok(noisyDiagnostics.includes("PDF UNKNOWN"), "diagnostics PDF key must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("parent none"), "diagnostics parent item must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Page 1"), "diagnostics page target must normalize malformed values");

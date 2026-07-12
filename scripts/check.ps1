@@ -1705,4 +1705,21 @@ if ($mainJS -match "Prefer clip") {
   throw "Original confirmation must not use legacy Prefer clip wording"
 }
 
+
+if ($mainJS -notmatch "auto_min_area:\s*clamp\(getNumberPref\(\`"minAutoImageArea`"") {
+  throw "Runtime diagnostics must capture auto min area"
+}
+if ($mainJS -notmatch "helper_min_area:\s*clamp\(getNumberPref\(\`"minImageArea`"") {
+  throw "Runtime diagnostics must capture helper min area"
+}
+if ($mainJS -notmatch "auto min \$\{formatDiagnosticArea\(safeReport\.auto_min_area\)\}") {
+  throw "Diagnostics report must densify auto min area"
+}
+if ($mainJS -notmatch "Helper \$\{formatOptionalHelperStatus\(safeReport\.optional_helper\)\}; min \$\{formatDiagnosticArea\(safeReport\.helper_min_area\)\}") {
+  throw "Diagnostics report must densify helper min area"
+}
+if ($mainJS -notmatch "function\s+formatDiagnosticArea\s*\(") {
+  throw "Diagnostics area densifier missing"
+}
+
 Write-Host "check ok"
