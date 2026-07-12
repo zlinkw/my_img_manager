@@ -1440,7 +1440,7 @@ if ($mainJS -notmatch "report\.optional_helper\s*=") {
 if ($mainJS -notmatch "function\s+formatOptionalHelperStatus\s*\(") {
   throw "Diagnostics helper status formatter missing"
 }
-if ($mainJS -notmatch "Helper\s*\$\{formatOptionalHelperStatus\(safeReport\.optional_helper\)\}") {
+if ($mainJS -notmatch "Helper:\s*\$\{formatOptionalHelperStatus\(safeReport\.optional_helper\)\}") {
   throw "Diagnostics report must include optional helper status line"
 }
 
@@ -1528,7 +1528,7 @@ if ($diagnosticsReportEntry.Value -notmatch "getQualityLabelWithEstimate\(safeRe
 if ($diagnosticsReportEntry.Value -notmatch "Store: HTML; sync PDF") {
   throw "Diagnostics report must surface dense storage mode"
 }
-if ($diagnosticsReportEntry.Value -notmatch "dups \$\{formatDiagnosticDups\(safeReport\.duplicate_guard\)\}") {
+if ($diagnosticsReportEntry.Value -notmatch "Dups: \$\{formatDiagnosticDups\(safeReport\.duplicate_guard\)\}") {
   throw "Diagnostics report formatter must surface dups status"
 }
 if ($mainJS -notmatch "function\s+formatDiagnosticDups\s*\(") {
@@ -1722,10 +1722,10 @@ if ($mainJS -notmatch "auto_min_area:\s*clamp\(getNumberPref\(\`"minAutoImageAre
 if ($mainJS -notmatch "helper_min_area:\s*clamp\(getNumberPref\(\`"minImageArea`"") {
   throw "Runtime diagnostics must capture helper min area"
 }
-if ($mainJS -notmatch "auto min \$\{formatDiagnosticArea\(safeReport\.auto_min_area\)\}") {
+if ($mainJS -notmatch "Auto: min \$\{formatDiagnosticArea\(safeReport\.auto_min_area\)\}") {
   throw "Diagnostics report must densify auto min area"
 }
-if ($mainJS -notmatch "Helper \$\{formatOptionalHelperStatus\(safeReport\.optional_helper\)\}; min \$\{formatDiagnosticArea\(safeReport\.helper_min_area\)\}") {
+if ($mainJS -notmatch "Helper: \$\{formatOptionalHelperStatus\(safeReport\.optional_helper\)\}; min \$\{formatDiagnosticArea\(safeReport\.helper_min_area\)\}") {
   throw "Diagnostics report must densify helper min area"
 }
 if ($mainJS -notmatch "function\s+formatDiagnosticArea\s*\(") {
@@ -1766,8 +1766,11 @@ if ($mainJS -notmatch "\$\{formatHelperPythonMode\(safeReport\.helper_python_mod
 }
 
 
-if ($mainJS -notmatch "max; \$\{normalizeDiagnosticText\(safeReport\.auto_cap,\s*`"unknown`",\s*80\)\}; index") {
-  throw "Diagnostics auto caps must densify without redundant auto token"
+if ($mainJS -notmatch "Auto: min \$\{formatDiagnosticArea\(safeReport\.auto_min_area\)\}; \$\{normalizeNonNegativeInteger\(safeReport\.auto_max_images,\s*0\)\} max; \$\{normalizeDiagnosticText\(safeReport\.auto_cap,\s*`"unknown`",\s*80\)\}") {
+  throw "Diagnostics auto caps must densify as preference-style Auto line"
+}
+if ($mainJS -notmatch "Index: \$\{normalizeDiagnosticText\(safeReport\.max_index,\s*`"unknown`",\s*80\)\}") {
+  throw "Diagnostics index cap must densify as preference-style Index line"
 }
 
 Write-Host "check ok"

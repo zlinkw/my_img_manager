@@ -1643,12 +1643,13 @@ assert.ok(noisyDiagnostics.includes("Plugin unknown"), "diagnostics plugin must 
 assert.ok(noisyDiagnostics.includes("Store: HTML; sync PDF"), "diagnostics must surface storage mode");
 assert.ok(noisyDiagnostics.includes("On unknown"), "diagnostics booleans must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Q Medium; 60-220 KB"), "diagnostics quality must densify malformed values");
-assert.ok(noisyDiagnostics.includes("dups unknown"), "diagnostics dups must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Dups: unknown"), "diagnostics dups must normalize malformed values");
 assert.strictEqual(formatDiagnosticDups(true), "on; sess+saved", "diagnostics dups must densify enabled guard");
 assert.strictEqual(formatDiagnosticDups(false), "off", "diagnostics dups must densify disabled guard");
-assert.ok(noisyDiagnostics.includes("auto min unknown"), "diagnostics auto min must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Auto: min unknown"), "diagnostics auto min must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("0 max"), "diagnostics auto max must normalize malformed values");
-assert.ok(noisyDiagnostics.includes("Helper unknown; min unknown; page 0; doc 0; 0s; auto py"), "diagnostics helper caps must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Index: unknown"), "diagnostics index cap must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Helper: unknown; min unknown; page 0; doc 0; 0s; auto py"), "diagnostics helper caps must normalize malformed values");
 const denseDiagnostics = formatDiagnosticsReport({
   plugin: "pdf-image-saver@zlk.local 0.1.0",
   zotero: "9.0.5",
@@ -1671,8 +1672,11 @@ const denseDiagnostics = formatDiagnosticsReport({
   temp_bytes: 0,
   optional_helper: "python-available",
 });
-assert.ok(denseDiagnostics.includes("Q High; 180-750 KB; dups on; sess+saved; auto min 0.003; 6 max; 3 MB; index 5 MB"), "diagnostics must surface dups/min/max with quality/caps");
-assert.ok(denseDiagnostics.includes("Helper py ok; min 0.004; page 12; doc 34; 45s; custom py; orig opt"), "diagnostics must surface helper min/caps and python mode");
+assert.ok(denseDiagnostics.includes("Q High; 180-750 KB"), "diagnostics must densify quality");
+assert.ok(denseDiagnostics.includes("Dups: on; sess+saved"), "diagnostics must densify dups");
+assert.ok(denseDiagnostics.includes("Auto: min 0.003; 6 max; 3 MB"), "diagnostics must densify auto caps");
+assert.ok(denseDiagnostics.includes("Index: 5 MB"), "diagnostics must densify index cap");
+assert.ok(denseDiagnostics.includes("Helper: py ok; min 0.004; page 12; doc 34; 45s; custom py; orig opt"), "diagnostics must surface helper min/caps and python mode");
 assert.strictEqual(formatDiagnosticArea(0.003), "0.003", "diagnostic area must densify numeric mins");
 assert.strictEqual(formatDiagnosticArea({ bad: true }), "unknown", "diagnostic area must fall back for malformed values");
 const denseDiagnosticsOff = formatDiagnosticsReport({
@@ -1697,12 +1701,15 @@ const denseDiagnosticsOff = formatDiagnosticsReport({
   temp_bytes: 0,
   optional_helper: "python-missing",
 });
-assert.ok(denseDiagnosticsOff.includes("Q Low; 20-80 KB; dups off; auto min 0.01; 4 max; 1 MB; index 2 MB"), "diagnostics must show dups off and auto min/max when guard disabled");
-assert.ok(denseDiagnosticsOff.includes("Helper py missing; min 0.02; page 8; doc 9; 30s; auto py; orig opt"), "diagnostics must show helper min/caps and python mode with missing python");
+assert.ok(denseDiagnosticsOff.includes("Q Low; 20-80 KB"), "diagnostics must densify quality when guard disabled");
+assert.ok(denseDiagnosticsOff.includes("Dups: off"), "diagnostics must show dups off when guard disabled");
+assert.ok(denseDiagnosticsOff.includes("Auto: min 0.01; 4 max; 1 MB"), "diagnostics must densify auto caps when guard disabled");
+assert.ok(denseDiagnosticsOff.includes("Index: 2 MB"), "diagnostics must densify index cap when guard disabled");
+assert.ok(denseDiagnosticsOff.includes("Helper: py missing; min 0.02; page 8; doc 9; 30s; auto py; orig opt"), "diagnostics must show helper min/caps and python mode with missing python");
 assert.ok(noisyDiagnostics.includes("PDF UNKNOWN"), "diagnostics PDF key must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("parent none"), "diagnostics parent item must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Page 1"), "diagnostics page target must normalize malformed values");
-assert.ok(noisyDiagnostics.includes("Helper unknown"), "diagnostics helper status must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Helper: unknown"), "diagnostics helper status must normalize malformed values");
 const autoUnavailableButton = { disabled: false, title: "" };
 applyAutoRasterButtonState(autoUnavailableButton, false, "medium");
 assert.strictEqual(autoUnavailableButton.disabled, true, "unavailable auto button must disable");
