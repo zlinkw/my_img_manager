@@ -1722,4 +1722,18 @@ if ($mainJS -notmatch "function\s+formatDiagnosticArea\s*\(") {
   throw "Diagnostics area densifier missing"
 }
 
+
+if ($mainJS -notmatch "helper_page_max:\s*getHelperMaxImages\(\`"page`"\)") {
+  throw "Runtime diagnostics must capture helper page max"
+}
+if ($mainJS -notmatch "helper_doc_max:\s*getHelperMaxImages\(\`"document`"\)") {
+  throw "Runtime diagnostics must capture helper doc max"
+}
+if ($mainJS -notmatch "helper_timeout_s:\s*getHelperTimeoutSeconds\(\)") {
+  throw "Runtime diagnostics must capture helper timeout"
+}
+if ($mainJS -notmatch "page \$\{normalizeNonNegativeInteger\(safeReport\.helper_page_max,\s*0\)\}; doc \$\{normalizeNonNegativeInteger\(safeReport\.helper_doc_max,\s*0\)\}; \$\{normalizeNonNegativeInteger\(safeReport\.helper_timeout_s,\s*0\)\}s") {
+  throw "Diagnostics report must densify helper page/doc/timeout caps"
+}
+
 Write-Host "check ok"
