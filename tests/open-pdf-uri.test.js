@@ -1671,7 +1671,7 @@ const denseDiagnostics = formatDiagnosticsReport({
   temp_bytes: 0,
   optional_helper: "python-available",
 });
-assert.ok(denseDiagnostics.includes("Q High; 180-750 KB; dups on; sess+saved; auto min 0.003; 6 max; auto 3 MB; index 5 MB"), "diagnostics must surface dups/min/max with quality/caps");
+assert.ok(denseDiagnostics.includes("Q High; 180-750 KB; dups on; sess+saved; auto min 0.003; 6 max; 3 MB; index 5 MB"), "diagnostics must surface dups/min/max with quality/caps");
 assert.ok(denseDiagnostics.includes("Helper py ok; min 0.004; page 12; doc 34; 45s; custom py; orig opt"), "diagnostics must surface helper min/caps and python mode");
 assert.strictEqual(formatDiagnosticArea(0.003), "0.003", "diagnostic area must densify numeric mins");
 assert.strictEqual(formatDiagnosticArea({ bad: true }), "unknown", "diagnostic area must fall back for malformed values");
@@ -1697,7 +1697,7 @@ const denseDiagnosticsOff = formatDiagnosticsReport({
   temp_bytes: 0,
   optional_helper: "python-missing",
 });
-assert.ok(denseDiagnosticsOff.includes("Q Low; 20-80 KB; dups off; auto min 0.01; 4 max; auto 1 MB; index 2 MB"), "diagnostics must show dups off and auto min/max when guard disabled");
+assert.ok(denseDiagnosticsOff.includes("Q Low; 20-80 KB; dups off; auto min 0.01; 4 max; 1 MB; index 2 MB"), "diagnostics must show dups off and auto min/max when guard disabled");
 assert.ok(denseDiagnosticsOff.includes("Helper py missing; min 0.02; page 8; doc 9; 30s; auto py; orig opt"), "diagnostics must show helper min/caps and python mode with missing python");
 assert.ok(noisyDiagnostics.includes("PDF UNKNOWN"), "diagnostics PDF key must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("parent none"), "diagnostics parent item must normalize malformed values");

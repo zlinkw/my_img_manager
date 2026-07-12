@@ -1765,4 +1765,9 @@ if ($mainJS -notmatch "\$\{formatHelperPythonMode\(safeReport\.helper_python_mod
   throw "Diagnostics report must densify helper python path mode"
 }
 
+
+if ($mainJS -notmatch "max; \$\{normalizeDiagnosticText\(safeReport\.auto_cap,\s*`"unknown`",\s*80\)\}; index") {
+  throw "Diagnostics auto caps must densify without redundant auto token"
+}
+
 Write-Host "check ok"
