@@ -912,16 +912,16 @@ var PdfImageSaver = (() => {
       rememberPreviewIndexSave(attachment, previews, indexKey);
       const notes = [];
       if (skippedSavedDuplicates) {
-        notes.push(`${skippedSavedDuplicates} saved-dup`);
+        notes.push(`${skippedSavedDuplicates} saved dup${skippedSavedDuplicates === 1 ? "" : "s"}`);
       }
       if (skippedSessionDuplicates) {
-        notes.push(`${skippedSessionDuplicates} session-dup`);
+        notes.push(`${skippedSessionDuplicates} session dup${skippedSessionDuplicates === 1 ? "" : "s"}`);
       }
       if (skippedByteLimit) {
-        notes.push("byte-cap");
+        notes.push("byte cap");
       }
       if (skippedOversized) {
-        notes.push(`${skippedOversized} oversize`);
+        notes.push(`${skippedOversized} item cap`);
       }
       showReaderToast(
         reader,
