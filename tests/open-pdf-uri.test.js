@@ -128,6 +128,7 @@ const {
   getActiveReader,
   applyAutoRasterButtonState,
   buildToolbarActionTooltip,
+  formatPreviewDetectorLabel,
   formatQualityEstimateShort,
   formatPageToastToken,
   formatOriginalScopeToken,
@@ -766,6 +767,11 @@ assert.strictEqual(metadata.entries[0].annotation_key, null);
 assert.ok(html.includes("<details>"), "full JSON metadata must be in a details block");
 assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
+assert.ok(html.includes("Medium; 60-220 KB"), "preview index header must densify quality label/estimate");
+assert.ok(html.includes(">manual</dd>"), "preview index trace must densify detector label");
+assert.strictEqual(formatPreviewDetectorLabel("manual_selection"), "manual", "manual detector must densify");
+assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "auto", "auto detector must densify");
+assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detector", "unknown detector must keep readable text");
 assert.ok(html.includes(">Open</a>"), "HTML entry must expose an explicit source PDF action");
 assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region identity must keep full source key in a title");
 assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");

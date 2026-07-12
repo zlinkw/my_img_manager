@@ -1480,7 +1480,7 @@ var PdfImageSaver = (() => {
             <details class="entry-details">
               <summary>Trace</summary>
               <dl>
-                <div><dt>Det</dt><dd>${escapeHTML(entry.detector)}</dd></div>
+                <div><dt>Det</dt><dd>${escapeHTML(formatPreviewDetectorLabel(entry.detector))}</dd></div>
                 <div><dt>Map</dt><dd>${escapeHTML(sourceRegionLabel)}</dd></div>
                 <div><dt>Box</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
                 <div><dt>Key</dt><dd>${escapeHTML(entry.sourceRegionKey)}</dd></div>
@@ -1555,7 +1555,7 @@ var PdfImageSaver = (() => {
   <header>
     <h1>${escapeHTML(sourceTitle)}</h1>
     <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync.</p>
-    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(previewQualityKey)}</p>
+    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}</p>
   </header>
   ${entriesHTML}
   <details>
@@ -3302,6 +3302,20 @@ var PdfImageSaver = (() => {
     return String(estimate || "").replace(/\/image$/i, "");
   }
 
+  function formatPreviewDetectorLabel(detector) {
+    const text = normalizeMetadataText(detector, "unknown", 80);
+    if (!text || text === "unknown") {
+      return "unknown";
+    }
+    if (text === "manual_selection" || text === "manual") {
+      return "manual";
+    }
+    if (text === "pdfjs_record_images" || text === "pdfjs" || text === "auto") {
+      return "auto";
+    }
+    return text.replace(/_/g, " ");
+  }
+
   function formatPageToastToken(pageIndex) {
     return `p${normalizePageIndex(pageIndex, 0) + 1}`;
   }
@@ -4044,6 +4058,7 @@ var PdfImageSaver = (() => {
       applyAutoRasterButtonState,
       buildContextMenuActions,
       buildToolbarActionTooltip,
+      formatPreviewDetectorLabel,
       formatQualityEstimateShort,
       formatPageToastToken,
       formatOriginalScopeToken,

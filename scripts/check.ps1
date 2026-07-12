@@ -1617,6 +1617,16 @@ if ($mainJS -notmatch "\.filter\(\(listener\)\s*=>\s*listener\.pluginID\s*!==\s*
 if ($mainJS -notmatch "class=`"source-map`"") {
   throw "HTML index must include compact source region map"
 }
+
+if ($mainJS -notmatch "function\s+formatPreviewDetectorLabel\s*\(") {
+  throw "Preview index detector label densifier missing"
+}
+if ($mainJS -notmatch "formatPreviewDetectorLabel\(entry\.detector\)") {
+  throw "Preview index Trace must densify detector labels"
+}
+if ($mainJS -notmatch "getQualityLabelWithEstimate\(previewQualityKey\)") {
+  throw "Preview index header must densify quality label/estimate"
+}
 if ($mainJS -match "Zotero\.Annotations\.saveFromJSON") {
   throw "Plugin must not create Zotero annotations by default"
 }
