@@ -1744,4 +1744,15 @@ if ($mainJS -notmatch "\$\{normalizeNonNegativeInteger\(safeReport\.auto_max_ima
   throw "Diagnostics report must densify auto max images"
 }
 
+
+if ($mainJS -notmatch "helper_python_mode:\s*getStringPref\(\`"pythonPath`"") {
+  throw "Runtime diagnostics must capture helper python path mode"
+}
+if ($mainJS -notmatch "function\s+formatHelperPythonMode\s*\(") {
+  throw "Diagnostics python mode densifier missing"
+}
+if ($mainJS -notmatch "\$\{formatHelperPythonMode\(safeReport\.helper_python_mode\)\}") {
+  throw "Diagnostics report must densify helper python path mode"
+}
+
 Write-Host "check ok"

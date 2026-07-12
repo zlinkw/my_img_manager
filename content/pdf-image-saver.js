@@ -410,6 +410,7 @@ var PdfImageSaver = (() => {
       helper_page_max: getHelperMaxImages("page"),
       helper_doc_max: getHelperMaxImages("document"),
       helper_timeout_s: getHelperTimeoutSeconds(),
+      helper_python_mode: getStringPref("pythonPath", "").trim() ? "custom" : "auto",
       duplicate_guard: getBoolPref("duplicateGuard", true),
       warnings: [],
     };
@@ -470,7 +471,7 @@ var PdfImageSaver = (() => {
       `Plugin ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}; Zotero ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
       `On ${formatDiagnosticBoolean(safeReport.started)}; readers ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}; PDF ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
       `Q ${getQualityLabelWithEstimate(safeReport.default_quality)}; dups ${formatDiagnosticBoolean(safeReport.duplicate_guard)}; auto min ${formatDiagnosticArea(safeReport.auto_min_area)}; ${normalizeNonNegativeInteger(safeReport.auto_max_images, 0)} max; auto ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
-      `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; min ${formatDiagnosticArea(safeReport.helper_min_area)}; page ${normalizeNonNegativeInteger(safeReport.helper_page_max, 0)}; doc ${normalizeNonNegativeInteger(safeReport.helper_doc_max, 0)}; ${normalizeNonNegativeInteger(safeReport.helper_timeout_s, 0)}s; orig opt`,
+      `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; min ${formatDiagnosticArea(safeReport.helper_min_area)}; page ${normalizeNonNegativeInteger(safeReport.helper_page_max, 0)}; doc ${normalizeNonNegativeInteger(safeReport.helper_doc_max, 0)}; ${normalizeNonNegativeInteger(safeReport.helper_timeout_s, 0)}s; ${formatHelperPythonMode(safeReport.helper_python_mode)}; orig opt`,
       `Temp ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)}); ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 160)}`,
     ];
     if (safeReport.pdf_attachment) {
@@ -526,6 +527,17 @@ var PdfImageSaver = (() => {
       return "py missing";
     }
     return "unknown";
+  }
+
+  function formatHelperPythonMode(value) {
+    const key = normalizeDiagnosticText(value, "auto", 24).toLowerCase();
+    if (key === "custom" || key === "custom py") {
+      return "custom py";
+    }
+    if (key === "auto" || key === "auto py") {
+      return "auto py";
+    }
+    return "auto py";
   }
 
   async function startClipFromReader(reader, qualityKey, explicitPageIndex, options = {}) {
@@ -4070,6 +4082,7 @@ var PdfImageSaver = (() => {
       filterExistingOriginalImagesForImport,
       formatDiagnosticArea,
       formatDiagnosticsReport,
+      formatHelperPythonMode,
       formatOptionalHelperStatus,
       formatAutoDuplicateSkipReason,
       formatAutoNoCandidatesReason,
