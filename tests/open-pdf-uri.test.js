@@ -100,6 +100,16 @@ context.PdfImageSaver.init({
 
 const {
   buildIndexHTML,
+  normalizeImageCategoryKey,
+  getImageCategoryLabel,
+  getImageCategoryMark,
+  inferImageCategory,
+  formatCategorySummary,
+  formatStyleTagsLabel,
+  formatPaletteLabel,
+  normalizeStyleTags,
+  normalizePalette,
+  deriveStyleTagsFromPalette,
   buildIndexTitle,
   buildOriginalImageIndexHTML,
   buildOriginalImageIndexTitle,
@@ -920,6 +930,9 @@ assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normali
 assert.strictEqual(metadata.entries[0].source_region_key, htmlEntry.sourceRegionKey);
 assert.strictEqual(metadata.entries[0].preview_duplicate_key, getPreviewDuplicateKey(htmlAttachment, htmlEntry));
 assert.strictEqual(metadata.entries[0].annotation_key, null);
+assert.ok(metadata.entries[0].image_category, "metadata must include image_category for PPT filtering");
+assert.ok(Array.isArray(metadata.entries[0].style_tags), "metadata must include style_tags array");
+assert.ok(Array.isArray(metadata.entries[0].palette), "metadata must include palette array");
 assert.ok(html.includes("<details>"), "full JSON metadata must be in a details block");
 assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
@@ -940,13 +953,24 @@ assert.strictEqual(formatPreviewScopeLabel("clip"), "clip", "clip scope must sta
 
 assert.ok(html.includes("<dt>Det</dt>"), "preview index must expose detector in summary");
 assert.ok(html.includes(">manual</dd>"), "preview index detector must densify detector label");
+assert.ok(html.includes("<dt>Cat</dt>"), "preview index must expose category summary");
+assert.ok(html.includes("<dt>Tags</dt>"), "preview index must expose style tags");
+assert.ok(html.includes("<dt>Pal</dt>"), "preview index must expose palette");
+assert.ok(html.includes("Cat "), "preview index header must densify category summary");
+assert.strictEqual(normalizeImageCategoryKey("Chart"), "chart", "category normalize must accept case variants");
+assert.strictEqual(getImageCategoryMark("auto"), "Aut", "auto category mark");
+assert.strictEqual(inferImageCategory({ width: 900, height: 300, styleTags: ["muted"], palette: [], detector: "manual_selection", detectionArea: 0.2 }), "table", "wide regions classify as table");
+assert.ok(formatCategorySummary([{ imageCategory: "chart" }, { imageCategory: "chart" }, { imageCategory: "photo" }]).includes("Cht2"), "category summary must count marks");
+assert.strictEqual(normalizeStyleTags(["bright", "bright", "cool"]).join(","), "bright,cool", "style tags must dedupe");
+assert.strictEqual(formatPaletteLabel([{ hex: "#ff0000" }, { hex: "#00ff00" }]), "#ff0000 #00ff00", "palette label densify");
+assert.strictEqual(formatStyleTagsLabel(["bright", "cool"]), "bright, cool", "style tags densify");
 assert.strictEqual(formatPreviewDetectorLabel("manual_selection"), "manual", "manual detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "auto", "auto detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detector", "unknown detector must keep readable text");
 assert.ok(html.includes('alt="Preview p5 #1"'), "preview image alt must include page and entry index");
 assert.ok(html.includes('class="entry-badge"'), "preview entries must expose dense entry badge");
 assert.ok(html.includes("position: sticky"), "preview index header must stick while scrolling");
-assert.ok(html.includes(">#1 M</div>"), "preview entry badge must show 1-based index and quality mark");
+assert.ok(/#1 M [A-Za-z]{3}/.test(html), "preview entry badge must show 1-based index, quality mark, and category mark");
 assert.strictEqual(getQualityMark("medium"), "M", "medium quality mark");
 assert.strictEqual(getQualityMark("high"), "H", "high quality mark");
 assert.strictEqual(getQualityMark("low"), "L", "low quality mark");
@@ -2084,7 +2108,8 @@ async function assertToolbarUnavailableStateSurvivesQualityChange() {
   });
   await flushAsyncToolbarState();
   assert.strictEqual(toolbarChildren.length, 1, "toolbar render must append one control group");
-  const [toolbarSelect, , toolbarAutoButton] = toolbarChildren[0].children;
+  const [toolbarSelect, toolbarCategorySelect, , toolbarAutoButton] = toolbarChildren[0].children;
+  assert.ok(toolbarCategorySelect?.className?.includes("pdf-image-saver-category"), "toolbar must expose category select");
   assert.strictEqual(toolbarAutoButton.disabled, true, "unsupported auto-raster toolbar button must be disabled");
   assert.ok(
     toolbarAutoButton.title.includes("n/a"),
@@ -2135,7 +2160,8 @@ async function assertToolbarBusyModeLocksSiblingControls() {
     });
     await flushAsyncToolbarState();
     await flushAsyncToolbarState();
-    const [toolbarSelect, toolbarClipButton, toolbarAutoButton] = toolbarChildren[0].children;
+    const [toolbarSelect, toolbarCategorySelect, toolbarClipButton, toolbarAutoButton] = toolbarChildren[0].children;
+    assert.ok(toolbarCategorySelect?.className?.includes("pdf-image-saver-category"), "busy-mode toolbar must keep category select");
     assert.strictEqual(toolbarClipButton.textContent, "Clip", "idle clip button label");
     assert.strictEqual(toolbarAutoButton.textContent, "Auto", "idle auto button label");
     assert.strictEqual(toolbarSelect.disabled, false, "quality select enabled when idle");
@@ -2146,10 +2172,12 @@ async function assertToolbarBusyModeLocksSiblingControls() {
     assert.strictEqual(toolbarClipButton.disabled, true, "clip click must disable clip button");
     assert.strictEqual(toolbarAutoButton.disabled, true, "clip click must disable auto button");
     assert.strictEqual(toolbarSelect.disabled, true, "clip click must disable quality select");
+    assert.strictEqual(toolbarCategorySelect.disabled, true, "clip click must disable category select");
     assert.strictEqual(toolbarClipButton.title, "Clip drag", "busy clip title must describe active selection");
     assert.strictEqual(toolbarChildren[0].getAttribute("aria-busy"), "true", "busy toolbar group must set aria-busy");
     assert.strictEqual(toolbarChildren[0].getAttribute("data-mode"), "clip", "busy toolbar group must expose clip mode");
     assert.strictEqual(toolbarSelect.title, "Q lock (clip)", "busy quality select must explain clip lock");
+    assert.strictEqual(toolbarCategorySelect.title, "Cat lock (clip)", "busy category select must explain clip lock");
     assert.strictEqual(toolbarAutoButton.title, "Auto lock (clip)", "busy auto title must describe clip lock");
 
     // Quality change and second clip click must stay no-ops while busy.
@@ -2158,6 +2186,7 @@ async function assertToolbarBusyModeLocksSiblingControls() {
     toolbarClipButton.dispatch("click");
     assert.strictEqual(toolbarClipButton.textContent, "Drag...", "busy clip click must remain no-op");
     assert.strictEqual(toolbarSelect.disabled, true, "busy quality select must stay disabled");
+    assert.strictEqual(toolbarCategorySelect.disabled, true, "busy category select must stay disabled");
     assert.strictEqual(toolbarAutoButton.disabled, true, "busy auto button must stay disabled");
 
     // Failed clip (no canvas) ends session and restores idle + available auto.
@@ -2166,6 +2195,7 @@ async function assertToolbarBusyModeLocksSiblingControls() {
     assert.strictEqual(toolbarClipButton.textContent, "Clip", "failed clip must restore idle clip label");
     assert.strictEqual(toolbarClipButton.disabled, false, "failed clip must re-enable clip");
     assert.strictEqual(toolbarSelect.disabled, false, "failed clip must re-enable quality select");
+    assert.strictEqual(toolbarCategorySelect.disabled, false, "failed clip must re-enable category select");
     assert.strictEqual(toolbarAutoButton.disabled, false, "failed clip must restore available auto");
     assert.strictEqual(toolbarAutoButton.textContent, "Auto", "failed clip must restore idle auto label");
 
@@ -2195,7 +2225,7 @@ async function assertToolbarBusyModeLocksSiblingControls() {
     });
     await flushAsyncToolbarState();
     await flushAsyncToolbarState();
-    const [, unavailableClipButton, unavailableAutoButton] = unavailableChildren[0].children;
+    const [, , unavailableClipButton, unavailableAutoButton] = unavailableChildren[0].children;
     assert.strictEqual(unavailableAutoButton.disabled, true, "unsupported auto must stay disabled when idle");
     unavailableClipButton.dispatch("click");
     assert.strictEqual(unavailableClipButton.textContent, "Drag...", "unavailable runtime clip still enters Drag");
@@ -2251,12 +2281,16 @@ onCreateViewContextMenu({
   },
 });
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Auto H High; 180-750 KB"),
+  contextMenuItems.some((item) => String(item.label || "").startsWith("Auto H High; 180-750 KB")),
   "context menu auto-raster label must show the default quality estimate",
 );
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Page H High; 180-750 KB"),
+  contextMenuItems.some((item) => String(item.label || "").startsWith("Page H High; 180-750 KB")),
   "context menu page-preview label must show the default quality estimate",
+);
+assert.ok(
+  contextMenuItems.some((item) => /; Aut$/.test(String(item.label || "")) || /; Cht$|; Dia$|; Pho$|; Tab$|; Sch$|; Eqn$|; Fig$|; Aut$/.test(String(item.label || ""))),
+  "context menu capture labels must densify category mark",
 );
 assert.ok(
   !contextMenuItems.some((item) => item.label === "Save current page preview index (Medium)"),

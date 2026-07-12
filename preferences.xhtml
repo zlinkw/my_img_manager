@@ -17,6 +17,19 @@
           <html:option value="high">H High; 180-750 KB</html:option>
         </html:select>
 
+        <html:label for="pdf-image-saver-default-category" title="Default figure category for capture/PPT tags">Cat</html:label>
+        <html:select id="pdf-image-saver-default-category"
+                     preference="extensions.pdfImageSaver.defaultImageCategory">
+          <html:option value="auto">Aut Auto</html:option>
+          <html:option value="chart">Cht Chart</html:option>
+          <html:option value="diagram">Dia Diagram</html:option>
+          <html:option value="photo">Pho Photo</html:option>
+          <html:option value="table">Tab Table</html:option>
+          <html:option value="schematic">Sch Schematic</html:option>
+          <html:option value="equation">Eqn Equation</html:option>
+          <html:option value="figure">Fig Figure</html:option>
+        </html:select>
+
         <html:label for="pdf-image-saver-duplicate-guard" title="Session + saved HTML duplicate guard">Dups</html:label>
         <html:div class="pdf-image-saver-prefs-check">
           <html:input id="pdf-image-saver-duplicate-guard"

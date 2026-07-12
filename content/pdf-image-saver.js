@@ -22,6 +22,16 @@ var PdfImageSaver = (() => {
     medium: { label: "Medium", maxWidth: 480, jpegQuality: 0.78, estimate: "60-220 KB/image" },
     high: { label: "High", maxWidth: 960, jpegQuality: 0.9, estimate: "180-750 KB/image" },
   };
+  const IMAGE_CATEGORIES = {
+    auto: { label: "Auto", mark: "Aut" },
+    chart: { label: "Chart", mark: "Cht" },
+    diagram: { label: "Diagram", mark: "Dia" },
+    photo: { label: "Photo", mark: "Pho" },
+    table: { label: "Table", mark: "Tab" },
+    schematic: { label: "Schematic", mark: "Sch" },
+    equation: { label: "Equation", mark: "Eqn" },
+    figure: { label: "Figure", mark: "Fig" },
+  };
   const readerHandlers = [];
   const windowState = new WeakMap();
   const activeJobs = new Set();
@@ -161,6 +171,18 @@ var PdfImageSaver = (() => {
       select.appendChild(option);
     }
 
+    const categorySelect = doc.createElement("select");
+    categorySelect.className = "pdf-image-saver-category";
+    categorySelect.setAttribute?.("aria-label", "Cat");
+    categorySelect.title = "Cat; figure class";
+    for (const key of Object.keys(IMAGE_CATEGORIES)) {
+      const option = doc.createElement("option");
+      option.value = key;
+      option.textContent = getImageCategoryLabel(key);
+      option.selected = key === getDefaultImageCategoryKey();
+      categorySelect.appendChild(option);
+    }
+
     const button = doc.createElement("button");
     button.type = "button";
     button.className = "pdf-image-saver-toolbar-button";
@@ -204,6 +226,7 @@ var PdfImageSaver = (() => {
       toolbarMode = mode === "clip" || mode === "auto" ? mode : "idle";
       const busy = toolbarMode !== "idle";
       select.disabled = busy;
+      categorySelect.disabled = busy;
       group.setAttribute?.("aria-busy", busy ? "true" : "false");
       group.setAttribute?.("data-mode", toolbarMode);
       if (toolbarMode === "clip") {
@@ -215,6 +238,7 @@ var PdfImageSaver = (() => {
         autoButton.textContent = "Auto";
         autoButton.setAttribute?.("aria-label", "Auto lock (clip)");
         select.title = "Q lock (clip)";
+        categorySelect.title = "Cat lock (clip)";
         refreshAutoButtonState();
         return;
       }
@@ -227,6 +251,7 @@ var PdfImageSaver = (() => {
         autoButton.textContent = "Auto...";
         autoButton.setAttribute?.("aria-label", "Auto running");
         select.title = "Q lock (auto)";
+        categorySelect.title = "Cat lock (auto)";
         refreshAutoButtonState();
         return;
       }
@@ -247,6 +272,7 @@ var PdfImageSaver = (() => {
       }
       setToolbarMode("clip");
       void startClipFromReader(reader, normalizeQualityKey(select.value), null, {
+        imageCategory: normalizeImageCategoryKey(categorySelect.value),
         onSessionEnd() {
           setToolbarMode("idle");
           void syncAutoRasterAvailability(normalizeQualityKey(select.value));
@@ -263,6 +289,7 @@ var PdfImageSaver = (() => {
       setToolbarMode("auto");
       Promise.resolve(saveAutoDetectedPageImagePreviews(reader, {
         qualityKey: normalizeQualityKey(select.value),
+        imageCategory: normalizeImageCategoryKey(categorySelect.value),
       })).finally(() => {
         setToolbarMode("idle");
         void syncAutoRasterAvailability(normalizeQualityKey(select.value));
@@ -270,11 +297,13 @@ var PdfImageSaver = (() => {
     });
     const updateQualityTooltips = () => {
       const qualityKey = normalizeQualityKey(select.value);
+      const categoryKey = normalizeImageCategoryKey(categorySelect.value);
       if (toolbarMode !== "idle") {
         return;
       }
       select.title = `Q ${getQualityLabelWithEstimate(qualityKey)}`;
-      button.title = buildToolbarActionTooltip("Clip HTML", qualityKey);
+      categorySelect.title = `Cat ${getImageCategoryLabel(categoryKey)}`;
+      button.title = `${buildToolbarActionTooltip("Clip HTML", qualityKey)}; ${getImageCategoryMark(categoryKey)}`;
       refreshAutoButtonState(qualityKey);
     };
     select.addEventListener("change", () => {
@@ -286,9 +315,16 @@ var PdfImageSaver = (() => {
       updateQualityTooltips();
       void syncAutoRasterAvailability(qualityKey);
     });
+    categorySelect.addEventListener("change", () => {
+      if (toolbarMode !== "idle") {
+        return;
+      }
+      setStringPref("defaultImageCategory", normalizeImageCategoryKey(categorySelect.value));
+      updateQualityTooltips();
+    });
     updateQualityTooltips();
     void syncAutoRasterAvailability(normalizeQualityKey(select.value));
-    group.append(select, button, autoButton);
+    group.append(select, categorySelect, button, autoButton);
     append(group);
   }
 
@@ -312,33 +348,38 @@ var PdfImageSaver = (() => {
     const actions = [];
     const defaultQualityKey = getDefaultQualityKey();
     const defaultQuality = QUALITY[defaultQualityKey];
+    const defaultCategoryKey = getDefaultImageCategoryKey();
     const pageOriginalMaxImages = getHelperMaxImages("page");
     const documentOriginalMaxImages = getHelperMaxImages("document");
 
     for (const key of ["low", "medium", "high"]) {
       actions.push({
-        label: `Clip ${getQualityMark(key)} ${QUALITY[key].label}; ${formatQualityEstimateShort(key)}`,
+        label: `Clip ${getQualityMark(key)} ${QUALITY[key].label}; ${formatQualityEstimateShort(key)}; ${getImageCategoryMark(defaultCategoryKey)}`,
         onCommand() {
-          void startClip(reader, key, getContextPageIndex(params));
+          void startClip(reader, key, getContextPageIndex(params), {
+            imageCategory: defaultCategoryKey,
+          });
         },
       });
     }
 
     actions.push({
-      label: `Auto ${getQualityMark(defaultQualityKey)} ${defaultQuality.label}; ${formatQualityEstimateShort(defaultQualityKey)}`,
+      label: `Auto ${getQualityMark(defaultQualityKey)} ${defaultQuality.label}; ${formatQualityEstimateShort(defaultQualityKey)}; ${getImageCategoryMark(defaultCategoryKey)}`,
       onCommand() {
         void saveAuto(reader, {
           qualityKey: defaultQualityKey,
+          imageCategory: defaultCategoryKey,
           pageIndex: getContextPageIndex(params),
         });
       },
     });
 
     actions.push({
-      label: `Page ${getQualityMark(defaultQualityKey)} ${defaultQuality.label}; ${formatQualityEstimateShort(defaultQualityKey)}`,
+      label: `Page ${getQualityMark(defaultQualityKey)} ${defaultQuality.label}; ${formatQualityEstimateShort(defaultQualityKey)}; ${getImageCategoryMark(defaultCategoryKey)}`,
       onCommand() {
         void savePage(reader, {
           qualityKey: defaultQualityKey,
+          imageCategory: defaultCategoryKey,
           pageIndex: getContextPageIndex(params),
         });
       },
@@ -406,6 +447,7 @@ var PdfImageSaver = (() => {
       temp_leftovers: 0,
       temp_bytes: 0,
       default_quality: getDefaultQualityKey(),
+      default_image_category: getDefaultImageCategoryKey(),
       max_index: formatBytes(getMaxIndexBytes()),
       auto_cap: formatBytes(getAutoMaxPreviewBytes()),
       auto_max_images: clamp(getIntegerPref("autoDetectMaxImages", DEFAULT_AUTO_DETECT_MAX_IMAGES), 1, 50),
@@ -787,7 +829,12 @@ var PdfImageSaver = (() => {
       showReaderToast(reader, `Save clip ${formatPageToastToken(pageIndex)} ${getQualityMark(qualityKey)}...`, "progress");
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
-      const preview = renderCanvasPreview({ ...safeOptions, pageIndex, qualityKey });
+      const preview = renderCanvasPreview({
+        ...safeOptions,
+        pageIndex,
+        qualityKey,
+        imageCategory: normalizeImageCategoryKey(safeOptions.imageCategory || getDefaultImageCategoryKey()),
+      });
       const duplicateKey = getPreviewDuplicateKey(attachment, preview);
       const indexKey = getPreviewIndexKey(attachment, [preview], "clip", qualityKey);
       if (getBoolPref("duplicateGuard", true)) {
@@ -901,6 +948,7 @@ var PdfImageSaver = (() => {
           mode: "auto_detected_reader_canvas_preview",
           detector: candidate.detector,
           detectionArea: candidate.area,
+          imageCategory: normalizeImageCategoryKey(safeOptions.imageCategory || getDefaultImageCategoryKey()),
         });
         const duplicateKey = getPreviewDuplicateKey(attachment, preview);
         const sourceRegionKey = getSourceRegionKey(attachment, preview);
@@ -1114,6 +1162,7 @@ var PdfImageSaver = (() => {
           width: pageRect.width,
           height: pageRect.height,
         },
+        imageCategory: normalizeImageCategoryKey(safeOptions.imageCategory || getDefaultImageCategoryKey()),
       });
       const duplicateKey = getPreviewDuplicateKey(attachment, preview);
       const indexKey = getPreviewIndexKey(attachment, [preview], "page", qualityKey);
@@ -1169,6 +1218,7 @@ var PdfImageSaver = (() => {
     mode,
     detector,
     detectionArea,
+    imageCategory: preferredImageCategory,
   }) {
     const normalizedQualityKey = normalizeQualityKey(qualityKey);
     const quality = QUALITY[normalizedQualityKey];
@@ -1204,6 +1254,20 @@ var PdfImageSaver = (() => {
     const dataURL = outputCanvas.toDataURL("image/jpeg", quality.jpegQuality);
     const bboxNormalized = crop.bboxNormalized;
     const sourceRegion = buildSourceRegion(bboxNormalized);
+    const detectionAreaValue = detectionArea || round6(selectionRect.width * selectionRect.height / Math.max(1, pageRect.width * pageRect.height));
+    const palette = extractPaletteFromCanvas(outputCanvas);
+    const styleTags = deriveStyleTagsFromPalette(palette);
+    const preferredCategory = normalizeImageCategoryKey(preferredImageCategory);
+    const imageCategory = preferredCategory === "auto"
+      ? inferImageCategory({
+          width: targetWidth,
+          height: targetHeight,
+          styleTags,
+          palette,
+          detector: detector || "manual_selection",
+          detectionArea: detectionAreaValue,
+        })
+      : preferredCategory;
     return {
       id: `preview-p${pageIndex + 1}-${Date.now().toString(36)}`,
       mode: mode || "reader_canvas_preview",
@@ -1213,6 +1277,9 @@ var PdfImageSaver = (() => {
       pageLabel: pageLabel || null,
       quality: normalizedQualityKey,
       qualityEstimate: quality.estimate,
+      imageCategory,
+      styleTags,
+      palette,
       dataURL,
       byteCount: estimateDataURLBytes(dataURL),
       renderedWidth: targetWidth,
@@ -1226,7 +1293,7 @@ var PdfImageSaver = (() => {
       bboxNormalized,
       sourceRegion,
       annotationKey: null,
-      detectionArea: detectionArea || round6(selectionRect.width * selectionRect.height / Math.max(1, pageRect.width * pageRect.height)),
+      detectionArea: detectionAreaValue,
       openPDFURI: "",
     };
   }
@@ -1509,6 +1576,12 @@ var PdfImageSaver = (() => {
         entry.pageLabel = normalizePreviewText(entry.pageLabel, null);
         entry.quality = normalizeQualityKey(entry.quality);
         entry.qualityEstimate = QUALITY[entry.quality].estimate;
+        entry.imageCategory = normalizeImageCategoryKey(entry.imageCategory || entry.image_category || getDefaultImageCategoryKey());
+        entry.styleTags = normalizeStyleTags(entry.styleTags || entry.style_tags);
+        entry.palette = normalizePalette(entry.palette);
+        if (!entry.styleTags.length && entry.palette.length) {
+          entry.styleTags = deriveStyleTagsFromPalette(entry.palette);
+        }
         entry.dataURL = normalizePreviewDataURL(entry.dataURL);
         entry.byteCount = estimateDataURLBytes(entry.dataURL);
         entry.renderedWidth = normalizePositiveInteger(entry.renderedWidth, null);
@@ -1529,7 +1602,7 @@ var PdfImageSaver = (() => {
         return `
           <article class="entry" id="e${index + 1}" data-entry="${index + 1}">
             <div class="preview-column">
-              <div class="entry-badge">#${index + 1} ${escapeHTML(getQualityMark(entry.quality))}</div>
+              <div class="entry-badge">#${index + 1} ${escapeHTML(getQualityMark(entry.quality))} ${escapeHTML(getImageCategoryMark(entry.imageCategory))}</div>
               <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
                 <img src="${escapeHTML(entry.dataURL)}" alt="Preview p${escapeHTML(String(entry.pageNumber))} #${index + 1}">
               </a>
@@ -1539,7 +1612,9 @@ var PdfImageSaver = (() => {
             <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
               <div><dt>Q</dt><dd>${escapeHTML(getQualityLabelWithEstimate(entry.quality))}</dd></div>
+              <div><dt>Cat</dt><dd>${escapeHTML(getImageCategoryLabel(entry.imageCategory))}</dd></div>
               <div><dt>Det</dt><dd>${escapeHTML(formatPreviewDetectorLabel(entry.detector))}</dd></div>
+              <div><dt>Tags</dt><dd>${escapeHTML(formatStyleTagsLabel(entry.styleTags))}</dd></div>
               <div><dt>Size</dt><dd>${formatBytes(entry.byteCount)}; ${formatPreviewDimensions(entry.renderedWidth, entry.renderedHeight)}</dd></div>
               <div><dt>ID</dt><dd title="${escapeHTML(entry.sourceRegionKey)}">${escapeHTML(regionIdentity)}</dd></div>
             </dl>
@@ -1549,6 +1624,7 @@ var PdfImageSaver = (() => {
                 <div><dt>Map</dt><dd>${escapeHTML(sourceRegionLabel)}</dd></div>
                 <div><dt>Box</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
                 <div><dt>Key</dt><dd>${escapeHTML(entry.sourceRegionKey)}</dd></div>
+                <div><dt>Pal</dt><dd>${escapeHTML(formatPaletteLabel(entry.palette))}</dd></div>
               </dl>
             </details>
           </article>`;
@@ -1578,6 +1654,9 @@ var PdfImageSaver = (() => {
         page_label: entry.pageLabel,
         quality: entry.quality,
         quality_estimate: entry.qualityEstimate,
+        image_category: entry.imageCategory,
+        style_tags: entry.styleTags,
+        palette: entry.palette,
         byte_count: entry.byteCount,
         rendered_width: entry.renderedWidth,
         rendered_height: entry.renderedHeight,
@@ -1629,7 +1708,7 @@ var PdfImageSaver = (() => {
   <header id="top">
     <h1>${escapeHTML(sourceTitle)}</h1>
     <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync; ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}.</p>
-    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}</p>
+    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}; ${escapeHTML(formatCategorySummary(normalizedEntries))}</p>
     ${normalizedEntries.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedEntries[0].openPDFURI)}" title="Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}">Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}</a>${normalizedEntries.length > 1 ? ` <a class="source-action" href="${escapeHTML(normalizedEntries[normalizedEntries.length - 1].openPDFURI)}" title="Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}">Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}</a>` : ""}</p>` : ""}
     ${normalizedEntries.length > 1 ? `<p class="meta jumps">${normalizedEntries.map((entry, index) => `<a href="#e${index + 1}" title="Jump #${index + 1} p${escapeHTML(String(entry.pageNumber))}">#${index + 1}p${escapeHTML(String(entry.pageNumber))}</a>`).join(" ")}</p>` : ""}
   </header>
@@ -3024,6 +3103,18 @@ var PdfImageSaver = (() => {
         min-height: 26px;
         font: inherit;
       }
+      .pdf-image-saver-category {
+        box-sizing: border-box;
+        width: 88px;
+        min-width: 88px;
+        max-width: 88px;
+        min-height: 26px;
+        font: inherit;
+      }
+      .pdf-image-saver-category:disabled {
+        opacity: 0.72;
+        cursor: not-allowed;
+      }
       .pdf-image-saver-toast {
         position: fixed;
         right: 12px;
@@ -3458,8 +3549,225 @@ var PdfImageSaver = (() => {
     return normalizeQualityKey(getStringPref("defaultQuality", "medium"));
   }
 
+  function getDefaultImageCategoryKey() {
+    return normalizeImageCategoryKey(getStringPref("defaultImageCategory", "auto"));
+  }
+
   function normalizeQualityKey(value) {
     return Object.prototype.hasOwnProperty.call(QUALITY, value) ? value : "medium";
+  }
+
+  function normalizeImageCategoryKey(value) {
+    const key = String(value || "").trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(IMAGE_CATEGORIES, key) ? key : "auto";
+  }
+
+  function getImageCategoryLabel(categoryKey) {
+    const key = normalizeImageCategoryKey(categoryKey);
+    const category = IMAGE_CATEGORIES[key];
+    return `${category.mark} ${category.label}`;
+  }
+
+  function getImageCategoryMark(categoryKey) {
+    return IMAGE_CATEGORIES[normalizeImageCategoryKey(categoryKey)].mark;
+  }
+
+  function formatStyleTagsLabel(tags) {
+    const values = normalizeStyleTags(tags);
+    return values.length ? values.join(", ") : "none";
+  }
+
+  function formatPaletteLabel(palette) {
+    const values = normalizePalette(palette);
+    return values.length ? values.map((swatch) => swatch.hex).join(" ") : "none";
+  }
+
+  function formatCategorySummary(entries) {
+    const counts = new Map();
+    for (const entry of Array.isArray(entries) ? entries : []) {
+      const mark = getImageCategoryMark(entry?.imageCategory || entry?.image_category);
+      counts.set(mark, (counts.get(mark) || 0) + 1);
+    }
+    if (!counts.size) {
+      return "Cat none";
+    }
+    return `Cat ${[...counts.entries()].map(([mark, count]) => `${mark}${count}`).join(" ")}`;
+  }
+
+  function inferImageCategory({ width, height, styleTags, palette, detector, detectionArea }) {
+    const tags = normalizeStyleTags(styleTags);
+    const swatches = normalizePalette(palette);
+    const w = normalizePositiveInteger(width, 1);
+    const h = normalizePositiveInteger(height, 1);
+    const ratio = w / Math.max(1, h);
+    const area = normalizeUnitNumber(detectionArea, 0) || 0;
+    const detectorText = normalizeMetadataText(detector, "", 80).toLowerCase();
+    if (ratio > 2.4 || ratio < 0.42) {
+      return "table";
+    }
+    if (area > 0 && area < 0.05 && ratio > 0.7 && ratio < 1.4) {
+      return "equation";
+    }
+    if (tags.includes("muted") && ratio > 1.15) {
+      return "chart";
+    }
+    if (tags.includes("colorful") && (tags.includes("cool") || tags.includes("warm")) && ratio > 0.85 && ratio < 1.35) {
+      return "photo";
+    }
+    if (swatches.length >= 3 && tags.includes("moderate-saturation")) {
+      return "diagram";
+    }
+    if (detectorText.includes("pdfjs") && area >= 0.08) {
+      return "figure";
+    }
+    if (ratio > 1.3) {
+      return "chart";
+    }
+    return "figure";
+  }
+
+  function extractPaletteFromCanvas(canvas, maxSwatches = 6) {
+    const context = canvas?.getContext?.("2d");
+    if (!context || typeof context.getImageData !== "function") {
+      return [];
+    }
+    let imageData = null;
+    try {
+      imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    } catch (_error) {
+      return [];
+    }
+    const data = imageData?.data;
+    if (!data?.length) {
+      return [];
+    }
+    const buckets = new Map();
+    const pixelCount = Math.max(1, Math.floor(data.length / 4));
+    const step = Math.max(1, Math.floor(pixelCount / 4096));
+    let sampled = 0;
+    for (let pixel = 0; pixel < pixelCount; pixel += step) {
+      const offset = pixel * 4;
+      const alpha = data[offset + 3];
+      if (alpha < 32) {
+        continue;
+      }
+      const r = data[offset];
+      const g = data[offset + 1];
+      const b = data[offset + 2];
+      const key = `${r >> 4},${g >> 4},${b >> 4}`;
+      const bucket = buckets.get(key) || { r: 0, g: 0, b: 0, count: 0 };
+      bucket.r += r;
+      bucket.g += g;
+      bucket.b += b;
+      bucket.count += 1;
+      sampled += 1;
+      buckets.set(key, bucket);
+    }
+    return [...buckets.values()]
+      .sort((left, right) => right.count - left.count)
+      .slice(0, maxSwatches)
+      .map((bucket, index) => {
+        const r = Math.round(bucket.r / bucket.count);
+        const g = Math.round(bucket.g / bucket.count);
+        const b = Math.round(bucket.b / bucket.count);
+        const hsl = rgbToHSL(r, g, b);
+        return {
+          hex: rgbToHex(r, g, b),
+          role: index === 0 ? "dominant" : `accent-${index}`,
+          hue: hsl.h,
+          saturation: hsl.s,
+          lightness: hsl.l,
+          population: round6(bucket.count / Math.max(1, sampled)),
+        };
+      });
+  }
+
+  function normalizePalette(palette) {
+    const values = Array.isArray(palette) ? palette : [];
+    return values.slice(0, 12).map((swatch, index) => ({
+      hex: normalizeHexColor(swatch?.hex) || "#000000",
+      role: normalizeMetadataText(swatch?.role, index === 0 ? "dominant" : `accent-${index}`, 40),
+      hue: normalizeUnitDegrees(swatch?.hue),
+      saturation: normalizeUnitNumber(swatch?.saturation, 0),
+      lightness: normalizeUnitNumber(swatch?.lightness, 0),
+      population: normalizeUnitNumber(swatch?.population, 0),
+    })).filter((swatch) => swatch.hex);
+  }
+
+  function deriveStyleTagsFromPalette(palette) {
+    const swatches = normalizePalette(palette);
+    if (!swatches.length) {
+      return [];
+    }
+    const avgSaturation = swatches.reduce((sum, swatch) => sum + swatch.saturation, 0) / swatches.length;
+    const avgLightness = swatches.reduce((sum, swatch) => sum + swatch.lightness, 0) / swatches.length;
+    const dominantHue = swatches[0].hue;
+    const tags = [];
+    tags.push(avgLightness > 0.7 ? "bright" : avgLightness < 0.35 ? "dark" : "balanced");
+    tags.push(avgSaturation > 0.55 ? "colorful" : avgSaturation < 0.18 ? "muted" : "moderate-saturation");
+    if (dominantHue >= 20 && dominantHue <= 80) {
+      tags.push("warm");
+    } else if (dominantHue >= 160 && dominantHue <= 280) {
+      tags.push("cool");
+    }
+    return tags;
+  }
+
+  function normalizeStyleTags(tags) {
+    const values = Array.isArray(tags) ? tags : String(tags || "").split(/[|,]/);
+    const normalized = [];
+    for (const tag of values) {
+      const textValue = normalizeMetadataText(tag, null, 40);
+      if (textValue && !normalized.includes(textValue)) {
+        normalized.push(textValue);
+      }
+      if (normalized.length >= 12) {
+        break;
+      }
+    }
+    return normalized;
+  }
+
+  function normalizeHexColor(value) {
+    const textValue = normalizeMetadataText(value, null, 16);
+    return textValue && /^#[0-9a-f]{6}$/i.test(textValue) ? textValue.toLowerCase() : null;
+  }
+
+  function normalizeUnitDegrees(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? round6(((number % 360) + 360) % 360) : 0;
+  }
+
+  function rgbToHex(r, g, b) {
+    const toHex = (value) => Math.max(0, Math.min(255, Math.round(Number(value) || 0))).toString(16).padStart(2, "0");
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  }
+
+  function rgbToHSL(r, g, b) {
+    const nr = (Number(r) || 0) / 255;
+    const ng = (Number(g) || 0) / 255;
+    const nb = (Number(b) || 0) / 255;
+    const max = Math.max(nr, ng, nb);
+    const min = Math.min(nr, ng, nb);
+    const lightness = (max + min) / 2;
+    if (max === min) {
+      return { h: 0, s: 0, l: round6(lightness) };
+    }
+    const delta = max - min;
+    const saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+    let hue = 0;
+    if (max === nr) {
+      hue = ((ng - nb) / delta) + (ng < nb ? 6 : 0);
+    } else if (max === ng) {
+      hue = ((nb - nr) / delta) + 2;
+    } else {
+      hue = ((nr - ng) / delta) + 4;
+    }
+    return {
+      h: round6(hue * 60),
+      s: round6(saturation),
+      l: round6(lightness),
+    };
   }
 
   function getQualityLabelWithEstimate(qualityKey) {
@@ -4287,6 +4595,17 @@ var PdfImageSaver = (() => {
       prepareSelectionOverlayHost,
       getReaderJobKey,
       renderCanvasPreview,
+      extractPaletteFromCanvas,
+      deriveStyleTagsFromPalette,
+      normalizePalette,
+      normalizeStyleTags,
+      normalizeImageCategoryKey,
+      getImageCategoryLabel,
+      getImageCategoryMark,
+      inferImageCategory,
+      formatCategorySummary,
+      formatStyleTagsLabel,
+      formatPaletteLabel,
       saveAutoDetectedPageImagePreviews,
       saveClipPreviewIndex,
       saveOriginalImagesFromReader,

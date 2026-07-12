@@ -5,6 +5,16 @@ var PdfImageSaverPreferences = {
     medium: { label: "Medium", mark: "M", estimate: "60-220 KB/image" },
     high: { label: "High", mark: "H", estimate: "180-750 KB/image" },
   },
+  IMAGE_CATEGORIES: {
+    auto: { label: "Auto", mark: "Aut" },
+    chart: { label: "Chart", mark: "Cht" },
+    diagram: { label: "Diagram", mark: "Dia" },
+    photo: { label: "Photo", mark: "Pho" },
+    table: { label: "Table", mark: "Tab" },
+    schematic: { label: "Schematic", mark: "Sch" },
+    equation: { label: "Equation", mark: "Eqn" },
+    figure: { label: "Figure", mark: "Fig" },
+  },
 
   init() {
     const doc = document;
@@ -67,6 +77,7 @@ var PdfImageSaverPreferences = {
   bindStatusControls(doc) {
     for (const id of [
       "pdf-image-saver-default-quality",
+      "pdf-image-saver-default-category",
       "pdf-image-saver-duplicate-guard",
       "pdf-image-saver-min-auto-area",
       "pdf-image-saver-auto-max-images",
@@ -93,6 +104,7 @@ var PdfImageSaverPreferences = {
       return;
     }
     const quality = this.getPreviewQuality(doc);
+    const category = this.getImageCategory(doc);
     const duplicateGuard = this.getControlBool(doc, "pdf-image-saver-duplicate-guard", this.getBoolPref("duplicateGuard", true));
     const autoMinArea = this.getAutoMinArea(doc);
     const autoMaxImages = this.getAutoMaxImages(doc);
@@ -107,6 +119,7 @@ var PdfImageSaverPreferences = {
     status.textContent = [
       "Store: HTML; sync PDF",
       `Q ${quality.mark} ${quality.label}; ${this.formatEstimateShort(quality.estimate)}`,
+      `Cat ${category.mark} ${category.label}`,
       `Dups: ${duplicateGuard ? "on; sess+saved" : "off"}`,
       `Auto: min ${autoMinArea}; ${autoMaxImages} max; ${autoCapMB} MB`,
       `Index: ${indexCapMB} MB`,
@@ -126,9 +139,22 @@ var PdfImageSaverPreferences = {
     return this.QUALITY[key];
   },
 
+  getImageCategory(doc) {
+    const key = this.normalizeImageCategoryKey(
+      this.getControlText(doc, "pdf-image-saver-default-category")
+      || this.getTextPref("defaultImageCategory", "auto"),
+    );
+    return this.IMAGE_CATEGORIES[key];
+  },
+
   normalizeQualityKey(value) {
     const key = String(value || "").trim().toLowerCase();
     return Object.prototype.hasOwnProperty.call(this.QUALITY, key) ? key : "medium";
+  },
+
+  normalizeImageCategoryKey(value) {
+    const key = String(value || "").trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(this.IMAGE_CATEGORIES, key) ? key : "auto";
   },
 
   getAutoMinArea(doc) {

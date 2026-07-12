@@ -80,6 +80,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Quality labels include mark L/M/H across toolbar, prefs, diagnostics, index Q lines, and min12 badges.
 - Attachment/document titles include quality marks; index headers expose `Open first pN`.
 - Multi-entry indexes expose jump anchors/lists with page marks (`#NpN`), Open last, top anchor, and Top footer; busy toasts include quality marks.
+- Capture stores figure `image_category`, palette, and `style_tags` in HTML metadata for PPT search/color assist; toolbar/prefs expose Cat.
 
 ### After UI Is Exhausted
 

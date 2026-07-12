@@ -1,6 +1,7 @@
 pref("extensions.pdfImageSaver.minImageArea", "0.004");
 pref("extensions.pdfImageSaver.minAutoImageArea", "0.003");
 pref("extensions.pdfImageSaver.defaultQuality", "medium");
+pref("extensions.pdfImageSaver.defaultImageCategory", "auto");
 pref("extensions.pdfImageSaver.autoDetectMaxImages", 8);
 pref("extensions.pdfImageSaver.autoMaxPreviewBytesMB", 4);
 pref("extensions.pdfImageSaver.maxIndexBytesMB", 6);

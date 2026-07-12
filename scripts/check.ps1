@@ -285,8 +285,11 @@ $toolbarEntry = [regex]::Match($mainJS, "function\s+onRenderToolbar\s*\([\s\S]*?
 if (!$toolbarEntry.Success) {
   throw "Reader toolbar render function block not found"
 }
-if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*button\.title\s*=\s*buildToolbarActionTooltip\(`"Clip HTML`",\s*qualityKey\)[\s\S]*refreshAutoButtonState\(qualityKey\)") {
+if ($toolbarEntry.Value -notmatch "const\s+updateQualityTooltips\s*=\s*\(\)\s*=>\s*\{[\s\S]*buildToolbarActionTooltip\(`"Clip HTML`",\s*qualityKey\)[\s\S]*refreshAutoButtonState\(qualityKey\)") {
   throw "Reader toolbar tooltips must be built from selected quality metadata"
+}
+if ($toolbarEntry.Value -notmatch "categorySelect") {
+  throw "Reader toolbar must expose category select"
 }
 if ($toolbarEntry.Value -notmatch "select\.addEventListener\(`"change`"[\s\S]*updateQualityTooltips\(\)") {
   throw "Reader toolbar must refresh tooltips when quality selection changes"
@@ -1148,7 +1151,7 @@ Assert-SaveEntryNormalizesOptions $clipSaveEntry "Clip-preview"
 if ($clipSaveEntry.Value -notmatch "let\s+jobAdded\s*=\s*false[\s\S]*activeJobs\.add\(jobKey\)[\s\S]*jobAdded\s*=\s*true[\s\S]*if\s*\(\s*jobAdded\s*\)\s*\{\s*\r?\n\s*activeJobs\.delete\(jobKey\)") {
   throw "Clip-preview save entry must only clear active jobs added by the current call"
 }
-if ($clipSaveEntry.Value -notmatch "const\s+qualityKey\s*=\s*normalizeQualityKey\(safeOptions\.qualityKey\)[\s\S]*renderCanvasPreview\(\s*\{\s*\.\.\.safeOptions,\s*pageIndex,\s*qualityKey\s*\}\s*\)[\s\S]*qualityKey,") {
+if ($clipSaveEntry.Value -notmatch "const\s+qualityKey\s*=\s*normalizeQualityKey\(safeOptions\.qualityKey\)[\s\S]*renderCanvasPreview\(\s*\{[\s\S]*\.\.\.safeOptions,[\s\S]*pageIndex,[\s\S]*qualityKey,[\s\S]*imageCategory:[\s\S]*\}\s*\)[\s\S]*qualityKey,") {
   throw "Clip-preview save entry must normalize quality before rendering and index metadata"
 }
 $autoSaveEntry = [regex]::Match($mainJS, "async\s+function\s+saveAutoDetectedPageImagePreviews\s*\([\s\S]*?\n\s*\}\r?\n\r?\n\s*async\s+function\s+savePagePreviewIndex")
@@ -1975,6 +1978,34 @@ if ($mainJS -notmatch 'Auto busy \$\{formatPageToastToken\(pageIndex\)\} \$\{get
 }
 if ($mainJS -notmatch 'Page busy \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}') {
   throw "Busy page toast must include quality mark"
+}
+
+if ($mainJS -notmatch 'IMAGE_CATEGORIES') {
+  throw "Main script must define image categories"
+}
+if ($mainJS -notmatch 'defaultImageCategory') {
+  throw "Main script must persist defaultImageCategory"
+}
+if ($mainJS -notmatch 'image_category') {
+  throw "Preview metadata must include image_category"
+}
+if ($mainJS -notmatch 'style_tags') {
+  throw "Preview metadata must include style_tags for PPT search"
+}
+if ($mainJS -notmatch 'extractPaletteFromCanvas') {
+  throw "Capture path must extract palette for PPT coloring"
+}
+if ($mainJS -notmatch 'pdf-image-saver-category') {
+  throw "Reader toolbar must expose category control"
+}
+if ((Get-Content -Raw "defaults/preferences/prefs.js") -notmatch 'defaultImageCategory') {
+  throw "Default prefs must include defaultImageCategory"
+}
+if ((Get-Content -Raw "preferences.xhtml") -notmatch 'pdf-image-saver-default-category') {
+  throw "Preferences UI must expose category control"
+}
+if ((Get-Content -Raw "content/preferences.js") -notmatch 'Cat \$\{category\.mark\}') {
+  throw "Preference status must include category line"
 }
 
 Write-Host "check ok"
