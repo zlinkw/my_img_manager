@@ -205,6 +205,7 @@ var PdfImageSaver = (() => {
       const busy = toolbarMode !== "idle";
       select.disabled = busy;
       group.setAttribute?.("aria-busy", busy ? "true" : "false");
+      group.setAttribute?.("data-mode", toolbarMode);
       if (toolbarMode === "clip") {
         button.disabled = true;
         button.textContent = "Drag...";
@@ -213,6 +214,7 @@ var PdfImageSaver = (() => {
         autoButton.disabled = true;
         autoButton.textContent = "Auto";
         autoButton.setAttribute?.("aria-label", "Auto lock (clip)");
+        select.title = "Q lock (clip)";
         refreshAutoButtonState();
         return;
       }
@@ -224,6 +226,7 @@ var PdfImageSaver = (() => {
         autoButton.disabled = true;
         autoButton.textContent = "Auto...";
         autoButton.setAttribute?.("aria-label", "Auto running");
+        select.title = "Q lock (auto)";
         refreshAutoButtonState();
         return;
       }
@@ -746,6 +749,9 @@ var PdfImageSaver = (() => {
       const height = Math.max(0, Math.round(rect.height));
       const tooSmall = width < 12 || height < 12;
       sizeBadge.textContent = tooSmall ? `${width}x${height} min12` : `${width}x${height}`;
+      sizeBadge.className = tooSmall
+        ? "pdf-image-saver-selection-size is-min"
+        : "pdf-image-saver-selection-size";
       sizeBadge.hidden = width < 1 && height < 1;
     }
   }
@@ -2940,6 +2946,14 @@ var PdfImageSaver = (() => {
         opacity: 0.65;
         cursor: progress;
       }
+      .pdf-image-saver-quality:disabled {
+        opacity: 0.72;
+        cursor: not-allowed;
+      }
+      .pdf-image-saver-toolbar-group[data-mode="clip"] .pdf-image-saver-toolbar-button,
+      .pdf-image-saver-toolbar-group[data-mode="auto"] .pdf-image-saver-toolbar-button {
+        border-color: var(--accent-color, #1f73b7);
+      }
       .pdf-image-saver-toolbar-group {
         display: inline-flex;
         align-items: center;
@@ -3019,6 +3033,9 @@ var PdfImageSaver = (() => {
         font: 10.5px system-ui, sans-serif;
         white-space: nowrap;
         pointer-events: none;
+      }
+      .pdf-image-saver-selection-size.is-min {
+        background: rgba(138, 31, 31, 0.92);
       }
     `;
     doc.head?.appendChild(style);

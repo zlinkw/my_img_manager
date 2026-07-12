@@ -1836,4 +1836,17 @@ if ($mainJS -notmatch 'focus-visible') {
   throw "Index open targets must include keyboard focus style"
 }
 
+if ($mainJS -notmatch 'data-mode') {
+  throw "Toolbar busy mode must expose data-mode"
+}
+if ($mainJS -notmatch 'Q lock \(clip\)') {
+  throw "Busy quality select must explain clip lock"
+}
+if ($mainJS -notmatch 'is-min') {
+  throw "Selection size badge must mark min size visually"
+}
+if ($mainJS -notmatch 'pdf-image-saver-quality:disabled') {
+  throw "Quality select disabled state must be styled"
+}
+
 Write-Host "check ok"

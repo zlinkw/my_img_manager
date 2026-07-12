@@ -433,7 +433,10 @@ const sessionDoc = {
       },
       querySelector(selector) {
         const className = String(selector || "").replace(/^\./, "");
-        return (this.children || []).find((child) => child.className === className) || null;
+        return (this.children || []).find((child) => {
+          const tokens = String(child.className || "").split(/\s+/).filter(Boolean);
+          return tokens.includes(className);
+        }) || null;
       },
       setAttribute(name, value) {
         this.attributes[name] = value;
@@ -514,8 +517,10 @@ sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70
 assert.strictEqual(sizeBadge.textContent, "60x40", "selection size badge must show live pixel size");
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 18, clientY: 20 });
 assert.strictEqual(sizeBadge.textContent, "8x8 min12", "selection size badge must mark below-min drag size");
+assert.ok(String(sizeBadge.className || "").includes("is-min"), "below-min size badge must use is-min class");
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
 assert.strictEqual(sizeBadge.textContent, "60x40", "selection size badge must clear min12 after valid size");
+assert.ok(!String(sizeBadge.className || "").includes("is-min"), "valid size badge must clear is-min class");
 sessionPage.child.dispatch("keydown", { key: "Escape" });
 assert.strictEqual(clipSessionEnded, 1, "onSessionEnd must fire when overlay is cancelled");
 assert.strictEqual(sessionPage.child.removed, true, "cancelled overlay must be removed");
@@ -1999,6 +2004,8 @@ async function assertToolbarBusyModeLocksSiblingControls() {
     assert.strictEqual(toolbarSelect.disabled, true, "clip click must disable quality select");
     assert.strictEqual(toolbarClipButton.title, "Clip drag", "busy clip title must describe active selection");
     assert.strictEqual(toolbarChildren[0].getAttribute("aria-busy"), "true", "busy toolbar group must set aria-busy");
+    assert.strictEqual(toolbarChildren[0].getAttribute("data-mode"), "clip", "busy toolbar group must expose clip mode");
+    assert.strictEqual(toolbarSelect.title, "Q lock (clip)", "busy quality select must explain clip lock");
     assert.strictEqual(toolbarAutoButton.title, "Auto lock (clip)", "busy auto title must describe clip lock");
 
     // Quality change and second clip click must stay no-ops while busy.
