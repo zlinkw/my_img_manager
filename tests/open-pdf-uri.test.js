@@ -106,11 +106,15 @@ const {
   inferImageCategory,
   formatCategorySummary,
   formatColorFamilySummary,
+  formatLayoutHintSummary,
   formatPptAssistSummary,
   buildPptAssistToken,
   buildDrawingStyleTags,
   deriveColorFamilyFromPalette,
+  deriveLayoutHint,
   normalizeColorFamily,
+  normalizeLayoutHint,
+  getLayoutHintMark,
   formatStyleTagsLabel,
   formatPaletteLabel,
   normalizeStyleTags,
@@ -938,9 +942,12 @@ assert.strictEqual(metadata.entries[0].preview_duplicate_key, getPreviewDuplicat
 assert.strictEqual(metadata.entries[0].annotation_key, null);
 assert.ok(metadata.entries[0].image_category, "metadata must include image_category for PPT filtering");
 assert.ok(metadata.entries[0].color_family, "metadata must include color_family for PPT search");
+assert.ok(metadata.entries[0].layout_hint, "metadata must include layout_hint for PPT layout assist");
+assert.ok("aspect_ratio" in metadata.entries[0], "metadata must include aspect_ratio");
 assert.ok(Array.isArray(metadata.entries[0].style_tags), "metadata must include style_tags array");
 assert.ok(Array.isArray(metadata.entries[0].palette), "metadata must include palette array");
 assert.ok(metadata.entries[0].ppt_assist_token.includes("cat="), "metadata must include ppt assist token");
+assert.ok(metadata.entries[0].ppt_assist_token.includes("lay="), "ppt token must include layout");
 assert.ok(metadata.ppt_assist?.token, "index metadata must include ppt_assist summary");
 assert.ok(metadata.entries[0].style_tags_json, "metadata must include style_tags_json for PPT consumers");
 assert.ok(metadata.entries[0].palette_json, "metadata must include palette_json for PPT consumers");
@@ -970,12 +977,18 @@ assert.ok(html.includes("<dt>Pal</dt>"), "preview index must expose palette");
 assert.ok(html.includes("<dt>Hue</dt>"), "preview index must expose color family");
 assert.ok(html.includes("palette-chip") || html.includes("palette-chips") || true, "palette chips optional when empty");
 assert.ok(html.includes("Copy PPT"), "preview index must expose PPT token copy action");
+assert.ok(html.includes("Copy pal"), "preview index must expose palette copy action");
 assert.ok(html.includes("Cat "), "preview index header must densify category summary");
+assert.ok(html.includes("Lay "), "preview index header must densify layout summary");
 assert.ok(html.includes("PPT:"), "preview index header must expose PPT assist summary");
 assert.ok(html.includes("data-category="), "entries must expose category filter attributes");
+assert.ok(html.includes("data-layout="), "entries must expose layout filter attributes");
+assert.ok(html.includes("<dt>Lay</dt>"), "preview index must expose layout summary field");
 assert.strictEqual(normalizeColorFamily("Blue"), "blue", "color family normalize");
-assert.ok(buildPptAssistToken({ imageCategory: "chart", colorFamily: "blue", styleTags: ["cool"], palette: [{hex:"#0000ff"}], pageNumber: 3, quality: "high" }).includes("cat=chart"), "ppt token densify");
-assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], palette: [], colorFamily: "blue" }).includes("plot"), "drawing tags add chart hints");
+assert.strictEqual(deriveLayoutHint(2.0, "chart"), "wide", "wide aspect maps to wide layout");
+assert.strictEqual(getLayoutHintMark("tall"), "T", "layout mark densify");
+assert.ok(buildPptAssistToken({ imageCategory: "chart", colorFamily: "blue", styleTags: ["cool"], palette: [{hex:"#0000ff"}], pageNumber: 3, quality: "high", renderedWidth: 800, renderedHeight: 400 }).includes("lay=wide"), "ppt token densify layout");
+assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], palette: [], colorFamily: "blue", layoutHint: "wide" }).includes("banner"), "drawing tags add layout hints");
 assert.strictEqual(normalizeImageCategoryKey("Chart"), "chart", "category normalize must accept case variants");
 assert.strictEqual(getImageCategoryMark("auto"), "Aut", "auto category mark");
 assert.strictEqual(inferImageCategory({ width: 900, height: 300, styleTags: ["muted"], palette: [], detector: "manual_selection", detectionArea: 0.2 }), "table", "wide regions classify as table");
@@ -989,7 +1002,7 @@ assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detect
 assert.ok(html.includes('alt="Preview p5 #1') || /alt="Preview p5 #1[^"]*"/.test(html), "preview image alt must include page and entry index");
 assert.ok(html.includes('class="entry-badge"'), "preview entries must expose dense entry badge");
 assert.ok(html.includes("position: sticky"), "preview index header must stick while scrolling");
-assert.ok(/#1 M [A-Za-z]{3}/.test(html), "preview entry badge must show 1-based index, quality mark, and category mark");
+assert.ok(/#1 M [A-Za-z]{3} [WTSU]/.test(html), "preview entry badge must show quality, category, and layout marks");
 assert.strictEqual(getQualityMark("medium"), "M", "medium quality mark");
 assert.strictEqual(getQualityMark("high"), "H", "high quality mark");
 assert.strictEqual(getQualityMark("low"), "L", "low quality mark");

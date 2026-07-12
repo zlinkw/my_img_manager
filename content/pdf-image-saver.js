@@ -1579,16 +1579,20 @@ var PdfImageSaver = (() => {
         entry.imageCategory = normalizeImageCategoryKey(entry.imageCategory || entry.image_category || getDefaultImageCategoryKey());
         entry.palette = normalizePalette(entry.palette);
         entry.colorFamily = normalizeColorFamily(entry.colorFamily || entry.color_family || deriveColorFamilyFromPalette(entry.palette));
+        entry.dataURL = normalizePreviewDataURL(entry.dataURL);
+        entry.byteCount = estimateDataURLBytes(entry.dataURL);
+        entry.renderedWidth = normalizePositiveInteger(entry.renderedWidth, null);
+        entry.renderedHeight = normalizePositiveInteger(entry.renderedHeight, null);
+        entry.aspectRatio = normalizeAspectRatio(entry.aspectRatio || entry.aspect_ratio || deriveAspectRatio(entry.renderedWidth, entry.renderedHeight));
+        entry.layoutHint = normalizeLayoutHint(entry.layoutHint || entry.layout_hint || deriveLayoutHint(entry.aspectRatio, entry.imageCategory));
         entry.styleTags = buildDrawingStyleTags({
           imageCategory: entry.imageCategory,
           styleTags: entry.styleTags || entry.style_tags,
           palette: entry.palette,
           colorFamily: entry.colorFamily,
+          layoutHint: entry.layoutHint,
+          aspectRatio: entry.aspectRatio,
         });
-        entry.dataURL = normalizePreviewDataURL(entry.dataURL);
-        entry.byteCount = estimateDataURLBytes(entry.dataURL);
-        entry.renderedWidth = normalizePositiveInteger(entry.renderedWidth, null);
-        entry.renderedHeight = normalizePositiveInteger(entry.renderedHeight, null);
         entry.detectionArea = normalizeUnitNumber(entry.detectionArea, null);
         entry.bboxNormalized = normalizeBBoxNormalized(entry.bboxNormalized);
         entry.annotationKey = normalizeAnnotationKey(entry.annotationKey);
@@ -1604,25 +1608,29 @@ var PdfImageSaver = (() => {
         const sourceRegionLabel = entry.sourceRegion?.label || entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ");
         const pptToken = buildPptAssistToken(entry);
         return `
-          <article class="entry" id="e${index + 1}" data-entry="${index + 1}" data-category="${escapeHTML(entry.imageCategory)}" data-color-family="${escapeHTML(entry.colorFamily || "unknown")}" data-style-tags="${escapeHTML(entry.styleTags.join(","))}">
+          <article class="entry" id="e${index + 1}" data-entry="${index + 1}" data-category="${escapeHTML(entry.imageCategory)}" data-color-family="${escapeHTML(entry.colorFamily || "unknown")}" data-layout="${escapeHTML(entry.layoutHint || "unknown")}" data-style-tags="${escapeHTML(entry.styleTags.join(","))}">
             <div class="preview-column">
-              <div class="entry-badge">#${index + 1} ${escapeHTML(getQualityMark(entry.quality))} ${escapeHTML(getImageCategoryMark(entry.imageCategory))}</div>
+              <div class="entry-badge">#${index + 1} ${escapeHTML(getQualityMark(entry.quality))} ${escapeHTML(getImageCategoryMark(entry.imageCategory))} ${escapeHTML(getLayoutHintMark(entry.layoutHint))}</div>
               <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
-                <img src="${escapeHTML(entry.dataURL)}" alt="Preview p${escapeHTML(String(entry.pageNumber))} #${index + 1} ${escapeHTML(getImageCategoryMark(entry.imageCategory))}">
+                <img src="${escapeHTML(entry.dataURL)}" alt="Preview p${escapeHTML(String(entry.pageNumber))} #${index + 1} ${escapeHTML(getImageCategoryMark(entry.imageCategory))} ${escapeHTML(getLayoutHintMark(entry.layoutHint))}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion, uri, entry.pageNumber)}
               ${buildPaletteChipsHTML(entry.palette)}
-              <a class="source-action" href="${escapeHTML(uri)}" title="Open p${escapeHTML(String(entry.pageNumber))}">Open p${escapeHTML(String(entry.pageNumber))}</a>
-              <button type="button" class="source-action copy-token" data-copy="${escapeHTML(pptToken)}" title="Copy PPT token">Copy PPT</button>
+              <div class="entry-actions">
+                <a class="source-action" href="${escapeHTML(uri)}" title="Open p${escapeHTML(String(entry.pageNumber))}">Open p${escapeHTML(String(entry.pageNumber))}</a>
+                <button type="button" class="source-action copy-token" data-copy="${escapeHTML(pptToken)}" title="Copy PPT token">Copy PPT</button>
+                <button type="button" class="source-action copy-token" data-copy="${escapeHTML(formatPaletteLabel(entry.palette))}" title="Copy palette hex list">Copy pal</button>
+              </div>
             </div>
             <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
               <div><dt>Q</dt><dd>${escapeHTML(getQualityLabelWithEstimate(entry.quality))}</dd></div>
               <div><dt>Cat</dt><dd>${escapeHTML(getImageCategoryLabel(entry.imageCategory))}</dd></div>
+              <div><dt>Lay</dt><dd>${escapeHTML(formatLayoutHintLabel(entry.layoutHint, entry.aspectRatio))}</dd></div>
               <div><dt>Hue</dt><dd>${escapeHTML(formatColorFamilyLabel(entry.colorFamily))}</dd></div>
               <div><dt>Det</dt><dd>${escapeHTML(formatPreviewDetectorLabel(entry.detector))}</dd></div>
               <div><dt>Tags</dt><dd>${escapeHTML(formatStyleTagsLabel(entry.styleTags))}</dd></div>
-              <div><dt>Size</dt><dd>${formatBytes(entry.byteCount)}; ${formatPreviewDimensions(entry.renderedWidth, entry.renderedHeight)}</dd></div>
+              <div><dt>Size</dt><dd>${formatBytes(entry.byteCount)}; ${formatPreviewDimensions(entry.renderedWidth, entry.renderedHeight)}; AR ${escapeHTML(formatAspectRatioLabel(entry.aspectRatio))}</dd></div>
               <div><dt>ID</dt><dd title="${escapeHTML(entry.sourceRegionKey)}">${escapeHTML(regionIdentity)}</dd></div>
             </dl>
             <details class="entry-details">
@@ -1632,6 +1640,7 @@ var PdfImageSaver = (() => {
                 <div><dt>Box</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
                 <div><dt>Key</dt><dd>${escapeHTML(entry.sourceRegionKey)}</dd></div>
                 <div><dt>Pal</dt><dd>${escapeHTML(formatPaletteLabel(entry.palette))}</dd></div>
+                <div><dt>Lay</dt><dd>${escapeHTML(formatLayoutHintLabel(entry.layoutHint, entry.aspectRatio))}</dd></div>
                 <div><dt>PPT</dt><dd><code>${escapeHTML(pptToken)}</code></dd></div>
               </dl>
             </details>
@@ -1665,6 +1674,8 @@ var PdfImageSaver = (() => {
         quality_estimate: entry.qualityEstimate,
         image_category: entry.imageCategory,
         color_family: entry.colorFamily,
+        layout_hint: entry.layoutHint,
+        aspect_ratio: entry.aspectRatio,
         style_tags: entry.styleTags,
         palette: entry.palette,
         palette_json: JSON.stringify(entry.palette),
@@ -1702,11 +1713,13 @@ var PdfImageSaver = (() => {
     .preview-column { display: grid; gap: 5px; align-content: start; position: relative; }
     .entry-badge { position: absolute; top: 4px; left: 4px; z-index: 1; padding: 1px 5px; border-radius: 3px; background: rgba(17, 24, 39, 0.82); color: #fff; font: 10.5px system-ui, sans-serif; pointer-events: none; }
     .palette-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-    .palette-chip { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.25); box-sizing: border-box; }
+    .palette-chip { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.25); box-sizing: border-box; cursor: pointer; }
+    .palette-chip:focus-visible { outline: 2px solid #1f73b7; outline-offset: 1px; }
     .filter-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
     .filter-chip { appearance: none; border: 1px solid #9ab; background: #f7faff; color: #0645ad; border-radius: 999px; padding: 1px 8px; font: 11.5px system-ui, sans-serif; cursor: pointer; }
     .filter-chip[aria-pressed="true"] { background: #1f73b7; border-color: #1f73b7; color: #fff; }
     .entry.is-hidden { display: none; }
+    .entry-actions { display: flex; flex-wrap: wrap; gap: 4px; }
     .source-action { display: inline-block; width: fit-content; padding: 2px 7px; border: 1px solid #9ab; border-radius: 3px; color: #0645ad; text-decoration: none; background: #f7faff; cursor: pointer; }
     .source-action:focus-visible, .source-map-link:focus-visible, .preview-link:focus-visible { outline: 2px solid #1f73b7; outline-offset: 2px; }
     img { max-width: 100%; height: auto; border: 1px solid #ccc; background: #f6f6f6; }
@@ -1727,9 +1740,10 @@ var PdfImageSaver = (() => {
   <header id="top">
     <h1>${escapeHTML(sourceTitle)}</h1>
     <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync; ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}.</p>
-    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}; ${escapeHTML(formatCategorySummary(normalizedEntries))}; ${escapeHTML(formatColorFamilySummary(normalizedEntries))}</p>
+    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}; ${escapeHTML(formatCategorySummary(normalizedEntries))}; ${escapeHTML(formatColorFamilySummary(normalizedEntries))}; ${escapeHTML(formatLayoutHintSummary(normalizedEntries))}</p>
     <p class="meta">PPT: ${escapeHTML(formatPptAssistSummary(normalizedEntries))}</p>
     ${buildCategoryFilterBarHTML(normalizedEntries)}
+    ${buildLayoutFilterBarHTML(normalizedEntries)}
     ${normalizedEntries.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedEntries[0].openPDFURI)}" title="Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}">Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}</a>${normalizedEntries.length > 1 ? ` <a class="source-action" href="${escapeHTML(normalizedEntries[normalizedEntries.length - 1].openPDFURI)}" title="Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}">Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}</a>` : ""} <button type="button" class="source-action copy-token" data-copy="${escapeHTML(buildIndexPptAssistToken(normalizedEntries))}" title="Copy index PPT assist token">Copy PPT all</button></p>` : ""}
     ${normalizedEntries.length > 1 ? `<p class="meta jumps">${normalizedEntries.map((entry, index) => `<a href="#e${index + 1}" title="Jump #${index + 1} p${escapeHTML(String(entry.pageNumber))}">#${index + 1}p${escapeHTML(String(entry.pageNumber))}</a>`).join(" ")}</p>` : ""}
   </header>
@@ -1741,29 +1755,54 @@ var PdfImageSaver = (() => {
   </details>
   <script>
     (function () {
-      var active = "all";
-      function applyFilter(cat) {
-        active = cat || "all";
-        document.querySelectorAll(".filter-chip").forEach(function (chip) {
-          chip.setAttribute("aria-pressed", chip.getAttribute("data-category") === active ? "true" : "false");
+      var activeCategory = "all";
+      var activeLayout = "all";
+      function applyFilters() {
+        document.querySelectorAll('.filter-chip[data-filter="category"]').forEach(function (chip) {
+          chip.setAttribute("aria-pressed", chip.getAttribute("data-value") === activeCategory ? "true" : "false");
+        });
+        document.querySelectorAll('.filter-chip[data-filter="layout"]').forEach(function (chip) {
+          chip.setAttribute("aria-pressed", chip.getAttribute("data-value") === activeLayout ? "true" : "false");
         });
         document.querySelectorAll("article.entry").forEach(function (entry) {
-          var match = active === "all" || entry.getAttribute("data-category") === active;
-          entry.classList.toggle("is-hidden", !match);
+          var categoryMatch = activeCategory === "all" || entry.getAttribute("data-category") === activeCategory;
+          var layoutMatch = activeLayout === "all" || entry.getAttribute("data-layout") === activeLayout;
+          entry.classList.toggle("is-hidden", !(categoryMatch && layoutMatch));
         });
+      }
+      function copyText(text) {
+        if (!text) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).catch(function () {});
+          return;
+        }
+        var area = document.createElement("textarea");
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        try { document.execCommand("copy"); } catch (_error) {}
+        area.remove();
       }
       document.addEventListener("click", function (event) {
         var target = event.target;
         if (!target) return;
         if (target.classList && target.classList.contains("filter-chip")) {
-          applyFilter(target.getAttribute("data-category") || "all");
+          var filter = target.getAttribute("data-filter") || "category";
+          var value = target.getAttribute("data-value") || "all";
+          if (filter === "layout") {
+            activeLayout = value;
+          } else {
+            activeCategory = value;
+          }
+          applyFilters();
+          return;
+        }
+        if (target.classList && target.classList.contains("palette-chip")) {
+          copyText(target.getAttribute("data-copy") || target.getAttribute("title") || "");
           return;
         }
         if (target.classList && target.classList.contains("copy-token")) {
-          var text = target.getAttribute("data-copy") || "";
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).catch(function () {});
-          }
+          copyText(target.getAttribute("data-copy") || "");
         }
       });
     })();
@@ -3671,6 +3710,7 @@ var PdfImageSaver = (() => {
     }
     const cats = formatCategorySummary(list).replace(/^Cat\s+/, "");
     const hues = formatColorFamilySummary(list).replace(/^Hue\s+/, "");
+    const lays = formatLayoutHintSummary(list).replace(/^Lay\s+/, "");
     const hexes = [];
     for (const entry of list) {
       for (const swatch of normalizePalette(entry?.palette)) {
@@ -3685,7 +3725,7 @@ var PdfImageSaver = (() => {
         break;
       }
     }
-    return `${cats}; ${hues}; pal ${hexes.join(" ") || "none"}`;
+    return `${cats}; ${lays}; ${hues}; pal ${hexes.join(" ") || "none"}`;
   }
 
   function buildCategoryFilterBarHTML(entries) {
@@ -3698,11 +3738,31 @@ var PdfImageSaver = (() => {
       const key = normalizeImageCategoryKey(entry?.imageCategory || entry?.image_category);
       counts.set(key, (counts.get(key) || 0) + 1);
     }
-    const chips = [`<button type="button" class="filter-chip" data-category="all" aria-pressed="true">All ${list.length}</button>`];
+    const chips = [`<button type="button" class="filter-chip" data-filter="category" data-value="all" aria-pressed="true">All ${list.length}</button>`];
     for (const [key, count] of counts.entries()) {
-      chips.push(`<button type="button" class="filter-chip" data-category="${escapeHTML(key)}" aria-pressed="false">${escapeHTML(getImageCategoryMark(key))} ${count}</button>`);
+      chips.push(`<button type="button" class="filter-chip" data-filter="category" data-value="${escapeHTML(key)}" aria-pressed="false">${escapeHTML(getImageCategoryMark(key))} ${count}</button>`);
     }
     return `<div class="filter-bar" role="toolbar" aria-label="Category filter">${chips.join("")}</div>`;
+  }
+
+  function buildLayoutFilterBarHTML(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (list.length < 2) {
+      return "";
+    }
+    const counts = new Map();
+    for (const entry of list) {
+      const key = normalizeLayoutHint(entry?.layoutHint || entry?.layout_hint || deriveLayoutHint(entry?.aspectRatio, entry?.imageCategory));
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    if (counts.size < 2) {
+      return "";
+    }
+    const chips = [`<button type="button" class="filter-chip" data-filter="layout" data-value="all" aria-pressed="true">Lay all</button>`];
+    for (const [key, count] of counts.entries()) {
+      chips.push(`<button type="button" class="filter-chip" data-filter="layout" data-value="${escapeHTML(key)}" aria-pressed="false">${escapeHTML(getLayoutHintMark(key))} ${count}</button>`);
+    }
+    return `<div class="filter-bar" role="toolbar" aria-label="Layout filter">${chips.join("")}</div>`;
   }
 
   function buildPaletteChipsHTML(palette) {
@@ -3710,15 +3770,19 @@ var PdfImageSaver = (() => {
     if (!swatches.length) {
       return "";
     }
-    return `<div class="palette-chips" title="${escapeHTML(formatPaletteLabel(swatches))}">${swatches.map((swatch) => `<span class="palette-chip" style="background:${escapeHTML(swatch.hex)}" title="${escapeHTML(swatch.hex)}"></span>`).join("")}</div>`;
+    return `<div class="palette-chips" title="${escapeHTML(formatPaletteLabel(swatches))}">${swatches.map((swatch) => `<button type="button" class="palette-chip" style="background:${escapeHTML(swatch.hex)}" title="${escapeHTML(swatch.hex)}" data-copy="${escapeHTML(swatch.hex)}" aria-label="Copy ${escapeHTML(swatch.hex)}"></button>`).join("")}</div>`;
   }
 
   function buildPptAssistToken(entry) {
     const safe = entry && typeof entry === "object" ? entry : {};
     const palette = normalizePalette(safe.palette).map((swatch) => swatch.hex).slice(0, 6);
     const tags = normalizeStyleTags(safe.styleTags || safe.style_tags);
+    const aspect = normalizeAspectRatio(safe.aspectRatio || safe.aspect_ratio || deriveAspectRatio(safe.renderedWidth || safe.rendered_width, safe.renderedHeight || safe.rendered_height));
+    const layout = normalizeLayoutHint(safe.layoutHint || safe.layout_hint || deriveLayoutHint(aspect, safe.imageCategory || safe.image_category));
     return [
       `cat=${normalizeImageCategoryKey(safe.imageCategory || safe.image_category)}`,
+      `lay=${layout}`,
+      `ar=${formatAspectRatioLabel(aspect)}`,
       `hue=${normalizeColorFamily(safe.colorFamily || safe.color_family || deriveColorFamilyFromPalette(palette))}`,
       `tags=${tags.join("|") || "none"}`,
       `pal=${palette.join(",") || "none"}`,
@@ -3737,17 +3801,20 @@ var PdfImageSaver = (() => {
     return {
       categories: formatCategorySummary(list),
       color_families: formatColorFamilySummary(list),
+      layouts: formatLayoutHintSummary(list),
       token: buildIndexPptAssistToken(list),
       entry_tokens: list.map((entry) => buildPptAssistToken(entry)),
     };
   }
 
-  function buildDrawingStyleTags({ imageCategory, styleTags, palette, colorFamily }) {
+  function buildDrawingStyleTags({ imageCategory, styleTags, palette, colorFamily, layoutHint, aspectRatio }) {
     const tags = normalizeStyleTags(styleTags);
     const category = normalizeImageCategoryKey(imageCategory);
     const family = normalizeColorFamily(colorFamily || deriveColorFamilyFromPalette(palette));
+    const layout = normalizeLayoutHint(layoutHint || deriveLayoutHint(aspectRatio, category));
     const categoryTag = category === "auto" ? null : category;
     const familyTag = family === "unknown" ? null : family;
+    const layoutTag = layout === "unknown" ? null : layout;
     const drawingHints = [];
     if (category === "chart") {
       drawingHints.push("plot", "axes");
@@ -3764,13 +3831,91 @@ var PdfImageSaver = (() => {
     } else if (category === "figure") {
       drawingHints.push("figure-ref");
     }
+    if (layout === "wide") {
+      drawingHints.push("banner", "landscape");
+    } else if (layout === "tall") {
+      drawingHints.push("portrait", "stack");
+    } else if (layout === "square") {
+      drawingHints.push("tile");
+    }
     return normalizeStyleTags([
       ...tags,
       ...(tags.length ? [] : deriveStyleTagsFromPalette(palette)),
       categoryTag,
       familyTag,
+      layoutTag,
       ...drawingHints,
     ]);
+  }
+
+  function deriveAspectRatio(width, height) {
+    const w = normalizePositiveInteger(width, null);
+    const h = normalizePositiveInteger(height, null);
+    if (!w || !h) {
+      return null;
+    }
+    return round6(w / h);
+  }
+
+  function normalizeAspectRatio(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number) || number <= 0) {
+      return null;
+    }
+    return round6(number);
+  }
+
+  function formatAspectRatioLabel(value) {
+    const ratio = normalizeAspectRatio(value);
+    return ratio === null ? "n/a" : ratio.toFixed(2);
+  }
+
+  function deriveLayoutHint(aspectRatio, imageCategory) {
+    const ratio = normalizeAspectRatio(aspectRatio);
+    if (ratio === null) {
+      const category = normalizeImageCategoryKey(imageCategory);
+      if (category === "table") return "wide";
+      if (category === "equation") return "square";
+      return "unknown";
+    }
+    if (ratio >= 1.45) return "wide";
+    if (ratio <= 0.75) return "tall";
+    return "square";
+  }
+
+  function normalizeLayoutHint(value) {
+    const key = String(value || "").trim().toLowerCase();
+    return ["wide", "tall", "square", "unknown"].includes(key) ? key : "unknown";
+  }
+
+  function getLayoutHintMark(value) {
+    const key = normalizeLayoutHint(value);
+    if (key === "wide") return "W";
+    if (key === "tall") return "T";
+    if (key === "square") return "S";
+    return "U";
+  }
+
+  function formatLayoutHintLabel(value, aspectRatio = null) {
+    const key = normalizeLayoutHint(value);
+    const mark = getLayoutHintMark(key);
+    const ar = formatAspectRatioLabel(aspectRatio);
+    if (key === "unknown") {
+      return `${mark} unknown`;
+    }
+    return `${mark} ${key}; AR ${ar}`;
+  }
+
+  function formatLayoutHintSummary(entries) {
+    const counts = new Map();
+    for (const entry of Array.isArray(entries) ? entries : []) {
+      const key = normalizeLayoutHint(entry?.layoutHint || entry?.layout_hint || deriveLayoutHint(entry?.aspectRatio, entry?.imageCategory));
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    if (!counts.size) {
+      return "Lay none";
+    }
+    return `Lay ${[...counts.entries()].map(([key, count]) => `${getLayoutHintMark(key)}${count}`).join(" ")}`;
   }
 
   function deriveColorFamilyFromPalette(palette) {
@@ -4823,13 +4968,20 @@ var PdfImageSaver = (() => {
       formatCategorySummary,
       formatColorFamilySummary,
       formatColorFamilyLabel,
+      formatLayoutHintSummary,
+      formatLayoutHintLabel,
+      formatAspectRatioLabel,
       formatPptAssistSummary,
       buildPptAssistToken,
       buildIndexPptAssistToken,
       buildIndexPptAssistSummary,
       buildDrawingStyleTags,
       deriveColorFamilyFromPalette,
+      deriveAspectRatio,
+      deriveLayoutHint,
       normalizeColorFamily,
+      normalizeLayoutHint,
+      getLayoutHintMark,
       formatStyleTagsLabel,
       formatPaletteLabel,
       saveAutoDetectedPageImagePreviews,

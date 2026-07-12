@@ -1992,8 +1992,20 @@ if ($mainJS -notmatch 'image_category') {
 if ($mainJS -notmatch 'color_family') {
   throw "Preview metadata must include color_family for PPT search"
 }
+if ($mainJS -notmatch 'layout_hint') {
+  throw "Preview metadata must include layout_hint for PPT layout assist"
+}
+if ($mainJS -notmatch 'aspect_ratio') {
+  throw "Preview metadata must include aspect_ratio"
+}
 if ($mainJS -notmatch 'ppt_assist_token') {
   throw "Preview metadata must include ppt_assist_token"
+}
+if ($mainJS -notmatch 'data-filter="layout"') {
+  throw "Index UI must expose layout filter chips"
+}
+if ($mainJS -notmatch 'Copy pal') {
+  throw "Index UI must expose palette copy actions"
 }
 if ($mainJS -notmatch 'style_tags') {
   throw "Preview metadata must include style_tags for PPT search"

@@ -110,4 +110,4 @@ After Zotero has been restarted or the add-on has been reloaded:
 - `%TEMP%\pdf-image-saver` has no leftover child directories after the save.
 
 
-Saved figure metadata includes `image_category`, `color_family`, palette, `style_tags`, and `ppt_assist_token` for PPT search/color assist.
+Saved figure metadata includes `image_category`, `color_family`, palette, `style_tags`, and `ppt_assist_token / layout_hint / aspect_ratio` for PPT search/color assist.
