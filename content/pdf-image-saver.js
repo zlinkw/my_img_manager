@@ -1601,7 +1601,8 @@ var PdfImageSaver = (() => {
     header { position: sticky; top: 0; z-index: 2; margin: 0 0 8px; padding: 8px 0 6px; background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid #e5e5e5; }
     h1 { font-size: 14px; margin: 0 0 3px; }
     .meta { color: #555; margin: 0 0 1px; line-height: 1.3; }
-    .meta.actions { margin-top: 4px; }
+    .meta.actions { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .meta.actions.footer-actions { margin-top: 10px; }
     .meta.jumps { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px; }
     .meta.jumps a { color: #0645ad; text-decoration: none; font-weight: 600; }
     .meta.jumps a:focus-visible { outline: 2px solid #1f73b7; outline-offset: 2px; }
@@ -1625,14 +1626,15 @@ var PdfImageSaver = (() => {
   </style>
 </head>
 <body>
-  <header>
+  <header id="top">
     <h1>${escapeHTML(sourceTitle)}</h1>
     <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync; ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}.</p>
     <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}</p>
-    ${normalizedEntries.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedEntries[0].openPDFURI)}" title="Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}">Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}</a></p>` : ""}
-    ${normalizedEntries.length > 1 ? `<p class="meta jumps">${normalizedEntries.map((entry, index) => `<a href="#e${index + 1}" title="Jump #${index + 1} p${escapeHTML(String(entry.pageNumber))}">#${index + 1}</a>`).join(" ")}</p>` : ""}
+    ${normalizedEntries.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedEntries[0].openPDFURI)}" title="Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}">Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}</a>${normalizedEntries.length > 1 ? ` <a class="source-action" href="${escapeHTML(normalizedEntries[normalizedEntries.length - 1].openPDFURI)}" title="Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}">Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}</a>` : ""}</p>` : ""}
+    ${normalizedEntries.length > 1 ? `<p class="meta jumps">${normalizedEntries.map((entry, index) => `<a href="#e${index + 1}" title="Jump #${index + 1} p${escapeHTML(String(entry.pageNumber))}">#${index + 1}p${escapeHTML(String(entry.pageNumber))}</a>`).join(" ")}</p>` : ""}
   </header>
   ${entriesHTML}
+  ${normalizedEntries.length > 1 ? `<p class="meta actions footer-actions"><a class="source-action" href="#top" title="Top">Top</a></p>` : ""}
   <details>
     <summary>Meta</summary>
     <pre>${escapeHTML(JSON.stringify(metadata, null, 2))}</pre>
@@ -2138,7 +2140,8 @@ var PdfImageSaver = (() => {
     header { position: sticky; top: 0; z-index: 2; margin: 0 0 6px; padding: 8px 0 6px; background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid #e5e5e5; }
     h1 { font-size: 14px; margin: 0 0 3px; }
     .meta { color: #555; margin: 0 0 1px; line-height: 1.3; }
-    .meta.actions { margin-top: 4px; }
+    .meta.actions { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .meta.actions.footer-actions { margin-top: 10px; }
     .meta.jumps { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px; }
     .meta.jumps a { color: #0645ad; text-decoration: none; font-weight: 600; }
     .meta.jumps a:focus-visible { outline: 2px solid #1f73b7; outline-offset: 2px; }
@@ -2152,17 +2155,18 @@ var PdfImageSaver = (() => {
   </style>
 </head>
 <body>
-  <header>
+  <header id="top">
     <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
     <p class="meta">Saved ${escapeHTML(createdAt)}. Orig ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}; helper.</p>
     <p class="meta">${normalizedImages.length} img; ${escapeHTML(formatBytes(normalizedImages.reduce((sum, image) => sum + normalizeNonNegativeInteger(image.byte_count, 0), 0)))}; open PDF page links.</p>
-    ${normalizedImages.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedImages[0].open_pdf_uri)}" title="Open first p${escapeHTML(String(normalizedImages[0].page_number))}">Open first p${escapeHTML(String(normalizedImages[0].page_number))}</a></p>` : ""}
-    ${normalizedImages.length > 1 ? `<p class="meta jumps">${normalizedImages.map((image, index) => `<a href="#o${index + 1}" title="Jump #${index + 1} p${escapeHTML(String(image.page_number))}">#${index + 1}</a>`).join(" ")}</p>` : ""}
+    ${normalizedImages.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedImages[0].open_pdf_uri)}" title="Open first p${escapeHTML(String(normalizedImages[0].page_number))}">Open first p${escapeHTML(String(normalizedImages[0].page_number))}</a>${normalizedImages.length > 1 ? ` <a class="source-action" href="${escapeHTML(normalizedImages[normalizedImages.length - 1].open_pdf_uri)}" title="Open last p${escapeHTML(String(normalizedImages[normalizedImages.length - 1].page_number))}">Open last p${escapeHTML(String(normalizedImages[normalizedImages.length - 1].page_number))}</a>` : ""}</p>` : ""}
+    ${normalizedImages.length > 1 ? `<p class="meta jumps">${normalizedImages.map((image, index) => `<a href="#o${index + 1}" title="Jump #${index + 1} p${escapeHTML(String(image.page_number))}">#${index + 1}p${escapeHTML(String(image.page_number))}</a>`).join(" ")}</p>` : ""}
   </header>
   <table>
     <thead><tr><th>#</th><th>Page</th><th>ID</th><th>Size</th><th>Box</th><th>Open</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
+  ${normalizedImages.length > 1 ? `<p class="meta actions footer-actions"><a class="source-action" href="#top" title="Top">Top</a></p>` : ""}
   <details>
     <summary>Meta</summary>
     <pre>${escapeHTML(JSON.stringify(metadata, null, 2))}</pre>

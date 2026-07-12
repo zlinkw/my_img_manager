@@ -1949,8 +1949,23 @@ if ($mainJS -notmatch 'img index \$\{escapeHTML\(formatPreviewScopeLabel\(normal
 if ($mainJS -notmatch 'meta jumps') {
   throw "Multi-entry index headers must expose jump list"
 }
+if ($mainJS -notmatch 'Open last p') {
+  throw "Multi-entry index headers must expose Open last action"
+}
+if ($mainJS -notmatch 'id="top"') {
+  throw "Index sticky headers must expose top anchors"
+}
+if ($mainJS -notmatch 'footer-actions') {
+  throw "Multi-entry indexes must expose Top footer actions"
+}
+if ($mainJS -notmatch '#\$\{index \+ 1\}p') {
+  throw "Jump lists must densify entry/page marks"
+}
 if ($mainJS -notmatch 'id="e\$\{index \+ 1\}"') {
   throw "Preview entries must expose jump anchors"
+}
+if ($mainJS -notmatch 'id="o\$\{index \+ 1\}"') {
+  throw "Original index rows must expose jump anchors"
 }
 if ($mainJS -notmatch 'Clip busy \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}') {
   throw "Busy clip toast must include quality mark"

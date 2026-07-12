@@ -926,9 +926,13 @@ assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_ind
 assert.ok(html.includes("M Medium; 60-220 KB"), "preview index header must densify quality mark/label/estimate");
 assert.ok(html.includes("HTML; sync; clip."), "preview index header must densify scope label");
 assert.ok(html.includes("img index clip M"), "preview HTML document title must densify scope and quality mark");
+assert.ok(html.includes('id="top"'), "preview index sticky header must expose top anchor");
 assert.ok(html.includes(">Open first p5</a>"), "preview index header must expose open-first action");
 assert.ok(html.includes('title="Open first p5"'), "preview open-first action must include page");
+assert.ok(!html.includes('Open last p'), "single preview index must not show open-last action");
 assert.ok(!html.includes('class="meta jumps"'), "single preview index must not show jump list");
+assert.ok(!html.includes('href="#top"'), "single preview index must not show top footer");
+assert.ok(!html.includes('>Top</a>'), "single preview index must not show Top label");
 assert.ok(html.includes('id="e1"'), "preview entries must expose entry anchors");
 assert.strictEqual(formatPreviewScopeLabel("auto-page"), "auto", "auto-page scope must densify");
 assert.strictEqual(formatPreviewScopeLabel("document"), "doc", "document scope must densify");
@@ -987,8 +991,12 @@ assert.ok(originalIndexHTML.includes("tbody tr:hover"), "original index table mu
 assert.ok(originalIndexHTML.includes("1 img;"), "original index must densify image count");
 assert.ok(originalIndexHTML.includes("<th>#</th>"), "original index must expose row numbers");
 assert.ok(originalIndexHTML.includes("position: sticky"), "original index must stick header while scrolling");
-assert.ok(originalIndexHTML.includes("<header>"), "original index must wrap meta in sticky header");
+assert.ok(originalIndexHTML.includes('id="top"'), "original index sticky header must expose top anchor");
 assert.ok(originalIndexHTML.includes(">Open first p5</a>"), "original index header must expose open-first action");
+assert.ok(!originalIndexHTML.includes('Open last p'), "single original index must not show open-last action");
+assert.ok(!originalIndexHTML.includes('class="meta jumps"'), "single original index must not show jump list");
+assert.ok(!originalIndexHTML.includes('href="#top"'), "single original index must not show top footer");
+assert.ok(!originalIndexHTML.includes('>Top</a>'), "single original index must not show Top label");
 assert.ok(originalIndexHTML.includes("<td>#1</td>"), "original index first row must be numbered");
 assert.ok(originalIndexHTML.includes("open PDF page links"), "original index header must state PDF open links");
 assert.ok(originalIndexHTML.includes("Orig page; helper"), "original index header must densify scope/helper meta");
@@ -1212,11 +1220,36 @@ const multiJumpHTML = buildIndexHTML({
   scope: "auto-page",
   qualityKey: "high",
 });
+assert.ok(multiJumpHTML.includes('id="top"'), "multi preview sticky header must expose top anchor");
 assert.ok(multiJumpHTML.includes('id="e1"'), "multi preview entries must expose jump anchors");
 assert.ok(multiJumpHTML.includes('id="e2"'), "multi preview entries must expose second jump anchor");
 assert.ok(multiJumpHTML.includes('class="meta jumps"'), "multi preview header must expose jump list");
 assert.ok(multiJumpHTML.includes('href="#e1"'), "jump list must link first entry");
 assert.ok(multiJumpHTML.includes('href="#e2"'), "jump list must link second entry");
+assert.ok(multiJumpHTML.includes('>#1p5</a>'), "jump list must densify first entry page mark");
+assert.ok(multiJumpHTML.includes('>#2p5</a>'), "jump list must densify second entry page mark");
+assert.ok(multiJumpHTML.includes('Open last p5'), "multi preview header must expose open-last action");
+assert.ok(multiJumpHTML.includes('href="#top"'), "multi preview footer must expose top action");
+assert.ok(multiJumpHTML.includes('footer-actions'), "multi preview footer must use footer-actions class");
+assert.ok(multiJumpHTML.includes('>Top</a>'), "multi preview footer must expose Top label");
+
+const multiOriginalIndexHTML = buildOriginalImageIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  images: [originalIndexImage, { ...originalIndexImage, id: "original-2", page_number: 8, pageNumber: 8, occurrence: 3, sha256: "def456" }],
+  scope: "document",
+});
+assert.ok(multiOriginalIndexHTML.includes('id="top"'), "multi original sticky header must expose top anchor");
+assert.ok(multiOriginalIndexHTML.includes('id="o1"'), "multi original rows must expose jump anchors");
+assert.ok(multiOriginalIndexHTML.includes('id="o2"'), "multi original rows must expose second jump anchor");
+assert.ok(multiOriginalIndexHTML.includes('class="meta jumps"'), "multi original header must expose jump list");
+assert.ok(multiOriginalIndexHTML.includes('href="#o1"'), "original jump list must link first row");
+assert.ok(multiOriginalIndexHTML.includes('href="#o2"'), "original jump list must link second row");
+assert.ok(multiOriginalIndexHTML.includes('>#1p5</a>'), "original jump list must densify first page mark");
+assert.ok(multiOriginalIndexHTML.includes('>#2p8</a>'), "original jump list must densify second page mark");
+assert.ok(multiOriginalIndexHTML.includes('Open last p8'), "multi original header must expose open-last action");
+assert.ok(multiOriginalIndexHTML.includes('href="#top"'), "multi original footer must expose top action");
+assert.ok(multiOriginalIndexHTML.includes('>Top</a>'), "multi original footer must expose Top label");
 
 assert.ok(multiIndexTitle.includes("auto"), "multi preview title must include densified auto scope");
 assert.ok(multiIndexTitle.includes("2img"), "multi preview title must include image count");
