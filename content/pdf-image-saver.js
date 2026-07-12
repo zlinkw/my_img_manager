@@ -463,7 +463,7 @@ var PdfImageSaver = (() => {
     const lines = [
       `Plugin ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}; Zotero ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
       `On ${formatDiagnosticBoolean(safeReport.started)}; readers ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}; PDF ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
-      `Q ${normalizeQualityKey(safeReport.default_quality)}; dups ${formatDiagnosticBoolean(safeReport.duplicate_guard)}; auto ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
+      `Q ${getQualityLabelWithEstimate(safeReport.default_quality)}; dups ${formatDiagnosticBoolean(safeReport.duplicate_guard)}; auto ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
       `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; orig opt`,
       `Temp ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)}); ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 160)}`,
     ];
@@ -1602,12 +1602,13 @@ var PdfImageSaver = (() => {
     const target = targetPage === null ? normalizeScope(scope) : `p${targetPage + 1}`;
     const entryCount = Array.isArray(entries) ? entries.length : 0;
     const normalizedQuality = qualityKey === null ? null : normalizeQualityKey(qualityKey);
+    const qualityLabel = normalizedQuality ? QUALITY[normalizedQuality].label : null;
     const normalizedIndexKey = normalizePreviewIndexKey(indexKey);
     const fingerprint = normalizedIndexKey ? getPreviewIndexFingerprint(normalizedIndexKey) : null;
     const suffix = [
       "img index",
       target,
-      normalizedQuality,
+      qualityLabel,
       entryCount ? `${entryCount}img` : null,
       fingerprint,
     ].filter(Boolean).join(" ");

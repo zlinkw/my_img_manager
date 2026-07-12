@@ -74,6 +74,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Prefs status now surfaces Auto min and Helper min with the other dense caps.
 - Diagnostics now surfaces dups on/off with quality and caps.
 - Preview HTML index densifies quality header labels and detector names (`manual`/`auto`).
+- Diagnostics and attachment titles densify quality to human labels with estimates where space allows.
 
 ### After UI Is Exhausted
 

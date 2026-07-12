@@ -916,6 +916,10 @@ if ($mainJS -notmatch "__test__:\s*\{[\s\S]*buildIndexTitle") {
 if ($mainJS -notmatch "function\s+buildIndexTitle\s*\(\s*parentItem,\s*attachment,\s*scope,\s*pageIndex,\s*entries\s*=\s*\[\],\s*qualityKey\s*=\s*null,\s*indexKey\s*=\s*null\s*\)") {
   throw "Index title must accept entries, quality, and index key for concise identity"
 }
+
+if ($mainJS -notmatch "const\s+qualityLabel\s*=\s*normalizedQuality\s*\?\s*QUALITY\[normalizedQuality\]\.label\s*:\s*null") {
+  throw "buildIndexTitle must densify quality labels"
+}
 if ($mainJS -notmatch 'entryCount\s*\?\s*`\$\{entryCount\}img`') {
   throw "Index title must include image count when available"
 }
@@ -1517,8 +1521,8 @@ if ($diagnosticsReportEntry.Value -notmatch "const\s+pdfAttachment\s*=\s*normali
 if ($diagnosticsReportEntry.Value -notmatch "const\s+warnings\s*=\s*normalizeDiagnosticWarningMessages\(safeReport\.warnings\)") {
   throw "Diagnostics report formatter must normalize warning lines"
 }
-if ($diagnosticsReportEntry.Value -notmatch "normalizeQualityKey\(safeReport\.default_quality\)") {
-  throw "Diagnostics report formatter must normalize default quality"
+if ($diagnosticsReportEntry.Value -notmatch "getQualityLabelWithEstimate\(safeReport\.default_quality\)") {
+  throw "Diagnostics report formatter must densify default quality"
 }
 if ($diagnosticsReportEntry.Value -notmatch "dups \$\{formatDiagnosticBoolean\(safeReport\.duplicate_guard\)\}") {
   throw "Diagnostics report formatter must surface dups status"

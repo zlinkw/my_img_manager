@@ -993,7 +993,7 @@ assert.strictEqual(
 const singleIndexKey = getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "medium");
 const singleIndexTitle = buildIndexTitle(htmlParent, htmlAttachment, "clip", 4, [htmlEntry], "medium", singleIndexKey);
 assert.ok(singleIndexTitle.includes("p5"), "single preview title must include target page");
-assert.ok(singleIndexTitle.includes("medium"), "single preview title must include quality");
+assert.ok(singleIndexTitle.includes("Medium"), "single preview title must include quality label");
 assert.ok(singleIndexTitle.includes("1img"), "single preview title must include image count");
 assert.ok(singleIndexTitle.includes(getPreviewIndexFingerprint(singleIndexKey)), "single preview title must include short identity");
 assert.ok(singleIndexTitle.length <= 140, "single preview title must stay compact");
@@ -1001,7 +1001,7 @@ assert.ok(singleIndexTitle.length <= 140, "single preview title must stay compac
 const multiIndexKey = getPreviewIndexKey(htmlAttachment, [samePageLeft, samePageRight], "auto-page", "high");
 const multiIndexTitle = buildIndexTitle(htmlParent, htmlAttachment, "auto-page", 4, [samePageLeft, samePageRight], "high", multiIndexKey);
 assert.ok(multiIndexTitle.includes("2img"), "multi preview title must include image count");
-assert.ok(multiIndexTitle.includes("high"), "multi preview title must include quality");
+assert.ok(multiIndexTitle.includes("High"), "multi preview title must include quality label");
 assert.notStrictEqual(multiIndexTitle, singleIndexTitle, "quality/count/fingerprint variants must be distinguishable");
 
 const malformedPageEntry = {
@@ -1610,7 +1610,7 @@ for (const forbiddenDiagnosticsText of ["[object Object]", "undefined", "NaN", "
 }
 assert.ok(noisyDiagnostics.includes("Plugin unknown"), "diagnostics plugin must normalize malformed text");
 assert.ok(noisyDiagnostics.includes("On unknown"), "diagnostics booleans must normalize malformed values");
-assert.ok(noisyDiagnostics.includes("Q medium"), "diagnostics quality must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Q Medium; 60-220 KB"), "diagnostics quality must densify malformed values");
 assert.ok(noisyDiagnostics.includes("dups unknown"), "diagnostics dups must normalize malformed values");
 assert.strictEqual(
   formatDiagnosticsReport({
@@ -1627,7 +1627,7 @@ assert.strictEqual(
     temp_leftovers: 0,
     temp_bytes: 0,
     optional_helper: "python-available",
-  }).includes("Q high; dups on; auto 3 MB; index 5 MB"),
+  }).includes("Q High; 180-750 KB; dups on; auto 3 MB; index 5 MB"),
   true,
   "diagnostics must surface dups with quality/caps",
 );
@@ -1646,7 +1646,7 @@ assert.strictEqual(
     temp_leftovers: 0,
     temp_bytes: 0,
     optional_helper: "python-missing",
-  }).includes("Q low; dups off; auto 1 MB; index 2 MB"),
+  }).includes("Q Low; 20-80 KB; dups off; auto 1 MB; index 2 MB"),
   true,
   "diagnostics must show dups off when guard disabled",
 );
