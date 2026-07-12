@@ -26,7 +26,7 @@ Priority that shaped the project:
 
 ## Lessons
 
-- Clip first; auto/original second
+- Clip first; auto/original second; dense shared tokens for dups/caps/scope/Use clip
 - Duplicate identity needs session memory + saved HTML indexes
 - Quality estimates must stay visible
 - Registration gate: `npm.cmd run runtime:status` / `smoke:preflight`
