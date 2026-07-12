@@ -76,6 +76,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Selection size badge includes quality mark L/M/H; preview entries show `#N` badge and summary Det; original index rows numbered.
 - Success toasts include quality mark L/M/H with estimate/size.
 - Index header is sticky; Open map title includes page; toast shows dismiss mark; Trace no longer duplicates Det.
+- Progress toasts and context-menu clip/auto/page labels include quality marks; entry badges include L/M/H; original index sticky header/thead.
 
 ### After UI Is Exhausted
 

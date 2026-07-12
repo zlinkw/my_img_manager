@@ -938,7 +938,7 @@ assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detect
 assert.ok(html.includes('alt="Preview p5 #1"'), "preview image alt must include page and entry index");
 assert.ok(html.includes('class="entry-badge"'), "preview entries must expose dense entry badge");
 assert.ok(html.includes("position: sticky"), "preview index header must stick while scrolling");
-assert.ok(html.includes(">#1</div>"), "preview entry badge must show 1-based index");
+assert.ok(html.includes(">#1 M</div>"), "preview entry badge must show 1-based index and quality mark");
 assert.strictEqual(getQualityMark("medium"), "M", "medium quality mark");
 assert.strictEqual(getQualityMark("high"), "H", "high quality mark");
 assert.strictEqual(getQualityMark("low"), "L", "low quality mark");
@@ -982,6 +982,8 @@ assert.ok(originalIndexHTML.includes(">Open p5</a>"), "original index must expos
 assert.ok(originalIndexHTML.includes("tbody tr:hover"), "original index table must highlight row hover");
 assert.ok(originalIndexHTML.includes("1 img;"), "original index must densify image count");
 assert.ok(originalIndexHTML.includes("<th>#</th>"), "original index must expose row numbers");
+assert.ok(originalIndexHTML.includes("position: sticky"), "original index must stick header while scrolling");
+assert.ok(originalIndexHTML.includes("<header>"), "original index must wrap meta in sticky header");
 assert.ok(originalIndexHTML.includes("<td>#1</td>"), "original index first row must be numbered");
 assert.ok(originalIndexHTML.includes("open PDF page links"), "original index header must state PDF open links");
 assert.ok(originalIndexHTML.includes("Orig page; helper"), "original index header must densify scope/helper meta");
@@ -2198,11 +2200,11 @@ onCreateViewContextMenu({
   },
 });
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Auto High; 180-750 KB"),
+  contextMenuItems.some((item) => item.label === "Auto H High; 180-750 KB"),
   "context menu auto-raster label must show the default quality estimate",
 );
 assert.ok(
-  contextMenuItems.some((item) => item.label === "Page High; 180-750 KB"),
+  contextMenuItems.some((item) => item.label === "Page H High; 180-750 KB"),
   "context menu page-preview label must show the default quality estimate",
 );
 assert.ok(

@@ -317,7 +317,7 @@ var PdfImageSaver = (() => {
 
     for (const key of ["low", "medium", "high"]) {
       actions.push({
-        label: `Clip ${QUALITY[key].label}; ${formatQualityEstimateShort(key)}`,
+        label: `Clip ${getQualityMark(key)} ${QUALITY[key].label}; ${formatQualityEstimateShort(key)}`,
         onCommand() {
           void startClip(reader, key, getContextPageIndex(params));
         },
@@ -325,7 +325,7 @@ var PdfImageSaver = (() => {
     }
 
     actions.push({
-      label: `Auto ${defaultQuality.label}; ${formatQualityEstimateShort(defaultQualityKey)}`,
+      label: `Auto ${getQualityMark(defaultQualityKey)} ${defaultQuality.label}; ${formatQualityEstimateShort(defaultQualityKey)}`,
       onCommand() {
         void saveAuto(reader, {
           qualityKey: defaultQualityKey,
@@ -335,7 +335,7 @@ var PdfImageSaver = (() => {
     });
 
     actions.push({
-      label: `Page ${defaultQuality.label}; ${formatQualityEstimateShort(defaultQualityKey)}`,
+      label: `Page ${getQualityMark(defaultQualityKey)} ${defaultQuality.label}; ${formatQualityEstimateShort(defaultQualityKey)}`,
       onCommand() {
         void savePage(reader, {
           qualityKey: defaultQualityKey,
@@ -784,7 +784,7 @@ var PdfImageSaver = (() => {
       }
       activeJobs.add(jobKey);
       jobAdded = true;
-      showReaderToast(reader, `Save clip ${formatPageToastToken(pageIndex)}...`, "progress");
+      showReaderToast(reader, `Save clip ${formatPageToastToken(pageIndex)} ${getQualityMark(qualityKey)}...`, "progress");
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
       const preview = renderCanvasPreview({ ...safeOptions, pageIndex, qualityKey });
@@ -853,7 +853,7 @@ var PdfImageSaver = (() => {
 
       activeJobs.add(jobKey);
       jobAdded = true;
-      showReaderToast(reader, `Auto detect ${formatPageToastToken(pageIndex)}...`, "progress");
+      showReaderToast(reader, `Auto detect ${formatPageToastToken(pageIndex)} ${getQualityMark(qualityKey)}...`, "progress");
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -953,7 +953,7 @@ var PdfImageSaver = (() => {
         }
       }
 
-      showReaderToast(reader, `Save ${previews.length} auto ${formatPageToastToken(pageIndex)}...`, "progress");
+      showReaderToast(reader, `Save ${previews.length} auto ${formatPageToastToken(pageIndex)} ${getQualityMark(qualityKey)}...`, "progress");
       const indexPath = await createIndexHTML({
         attachment,
         parentItem,
@@ -1092,7 +1092,7 @@ var PdfImageSaver = (() => {
       }
       activeJobs.add(jobKey);
       jobAdded = true;
-      showReaderToast(reader, `Save page ${formatPageToastToken(pageIndex)}...`, "progress");
+      showReaderToast(reader, `Save page ${formatPageToastToken(pageIndex)} ${getQualityMark(qualityKey)}...`, "progress");
       const context = await getPDFViewerContext(reader);
       const pageElement = await waitForPageElement(context, pageIndex + 1);
       const canvas = getPageCanvas(pageElement);
@@ -1529,7 +1529,7 @@ var PdfImageSaver = (() => {
         return `
           <article class="entry" data-entry="${index + 1}">
             <div class="preview-column">
-              <div class="entry-badge">#${index + 1}</div>
+              <div class="entry-badge">#${index + 1} ${escapeHTML(getQualityMark(entry.quality))}</div>
               <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
                 <img src="${escapeHTML(entry.dataURL)}" alt="Preview p${escapeHTML(String(entry.pageNumber))} #${index + 1}">
               </a>
@@ -2127,11 +2127,12 @@ var PdfImageSaver = (() => {
   <title>${escapeHTML(getSourceTitle(parentItem, attachment))} - orig ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}</title>
   <style>
     body { margin: 12px; font: 12.5px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
+    header { position: sticky; top: 0; z-index: 2; margin: 0 0 6px; padding: 8px 0 6px; background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid #e5e5e5; }
     h1 { font-size: 14px; margin: 0 0 3px; }
     .meta { color: #555; margin: 0 0 1px; line-height: 1.3; }
     table { border-collapse: collapse; width: 100%; margin-top: 6px; }
     th, td { border-top: 1px solid #ddd; padding: 4px 5px; text-align: left; vertical-align: top; }
-    th { color: #555; font-weight: 600; }
+    th { color: #555; font-weight: 600; position: sticky; top: 52px; background: #fff; z-index: 1; }
     tbody tr:hover { background: #f7faff; }
     .source-action { display: inline-block; width: fit-content; padding: 2px 7px; border: 1px solid #9ab; border-radius: 3px; color: #0645ad; text-decoration: none; background: #f7faff; }
     .source-action:focus-visible, .source-map-link:focus-visible, .preview-link:focus-visible { outline: 2px solid #1f73b7; outline-offset: 2px; }
@@ -2139,9 +2140,11 @@ var PdfImageSaver = (() => {
   </style>
 </head>
 <body>
-  <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
-  <p class="meta">Saved ${escapeHTML(createdAt)}. Orig ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}; helper.</p>
-  <p class="meta">${normalizedImages.length} img; ${escapeHTML(formatBytes(normalizedImages.reduce((sum, image) => sum + normalizeNonNegativeInteger(image.byte_count, 0), 0)))}; open PDF page links.</p>
+  <header>
+    <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
+    <p class="meta">Saved ${escapeHTML(createdAt)}. Orig ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}; helper.</p>
+    <p class="meta">${normalizedImages.length} img; ${escapeHTML(formatBytes(normalizedImages.reduce((sum, image) => sum + normalizeNonNegativeInteger(image.byte_count, 0), 0)))}; open PDF page links.</p>
+  </header>
   <table>
     <thead><tr><th>#</th><th>Page</th><th>ID</th><th>Size</th><th>Box</th><th>Open</th></tr></thead>
     <tbody>${rows}</tbody>

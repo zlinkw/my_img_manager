@@ -322,10 +322,10 @@ if ($contextMenuEntry.Value -notmatch "const\s+defaultQualityKey\s*=\s*getDefaul
 if ($contextMenuEntry.Value -notmatch "function\s+buildContextMenuActions\s*\(\s*reader\s*,\s*params\s*,\s*commands\s*=\s*\{\s*\}\s*\)") {
   throw "Context menu actions must be built by a testable helper"
 }
-if ($contextMenuEntry.Value -notmatch "Auto \$\{defaultQuality\.label\};\s*\$\{formatQualityEstimateShort\(defaultQualityKey\)\}[\s\S]*qualityKey:\s*defaultQualityKey") {
+if ($contextMenuEntry.Value -notmatch "Auto \$\{getQualityMark\(defaultQualityKey\)\} \$\{defaultQuality\.label\};\s*\$\{formatQualityEstimateShort\(defaultQualityKey\)\}[\s\S]*qualityKey:\s*defaultQualityKey") {
   throw "Context menu auto-raster action must show and use the default quality estimate"
 }
-if ($contextMenuEntry.Value -notmatch "Page \$\{defaultQuality\.label\};\s*\$\{formatQualityEstimateShort\(defaultQualityKey\)\}[\s\S]*qualityKey:\s*defaultQualityKey") {
+if ($contextMenuEntry.Value -notmatch "Page \$\{getQualityMark\(defaultQualityKey\)\} \$\{defaultQuality\.label\};\s*\$\{formatQualityEstimateShort\(defaultQualityKey\)\}[\s\S]*qualityKey:\s*defaultQualityKey") {
   throw "Context menu page-preview action must show and use the default quality estimate"
 }
 if ($contextMenuEntry.Value -notmatch "pageOriginalMaxImages\s*=\s*getHelperMaxImages\(`"page`"\)[\s\S]*documentOriginalMaxImages\s*=\s*getHelperMaxImages\(`"document`"\)") {
@@ -1419,13 +1419,13 @@ if ($mainJS -notmatch "OK page \$\{formatPageToastToken\(pageIndex\)\} \(\$\{get
 if ($mainJS -notmatch "getQualityMark\(qualityKey\).*formatQualityEstimateShort\(qualityKey\).*formatBytes\(totalBytes\)") {
   throw "Auto success toast must include page, quality mark, estimate, and size"
 }
-if ($mainJS -notmatch "Save clip \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
+if ($mainJS -notmatch "Save clip \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}\.\.\.") {
   throw "Clip save path must show page-scoped progress toast"
 }
-if ($mainJS -notmatch "Auto detect \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
+if ($mainJS -notmatch "Auto detect \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}\.\.\.") {
   throw "Auto-detect path must show page-scoped progress toast"
 }
-if ($mainJS -notmatch "Save page \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
+if ($mainJS -notmatch "Save page \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}\.\.\.") {
   throw "Page save path must show page-scoped progress toast"
 }
 if ($mainJS -notmatch "Helper \$\{formatOriginalScopeToken\(scope, pageIndex\)\}\.\.\.") {
@@ -1472,13 +1472,13 @@ if ($mainJS -notmatch "onSessionEnd") {
 if ($mainJS -notmatch "formatQualityEstimateShort") {
   throw "Quality estimates must support dense short labels"
 }
-if ($mainJS -notmatch "Clip \$\{QUALITY\[key\]\.label\}; \$\{formatQualityEstimateShort\(key\)\}") {
+if ($mainJS -notmatch "Clip \$\{getQualityMark\(key\)\} \$\{QUALITY\[key\]\.label\}; \$\{formatQualityEstimateShort\(key\)\}") {
   throw "Context menu clip labels must stay dense"
 }
-if ($mainJS -notmatch "Auto \$\{defaultQuality\.label\}; \$\{formatQualityEstimateShort\(defaultQualityKey\)\}") {
+if ($mainJS -notmatch "Auto \$\{getQualityMark\(defaultQualityKey\)\} \$\{defaultQuality\.label\}; \$\{formatQualityEstimateShort\(defaultQualityKey\)\}") {
   throw "Context menu auto labels must stay dense"
 }
-if ($mainJS -notmatch "Page \$\{defaultQuality\.label\}; \$\{formatQualityEstimateShort\(defaultQualityKey\)\}") {
+if ($mainJS -notmatch "Page \$\{getQualityMark\(defaultQualityKey\)\} \$\{defaultQuality\.label\}; \$\{formatQualityEstimateShort\(defaultQualityKey\)\}") {
   throw "Context menu page labels must stay dense"
 }
 if ($mainJS -notmatch "Orig page; max") {
@@ -1902,6 +1902,25 @@ if ($mainJS -notmatch 'Open map') {
 }
 if ($mainJS -notmatch 'position: sticky') {
   throw "Preview index header must stick while scrolling"
+}
+
+if ($mainJS -notmatch 'getQualityMark\(entry\.quality\)') {
+  throw "Preview entry badge must include quality mark"
+}
+if ($mainJS -notmatch 'Save clip \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}') {
+  throw "Clip progress toast must include quality mark"
+}
+if ($mainJS -notmatch 'Auto detect \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}') {
+  throw "Auto progress toast must include quality mark"
+}
+if ($mainJS -notmatch 'Save page \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}') {
+  throw "Page progress toast must include quality mark"
+}
+if ($mainJS -notmatch 'Clip \$\{getQualityMark\(key\)\}') {
+  throw "Context menu clip labels must include quality mark"
+}
+if ($mainJS -notmatch 'storage_mode:\s*"original_image_index"[\s\S]*position: sticky') {
+  throw "Original index must stick header while scrolling"
 }
 
 Write-Host "check ok"
