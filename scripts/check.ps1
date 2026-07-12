@@ -560,7 +560,7 @@ if ($mainJS -notmatch "byteCount\s*>\s*ORIGINAL_MAX_IMAGE_BYTES\s*\|\|\s*totalBy
 if ($mainJS -notmatch "byteCapCount:\s*prepared\.byteCapCount") {
   throw "Original image import result must expose byte-cap skip count"
 }
-if ($mainJS -notmatch "\$\{importResult\.byteCapCount\}\s+byte-cap") {
+if ($mainJS -notmatch "\$\{importResult\.byteCapCount\}\s+byte cap") {
   throw "Original helper import toast must expose byte-cap skips"
 }
 if ($mainJS -notmatch "const\s+existingOriginalKeys\s*=\s*await\s+getExistingOriginalImageKeys\(parentItem,\s*attachment\)") {

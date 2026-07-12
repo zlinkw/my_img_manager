@@ -118,6 +118,7 @@ const {
   classifyPreviewDuplicateSkipReason,
   formatDiagnosticsReport,
   formatOptionalHelperStatus,
+  buildOriginalImportSkippedText,
   formatHelperFailure,
   getToastDuration,
   normalizeToastLevel,
@@ -933,6 +934,36 @@ assert.strictEqual(
   formatAutoNoCandidatesReason("no image coords", 4),
   "Auto skip p5: no image coords. Use clip.",
   "auto no-candidate toast must include page token and clip fallback",
+);
+assert.strictEqual(
+  buildOriginalImportSkippedText({
+    invalidCount: 1,
+    missingCount: 2,
+    errorCount: 1,
+    byteCapCount: 3,
+    duplicateCount: 1,
+    importErrorCount: 2,
+    indexErrorCount: 1,
+    overCapCount: 4,
+    maxImages: 12,
+  }),
+  " Skip 1 bad; 2 missing; 1 unread; 3 byte cap; 1 dup; 2 import fail; index fail; 4 over cap 12.",
+  "original skip notes must reuse dense cap/dup tokens",
+);
+assert.strictEqual(
+  buildOriginalImportSkippedText({
+    invalidCount: 0,
+    missingCount: 0,
+    errorCount: 0,
+    byteCapCount: 0,
+    duplicateCount: 2,
+    importErrorCount: 0,
+    indexErrorCount: 0,
+    overCapCount: 0,
+    maxImages: 8,
+  }),
+  " Skip 2 dups.",
+  "original skip notes must pluralize dups",
 );
 assert.strictEqual(
   formatAutoNoCandidatesReason("PDF.js render API unavailable."),

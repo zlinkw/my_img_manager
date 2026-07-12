@@ -1949,7 +1949,7 @@ var PdfImageSaver = (() => {
       parts.push(`${importResult.errorCount} unread`);
     }
     if (importResult.byteCapCount) {
-      parts.push(`${importResult.byteCapCount} byte-cap`);
+      parts.push(`${importResult.byteCapCount} byte cap`);
     }
     if (importResult.duplicateCount) {
       parts.push(`${importResult.duplicateCount} dup${importResult.duplicateCount === 1 ? "" : "s"}`);
@@ -1961,7 +1961,7 @@ var PdfImageSaver = (() => {
       parts.push("index fail");
     }
     if (importResult.overCapCount) {
-      parts.push(`${importResult.overCapCount} over-cap ${importResult.maxImages}`);
+      parts.push(`${importResult.overCapCount} over cap ${importResult.maxImages}`);
     }
     return parts.length ? ` Skip ${parts.join("; ")}.` : "";
   }
@@ -4027,6 +4027,7 @@ var PdfImageSaver = (() => {
       formatAutoNoCandidatesReason,
       formatPreviewDuplicateSkipReason,
       classifyPreviewDuplicateSkipReason,
+      buildOriginalImportSkippedText,
       formatHelperFailure,
       getToastDuration,
       getErrorMessage,
