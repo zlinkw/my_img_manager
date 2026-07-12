@@ -71,6 +71,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Preview/original HTML headers densify scope labels (`clip`/`page`/`auto`/`doc`).
 - Preview attachment/document titles include densified scope tokens for library scanning.
 - Original attachment/document titles densify page/doc scope like preview titles.
+- Original confirmation reuses the same dense `Use clip.` guidance as auto-skip fallbacks.
 - Inventable densify churn is exhausted. Further UI only for concrete clarity gaps or user-reported runtime wording.
 
 ### After UI Is Exhausted

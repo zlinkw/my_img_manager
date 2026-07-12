@@ -1629,7 +1629,7 @@ var PdfImageSaver = (() => {
       const ok = Services.prompt.confirm(
         win,
         "PDF Img",
-        `Orig ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/img, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Prefer clip.`,
+        `Orig ${scopeLabel}? Max ${maxImages}; caps ${formatBytes(ORIGINAL_MAX_IMAGE_BYTES)}/img, ${formatBytes(ORIGINAL_MAX_TOTAL_BYTES)}/run. Use clip.`,
       );
       if (!ok) {
         const pageIndex = normalizePageIndex(safeOptions.pageIndex, null);

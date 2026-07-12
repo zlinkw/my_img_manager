@@ -1697,4 +1697,12 @@ if ($mainJS -notmatch "orig \$\{escapeHTML\(formatPreviewScopeLabel\(normalizedS
   throw "Original HTML document title must densify scope labels"
 }
 
+
+if ($mainJS -notmatch "Use clip\.") {
+  throw "Original confirmation must reuse dense Use clip guidance"
+}
+if ($mainJS -match "Prefer clip") {
+  throw "Original confirmation must not use legacy Prefer clip wording"
+}
+
 Write-Host "check ok"

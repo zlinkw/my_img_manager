@@ -2297,6 +2297,10 @@ async function runAsyncAssertions() {
       && context.Services.prompt.confirms[0].message.includes("150 MB/run"),
     "original confirmation must state per-image and total byte risk",
   );
+assert.ok(
+  context.Services.prompt.confirms[0].message.includes("Use clip."),
+  "original confirmation must reuse dense Use clip guidance",
+);
   assert.strictEqual(
     context.Services.prompt.alerts[0].message,
     "Orig cancel page.",
