@@ -68,9 +68,11 @@ var PdfImageSaverPreferences = {
     for (const id of [
       "pdf-image-saver-default-quality",
       "pdf-image-saver-duplicate-guard",
+      "pdf-image-saver-min-auto-area",
       "pdf-image-saver-auto-max-images",
       "pdf-image-saver-auto-max-preview-mb",
       "pdf-image-saver-max-index-mb",
+      "pdf-image-saver-min-area",
       "pdf-image-saver-max-page-images",
       "pdf-image-saver-max-document-images",
       "pdf-image-saver-helper-timeout",
@@ -92,9 +94,11 @@ var PdfImageSaverPreferences = {
     }
     const quality = this.getPreviewQuality(doc);
     const duplicateGuard = this.getControlBool(doc, "pdf-image-saver-duplicate-guard", this.getBoolPref("duplicateGuard", true));
+    const autoMinArea = this.getAutoMinArea(doc);
     const autoMaxImages = this.getAutoMaxImages(doc);
     const autoCapMB = this.getAutoMaxPreviewMB(doc);
     const indexCapMB = this.getMaxIndexMB(doc);
+    const helperMinArea = this.getHelperMinArea(doc);
     const helperPageMax = this.getHelperPageMax(doc);
     const helperDocMax = this.getHelperDocMax(doc);
     const helperTimeout = this.getHelperTimeout(doc);
@@ -104,9 +108,9 @@ var PdfImageSaverPreferences = {
       "Store: HTML; sync PDF",
       `Q ${quality.label}; ${this.formatEstimateShort(quality.estimate)}`,
       `Dups: ${duplicateGuard ? "on; sess+saved" : "off"}`,
-      `Auto: ${autoMaxImages} max; ${autoCapMB} MB`,
+      `Auto: min ${autoMinArea}; ${autoMaxImages} max; ${autoCapMB} MB`,
       `Index: ${indexCapMB} MB`,
-      `Helper: opt; page ${helperPageMax}; doc ${helperDocMax}; ${helperTimeout}s; ${helperPython}`,
+      `Helper: opt; min ${helperMinArea}; page ${helperPageMax}; doc ${helperDocMax}; ${helperTimeout}s; ${helperPython}`,
     ].join("\n");
   },
 
@@ -127,6 +131,10 @@ var PdfImageSaverPreferences = {
     return Object.prototype.hasOwnProperty.call(this.QUALITY, key) ? key : "medium";
   },
 
+  getAutoMinArea(doc) {
+    return this.getClampedNumber(doc, "pdf-image-saver-min-auto-area", this.getPref("minAutoImageArea", 0.003), 0.001, 0.5, 3);
+  },
+
   getAutoMaxImages(doc) {
     return this.getClampedNumber(doc, "pdf-image-saver-auto-max-images", this.getPref("autoDetectMaxImages", 8), 1, 50);
   },
@@ -137,6 +145,10 @@ var PdfImageSaverPreferences = {
 
   getMaxIndexMB(doc) {
     return this.getClampedNumber(doc, "pdf-image-saver-max-index-mb", this.getPref("maxIndexBytesMB", 6), 1, 12, 1);
+  },
+
+  getHelperMinArea(doc) {
+    return this.getClampedNumber(doc, "pdf-image-saver-min-area", this.getPref("minImageArea", 0.004), 0.001, 0.5, 3);
   },
 
   getHelperPageMax(doc) {

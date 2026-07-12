@@ -1577,8 +1577,17 @@ $prefsJS = Get-Content -Encoding UTF8 -Raw -LiteralPath .\content\preferences.js
 if ($prefsJS -notmatch "pdf-image-saver-max-page-images" -or $prefsJS -notmatch "getHelperPageMax") {
   throw "Preference status must track helper page/doc/timeout/python controls"
 }
-if ($prefsJS -notmatch "Helper: opt; page") {
+if ($prefsJS -notmatch "Helper: opt; min \$\{helperMinArea\}; page") {
   throw "Preference status must show dense helper caps"
+}
+if ($prefsJS -notmatch "Auto: min \$\{autoMinArea\}") {
+  throw "Preference status must show dense auto min/caps"
+}
+if ($prefsJS -notmatch "getAutoMinArea") {
+  throw "Preference status must expose Auto min area"
+}
+if ($prefsJS -notmatch "getHelperMinArea") {
+  throw "Preference status must expose Helper min area"
 }
 if ($mainJS -notmatch "const\s+toast\s*=\s*existing\s*\|\|\s*doc\.createElement\(`"div`"\)") {
   throw "Reader toast must reuse existing toast element when updating"
