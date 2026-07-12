@@ -1374,7 +1374,7 @@ var PdfImageSaver = (() => {
       return;
     }
     button.disabled = true;
-    button.title = "Auto n/a; use clip.";
+    button.title = "Auto n/a; Use clip.";
   }
 
   function supportsPDFJSImageCoordinates(pdfPage) {

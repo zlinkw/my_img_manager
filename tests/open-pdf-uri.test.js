@@ -1682,6 +1682,10 @@ assert.ok(noisyDiagnostics.includes("PDF UNKNOWN"), "diagnostics PDF key must no
 assert.ok(noisyDiagnostics.includes("parent none"), "diagnostics parent item must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Page 1"), "diagnostics page target must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Helper unknown"), "diagnostics helper status must normalize malformed values");
+const autoUnavailableButton = { disabled: false, title: "" };
+applyAutoRasterButtonState(autoUnavailableButton, false, "medium");
+assert.strictEqual(autoUnavailableButton.disabled, true, "unavailable auto button must disable");
+assert.strictEqual(autoUnavailableButton.title, "Auto n/a; Use clip.", "auto unavailable tooltip must reuse dense Use clip guidance");
 assert.strictEqual(formatOptionalHelperStatus("python-missing"), "py missing", "helper status formatter must label missing python");
 assert.strictEqual(formatOptionalHelperStatus("python-available"), "py ok", "helper status formatter must label available python");
 assert.strictEqual(formatOptionalHelperStatus({ bad: true }), "unknown", "helper status formatter must fall back for malformed values");
