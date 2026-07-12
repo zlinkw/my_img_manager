@@ -1797,14 +1797,30 @@ if ($mainJS -notmatch "Open: \$\{normalizeDiagnosticText\(safeReport\.open_pdf_u
 }
 
 
-if ($mainJS -notmatch 'title", "Click dismiss"') {
-  throw "Reader toast must advertise click-to-dismiss"
+if ($mainJS -notmatch 'title", "Click/Esc dismiss"') {
+  throw "Reader toast must advertise click/Esc dismiss"
 }
 if ($mainJS -notmatch "toast\.onclick\s*=") {
   throw "Reader toast must support click-to-dismiss"
 }
 if ($mainJS -notmatch "cursor: pointer;") {
   throw "Reader toast style must signal click-to-dismiss"
+}
+
+if ($mainJS -notmatch "function\s+buildSourceRegionMapHTML\s*\(\s*region\s*,\s*openURI") {
+  throw "Source region map builder must accept open URI"
+}
+if ($mainJS -notmatch 'class="source-map-link"') {
+  throw "Source region map must render clickable open link"
+}
+if ($mainJS -notmatch 'Q \$\{qualityToken\}') {
+  throw "Clip overlay hint must include quality token"
+}
+if ($mainJS -notmatch 'title", "Click/Esc dismiss"') {
+  throw "Reader toast must advertise click/Esc dismiss"
+}
+if ($mainJS -notmatch 'key === .Escape') {
+  throw "Reader toast must dismiss on Escape"
 }
 
 Write-Host "check ok"

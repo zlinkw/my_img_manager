@@ -265,6 +265,7 @@ function createFakeOverlay(host, previousPosition) {
 function createFakeToastDocument() {
   const bodyChildren = [];
   const headChildren = [];
+  const listeners = Object.create(null);
   function createElement(tagName) {
     return {
       tagName,
@@ -299,6 +300,22 @@ function createFakeToastDocument() {
     },
     defaultView: {
       setTimeout() {},
+      clearTimeout() {},
+    },
+    listeners,
+    addEventListener(type, handler) {
+      if (!listeners[type]) {
+        listeners[type] = [];
+      }
+      listeners[type].push(handler);
+    },
+    removeEventListener(type, handler) {
+      listeners[type] = (listeners[type] || []).filter((item) => item !== handler);
+    },
+    dispatch(type, event = {}) {
+      for (const handler of listeners[type] || []) {
+        handler(event);
+      }
     },
     createElement,
     getElementById(id) {
@@ -476,14 +493,14 @@ const selectionBox = (sessionPage.child.children || []).find((node) => node.clas
 assert.ok(selectionBox, "selection overlay must include selection box");
 const sizeBadge = (selectionBox.children || []).find((node) => node.className === "pdf-image-saver-selection-size");
 assert.ok(sizeBadge, "selection box must include live size badge");
-assert.strictEqual(sessionPage.child.title, "Drag p1; Esc", "clip overlay title must include page token");
+assert.strictEqual(sessionPage.child.title, "Drag p1; Q Medium; 60-220 KB; Esc", "clip overlay title must include page and quality");
 assert.strictEqual(
   sessionPage.child.getAttribute("aria-label"),
-  "Clip p1. Drag p1; Esc.",
-  "clip overlay aria-label must include page token",
+  "Clip p1. Drag p1; Q Medium; 60-220 KB; Esc.",
+  "clip overlay aria-label must include page and quality",
 );
 const sessionHint = (sessionPage.child.children || []).find((node) => node.className === "pdf-image-saver-selection-hint");
-assert.strictEqual(sessionHint?.textContent, "Drag p1; Esc", "clip overlay hint must include page token");
+assert.strictEqual(sessionHint?.textContent, "Drag p1; Q Medium; 60-220 KB; Esc", "clip overlay hint must include page and quality");
 sessionPage.child.dispatch("pointerdown", { button: 0, pointerId: 1, clientX: 10, clientY: 12 });
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
 assert.strictEqual(sizeBadge.textContent, "60x40", "selection size badge must show live pixel size");
@@ -528,10 +545,29 @@ showReaderToast(
 assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "toast updates must reuse the existing toast element");
 assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img note.", "malformed toast messages must normalize to compact fallback text");
 assert.strictEqual(readerToastDoc.bodyChildren[0].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
-assert.strictEqual(readerToastDoc.bodyChildren[0].title, "Click dismiss", "toast must advertise click-to-dismiss");
+assert.strictEqual(readerToastDoc.bodyChildren[0].title, "Click/Esc dismiss", "toast must advertise click/Esc dismiss");
 assert.strictEqual(typeof readerToastDoc.bodyChildren[0].onclick, "function", "toast must install click dismiss handler");
 readerToastDoc.bodyChildren[0].onclick();
 assert.strictEqual(readerToastDoc.bodyChildren[0].removed, true, "toast click must dismiss toast");
+
+const escToastDoc = createFakeToastDocument();
+showReaderToast(
+  { type: "pdf", _iframeWindow: { PDFViewerApplication: {}, document: escToastDoc } },
+  "Esc dismiss toast",
+  "warning",
+);
+assert.strictEqual(escToastDoc.bodyChildren.length, 1, "esc toast must render");
+assert.ok(typeof escToastDoc.__keydownHandler === "function" || escToastDoc.listeners?.keydown, "toast must bind Escape dismiss");
+if (typeof escToastDoc.dispatch === "function") {
+  escToastDoc.dispatch("keydown", { key: "Escape" });
+} else if (escToastDoc.__keydownHandler) {
+  escToastDoc.__keydownHandler({ key: "Escape", preventDefault() {} });
+} else if (escToastDoc.listeners?.keydown) {
+  for (const handler of escToastDoc.listeners.keydown) {
+    handler({ key: "Escape", preventDefault() {} });
+  }
+}
+assert.strictEqual(escToastDoc.bodyChildren[0].removed, true, "toast Escape must dismiss toast");
 
 
 context.Services.prompt.alerts = [];
@@ -801,6 +837,8 @@ assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "auto", "a
 assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detector", "unknown detector must keep readable text");
 assert.ok(html.includes(">Open p5</a>"), "HTML entry must expose an explicit source PDF action with page");
 assert.ok(html.includes('title="Open p5"'), "HTML entry Open action title must include page");
+assert.ok(html.includes('class="source-map-link"'), "source region map must be clickable open link");
+assert.ok(html.includes('title="Open map"'), "source region map link must advertise open action");
 assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region identity must keep full source key in a title");
 assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");
 assert.ok(html.includes('<details class="entry-details">'), "trace metadata must be in a per-entry details block");

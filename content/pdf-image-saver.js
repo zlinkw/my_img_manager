@@ -565,7 +565,7 @@ var PdfImageSaver = (() => {
       if (!pageElement || !canvas) {
         throw new Error("Capture failed: canvas missing.");
       }
-      showReaderToast(reader, `Drag ${formatPageToastToken(pageIndex)}; Esc.`, "info");
+      showReaderToast(reader, `Drag ${formatPageToastToken(pageIndex)}; Q ${getQualityLabelWithEstimate(qualityKey)}; Esc.`, "info");
       installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex, {
         onSessionEnd,
       });
@@ -595,7 +595,8 @@ var PdfImageSaver = (() => {
     overlay.className = "pdf-image-saver-selection-overlay";
     overlay.setAttribute?.("role", "application");
     const pageToken = formatPageToastToken(pageIndex);
-    const dragHint = `Drag ${pageToken}; Esc`;
+    const qualityToken = getQualityLabelWithEstimate(qualityKey);
+    const dragHint = `Drag ${pageToken}; Q ${qualityToken}; Esc`;
     overlay.setAttribute?.("aria-label", `Clip ${pageToken}. ${dragHint}.`);
     overlay.title = dragHint;
     overlay.__pdfImageSaverOnSessionEnd = onSessionEnd;
@@ -1509,7 +1510,7 @@ var PdfImageSaver = (() => {
               <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
                 <img src="${escapeHTML(entry.dataURL)}" alt="Preview ${index + 1}">
               </a>
-              ${buildSourceRegionMapHTML(entry.sourceRegion)}
+              ${buildSourceRegionMapHTML(entry.sourceRegion, uri)}
               <a class="source-action" href="${escapeHTML(uri)}" title="Open p${escapeHTML(String(entry.pageNumber))}">Open p${escapeHTML(String(entry.pageNumber))}</a>
             </div>
             <dl class="entry-summary">
@@ -1580,6 +1581,7 @@ var PdfImageSaver = (() => {
     .preview-column { display: grid; gap: 5px; align-content: start; }
     .source-action { display: inline-block; width: fit-content; padding: 2px 7px; border: 1px solid #9ab; border-radius: 3px; color: #0645ad; text-decoration: none; background: #f7faff; }
     img { max-width: 100%; height: auto; border: 1px solid #ccc; background: #f6f6f6; }
+    .source-map-link { display: inline-block; width: fit-content; text-decoration: none; color: inherit; }
     .source-map { position: relative; width: 76px; aspect-ratio: 0.72; border: 1px solid #bbb; background: #fafafa; }
     .source-map span { position: absolute; min-width: 2px; min-height: 2px; border: 2px solid #1f73b7; background: rgba(31, 115, 183, 0.18); box-sizing: border-box; }
     dl { margin: 0; display: grid; gap: 3px; align-content: start; }
@@ -2855,14 +2857,28 @@ var PdfImageSaver = (() => {
     toast.id = "pdf-image-saver-toast";
     toast.className = `pdf-image-saver-toast pdf-image-saver-${level || "info"}`;
     toast.setAttribute?.("role", level === "progress" ? "status" : "alert");
-    toast.setAttribute?.("title", "Click dismiss");
-    toast.onclick = () => {
+    toast.setAttribute?.("title", "Click/Esc dismiss");
+    const dismissToast = () => {
       if (toast.__pdfImageSaverToastTimer && doc.defaultView?.clearTimeout) {
         doc.defaultView.clearTimeout(toast.__pdfImageSaverToastTimer);
       }
       toast.__pdfImageSaverToastTimer = null;
+      if (toast.__pdfImageSaverEscHandler && doc.removeEventListener) {
+        doc.removeEventListener("keydown", toast.__pdfImageSaverEscHandler, true);
+      }
+      toast.__pdfImageSaverEscHandler = null;
       toast.remove?.();
     };
+    toast.onclick = dismissToast;
+    if (!toast.__pdfImageSaverEscHandler && doc.addEventListener) {
+      toast.__pdfImageSaverEscHandler = (event) => {
+        if (event?.key === "Escape") {
+          event.preventDefault?.();
+          dismissToast();
+        }
+      };
+      doc.addEventListener("keydown", toast.__pdfImageSaverEscHandler, true);
+    }
     toast.textContent = message;
     if (!existing) {
       doc.body.appendChild(toast);
@@ -3071,11 +3087,16 @@ var PdfImageSaver = (() => {
     ];
   }
 
-  function buildSourceRegionMapHTML(region) {
+  function buildSourceRegionMapHTML(region, openURI = null) {
     if (!region) {
       return "";
     }
-    return `<div class="source-map" title="${escapeHTML(region.label || "Region")}"><span style="left:${formatCSSPercent(region.left)};top:${formatCSSPercent(region.top)};width:${formatCSSPercent(region.width)};height:${formatCSSPercent(region.height)}"></span></div>`;
+    const map = `<div class="source-map" title="${escapeHTML(region.label || "Region")}"><span style="left:${formatCSSPercent(region.left)};top:${formatCSSPercent(region.top)};width:${formatCSSPercent(region.width)};height:${formatCSSPercent(region.height)}"></span></div>`;
+    const uri = normalizeMetadataText(openURI, null, 500);
+    if (!uri) {
+      return map;
+    }
+    return `<a class="source-map-link" href="${escapeHTML(uri)}" title="Open map">${map}</a>`;
   }
 
   function normalizeAnnotationKey(value) {
