@@ -1410,14 +1410,14 @@ if ($mainJS -notmatch "function\s+normalizeToastLevel\s*\(\s*level\s*\)[\s\S]*\[
 if ($mainJS -notmatch "function\s+getToastDuration\s*\(\s*level\s*\)[\s\S]*progress[\s\S]*120000") {
   throw "Reader toast duration helper must keep progress toasts sticky"
 }
-if ($mainJS -notmatch "OK clip \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
-  throw "Clip success toast must include page, quality, and size"
+if ($mainJS -notmatch "OK clip \$\{formatPageToastToken\(pageIndex\)\} \(\$\{getQualityMark\(qualityKey\)\}; \$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
+  throw "Clip success toast must include page, quality mark, estimate, and size"
 }
-if ($mainJS -notmatch "OK page \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
-  throw "Page success toast must include page, quality, and size"
+if ($mainJS -notmatch "OK page \$\{formatPageToastToken\(pageIndex\)\} \(\$\{getQualityMark\(qualityKey\)\}; \$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)\.") {
+  throw "Page success toast must include page, quality mark, estimate, and size"
 }
-if ($mainJS -notmatch "OK \$\{previews\.length\} auto \$\{formatPageToastToken\(pageIndex\)\} \(\$\{formatQualityEstimateShort\(qualityKey\)\};") {
-  throw "Auto success toast must include page, quality, and size"
+if ($mainJS -notmatch "getQualityMark\(qualityKey\).*formatQualityEstimateShort\(qualityKey\).*formatBytes\(totalBytes\)") {
+  throw "Auto success toast must include page, quality mark, estimate, and size"
 }
 if ($mainJS -notmatch "Save clip \$\{formatPageToastToken\(pageIndex\)\}\.\.\.") {
   throw "Clip save path must show page-scoped progress toast"
@@ -1879,6 +1879,16 @@ if ($mainJS -notmatch 'data-level') {
 }
 if ($mainJS -notmatch 'aria-busy') {
   throw "Progress toast must set aria-busy"
+}
+
+if ($mainJS -notmatch '<div><dt>Det</dt><dd>\$\{escapeHTML\(formatPreviewDetectorLabel\(entry\.detector\)\)\}</dd></div>') {
+  throw "Preview entry summary must surface detector"
+}
+if ($mainJS -notmatch '<th>#</th>') {
+  throw "Original index must expose numbered rows"
+}
+if ($mainJS -notmatch 'getQualityMark\(qualityKey\)') {
+  throw "Success toasts must include quality mark"
 }
 
 Write-Host "check ok"

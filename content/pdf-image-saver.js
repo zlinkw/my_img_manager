@@ -822,7 +822,7 @@ var PdfImageSaver = (() => {
       });
       showReaderToast(
         reader,
-        `OK clip ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`,
+        `OK clip ${formatPageToastToken(pageIndex)} (${getQualityMark(qualityKey)}; ${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`,
         "success",
       );
       rememberPreviewIndexSave(attachment, [preview], indexKey);
@@ -988,7 +988,7 @@ var PdfImageSaver = (() => {
       }
       showReaderToast(
         reader,
-        `OK ${previews.length} auto ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
+        `OK ${previews.length} auto ${formatPageToastToken(pageIndex)} (${getQualityMark(qualityKey)}; ${formatQualityEstimateShort(qualityKey)}; ${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
         "success",
       );
       return imported;
@@ -1148,7 +1148,7 @@ var PdfImageSaver = (() => {
         indexKey,
       });
       rememberPreviewIndexSave(attachment, [preview], indexKey);
-      showReaderToast(reader, `OK page ${formatPageToastToken(pageIndex)} (${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`, "success");
+      showReaderToast(reader, `OK page ${formatPageToastToken(pageIndex)} (${getQualityMark(qualityKey)}; ${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`, "success");
     } catch (error) {
       logError(error);
       showReaderToast(reader, formatUserFacingError(error), "error");
@@ -1539,6 +1539,7 @@ var PdfImageSaver = (() => {
             <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
               <div><dt>Q</dt><dd>${escapeHTML(QUALITY[entry.quality].label)}; ${escapeHTML(formatQualityEstimateShort(entry.quality))}</dd></div>
+              <div><dt>Det</dt><dd>${escapeHTML(formatPreviewDetectorLabel(entry.detector))}</dd></div>
               <div><dt>Size</dt><dd>${formatBytes(entry.byteCount)}; ${formatPreviewDimensions(entry.renderedWidth, entry.renderedHeight)}</dd></div>
               <div><dt>ID</dt><dd title="${escapeHTML(entry.sourceRegionKey)}">${escapeHTML(regionIdentity)}</dd></div>
             </dl>
@@ -2101,8 +2102,9 @@ var PdfImageSaver = (() => {
         open_pdf_uri: buildOpenPDFURI(attachment, image?.pageNumber ?? image?.page_number),
       };
     });
-    const rows = normalizedImages.map((image) => `
+    const rows = normalizedImages.map((image, index) => `
       <tr>
+        <td>#${index + 1}</td>
         <td><a href="${escapeHTML(image.open_pdf_uri)}">p${escapeHTML(String(image.page_number))}</a></td>
         <td title="${escapeHTML(image.original_image_key)}">${escapeHTML(image.original_image_fingerprint)}</td>
         <td>${escapeHTML(formatBytes(image.byte_count))}</td>
@@ -2142,7 +2144,7 @@ var PdfImageSaver = (() => {
   <p class="meta">Saved ${escapeHTML(createdAt)}. Orig ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}; helper.</p>
   <p class="meta">${normalizedImages.length} img; ${escapeHTML(formatBytes(normalizedImages.reduce((sum, image) => sum + normalizeNonNegativeInteger(image.byte_count, 0), 0)))}; open PDF page links.</p>
   <table>
-    <thead><tr><th>Page</th><th>ID</th><th>Size</th><th>Box</th><th>Open</th></tr></thead>
+    <thead><tr><th>#</th><th>Page</th><th>ID</th><th>Size</th><th>Box</th><th>Open</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <details>

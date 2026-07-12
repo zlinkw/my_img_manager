@@ -906,7 +906,8 @@ assert.strictEqual(formatPreviewScopeLabel("auto-page"), "auto", "auto-page scop
 assert.strictEqual(formatPreviewScopeLabel("document"), "doc", "document scope must densify");
 assert.strictEqual(formatPreviewScopeLabel("clip"), "clip", "clip scope must stay stable");
 
-assert.ok(html.includes(">manual</dd>"), "preview index trace must densify detector label");
+assert.ok(html.includes("<dt>Det</dt>"), "preview index must expose detector in summary");
+assert.ok(html.includes(">manual</dd>"), "preview index detector must densify detector label");
 assert.strictEqual(formatPreviewDetectorLabel("manual_selection"), "manual", "manual detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "auto", "auto detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detector", "unknown detector must keep readable text");
@@ -955,6 +956,8 @@ assert.ok(originalIndexHTML.includes("abc123"), "original index must keep compac
 assert.ok(originalIndexHTML.includes(">Open p5</a>"), "original index must expose explicit Open actions with page");
 assert.ok(originalIndexHTML.includes("tbody tr:hover"), "original index table must highlight row hover");
 assert.ok(originalIndexHTML.includes("1 img;"), "original index must densify image count");
+assert.ok(originalIndexHTML.includes("<th>#</th>"), "original index must expose row numbers");
+assert.ok(originalIndexHTML.includes("<td>#1</td>"), "original index first row must be numbered");
 assert.ok(originalIndexHTML.includes("open PDF page links"), "original index header must state PDF open links");
 assert.ok(originalIndexHTML.includes("Orig page; helper"), "original index header must densify scope/helper meta");
 assert.ok(originalIndexHTML.includes("- orig page"), "original HTML document title must densify page scope");
