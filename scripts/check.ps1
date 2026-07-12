@@ -1849,4 +1849,23 @@ if ($mainJS -notmatch 'pdf-image-saver-quality:disabled') {
   throw "Quality select disabled state must be styled"
 }
 
+if ($mainJS -notmatch 'Esc/RMB') {
+  throw "Clip overlay cancel hints must include Esc/RMB"
+}
+if ($mainJS -notmatch 'contextmenu') {
+  throw "Clip overlay must cancel on contextmenu"
+}
+if ($mainJS -notmatch 'aria-live') {
+  throw "Reader toast must set aria-live"
+}
+if ($mainJS -notmatch 'Preview p\$\{escapeHTML\(String\(entry\.pageNumber\)\)\}') {
+  throw "Preview image alt must include page number"
+}
+if ($mainJS -notmatch 'totalPreviewBytes') {
+  throw "Preview index header must include total preview bytes"
+}
+if ((Get-Content -Raw "preferences.xhtml") -notmatch 'title="Preview quality"') {
+  throw "Preference short labels must expose title tooltips"
+}
+
 Write-Host "check ok"

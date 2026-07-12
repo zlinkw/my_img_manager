@@ -72,6 +72,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Clip drag hint shows quality; source-region map is a clickable open-PDF link.
 - Toolbar exposes `aria-busy`/`data-mode`; busy Q shows lock title; Auto n/a has matching aria-label; toast Esc yields to active clip overlay; index open targets use focus-visible.
 - Below-min selection badge uses `is-min` visual state.
+- Clip cancel: Esc/RMB; toast uses aria-live; index header shows total preview bytes; prefs short labels keep title tooltips.
 
 ### After UI Is Exhausted
 

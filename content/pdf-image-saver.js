@@ -569,7 +569,7 @@ var PdfImageSaver = (() => {
       if (!pageElement || !canvas) {
         throw new Error("Capture failed: canvas missing.");
       }
-      showReaderToast(reader, `Drag ${formatPageToastToken(pageIndex)}; Q ${getQualityLabelWithEstimate(qualityKey)}; Esc.`, "info");
+      showReaderToast(reader, `Drag ${formatPageToastToken(pageIndex)}; Q ${getQualityLabelWithEstimate(qualityKey)}; Esc/RMB.`, "info");
       installSelectionOverlay(reader, context.doc, pageElement, canvas, qualityKey, pageIndex, {
         onSessionEnd,
       });
@@ -600,7 +600,7 @@ var PdfImageSaver = (() => {
     overlay.setAttribute?.("role", "application");
     const pageToken = formatPageToastToken(pageIndex);
     const qualityToken = getQualityLabelWithEstimate(qualityKey);
-    const dragHint = `Drag ${pageToken}; Q ${qualityToken}; Esc`;
+    const dragHint = `Drag ${pageToken}; Q ${qualityToken}; Esc/RMB`;
     overlay.setAttribute?.("aria-label", `Clip ${pageToken}. ${dragHint}.`);
     overlay.title = dragHint;
     overlay.__pdfImageSaverOnSessionEnd = onSessionEnd;
@@ -640,6 +640,13 @@ var PdfImageSaver = (() => {
         endSession();
         showReaderToast(reader, `Clip cancel ${formatPageToastToken(pageIndex)}.`, "warning");
       }
+    });
+
+    overlay.addEventListener("contextmenu", (event) => {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      endSession();
+      showReaderToast(reader, `Clip cancel ${formatPageToastToken(pageIndex)}.`, "warning");
     });
 
     overlay.addEventListener("pointerdown", (event) => {
@@ -1519,7 +1526,7 @@ var PdfImageSaver = (() => {
           <article class="entry">
             <div class="preview-column">
               <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
-                <img src="${escapeHTML(entry.dataURL)}" alt="Preview ${index + 1}">
+                <img src="${escapeHTML(entry.dataURL)}" alt="Preview p${escapeHTML(String(entry.pageNumber))} #${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion, uri)}
               <a class="source-action" href="${escapeHTML(uri)}" title="Open p${escapeHTML(String(entry.pageNumber))}">Open p${escapeHTML(String(entry.pageNumber))}</a>
@@ -1544,6 +1551,7 @@ var PdfImageSaver = (() => {
       .join("\n");
 
     const previewIndexKey = normalizePreviewIndexKey(indexKey) || getPreviewIndexKey(attachment, normalizedEntries, normalizedScope, previewQualityKey);
+    const totalPreviewBytes = normalizedEntries.reduce((sum, entry) => sum + normalizeNonNegativeInteger(entry.byteCount, 0), 0);
     const metadata = {
       schema_version: HELPER_SCHEMA_VERSION,
       created_at: createdAt,
@@ -1610,7 +1618,7 @@ var PdfImageSaver = (() => {
   <header>
     <h1>${escapeHTML(sourceTitle)}</h1>
     <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync; ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}.</p>
-    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}</p>
+    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}</p>
   </header>
   ${entriesHTML}
   <details>
@@ -2117,6 +2125,7 @@ var PdfImageSaver = (() => {
     table { border-collapse: collapse; width: 100%; margin-top: 6px; }
     th, td { border-top: 1px solid #ddd; padding: 4px 5px; text-align: left; vertical-align: top; }
     th { color: #555; font-weight: 600; }
+    tbody tr:hover { background: #f7faff; }
     .source-action { display: inline-block; width: fit-content; padding: 2px 7px; border: 1px solid #9ab; border-radius: 3px; color: #0645ad; text-decoration: none; background: #f7faff; }
     .source-action:focus-visible, .source-map-link:focus-visible, .preview-link:focus-visible { outline: 2px solid #1f73b7; outline-offset: 2px; }
     pre { white-space: pre-wrap; word-break: break-word; padding: 8px; background: #f6f8fa; border: 1px solid #ddd; font-size: 11.5px; }
@@ -2125,7 +2134,7 @@ var PdfImageSaver = (() => {
 <body>
   <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
   <p class="meta">Saved ${escapeHTML(createdAt)}. Orig ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}; helper.</p>
-  <p class="meta">${normalizedImages.length} img; open PDF page links.</p>
+  <p class="meta">${normalizedImages.length} img; ${escapeHTML(formatBytes(normalizedImages.reduce((sum, image) => sum + normalizeNonNegativeInteger(image.byte_count, 0), 0)))}; open PDF page links.</p>
   <table>
     <thead><tr><th>Page</th><th>ID</th><th>Size</th><th>Box</th><th>Open</th></tr></thead>
     <tbody>${rows}</tbody>
@@ -2870,6 +2879,7 @@ var PdfImageSaver = (() => {
     toast.id = "pdf-image-saver-toast";
     toast.className = `pdf-image-saver-toast pdf-image-saver-${level || "info"}`;
     toast.setAttribute?.("role", level === "progress" ? "status" : "alert");
+    toast.setAttribute?.("aria-live", level === "error" || level === "warning" ? "assertive" : "polite");
     toast.setAttribute?.("title", "Click/Esc dismiss");
     const dismissToast = () => {
       if (toast.__pdfImageSaverToastTimer && doc.defaultView?.clearTimeout) {

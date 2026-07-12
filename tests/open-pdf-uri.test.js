@@ -275,10 +275,18 @@ function createFakeToastDocument() {
       title: "",
       onclick: null,
       removed: false,
+      attributes: Object.create(null),
       setAttribute(name, value) {
+        this.attributes[name] = String(value);
         if (name === "title") {
           this.title = String(value);
         }
+      },
+      getAttribute(name) {
+        if (name === "title") {
+          return this.title || null;
+        }
+        return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null;
       },
       remove() {
         this.removed = true;
@@ -504,14 +512,14 @@ const selectionBox = (sessionPage.child.children || []).find((node) => node.clas
 assert.ok(selectionBox, "selection overlay must include selection box");
 const sizeBadge = (selectionBox.children || []).find((node) => node.className === "pdf-image-saver-selection-size");
 assert.ok(sizeBadge, "selection box must include live size badge");
-assert.strictEqual(sessionPage.child.title, "Drag p1; Q Medium; 60-220 KB; Esc", "clip overlay title must include page and quality");
+assert.strictEqual(sessionPage.child.title, "Drag p1; Q Medium; 60-220 KB; Esc/RMB", "clip overlay title must include page, quality, and cancel hints");
 assert.strictEqual(
   sessionPage.child.getAttribute("aria-label"),
-  "Clip p1. Drag p1; Q Medium; 60-220 KB; Esc.",
-  "clip overlay aria-label must include page and quality",
+  "Clip p1. Drag p1; Q Medium; 60-220 KB; Esc/RMB.",
+  "clip overlay aria-label must include page, quality, and cancel hints",
 );
 const sessionHint = (sessionPage.child.children || []).find((node) => node.className === "pdf-image-saver-selection-hint");
-assert.strictEqual(sessionHint?.textContent, "Drag p1; Q Medium; 60-220 KB; Esc", "clip overlay hint must include page and quality");
+assert.strictEqual(sessionHint?.textContent, "Drag p1; Q Medium; 60-220 KB; Esc/RMB", "clip overlay hint must include page, quality, and cancel hints");
 sessionPage.child.dispatch("pointerdown", { button: 0, pointerId: 1, clientX: 10, clientY: 12 });
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
 assert.strictEqual(sizeBadge.textContent, "60x40", "selection size badge must show live pixel size");
@@ -521,6 +529,40 @@ assert.ok(String(sizeBadge.className || "").includes("is-min"), "below-min size 
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
 assert.strictEqual(sizeBadge.textContent, "60x40", "selection size badge must clear min12 after valid size");
 assert.ok(!String(sizeBadge.className || "").includes("is-min"), "valid size badge must clear is-min class");
+// reinstall for RMB cancel path
+clipSessionEnded = 0;
+installSelectionOverlay(
+  { _iframeWindow: { document: sessionDoc } },
+  sessionDoc,
+  sessionPage,
+  { getBoundingClientRect() { return { left: 0, top: 0, width: 200, height: 200 }; } },
+  "medium",
+  0,
+  {
+    onSessionEnd() {
+      clipSessionEnded += 1;
+    },
+  },
+);
+sessionPage.child.dispatch("contextmenu", {});
+assert.strictEqual(clipSessionEnded, 1, "onSessionEnd must fire when overlay is cancelled via RMB");
+assert.strictEqual(sessionPage.child.removed, true, "RMB-cancelled overlay must be removed");
+
+// reinstall for Escape cancel path
+clipSessionEnded = 0;
+installSelectionOverlay(
+  { _iframeWindow: { document: sessionDoc } },
+  sessionDoc,
+  sessionPage,
+  { getBoundingClientRect() { return { left: 0, top: 0, width: 200, height: 200 }; } },
+  "medium",
+  0,
+  {
+    onSessionEnd() {
+      clipSessionEnded += 1;
+    },
+  },
+);
 sessionPage.child.dispatch("keydown", { key: "Escape" });
 assert.strictEqual(clipSessionEnded, 1, "onSessionEnd must fire when overlay is cancelled");
 assert.strictEqual(sessionPage.child.removed, true, "cancelled overlay must be removed");
@@ -559,6 +601,7 @@ assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "toast updates must re
 assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img note.", "malformed toast messages must normalize to compact fallback text");
 assert.strictEqual(readerToastDoc.bodyChildren[0].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
 assert.strictEqual(readerToastDoc.bodyChildren[0].title, "Click/Esc dismiss", "toast must advertise click/Esc dismiss");
+assert.strictEqual(readerToastDoc.bodyChildren[0].getAttribute?.("aria-live") || readerToastDoc.bodyChildren[0].attributes?.["aria-live"], "polite", "info/success toast must use polite aria-live");
 assert.strictEqual(typeof readerToastDoc.bodyChildren[0].onclick, "function", "toast must install click dismiss handler");
 readerToastDoc.bodyChildren[0].onclick();
 assert.strictEqual(readerToastDoc.bodyChildren[0].removed, true, "toast click must dismiss toast");
@@ -864,7 +907,9 @@ assert.ok(html.includes(">manual</dd>"), "preview index trace must densify detec
 assert.strictEqual(formatPreviewDetectorLabel("manual_selection"), "manual", "manual detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "auto", "auto detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detector", "unknown detector must keep readable text");
+assert.ok(html.includes('alt="Preview p5 #1"'), "preview image alt must include page and entry index");
 assert.ok(html.includes(">Open p5</a>"), "HTML entry must expose an explicit source PDF action with page");
+assert.ok(/Index [^;]+; 1 img; 3 B;/.test(html) || html.includes("1 img; 3 B;"), "preview index header must include total preview bytes");
 assert.ok(html.includes('title="Open p5"'), "HTML entry Open action title must include page");
 assert.ok(html.includes('class="source-map-link"'), "source region map must be clickable open link");
 assert.ok(html.includes(":focus-visible"), "index open targets must expose keyboard focus style");
@@ -900,6 +945,8 @@ assert.strictEqual(originalIndexMetadata.images[0].byte_count, 65536);
 assert.ok(originalIndexHTML.includes("zotero://open-pdf/library/items/HTMLPDF1?page=5"), "original index must include source PDF links");
 assert.ok(originalIndexHTML.includes("abc123"), "original index must keep compact original identity metadata");
 assert.ok(originalIndexHTML.includes(">Open p5</a>"), "original index must expose explicit Open actions with page");
+assert.ok(originalIndexHTML.includes("tbody tr:hover"), "original index table must highlight row hover");
+assert.ok(originalIndexHTML.includes("1 img;"), "original index must densify image count");
 assert.ok(originalIndexHTML.includes("open PDF page links"), "original index header must state PDF open links");
 assert.ok(originalIndexHTML.includes("Orig page; helper"), "original index header must densify scope/helper meta");
 assert.ok(originalIndexHTML.includes("- orig page"), "original HTML document title must densify page scope");
@@ -2907,6 +2954,12 @@ function createPreferenceDocument() {
     },
   };
 }
+
+
+const preferencesXhtml = fs.readFileSync(path.join(root, "preferences.xhtml"), "utf8");
+assert.ok(preferencesXhtml.includes('title="Preview quality"'), "prefs Q label must expose title");
+assert.ok(preferencesXhtml.includes('title="HTML index size cap (MB)"'), "prefs Index MB label must expose title");
+assert.ok(preferencesXhtml.includes('title="Custom Python path; empty = auto"'), "prefs Python label must expose title");
 
 function assertPreferenceStatusRendering() {
   const preferencesSource = fs.readFileSync(path.join(root, "content", "preferences.js"), "utf8");
