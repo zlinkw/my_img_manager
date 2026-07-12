@@ -587,6 +587,12 @@ if ($mainJS -notmatch "function\s+buildOriginalImageIndexHTML") {
 if ($mainJS -notmatch 'storage_mode:\s*"original_image_index"') {
   throw "Original image index metadata must use original_image_index storage mode"
 }
+if ($mainJS -notmatch 'class="source-action"[\s\S]*title="Open">Open') {
+  throw "Original image index HTML must expose explicit Open actions"
+}
+if ($mainJS -notmatch "open PDF page links") {
+  throw "Original image index HTML must densify open-PDF header text"
+}
 if ($mainJS -notmatch "original_image_key:\s*originalImageKey") {
   throw "Original image index metadata must include stable original_image_key values"
 }

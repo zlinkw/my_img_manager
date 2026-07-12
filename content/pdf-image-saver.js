@@ -2034,6 +2034,7 @@ var PdfImageSaver = (() => {
         <td title="${escapeHTML(image.original_image_key)}">${escapeHTML(image.original_image_fingerprint)}</td>
         <td>${escapeHTML(formatBytes(image.byte_count))}</td>
         <td>${escapeHTML(image.bbox_normalized.map((value) => value.toFixed(4)).join(", "))}</td>
+        <td><a class="source-action" href="${escapeHTML(image.open_pdf_uri)}" title="Open">Open</a></td>
       </tr>`).join("\n");
     const metadata = {
       schema_version: HELPER_SCHEMA_VERSION,
@@ -2053,18 +2054,20 @@ var PdfImageSaver = (() => {
   <style>
     body { margin: 12px; font: 12.5px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
     h1 { font-size: 14px; margin: 0 0 3px; }
-    .meta { color: #555; margin: 0 0 6px; }
+    .meta { color: #555; margin: 0 0 1px; line-height: 1.3; }
     table { border-collapse: collapse; width: 100%; margin-top: 6px; }
     th, td { border-top: 1px solid #ddd; padding: 4px 5px; text-align: left; vertical-align: top; }
     th { color: #555; font-weight: 600; }
+    .source-action { display: inline-block; width: fit-content; padding: 2px 7px; border: 1px solid #9ab; border-radius: 3px; color: #0645ad; text-decoration: none; background: #f7faff; }
     pre { white-space: pre-wrap; word-break: break-word; padding: 8px; background: #f6f8fa; border: 1px solid #ddd; font-size: 11.5px; }
   </style>
 </head>
 <body>
   <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
-  <p class="meta">Orig ${escapeHTML(normalizedScope)}; ${normalizedImages.length} img; open PDF.</p>
+  <p class="meta">Saved ${escapeHTML(createdAt)}. Orig ${escapeHTML(normalizedScope)}; helper.</p>
+  <p class="meta">${normalizedImages.length} img; open PDF page links.</p>
   <table>
-    <thead><tr><th>Page</th><th>ID</th><th>Size</th><th>Box</th></tr></thead>
+    <thead><tr><th>Page</th><th>ID</th><th>Size</th><th>Box</th><th>Open</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <details>

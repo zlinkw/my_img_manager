@@ -797,6 +797,9 @@ assert.strictEqual(originalIndexMetadata.images[0].open_pdf_uri, "zotero://open-
 assert.strictEqual(originalIndexMetadata.images[0].byte_count, 65536);
 assert.ok(originalIndexHTML.includes("zotero://open-pdf/library/items/HTMLPDF1?page=5"), "original index must include source PDF links");
 assert.ok(originalIndexHTML.includes("abc123"), "original index must keep compact original identity metadata");
+assert.ok(originalIndexHTML.includes(">Open</a>"), "original index must expose explicit Open actions");
+assert.ok(originalIndexHTML.includes("open PDF page links"), "original index header must state PDF open links");
+assert.ok(originalIndexHTML.includes("Orig page; helper"), "original index header must densify scope/helper meta");
 const weakOriginalKeyA = getOriginalImageKey(htmlAttachment, { page_number: 5, occurrence: 1 });
 const weakOriginalKeyB = getOriginalImageKey(htmlAttachment, { page_number: 5, occurrence: 2 });
 assert.notStrictEqual(

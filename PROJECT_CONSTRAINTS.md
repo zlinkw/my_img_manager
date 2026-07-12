@@ -70,6 +70,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - UI-first densify backlog is exhausted for inventable wording/chrome churn. Further UI work only for concrete clarity gaps or user-reported runtime wording.
 - Auto success skip-notes now reuse the same `saved/session dups`, `byte cap`, and `item cap` tokens as skip toasts.
 - Original import skip notes now reuse dense `byte cap` / `over cap` / `dup` tokens with auto success notes.
+- Original HTML index now mirrors preview Open actions and denser header meta.
 
 ### After UI Is Exhausted
 
