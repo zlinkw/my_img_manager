@@ -404,6 +404,7 @@ var PdfImageSaver = (() => {
       default_quality: getDefaultQualityKey(),
       max_index: formatBytes(getMaxIndexBytes()),
       auto_cap: formatBytes(getAutoMaxPreviewBytes()),
+      auto_max_images: clamp(getIntegerPref("autoDetectMaxImages", DEFAULT_AUTO_DETECT_MAX_IMAGES), 1, 50),
       auto_min_area: clamp(getNumberPref("minAutoImageArea", DEFAULT_MIN_AUTO_IMAGE_AREA), 0.0001, 0.5),
       helper_min_area: clamp(getNumberPref("minImageArea", DEFAULT_MIN_AREA), 0.0001, 0.5),
       helper_page_max: getHelperMaxImages("page"),
@@ -468,7 +469,7 @@ var PdfImageSaver = (() => {
     const lines = [
       `Plugin ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}; Zotero ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
       `On ${formatDiagnosticBoolean(safeReport.started)}; readers ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}; PDF ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
-      `Q ${getQualityLabelWithEstimate(safeReport.default_quality)}; dups ${formatDiagnosticBoolean(safeReport.duplicate_guard)}; auto min ${formatDiagnosticArea(safeReport.auto_min_area)}; auto ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
+      `Q ${getQualityLabelWithEstimate(safeReport.default_quality)}; dups ${formatDiagnosticBoolean(safeReport.duplicate_guard)}; auto min ${formatDiagnosticArea(safeReport.auto_min_area)}; ${normalizeNonNegativeInteger(safeReport.auto_max_images, 0)} max; auto ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
       `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; min ${formatDiagnosticArea(safeReport.helper_min_area)}; page ${normalizeNonNegativeInteger(safeReport.helper_page_max, 0)}; doc ${normalizeNonNegativeInteger(safeReport.helper_doc_max, 0)}; ${normalizeNonNegativeInteger(safeReport.helper_timeout_s, 0)}s; orig opt`,
       `Temp ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)}); ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 160)}`,
     ];

@@ -1736,4 +1736,12 @@ if ($mainJS -notmatch "page \$\{normalizeNonNegativeInteger\(safeReport\.helper_
   throw "Diagnostics report must densify helper page/doc/timeout caps"
 }
 
+
+if ($mainJS -notmatch "auto_max_images:\s*clamp\(getIntegerPref\(\`"autoDetectMaxImages`"") {
+  throw "Runtime diagnostics must capture auto max images"
+}
+if ($mainJS -notmatch "\$\{normalizeNonNegativeInteger\(safeReport\.auto_max_images,\s*0\)\} max") {
+  throw "Diagnostics report must densify auto max images"
+}
+
 Write-Host "check ok"
