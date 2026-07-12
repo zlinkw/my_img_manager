@@ -1946,4 +1946,20 @@ if ($mainJS -notmatch 'img index \$\{escapeHTML\(formatPreviewScopeLabel\(normal
   throw "Preview HTML document title must densify quality mark"
 }
 
+if ($mainJS -notmatch 'meta jumps') {
+  throw "Multi-entry index headers must expose jump list"
+}
+if ($mainJS -notmatch 'id="e\$\{index \+ 1\}"') {
+  throw "Preview entries must expose jump anchors"
+}
+if ($mainJS -notmatch 'Clip busy \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}') {
+  throw "Busy clip toast must include quality mark"
+}
+if ($mainJS -notmatch 'Auto busy \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}') {
+  throw "Busy auto toast must include quality mark"
+}
+if ($mainJS -notmatch 'Page busy \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}') {
+  throw "Busy page toast must include quality mark"
+}
+
 Write-Host "check ok"

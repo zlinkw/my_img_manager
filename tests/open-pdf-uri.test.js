@@ -928,6 +928,8 @@ assert.ok(html.includes("HTML; sync; clip."), "preview index header must densify
 assert.ok(html.includes("img index clip M"), "preview HTML document title must densify scope and quality mark");
 assert.ok(html.includes(">Open first p5</a>"), "preview index header must expose open-first action");
 assert.ok(html.includes('title="Open first p5"'), "preview open-first action must include page");
+assert.ok(!html.includes('class="meta jumps"'), "single preview index must not show jump list");
+assert.ok(html.includes('id="e1"'), "preview entries must expose entry anchors");
 assert.strictEqual(formatPreviewScopeLabel("auto-page"), "auto", "auto-page scope must densify");
 assert.strictEqual(formatPreviewScopeLabel("document"), "doc", "document scope must densify");
 assert.strictEqual(formatPreviewScopeLabel("clip"), "clip", "clip scope must stay stable");
@@ -1203,6 +1205,19 @@ assert.ok(singleIndexTitle.length <= 140, "single preview title must stay compac
 
 const multiIndexKey = getPreviewIndexKey(htmlAttachment, [samePageLeft, samePageRight], "auto-page", "high");
 const multiIndexTitle = buildIndexTitle(htmlParent, htmlAttachment, "auto-page", 4, [samePageLeft, samePageRight], "high", multiIndexKey);
+const multiJumpHTML = buildIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  entries: [samePageLeft, samePageRight],
+  scope: "auto-page",
+  qualityKey: "high",
+});
+assert.ok(multiJumpHTML.includes('id="e1"'), "multi preview entries must expose jump anchors");
+assert.ok(multiJumpHTML.includes('id="e2"'), "multi preview entries must expose second jump anchor");
+assert.ok(multiJumpHTML.includes('class="meta jumps"'), "multi preview header must expose jump list");
+assert.ok(multiJumpHTML.includes('href="#e1"'), "jump list must link first entry");
+assert.ok(multiJumpHTML.includes('href="#e2"'), "jump list must link second entry");
+
 assert.ok(multiIndexTitle.includes("auto"), "multi preview title must include densified auto scope");
 assert.ok(multiIndexTitle.includes("2img"), "multi preview title must include image count");
 assert.ok(multiIndexTitle.includes("H High"), "multi preview title must include quality mark/label");

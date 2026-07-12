@@ -79,6 +79,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Progress toasts and context-menu clip/auto/page labels include quality marks; entry badges include L/M/H; original index sticky header/thead.
 - Quality labels include mark L/M/H across toolbar, prefs, diagnostics, index Q lines, and min12 badges.
 - Attachment/document titles include quality marks; index headers expose `Open first pN`.
+- Multi-entry indexes expose jump anchors/lists; busy toasts include quality marks.
 
 ### After UI Is Exhausted
 

@@ -779,7 +779,7 @@ var PdfImageSaver = (() => {
         pageIndex,
       });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, `Clip busy ${formatPageToastToken(pageIndex)}.`, "warning");
+        showReaderToast(reader, `Clip busy ${formatPageToastToken(pageIndex)} ${getQualityMark(qualityKey)}.`, "warning");
         return;
       }
       activeJobs.add(jobKey);
@@ -847,7 +847,7 @@ var PdfImageSaver = (() => {
       const pageIndex = await getCurrentPageIndex(reader, safeOptions.pageIndex);
       jobKey = getReaderJobKey(reader, { scope: "auto-page", pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, `Auto busy ${formatPageToastToken(pageIndex)}.`, "warning");
+        showReaderToast(reader, `Auto busy ${formatPageToastToken(pageIndex)} ${getQualityMark(qualityKey)}.`, "warning");
         return null;
       }
 
@@ -1087,7 +1087,7 @@ var PdfImageSaver = (() => {
       const qualityKey = normalizeQualityKey(safeOptions.qualityKey);
       jobKey = getReaderJobKey(reader, { scope: "page", pageIndex });
       if (activeJobs.has(jobKey)) {
-        showReaderToast(reader, `Page busy ${formatPageToastToken(pageIndex)}.`, "warning");
+        showReaderToast(reader, `Page busy ${formatPageToastToken(pageIndex)} ${getQualityMark(qualityKey)}.`, "warning");
         return;
       }
       activeJobs.add(jobKey);
@@ -1527,7 +1527,7 @@ var PdfImageSaver = (() => {
         const regionIdentity = getSourceRegionFingerprint(entry.sourceRegionKey);
         const sourceRegionLabel = entry.sourceRegion?.label || entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ");
         return `
-          <article class="entry" data-entry="${index + 1}">
+          <article class="entry" id="e${index + 1}" data-entry="${index + 1}">
             <div class="preview-column">
               <div class="entry-badge">#${index + 1} ${escapeHTML(getQualityMark(entry.quality))}</div>
               <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
@@ -1602,6 +1602,9 @@ var PdfImageSaver = (() => {
     h1 { font-size: 14px; margin: 0 0 3px; }
     .meta { color: #555; margin: 0 0 1px; line-height: 1.3; }
     .meta.actions { margin-top: 4px; }
+    .meta.jumps { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .meta.jumps a { color: #0645ad; text-decoration: none; font-weight: 600; }
+    .meta.jumps a:focus-visible { outline: 2px solid #1f73b7; outline-offset: 2px; }
     .entry { display: grid; grid-template-columns: minmax(120px, 260px) 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid #ddd; }
     .preview-column { display: grid; gap: 5px; align-content: start; position: relative; }
     .entry-badge { position: absolute; top: 4px; left: 4px; z-index: 1; padding: 1px 5px; border-radius: 3px; background: rgba(17, 24, 39, 0.82); color: #fff; font: 10.5px system-ui, sans-serif; pointer-events: none; }
@@ -1627,6 +1630,7 @@ var PdfImageSaver = (() => {
     <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync; ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}.</p>
     <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}</p>
     ${normalizedEntries.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedEntries[0].openPDFURI)}" title="Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}">Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}</a></p>` : ""}
+    ${normalizedEntries.length > 1 ? `<p class="meta jumps">${normalizedEntries.map((entry, index) => `<a href="#e${index + 1}" title="Jump #${index + 1} p${escapeHTML(String(entry.pageNumber))}">#${index + 1}</a>`).join(" ")}</p>` : ""}
   </header>
   ${entriesHTML}
   <details>
@@ -2106,7 +2110,7 @@ var PdfImageSaver = (() => {
       };
     });
     const rows = normalizedImages.map((image, index) => `
-      <tr>
+      <tr id="o${index + 1}">
         <td>#${index + 1}</td>
         <td><a href="${escapeHTML(image.open_pdf_uri)}">p${escapeHTML(String(image.page_number))}</a></td>
         <td title="${escapeHTML(image.original_image_key)}">${escapeHTML(image.original_image_fingerprint)}</td>
@@ -2135,6 +2139,9 @@ var PdfImageSaver = (() => {
     h1 { font-size: 14px; margin: 0 0 3px; }
     .meta { color: #555; margin: 0 0 1px; line-height: 1.3; }
     .meta.actions { margin-top: 4px; }
+    .meta.jumps { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .meta.jumps a { color: #0645ad; text-decoration: none; font-weight: 600; }
+    .meta.jumps a:focus-visible { outline: 2px solid #1f73b7; outline-offset: 2px; }
     table { border-collapse: collapse; width: 100%; margin-top: 6px; }
     th, td { border-top: 1px solid #ddd; padding: 4px 5px; text-align: left; vertical-align: top; }
     th { color: #555; font-weight: 600; position: sticky; top: 52px; background: #fff; z-index: 1; }
@@ -2150,6 +2157,7 @@ var PdfImageSaver = (() => {
     <p class="meta">Saved ${escapeHTML(createdAt)}. Orig ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}; helper.</p>
     <p class="meta">${normalizedImages.length} img; ${escapeHTML(formatBytes(normalizedImages.reduce((sum, image) => sum + normalizeNonNegativeInteger(image.byte_count, 0), 0)))}; open PDF page links.</p>
     ${normalizedImages.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedImages[0].open_pdf_uri)}" title="Open first p${escapeHTML(String(normalizedImages[0].page_number))}">Open first p${escapeHTML(String(normalizedImages[0].page_number))}</a></p>` : ""}
+    ${normalizedImages.length > 1 ? `<p class="meta jumps">${normalizedImages.map((image, index) => `<a href="#o${index + 1}" title="Jump #${index + 1} p${escapeHTML(String(image.page_number))}">#${index + 1}</a>`).join(" ")}</p>` : ""}
   </header>
   <table>
     <thead><tr><th>#</th><th>Page</th><th>ID</th><th>Size</th><th>Box</th><th>Open</th></tr></thead>
