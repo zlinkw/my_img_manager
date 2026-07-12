@@ -135,6 +135,7 @@ const {
   formatPreviewDetectorLabel,
   formatPreviewScopeLabel,
   formatQualityEstimateShort,
+  getQualityMark,
   formatPageToastToken,
   formatOriginalScopeToken,
   getContextPageIndex,
@@ -522,12 +523,12 @@ const sessionHint = (sessionPage.child.children || []).find((node) => node.class
 assert.strictEqual(sessionHint?.textContent, "Drag p1; Q Medium; 60-220 KB; Esc/RMB", "clip overlay hint must include page, quality, and cancel hints");
 sessionPage.child.dispatch("pointerdown", { button: 0, pointerId: 1, clientX: 10, clientY: 12 });
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
-assert.strictEqual(sizeBadge.textContent, "60x40", "selection size badge must show live pixel size");
+assert.strictEqual(sizeBadge.textContent, "60x40 M", "selection size badge must show live pixel size and quality mark");
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 18, clientY: 20 });
 assert.strictEqual(sizeBadge.textContent, "8x8 min12", "selection size badge must mark below-min drag size");
 assert.ok(String(sizeBadge.className || "").includes("is-min"), "below-min size badge must use is-min class");
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
-assert.strictEqual(sizeBadge.textContent, "60x40", "selection size badge must clear min12 after valid size");
+assert.strictEqual(sizeBadge.textContent, "60x40 M", "selection size badge must clear min12 after valid size");
 assert.ok(!String(sizeBadge.className || "").includes("is-min"), "valid size badge must clear is-min class");
 // reinstall for RMB cancel path
 clipSessionEnded = 0;
@@ -602,6 +603,8 @@ assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img note.", 
 assert.strictEqual(readerToastDoc.bodyChildren[0].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
 assert.strictEqual(readerToastDoc.bodyChildren[0].title, "Click/Esc dismiss", "toast must advertise click/Esc dismiss");
 assert.strictEqual(readerToastDoc.bodyChildren[0].getAttribute?.("aria-live") || readerToastDoc.bodyChildren[0].attributes?.["aria-live"], "polite", "info/success toast must use polite aria-live");
+assert.strictEqual(readerToastDoc.bodyChildren[0].getAttribute?.("data-level") || readerToastDoc.bodyChildren[0].attributes?.["data-level"], "info", "normalized toast level must expose data-level");
+assert.strictEqual(readerToastDoc.bodyChildren[0].getAttribute?.("aria-busy") || readerToastDoc.bodyChildren[0].attributes?.["aria-busy"], "false", "non-progress toast must not be aria-busy");
 assert.strictEqual(typeof readerToastDoc.bodyChildren[0].onclick, "function", "toast must install click dismiss handler");
 readerToastDoc.bodyChildren[0].onclick();
 assert.strictEqual(readerToastDoc.bodyChildren[0].removed, true, "toast click must dismiss toast");
@@ -908,6 +911,11 @@ assert.strictEqual(formatPreviewDetectorLabel("manual_selection"), "manual", "ma
 assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "auto", "auto detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detector", "unknown detector must keep readable text");
 assert.ok(html.includes('alt="Preview p5 #1"'), "preview image alt must include page and entry index");
+assert.ok(html.includes('class="entry-badge"'), "preview entries must expose dense entry badge");
+assert.ok(html.includes(">#1</div>"), "preview entry badge must show 1-based index");
+assert.strictEqual(getQualityMark("medium"), "M", "medium quality mark");
+assert.strictEqual(getQualityMark("high"), "H", "high quality mark");
+assert.strictEqual(getQualityMark("low"), "L", "low quality mark");
 assert.ok(html.includes(">Open p5</a>"), "HTML entry must expose an explicit source PDF action with page");
 assert.ok(/Index [^;]+; 1 img; 3 B;/.test(html) || html.includes("1 img; 3 B;"), "preview index header must include total preview bytes");
 assert.ok(html.includes('title="Open p5"'), "HTML entry Open action title must include page");
@@ -1634,6 +1642,14 @@ assert.strictEqual(
 assert.strictEqual(normalizeToastLevel("progress"), "progress", "progress toast level must be accepted");
 assert.strictEqual(normalizeToastLevel("constructor"), "info", "malformed toast level must fall back to info");
 assert.strictEqual(getToastDuration("progress"), 120000, "progress toast must stay visible long enough for long-running work");
+const progressToastDoc = createFakeToastDocument();
+showReaderToast(
+  { type: "pdf", _iframeWindow: { PDFViewerApplication: {}, document: progressToastDoc } },
+  "Working...",
+  "progress",
+);
+assert.strictEqual(progressToastDoc.bodyChildren[0].getAttribute("aria-busy"), "true", "progress toast must set aria-busy");
+assert.strictEqual(progressToastDoc.bodyChildren[0].getAttribute("data-level"), "progress", "progress toast must expose data-level");
 assert.strictEqual(getToastDuration("success"), 2800, "success toast duration must stay short");
 assert.strictEqual(getToastDuration("error"), 8000, "error toast duration must stay longer");
 

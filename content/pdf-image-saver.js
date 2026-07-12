@@ -610,6 +610,7 @@ var PdfImageSaver = (() => {
     hint.textContent = dragHint;
     const selection = doc.createElement("div");
     selection.className = "pdf-image-saver-selection-box";
+    selection.__pdfImageSaverQualityMark = getQualityMark(qualityKey);
     const sizeBadge = doc.createElement("div");
     sizeBadge.className = "pdf-image-saver-selection-size";
     sizeBadge.textContent = "";
@@ -755,7 +756,10 @@ var PdfImageSaver = (() => {
       const width = Math.max(0, Math.round(rect.width));
       const height = Math.max(0, Math.round(rect.height));
       const tooSmall = width < 12 || height < 12;
-      sizeBadge.textContent = tooSmall ? `${width}x${height} min12` : `${width}x${height}`;
+      const qualityMark = selection.__pdfImageSaverQualityMark || getQualityMark("medium");
+      sizeBadge.textContent = tooSmall
+        ? `${width}x${height} min12`
+        : `${width}x${height} ${qualityMark}`;
       sizeBadge.className = tooSmall
         ? "pdf-image-saver-selection-size is-min"
         : "pdf-image-saver-selection-size";
@@ -1523,8 +1527,9 @@ var PdfImageSaver = (() => {
         const regionIdentity = getSourceRegionFingerprint(entry.sourceRegionKey);
         const sourceRegionLabel = entry.sourceRegion?.label || entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ");
         return `
-          <article class="entry">
+          <article class="entry" data-entry="${index + 1}">
             <div class="preview-column">
+              <div class="entry-badge">#${index + 1}</div>
               <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
                 <img src="${escapeHTML(entry.dataURL)}" alt="Preview p${escapeHTML(String(entry.pageNumber))} #${index + 1}">
               </a>
@@ -1597,7 +1602,8 @@ var PdfImageSaver = (() => {
     h1 { font-size: 14px; margin: 0 0 3px; }
     .meta { color: #555; margin: 0 0 1px; line-height: 1.3; }
     .entry { display: grid; grid-template-columns: minmax(120px, 260px) 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid #ddd; }
-    .preview-column { display: grid; gap: 5px; align-content: start; }
+    .preview-column { display: grid; gap: 5px; align-content: start; position: relative; }
+    .entry-badge { position: absolute; top: 4px; left: 4px; z-index: 1; padding: 1px 5px; border-radius: 3px; background: rgba(17, 24, 39, 0.82); color: #fff; font: 10.5px system-ui, sans-serif; pointer-events: none; }
     .source-action { display: inline-block; width: fit-content; padding: 2px 7px; border: 1px solid #9ab; border-radius: 3px; color: #0645ad; text-decoration: none; background: #f7faff; }
     .source-action:focus-visible, .source-map-link:focus-visible, .preview-link:focus-visible { outline: 2px solid #1f73b7; outline-offset: 2px; }
     img { max-width: 100%; height: auto; border: 1px solid #ccc; background: #f6f6f6; }
@@ -2880,6 +2886,8 @@ var PdfImageSaver = (() => {
     toast.className = `pdf-image-saver-toast pdf-image-saver-${level || "info"}`;
     toast.setAttribute?.("role", level === "progress" ? "status" : "alert");
     toast.setAttribute?.("aria-live", level === "error" || level === "warning" ? "assertive" : "polite");
+    toast.setAttribute?.("aria-busy", level === "progress" ? "true" : "false");
+    toast.setAttribute?.("data-level", level || "info");
     toast.setAttribute?.("title", "Click/Esc dismiss");
     const dismissToast = () => {
       if (toast.__pdfImageSaverToastTimer && doc.defaultView?.clearTimeout) {
@@ -3413,6 +3421,17 @@ var PdfImageSaver = (() => {
   function formatQualityEstimateShort(qualityKey) {
     const estimate = QUALITY[normalizeQualityKey(qualityKey)].estimate;
     return String(estimate || "").replace(/\/image$/i, "");
+  }
+
+  function getQualityMark(qualityKey) {
+    const key = normalizeQualityKey(qualityKey);
+    if (key === "low") {
+      return "L";
+    }
+    if (key === "high") {
+      return "H";
+    }
+    return "M";
   }
 
   function formatPreviewDetectorLabel(detector) {
@@ -4189,6 +4208,7 @@ var PdfImageSaver = (() => {
       formatPreviewDetectorLabel,
       formatPreviewScopeLabel,
       formatQualityEstimateShort,
+      getQualityMark,
       formatPageToastToken,
       formatOriginalScopeToken,
       imageCoordinatesToCandidates,

@@ -1868,4 +1868,17 @@ if ((Get-Content -Raw "preferences.xhtml") -notmatch 'title="Preview quality"') 
   throw "Preference short labels must expose title tooltips"
 }
 
+if ($mainJS -notmatch 'function\s+getQualityMark') {
+  throw "Selection size badge must densify quality mark helper"
+}
+if ($mainJS -notmatch 'entry-badge') {
+  throw "Preview index entries must expose entry badge"
+}
+if ($mainJS -notmatch 'data-level') {
+  throw "Reader toast must expose data-level"
+}
+if ($mainJS -notmatch 'aria-busy') {
+  throw "Progress toast must set aria-busy"
+}
+
 Write-Host "check ok"
