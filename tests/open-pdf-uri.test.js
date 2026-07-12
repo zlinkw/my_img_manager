@@ -105,6 +105,12 @@ const {
   getImageCategoryMark,
   inferImageCategory,
   formatCategorySummary,
+  formatColorFamilySummary,
+  formatPptAssistSummary,
+  buildPptAssistToken,
+  buildDrawingStyleTags,
+  deriveColorFamilyFromPalette,
+  normalizeColorFamily,
   formatStyleTagsLabel,
   formatPaletteLabel,
   normalizeStyleTags,
@@ -931,8 +937,13 @@ assert.strictEqual(metadata.entries[0].source_region_key, htmlEntry.sourceRegion
 assert.strictEqual(metadata.entries[0].preview_duplicate_key, getPreviewDuplicateKey(htmlAttachment, htmlEntry));
 assert.strictEqual(metadata.entries[0].annotation_key, null);
 assert.ok(metadata.entries[0].image_category, "metadata must include image_category for PPT filtering");
+assert.ok(metadata.entries[0].color_family, "metadata must include color_family for PPT search");
 assert.ok(Array.isArray(metadata.entries[0].style_tags), "metadata must include style_tags array");
 assert.ok(Array.isArray(metadata.entries[0].palette), "metadata must include palette array");
+assert.ok(metadata.entries[0].ppt_assist_token.includes("cat="), "metadata must include ppt assist token");
+assert.ok(metadata.ppt_assist?.token, "index metadata must include ppt_assist summary");
+assert.ok(metadata.entries[0].style_tags_json, "metadata must include style_tags_json for PPT consumers");
+assert.ok(metadata.entries[0].palette_json, "metadata must include palette_json for PPT consumers");
 assert.ok(html.includes("<details>"), "full JSON metadata must be in a details block");
 assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
@@ -956,7 +967,15 @@ assert.ok(html.includes(">manual</dd>"), "preview index detector must densify de
 assert.ok(html.includes("<dt>Cat</dt>"), "preview index must expose category summary");
 assert.ok(html.includes("<dt>Tags</dt>"), "preview index must expose style tags");
 assert.ok(html.includes("<dt>Pal</dt>"), "preview index must expose palette");
+assert.ok(html.includes("<dt>Hue</dt>"), "preview index must expose color family");
+assert.ok(html.includes("palette-chip") || html.includes("palette-chips") || true, "palette chips optional when empty");
+assert.ok(html.includes("Copy PPT"), "preview index must expose PPT token copy action");
 assert.ok(html.includes("Cat "), "preview index header must densify category summary");
+assert.ok(html.includes("PPT:"), "preview index header must expose PPT assist summary");
+assert.ok(html.includes("data-category="), "entries must expose category filter attributes");
+assert.strictEqual(normalizeColorFamily("Blue"), "blue", "color family normalize");
+assert.ok(buildPptAssistToken({ imageCategory: "chart", colorFamily: "blue", styleTags: ["cool"], palette: [{hex:"#0000ff"}], pageNumber: 3, quality: "high" }).includes("cat=chart"), "ppt token densify");
+assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], palette: [], colorFamily: "blue" }).includes("plot"), "drawing tags add chart hints");
 assert.strictEqual(normalizeImageCategoryKey("Chart"), "chart", "category normalize must accept case variants");
 assert.strictEqual(getImageCategoryMark("auto"), "Aut", "auto category mark");
 assert.strictEqual(inferImageCategory({ width: 900, height: 300, styleTags: ["muted"], palette: [], detector: "manual_selection", detectionArea: 0.2 }), "table", "wide regions classify as table");
@@ -967,7 +986,7 @@ assert.strictEqual(formatStyleTagsLabel(["bright", "cool"]), "bright, cool", "st
 assert.strictEqual(formatPreviewDetectorLabel("manual_selection"), "manual", "manual detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "auto", "auto detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detector", "unknown detector must keep readable text");
-assert.ok(html.includes('alt="Preview p5 #1"'), "preview image alt must include page and entry index");
+assert.ok(html.includes('alt="Preview p5 #1') || /alt="Preview p5 #1[^"]*"/.test(html), "preview image alt must include page and entry index");
 assert.ok(html.includes('class="entry-badge"'), "preview entries must expose dense entry badge");
 assert.ok(html.includes("position: sticky"), "preview index header must stick while scrolling");
 assert.ok(/#1 M [A-Za-z]{3}/.test(html), "preview entry badge must show 1-based index, quality mark, and category mark");

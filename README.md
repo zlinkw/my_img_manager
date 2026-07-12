@@ -108,3 +108,6 @@ After Zotero has been restarted or the add-on has been reloaded:
 - Optional original helper absence stays quiet; diagnostics show Python n/a or ok.
 - Preferences pane groups workflow / caps / helper / status, with live scannable status.
 - `%TEMP%\pdf-image-saver` has no leftover child directories after the save.
+
+
+Saved figure metadata includes `image_category`, `color_family`, palette, `style_tags`, and `ppt_assist_token` for PPT search/color assist.

@@ -1413,14 +1413,14 @@ if ($mainJS -notmatch "function\s+normalizeToastLevel\s*\(\s*level\s*\)[\s\S]*\[
 if ($mainJS -notmatch "function\s+getToastDuration\s*\(\s*level\s*\)[\s\S]*progress[\s\S]*120000") {
   throw "Reader toast duration helper must keep progress toasts sticky"
 }
-if ($mainJS -notmatch "OK clip \$\{formatPageToastToken\(pageIndex\)\} \(\$\{getQualityMark\(qualityKey\)\}; \$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)") {
-  throw "Clip success toast must include page, quality mark, estimate, and size"
+if ($mainJS -notmatch "OK clip \$\{formatPageToastToken\(pageIndex\)\} \(\$\{getQualityMark\(qualityKey\)\}; \$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{getImageCategoryMark\(preview\.imageCategory\)\}; \$\{formatBytes\(preview\.byteCount\)\}; \$\{formatPaletteLabel\(preview\.palette\)\}\)") {
+  throw "Clip success toast must include page, quality mark, estimate, category, size, and palette"
 }
-if ($mainJS -notmatch "OK page \$\{formatPageToastToken\(pageIndex\)\} \(\$\{getQualityMark\(qualityKey\)\}; \$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{formatBytes\(preview\.byteCount\)\}\)\.") {
-  throw "Page success toast must include page, quality mark, estimate, and size"
+if ($mainJS -notmatch "OK page \$\{formatPageToastToken\(pageIndex\)\} \(\$\{getQualityMark\(qualityKey\)\}; \$\{formatQualityEstimateShort\(qualityKey\)\}; \$\{getImageCategoryMark\(preview\.imageCategory\)\}; \$\{formatBytes\(preview\.byteCount\)\}; \$\{formatPaletteLabel\(preview\.palette\)\}\)\.") {
+  throw "Page success toast must include page, quality mark, estimate, category, size, and palette"
 }
-if ($mainJS -notmatch "getQualityMark\(qualityKey\).*formatQualityEstimateShort\(qualityKey\).*formatBytes\(totalBytes\)") {
-  throw "Auto success toast must include page, quality mark, estimate, and size"
+if ($mainJS -notmatch "getQualityMark\(qualityKey\).*formatQualityEstimateShort\(qualityKey\).*formatCategorySummary\(previews\).*formatBytes\(totalBytes\)") {
+  throw "Auto success toast must include page, quality mark, estimate, category summary, and size"
 }
 if ($mainJS -notmatch "Save clip \$\{formatPageToastToken\(pageIndex\)\} \$\{getQualityMark\(qualityKey\)\}\.\.\.") {
   throw "Clip save path must show page-scoped progress toast"
@@ -1989,8 +1989,23 @@ if ($mainJS -notmatch 'defaultImageCategory') {
 if ($mainJS -notmatch 'image_category') {
   throw "Preview metadata must include image_category"
 }
+if ($mainJS -notmatch 'color_family') {
+  throw "Preview metadata must include color_family for PPT search"
+}
+if ($mainJS -notmatch 'ppt_assist_token') {
+  throw "Preview metadata must include ppt_assist_token"
+}
 if ($mainJS -notmatch 'style_tags') {
   throw "Preview metadata must include style_tags for PPT search"
+}
+if ($mainJS -notmatch 'palette-chip') {
+  throw "Index UI must expose palette chips for drawing assist"
+}
+if ($mainJS -notmatch 'filter-chip') {
+  throw "Index UI must expose category filter chips"
+}
+if ($mainJS -notmatch 'Copy PPT') {
+  throw "Index UI must expose PPT token copy actions"
 }
 if ($mainJS -notmatch 'extractPaletteFromCanvas') {
   throw "Capture path must extract palette for PPT coloring"

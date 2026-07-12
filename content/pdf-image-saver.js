@@ -869,7 +869,7 @@ var PdfImageSaver = (() => {
       });
       showReaderToast(
         reader,
-        `OK clip ${formatPageToastToken(pageIndex)} (${getQualityMark(qualityKey)}; ${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`,
+        `OK clip ${formatPageToastToken(pageIndex)} (${getQualityMark(qualityKey)}; ${formatQualityEstimateShort(qualityKey)}; ${getImageCategoryMark(preview.imageCategory)}; ${formatBytes(preview.byteCount)}; ${formatPaletteLabel(preview.palette)}).`,
         "success",
       );
       rememberPreviewIndexSave(attachment, [preview], indexKey);
@@ -1036,7 +1036,7 @@ var PdfImageSaver = (() => {
       }
       showReaderToast(
         reader,
-        `OK ${previews.length} auto ${formatPageToastToken(pageIndex)} (${getQualityMark(qualityKey)}; ${formatQualityEstimateShort(qualityKey)}; ${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
+        `OK ${previews.length} auto ${formatPageToastToken(pageIndex)} (${getQualityMark(qualityKey)}; ${formatQualityEstimateShort(qualityKey)}; ${formatCategorySummary(previews)}; ${formatBytes(totalBytes)}${notes.length ? `; ${notes.join(", ")}` : ""}).`,
         "success",
       );
       return imported;
@@ -1197,7 +1197,7 @@ var PdfImageSaver = (() => {
         indexKey,
       });
       rememberPreviewIndexSave(attachment, [preview], indexKey);
-      showReaderToast(reader, `OK page ${formatPageToastToken(pageIndex)} (${getQualityMark(qualityKey)}; ${formatQualityEstimateShort(qualityKey)}; ${formatBytes(preview.byteCount)}).`, "success");
+      showReaderToast(reader, `OK page ${formatPageToastToken(pageIndex)} (${getQualityMark(qualityKey)}; ${formatQualityEstimateShort(qualityKey)}; ${getImageCategoryMark(preview.imageCategory)}; ${formatBytes(preview.byteCount)}; ${formatPaletteLabel(preview.palette)}).`, "success");
     } catch (error) {
       logError(error);
       showReaderToast(reader, formatUserFacingError(error), "error");
@@ -1577,11 +1577,14 @@ var PdfImageSaver = (() => {
         entry.quality = normalizeQualityKey(entry.quality);
         entry.qualityEstimate = QUALITY[entry.quality].estimate;
         entry.imageCategory = normalizeImageCategoryKey(entry.imageCategory || entry.image_category || getDefaultImageCategoryKey());
-        entry.styleTags = normalizeStyleTags(entry.styleTags || entry.style_tags);
         entry.palette = normalizePalette(entry.palette);
-        if (!entry.styleTags.length && entry.palette.length) {
-          entry.styleTags = deriveStyleTagsFromPalette(entry.palette);
-        }
+        entry.colorFamily = normalizeColorFamily(entry.colorFamily || entry.color_family || deriveColorFamilyFromPalette(entry.palette));
+        entry.styleTags = buildDrawingStyleTags({
+          imageCategory: entry.imageCategory,
+          styleTags: entry.styleTags || entry.style_tags,
+          palette: entry.palette,
+          colorFamily: entry.colorFamily,
+        });
         entry.dataURL = normalizePreviewDataURL(entry.dataURL);
         entry.byteCount = estimateDataURLBytes(entry.dataURL);
         entry.renderedWidth = normalizePositiveInteger(entry.renderedWidth, null);
@@ -1599,20 +1602,24 @@ var PdfImageSaver = (() => {
           : String(entry.pageNumber);
         const regionIdentity = getSourceRegionFingerprint(entry.sourceRegionKey);
         const sourceRegionLabel = entry.sourceRegion?.label || entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ");
+        const pptToken = buildPptAssistToken(entry);
         return `
-          <article class="entry" id="e${index + 1}" data-entry="${index + 1}">
+          <article class="entry" id="e${index + 1}" data-entry="${index + 1}" data-category="${escapeHTML(entry.imageCategory)}" data-color-family="${escapeHTML(entry.colorFamily || "unknown")}" data-style-tags="${escapeHTML(entry.styleTags.join(","))}">
             <div class="preview-column">
               <div class="entry-badge">#${index + 1} ${escapeHTML(getQualityMark(entry.quality))} ${escapeHTML(getImageCategoryMark(entry.imageCategory))}</div>
               <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
-                <img src="${escapeHTML(entry.dataURL)}" alt="Preview p${escapeHTML(String(entry.pageNumber))} #${index + 1}">
+                <img src="${escapeHTML(entry.dataURL)}" alt="Preview p${escapeHTML(String(entry.pageNumber))} #${index + 1} ${escapeHTML(getImageCategoryMark(entry.imageCategory))}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion, uri, entry.pageNumber)}
+              ${buildPaletteChipsHTML(entry.palette)}
               <a class="source-action" href="${escapeHTML(uri)}" title="Open p${escapeHTML(String(entry.pageNumber))}">Open p${escapeHTML(String(entry.pageNumber))}</a>
+              <button type="button" class="source-action copy-token" data-copy="${escapeHTML(pptToken)}" title="Copy PPT token">Copy PPT</button>
             </div>
             <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
               <div><dt>Q</dt><dd>${escapeHTML(getQualityLabelWithEstimate(entry.quality))}</dd></div>
               <div><dt>Cat</dt><dd>${escapeHTML(getImageCategoryLabel(entry.imageCategory))}</dd></div>
+              <div><dt>Hue</dt><dd>${escapeHTML(formatColorFamilyLabel(entry.colorFamily))}</dd></div>
               <div><dt>Det</dt><dd>${escapeHTML(formatPreviewDetectorLabel(entry.detector))}</dd></div>
               <div><dt>Tags</dt><dd>${escapeHTML(formatStyleTagsLabel(entry.styleTags))}</dd></div>
               <div><dt>Size</dt><dd>${formatBytes(entry.byteCount)}; ${formatPreviewDimensions(entry.renderedWidth, entry.renderedHeight)}</dd></div>
@@ -1625,6 +1632,7 @@ var PdfImageSaver = (() => {
                 <div><dt>Box</dt><dd>${entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ")}</dd></div>
                 <div><dt>Key</dt><dd>${escapeHTML(entry.sourceRegionKey)}</dd></div>
                 <div><dt>Pal</dt><dd>${escapeHTML(formatPaletteLabel(entry.palette))}</dd></div>
+                <div><dt>PPT</dt><dd><code>${escapeHTML(pptToken)}</code></dd></div>
               </dl>
             </details>
           </article>`;
@@ -1642,6 +1650,7 @@ var PdfImageSaver = (() => {
       preview_quality: previewQualityKey,
       preview_index_key: previewIndexKey,
       preview_index_fingerprint: getPreviewIndexFingerprint(previewIndexKey),
+      ppt_assist: buildIndexPptAssistSummary(normalizedEntries),
       zotero_version: Zotero.version,
       parent_item: serializeItem(parentItem),
       pdf_attachment: serializeAttachment(attachment),
@@ -1655,8 +1664,12 @@ var PdfImageSaver = (() => {
         quality: entry.quality,
         quality_estimate: entry.qualityEstimate,
         image_category: entry.imageCategory,
+        color_family: entry.colorFamily,
         style_tags: entry.styleTags,
         palette: entry.palette,
+        palette_json: JSON.stringify(entry.palette),
+        style_tags_json: JSON.stringify(entry.styleTags),
+        ppt_assist_token: buildPptAssistToken(entry),
         byte_count: entry.byteCount,
         rendered_width: entry.renderedWidth,
         rendered_height: entry.renderedHeight,
@@ -1688,7 +1701,13 @@ var PdfImageSaver = (() => {
     .entry { display: grid; grid-template-columns: minmax(120px, 260px) 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid #ddd; }
     .preview-column { display: grid; gap: 5px; align-content: start; position: relative; }
     .entry-badge { position: absolute; top: 4px; left: 4px; z-index: 1; padding: 1px 5px; border-radius: 3px; background: rgba(17, 24, 39, 0.82); color: #fff; font: 10.5px system-ui, sans-serif; pointer-events: none; }
-    .source-action { display: inline-block; width: fit-content; padding: 2px 7px; border: 1px solid #9ab; border-radius: 3px; color: #0645ad; text-decoration: none; background: #f7faff; }
+    .palette-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .palette-chip { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.25); box-sizing: border-box; }
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
+    .filter-chip { appearance: none; border: 1px solid #9ab; background: #f7faff; color: #0645ad; border-radius: 999px; padding: 1px 8px; font: 11.5px system-ui, sans-serif; cursor: pointer; }
+    .filter-chip[aria-pressed="true"] { background: #1f73b7; border-color: #1f73b7; color: #fff; }
+    .entry.is-hidden { display: none; }
+    .source-action { display: inline-block; width: fit-content; padding: 2px 7px; border: 1px solid #9ab; border-radius: 3px; color: #0645ad; text-decoration: none; background: #f7faff; cursor: pointer; }
     .source-action:focus-visible, .source-map-link:focus-visible, .preview-link:focus-visible { outline: 2px solid #1f73b7; outline-offset: 2px; }
     img { max-width: 100%; height: auto; border: 1px solid #ccc; background: #f6f6f6; }
     .source-map-link { display: inline-block; width: fit-content; text-decoration: none; color: inherit; }
@@ -1708,8 +1727,10 @@ var PdfImageSaver = (() => {
   <header id="top">
     <h1>${escapeHTML(sourceTitle)}</h1>
     <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync; ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}.</p>
-    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}; ${escapeHTML(formatCategorySummary(normalizedEntries))}</p>
-    ${normalizedEntries.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedEntries[0].openPDFURI)}" title="Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}">Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}</a>${normalizedEntries.length > 1 ? ` <a class="source-action" href="${escapeHTML(normalizedEntries[normalizedEntries.length - 1].openPDFURI)}" title="Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}">Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}</a>` : ""}</p>` : ""}
+    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}; ${escapeHTML(formatCategorySummary(normalizedEntries))}; ${escapeHTML(formatColorFamilySummary(normalizedEntries))}</p>
+    <p class="meta">PPT: ${escapeHTML(formatPptAssistSummary(normalizedEntries))}</p>
+    ${buildCategoryFilterBarHTML(normalizedEntries)}
+    ${normalizedEntries.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedEntries[0].openPDFURI)}" title="Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}">Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}</a>${normalizedEntries.length > 1 ? ` <a class="source-action" href="${escapeHTML(normalizedEntries[normalizedEntries.length - 1].openPDFURI)}" title="Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}">Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}</a>` : ""} <button type="button" class="source-action copy-token" data-copy="${escapeHTML(buildIndexPptAssistToken(normalizedEntries))}" title="Copy index PPT assist token">Copy PPT all</button></p>` : ""}
     ${normalizedEntries.length > 1 ? `<p class="meta jumps">${normalizedEntries.map((entry, index) => `<a href="#e${index + 1}" title="Jump #${index + 1} p${escapeHTML(String(entry.pageNumber))}">#${index + 1}p${escapeHTML(String(entry.pageNumber))}</a>`).join(" ")}</p>` : ""}
   </header>
   ${entriesHTML}
@@ -1718,6 +1739,35 @@ var PdfImageSaver = (() => {
     <summary>Meta</summary>
     <pre>${escapeHTML(JSON.stringify(metadata, null, 2))}</pre>
   </details>
+  <script>
+    (function () {
+      var active = "all";
+      function applyFilter(cat) {
+        active = cat || "all";
+        document.querySelectorAll(".filter-chip").forEach(function (chip) {
+          chip.setAttribute("aria-pressed", chip.getAttribute("data-category") === active ? "true" : "false");
+        });
+        document.querySelectorAll("article.entry").forEach(function (entry) {
+          var match = active === "all" || entry.getAttribute("data-category") === active;
+          entry.classList.toggle("is-hidden", !match);
+        });
+      }
+      document.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!target) return;
+        if (target.classList && target.classList.contains("filter-chip")) {
+          applyFilter(target.getAttribute("data-category") || "all");
+          return;
+        }
+        if (target.classList && target.classList.contains("copy-token")) {
+          var text = target.getAttribute("data-copy") || "";
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).catch(function () {});
+          }
+        }
+      });
+    })();
+  </script>
 </body>
 </html>`;
   }
@@ -1762,6 +1812,8 @@ var PdfImageSaver = (() => {
     const qualityLabel = normalizedQuality
       ? `${getQualityMark(normalizedQuality)} ${QUALITY[normalizedQuality].label}`
       : null;
+    const categorySummary = formatCategorySummary(entries);
+    const categoryLabel = categorySummary === "Cat none" ? null : categorySummary.replace(/^Cat\s+/, "");
     const normalizedIndexKey = normalizePreviewIndexKey(indexKey);
     const fingerprint = normalizedIndexKey ? getPreviewIndexFingerprint(normalizedIndexKey) : null;
     const suffix = [
@@ -1769,6 +1821,7 @@ var PdfImageSaver = (() => {
       scopeLabel,
       target,
       qualityLabel,
+      categoryLabel,
       entryCount ? `${entryCount}img` : null,
       fingerprint,
     ].filter(Boolean).join(" ");
@@ -3594,6 +3647,170 @@ var PdfImageSaver = (() => {
     return `Cat ${[...counts.entries()].map(([mark, count]) => `${mark}${count}`).join(" ")}`;
   }
 
+  function formatColorFamilySummary(entries) {
+    const counts = new Map();
+    for (const entry of Array.isArray(entries) ? entries : []) {
+      const family = normalizeColorFamily(entry?.colorFamily || entry?.color_family || deriveColorFamilyFromPalette(entry?.palette));
+      counts.set(family, (counts.get(family) || 0) + 1);
+    }
+    if (!counts.size) {
+      return "Hue none";
+    }
+    return `Hue ${[...counts.entries()].map(([family, count]) => `${family}${count}`).join(" ")}`;
+  }
+
+  function formatColorFamilyLabel(value) {
+    const family = normalizeColorFamily(value);
+    return family === "unknown" ? "unknown" : family;
+  }
+
+  function formatPptAssistSummary(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (!list.length) {
+      return "none";
+    }
+    const cats = formatCategorySummary(list).replace(/^Cat\s+/, "");
+    const hues = formatColorFamilySummary(list).replace(/^Hue\s+/, "");
+    const hexes = [];
+    for (const entry of list) {
+      for (const swatch of normalizePalette(entry?.palette)) {
+        if (!hexes.includes(swatch.hex)) {
+          hexes.push(swatch.hex);
+        }
+        if (hexes.length >= 6) {
+          break;
+        }
+      }
+      if (hexes.length >= 6) {
+        break;
+      }
+    }
+    return `${cats}; ${hues}; pal ${hexes.join(" ") || "none"}`;
+  }
+
+  function buildCategoryFilterBarHTML(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (list.length < 2) {
+      return "";
+    }
+    const counts = new Map();
+    for (const entry of list) {
+      const key = normalizeImageCategoryKey(entry?.imageCategory || entry?.image_category);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    const chips = [`<button type="button" class="filter-chip" data-category="all" aria-pressed="true">All ${list.length}</button>`];
+    for (const [key, count] of counts.entries()) {
+      chips.push(`<button type="button" class="filter-chip" data-category="${escapeHTML(key)}" aria-pressed="false">${escapeHTML(getImageCategoryMark(key))} ${count}</button>`);
+    }
+    return `<div class="filter-bar" role="toolbar" aria-label="Category filter">${chips.join("")}</div>`;
+  }
+
+  function buildPaletteChipsHTML(palette) {
+    const swatches = normalizePalette(palette).slice(0, 6);
+    if (!swatches.length) {
+      return "";
+    }
+    return `<div class="palette-chips" title="${escapeHTML(formatPaletteLabel(swatches))}">${swatches.map((swatch) => `<span class="palette-chip" style="background:${escapeHTML(swatch.hex)}" title="${escapeHTML(swatch.hex)}"></span>`).join("")}</div>`;
+  }
+
+  function buildPptAssistToken(entry) {
+    const safe = entry && typeof entry === "object" ? entry : {};
+    const palette = normalizePalette(safe.palette).map((swatch) => swatch.hex).slice(0, 6);
+    const tags = normalizeStyleTags(safe.styleTags || safe.style_tags);
+    return [
+      `cat=${normalizeImageCategoryKey(safe.imageCategory || safe.image_category)}`,
+      `hue=${normalizeColorFamily(safe.colorFamily || safe.color_family || deriveColorFamilyFromPalette(palette))}`,
+      `tags=${tags.join("|") || "none"}`,
+      `pal=${palette.join(",") || "none"}`,
+      `page=${normalizePageNumber(safe.pageNumber || safe.page_number, 1)}`,
+      `q=${normalizeQualityKey(safe.quality)}`,
+    ].join(";");
+  }
+
+  function buildIndexPptAssistToken(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    return list.map((entry, index) => `#${index + 1}:${buildPptAssistToken(entry)}`).join(" || ");
+  }
+
+  function buildIndexPptAssistSummary(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    return {
+      categories: formatCategorySummary(list),
+      color_families: formatColorFamilySummary(list),
+      token: buildIndexPptAssistToken(list),
+      entry_tokens: list.map((entry) => buildPptAssistToken(entry)),
+    };
+  }
+
+  function buildDrawingStyleTags({ imageCategory, styleTags, palette, colorFamily }) {
+    const tags = normalizeStyleTags(styleTags);
+    const category = normalizeImageCategoryKey(imageCategory);
+    const family = normalizeColorFamily(colorFamily || deriveColorFamilyFromPalette(palette));
+    const categoryTag = category === "auto" ? null : category;
+    const familyTag = family === "unknown" ? null : family;
+    const drawingHints = [];
+    if (category === "chart") {
+      drawingHints.push("plot", "axes");
+    } else if (category === "diagram") {
+      drawingHints.push("flow", "boxes");
+    } else if (category === "schematic") {
+      drawingHints.push("circuit", "lines");
+    } else if (category === "table") {
+      drawingHints.push("grid", "cells");
+    } else if (category === "equation") {
+      drawingHints.push("math", "symbols");
+    } else if (category === "photo") {
+      drawingHints.push("photo-ref");
+    } else if (category === "figure") {
+      drawingHints.push("figure-ref");
+    }
+    return normalizeStyleTags([
+      ...tags,
+      ...(tags.length ? [] : deriveStyleTagsFromPalette(palette)),
+      categoryTag,
+      familyTag,
+      ...drawingHints,
+    ]);
+  }
+
+  function deriveColorFamilyFromPalette(palette) {
+    const swatches = normalizePalette(palette);
+    if (!swatches.length) {
+      return "unknown";
+    }
+    return colorFamilyFromHue(swatches[0].hue, swatches[0].saturation, swatches[0].lightness);
+  }
+
+  function normalizeColorFamily(value) {
+    const key = String(value || "").trim().toLowerCase();
+    const allowed = new Set(["red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink", "brown", "gray", "black", "white", "unknown"]);
+    return allowed.has(key) ? key : "unknown";
+  }
+
+  function colorFamilyFromHue(hue, saturation, lightness) {
+    const s = normalizeUnitNumber(saturation, 0) || 0;
+    const l = normalizeUnitNumber(lightness, 0) || 0;
+    if (l >= 0.9) {
+      return "white";
+    }
+    if (l <= 0.12) {
+      return "black";
+    }
+    if (s <= 0.12) {
+      return "gray";
+    }
+    const h = normalizeUnitDegrees(hue);
+    if (h < 15 || h >= 345) return "red";
+    if (h < 45) return "orange";
+    if (h < 70) return "yellow";
+    if (h < 160) return "green";
+    if (h < 200) return "cyan";
+    if (h < 255) return "blue";
+    if (h < 290) return "purple";
+    if (h < 330) return "pink";
+    return "red";
+  }
+
   function inferImageCategory({ width, height, styleTags, palette, detector, detectionArea }) {
     const tags = normalizeStyleTags(styleTags);
     const swatches = normalizePalette(palette);
@@ -4604,6 +4821,15 @@ var PdfImageSaver = (() => {
       getImageCategoryMark,
       inferImageCategory,
       formatCategorySummary,
+      formatColorFamilySummary,
+      formatColorFamilyLabel,
+      formatPptAssistSummary,
+      buildPptAssistToken,
+      buildIndexPptAssistToken,
+      buildIndexPptAssistSummary,
+      buildDrawingStyleTags,
+      deriveColorFamilyFromPalette,
+      normalizeColorFamily,
       formatStyleTagsLabel,
       formatPaletteLabel,
       saveAutoDetectedPageImagePreviews,
