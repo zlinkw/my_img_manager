@@ -80,7 +80,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Quality labels include mark L/M/H across toolbar, prefs, diagnostics, index Q lines, and min12 badges.
 - Attachment/document titles include quality marks; index headers expose `Open first pN`.
 - Multi-entry indexes expose jump anchors/lists with page marks (`#NpN`), Open last, top anchor, and Top footer; busy toasts include quality marks.
-- Capture stores figure `image_category`, `color_family`, `layout_hint`, `aspect_ratio`, `slide_slot`, `role_hint`, `insert_hint`, `dominant_hex`, `contrast_hex`, palette, `style_tags`, and `ppt_assist_token` for PPT search/color/layout/placement/narrative/drawing assist; toolbar/prefs expose Cat; indexes expose category/layout/slot/role/insert filters, palette chips, Copy PPT/pal/pair/role/insert.
+- Capture stores figure `image_category`, `color_family`, `layout_hint`, `aspect_ratio`, `slide_slot`, `role_hint`, `insert_hint`, `caption_hint`, `dominant_hex`, `contrast_hex`, palette, `style_tags`, and `ppt_assist_token` for PPT search/color/layout/placement/narrative/drawing assist; toolbar/prefs expose Cat; indexes expose category/layout/slot/role/insert/caption filters, palette chips, Copy PPT/pal/pair/role/insert/cap.
 
 ### After UI Is Exhausted
 

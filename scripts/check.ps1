@@ -2007,14 +2007,26 @@ if ($mainJS -notmatch 'role_hint') {
 if ($mainJS -notmatch 'insert_hint') {
   throw "Preview metadata must include insert_hint for PPT placement assist"
 }
+if ($mainJS -notmatch 'caption_hint') {
+  throw "Preview metadata must include caption_hint for PPT caption assist"
+}
 if ($mainJS -notmatch 'buildInsertPackToken') {
   throw "Index must expose insert pack tokens for PPT placement assist"
+}
+if ($mainJS -notmatch 'buildCaptionPackToken') {
+  throw "Index must expose caption pack tokens for PPT caption assist"
 }
 if ($mainJS -notmatch 'data-filter="insert"') {
   throw "Index UI must expose insert size filter chips"
 }
+if ($mainJS -notmatch 'data-filter="caption"') {
+  throw "Index UI must expose caption tone filter chips"
+}
 if ($mainJS -notmatch 'Copy insert') {
   throw "Index UI must expose insert pack copy actions"
+}
+if ($mainJS -notmatch 'Copy cap') {
+  throw "Index UI must expose caption pack copy actions"
 }
 if ($mainJS -notmatch 'buildRolePackToken') {
   throw "Index must expose role pack tokens for PPT drawing assist"

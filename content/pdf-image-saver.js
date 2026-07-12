@@ -1590,6 +1590,15 @@ var PdfImageSaver = (() => {
         entry.slideSlot = normalizeSlideSlot(entry.slideSlot || entry.slide_slot || deriveSlideSlot(entry.layoutHint, entry.imageCategory, entry.aspectRatio));
         entry.roleHint = normalizeRoleHint(entry.roleHint || entry.role_hint || deriveRoleHint(entry.imageCategory, entry.slideSlot, entry.layoutHint));
         entry.insertHint = normalizeInsertHint(entry.insertHint || entry.insert_hint || deriveInsertHint(entry.slideSlot, entry.layoutHint, entry.aspectRatio, entry.roleHint));
+        entry.captionHint = normalizeCaptionHint(entry.captionHint || entry.caption_hint || deriveCaptionHint({
+          imageCategory: entry.imageCategory,
+          roleHint: entry.roleHint,
+          slideSlot: entry.slideSlot,
+          layoutHint: entry.layoutHint,
+          pageNumber: entry.pageNumber,
+          colorFamily: entry.colorFamily,
+          insertHint: entry.insertHint,
+        }));
         entry.styleTags = buildDrawingStyleTags({
           imageCategory: entry.imageCategory,
           styleTags: entry.styleTags || entry.style_tags,
@@ -1600,6 +1609,7 @@ var PdfImageSaver = (() => {
           slideSlot: entry.slideSlot,
           roleHint: entry.roleHint,
           insertHint: entry.insertHint,
+          captionHint: entry.captionHint,
         });
         entry.detectionArea = normalizeUnitNumber(entry.detectionArea, null);
         entry.bboxNormalized = normalizeBBoxNormalized(entry.bboxNormalized);
@@ -1616,16 +1626,17 @@ var PdfImageSaver = (() => {
         const sourceRegionLabel = entry.sourceRegion?.label || entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ");
         const pptToken = buildPptAssistToken(entry);
         return `
-          <article class="entry" id="e${index + 1}" data-entry="${index + 1}" data-category="${escapeHTML(entry.imageCategory)}" data-color-family="${escapeHTML(entry.colorFamily || "unknown")}" data-layout="${escapeHTML(entry.layoutHint || "unknown")}" data-slot="${escapeHTML(entry.slideSlot || "unknown")}" data-role="${escapeHTML(entry.roleHint || "unknown")}" data-insert="${escapeHTML(entry.insertHint?.size || "unknown")}" data-style-tags="${escapeHTML(entry.styleTags.join(","))}">
+          <article class="entry" id="e${index + 1}" data-entry="${index + 1}" data-category="${escapeHTML(entry.imageCategory)}" data-color-family="${escapeHTML(entry.colorFamily || "unknown")}" data-layout="${escapeHTML(entry.layoutHint || "unknown")}" data-slot="${escapeHTML(entry.slideSlot || "unknown")}" data-role="${escapeHTML(entry.roleHint || "unknown")}" data-insert="${escapeHTML(entry.insertHint?.size || "unknown")}" data-caption="${escapeHTML(entry.captionHint?.tone || "unknown")}" data-style-tags="${escapeHTML(entry.styleTags.join(","))}">
             <div class="preview-column">
-              <div class="entry-badge">#${index + 1} ${escapeHTML(getQualityMark(entry.quality))} ${escapeHTML(getImageCategoryMark(entry.imageCategory))} ${escapeHTML(getLayoutHintMark(entry.layoutHint))} ${escapeHTML(getSlideSlotMark(entry.slideSlot))} ${escapeHTML(getRoleHintMark(entry.roleHint))} ${escapeHTML(getInsertSizeMark(entry.insertHint))}</div>
+              <div class="entry-badge">#${index + 1} ${escapeHTML(getQualityMark(entry.quality))} ${escapeHTML(getImageCategoryMark(entry.imageCategory))} ${escapeHTML(getLayoutHintMark(entry.layoutHint))} ${escapeHTML(getSlideSlotMark(entry.slideSlot))} ${escapeHTML(getRoleHintMark(entry.roleHint))} ${escapeHTML(getInsertSizeMark(entry.insertHint))} ${escapeHTML(getCaptionToneMark(entry.captionHint))}</div>
               <a class="preview-link" href="${escapeHTML(uri)}" data-source-region-key="${escapeHTML(entry.sourceRegionKey)}">
-                <img src="${escapeHTML(entry.dataURL)}" alt="Preview p${escapeHTML(String(entry.pageNumber))} #${index + 1} ${escapeHTML(getImageCategoryMark(entry.imageCategory))} ${escapeHTML(getLayoutHintMark(entry.layoutHint))} ${escapeHTML(getSlideSlotMark(entry.slideSlot))} ${escapeHTML(getRoleHintMark(entry.roleHint))} ${escapeHTML(getInsertSizeMark(entry.insertHint))}">
+                <img src="${escapeHTML(entry.dataURL)}" alt="Preview p${escapeHTML(String(entry.pageNumber))} #${index + 1} ${escapeHTML(getImageCategoryMark(entry.imageCategory))} ${escapeHTML(getLayoutHintMark(entry.layoutHint))} ${escapeHTML(getSlideSlotMark(entry.slideSlot))} ${escapeHTML(getRoleHintMark(entry.roleHint))} ${escapeHTML(getInsertSizeMark(entry.insertHint))} ${escapeHTML(getCaptionToneMark(entry.captionHint))}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion, uri, entry.pageNumber)}
               ${buildPaletteChipsHTML(entry.palette)}
               ${buildContrastPairHTML(entry.dominantHex, entry.contrastHex)}
               ${buildInsertHintHTML(entry.insertHint)}
+              ${buildCaptionHintHTML(entry.captionHint)}
               <div class="entry-actions">
                 <a class="source-action" href="${escapeHTML(uri)}" title="Open p${escapeHTML(String(entry.pageNumber))}">Open p${escapeHTML(String(entry.pageNumber))}</a>
                 <button type="button" class="source-action copy-token" data-copy="${escapeHTML(pptToken)}" title="Copy PPT token">Copy PPT</button>
@@ -1633,6 +1644,7 @@ var PdfImageSaver = (() => {
                 <button type="button" class="source-action copy-token" data-copy="${escapeHTML(formatContrastPairLabel(entry.dominantHex, entry.contrastHex))}" title="Copy dominant/contrast pair">Copy pair</button>
                 <button type="button" class="source-action copy-token" data-copy="${escapeHTML(buildRolePackToken(entry))}" title="Copy role pack for PPT drawing">Copy role</button>
                 <button type="button" class="source-action copy-token" data-copy="${escapeHTML(buildInsertPackToken(entry))}" title="Copy insert pack for PPT placement">Copy insert</button>
+                <button type="button" class="source-action copy-token" data-copy="${escapeHTML(buildCaptionPackToken(entry))}" title="Copy caption pack for PPT text">Copy cap</button>
               </div>
             </div>
             <dl class="entry-summary">
@@ -1643,6 +1655,7 @@ var PdfImageSaver = (() => {
               <div><dt>Slot</dt><dd>${escapeHTML(formatSlideSlotLabel(entry.slideSlot))}</dd></div>
               <div><dt>Role</dt><dd>${escapeHTML(formatRoleHintLabel(entry.roleHint))}</dd></div>
               <div><dt>Ins</dt><dd>${escapeHTML(formatInsertHintLabel(entry.insertHint))}</dd></div>
+              <div><dt>Cap</dt><dd>${escapeHTML(formatCaptionHintLabel(entry.captionHint))}</dd></div>
               <div><dt>Hue</dt><dd>${escapeHTML(formatColorFamilyLabel(entry.colorFamily))}</dd></div>
               <div><dt>Pair</dt><dd>${escapeHTML(formatContrastPairLabel(entry.dominantHex, entry.contrastHex))}</dd></div>
               <div><dt>Det</dt><dd>${escapeHTML(formatPreviewDetectorLabel(entry.detector))}</dd></div>
@@ -1661,9 +1674,11 @@ var PdfImageSaver = (() => {
                 <div><dt>Slot</dt><dd>${escapeHTML(formatSlideSlotLabel(entry.slideSlot))}</dd></div>
                 <div><dt>Role</dt><dd>${escapeHTML(formatRoleHintLabel(entry.roleHint))}</dd></div>
                 <div><dt>Ins</dt><dd>${escapeHTML(formatInsertHintLabel(entry.insertHint))}</dd></div>
+                <div><dt>Cap</dt><dd>${escapeHTML(formatCaptionHintLabel(entry.captionHint))}</dd></div>
                 <div><dt>Pair</dt><dd>${escapeHTML(formatContrastPairLabel(entry.dominantHex, entry.contrastHex))}</dd></div>
                 <div><dt>Pack</dt><dd><code>${escapeHTML(buildRolePackToken(entry))}</code></dd></div>
                 <div><dt>Insert</dt><dd><code>${escapeHTML(buildInsertPackToken(entry))}</code></dd></div>
+                <div><dt>Caption</dt><dd><code>${escapeHTML(buildCaptionPackToken(entry))}</code></dd></div>
                 <div><dt>PPT</dt><dd><code>${escapeHTML(pptToken)}</code></dd></div>
               </dl>
             </details>
@@ -1702,6 +1717,7 @@ var PdfImageSaver = (() => {
         slide_slot: entry.slideSlot,
         role_hint: entry.roleHint,
         insert_hint: entry.insertHint,
+        caption_hint: entry.captionHint,
         dominant_hex: entry.dominantHex,
         contrast_hex: entry.contrastHex,
         style_tags: entry.styleTags,
@@ -1747,6 +1763,10 @@ var PdfImageSaver = (() => {
     .contrast-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.25); display: inline-block; }
     .insert-hint { display: flex; flex-wrap: wrap; gap: 4px; font: 11px system-ui, sans-serif; color: #355; }
     .insert-chip { border: 1px solid #9ab; border-radius: 999px; padding: 0 6px; background: #f3f8ff; }
+    .caption-hint { display: grid; gap: 2px; font: 11px system-ui, sans-serif; color: #334; }
+    .caption-chip { border: 1px solid #9ab; border-radius: 999px; padding: 0 6px; background: #f7fff5; width: fit-content; }
+    .caption-title { font-weight: 600; color: #223; }
+    .caption-note { color: #556; }
     .filter-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
     .filter-chip { appearance: none; border: 1px solid #9ab; background: #f7faff; color: #0645ad; border-radius: 999px; padding: 1px 8px; font: 11.5px system-ui, sans-serif; cursor: pointer; }
     .filter-chip[aria-pressed="true"] { background: #1f73b7; border-color: #1f73b7; color: #fff; }
@@ -1772,13 +1792,14 @@ var PdfImageSaver = (() => {
   <header id="top">
     <h1>${escapeHTML(sourceTitle)}</h1>
     <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync; ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}.</p>
-    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}; ${escapeHTML(formatCategorySummary(normalizedEntries))}; ${escapeHTML(formatColorFamilySummary(normalizedEntries))}; ${escapeHTML(formatLayoutHintSummary(normalizedEntries))}; ${escapeHTML(formatSlideSlotSummary(normalizedEntries))}; ${escapeHTML(formatRoleHintSummary(normalizedEntries))}; ${escapeHTML(formatInsertHintSummary(normalizedEntries))}</p>
+    <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}; ${escapeHTML(formatCategorySummary(normalizedEntries))}; ${escapeHTML(formatColorFamilySummary(normalizedEntries))}; ${escapeHTML(formatLayoutHintSummary(normalizedEntries))}; ${escapeHTML(formatSlideSlotSummary(normalizedEntries))}; ${escapeHTML(formatRoleHintSummary(normalizedEntries))}; ${escapeHTML(formatInsertHintSummary(normalizedEntries))}; ${escapeHTML(formatCaptionHintSummary(normalizedEntries))}</p>
     <p class="meta">PPT: ${escapeHTML(formatPptAssistSummary(normalizedEntries))}</p>
     ${buildCategoryFilterBarHTML(normalizedEntries)}
     ${buildLayoutFilterBarHTML(normalizedEntries)}
     ${buildSlideSlotFilterBarHTML(normalizedEntries)}
     ${buildRoleFilterBarHTML(normalizedEntries)}
     ${buildInsertFilterBarHTML(normalizedEntries)}
+    ${buildCaptionFilterBarHTML(normalizedEntries)}
     ${normalizedEntries.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedEntries[0].openPDFURI)}" title="Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}">Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}</a>${normalizedEntries.length > 1 ? ` <a class="source-action" href="${escapeHTML(normalizedEntries[normalizedEntries.length - 1].openPDFURI)}" title="Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}">Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}</a>` : ""} <button type="button" class="source-action copy-token" data-copy="${escapeHTML(buildIndexPptAssistToken(normalizedEntries))}" title="Copy index PPT assist token">Copy PPT all</button></p>` : ""}
     ${normalizedEntries.length > 1 ? `<p class="meta jumps">${normalizedEntries.map((entry, index) => `<a href="#e${index + 1}" title="Jump #${index + 1} p${escapeHTML(String(entry.pageNumber))}">#${index + 1}p${escapeHTML(String(entry.pageNumber))}</a>`).join(" ")}</p>` : ""}
   </header>
@@ -1795,6 +1816,7 @@ var PdfImageSaver = (() => {
       var activeSlot = "all";
       var activeRole = "all";
       var activeInsert = "all";
+      var activeCaption = "all";
       function applyFilters() {
         document.querySelectorAll('.filter-chip[data-filter="category"]').forEach(function (chip) {
           chip.setAttribute("aria-pressed", chip.getAttribute("data-value") === activeCategory ? "true" : "false");
@@ -1811,13 +1833,17 @@ var PdfImageSaver = (() => {
         document.querySelectorAll('.filter-chip[data-filter="insert"]').forEach(function (chip) {
           chip.setAttribute("aria-pressed", chip.getAttribute("data-value") === activeInsert ? "true" : "false");
         });
+        document.querySelectorAll('.filter-chip[data-filter="caption"]').forEach(function (chip) {
+          chip.setAttribute("aria-pressed", chip.getAttribute("data-value") === activeCaption ? "true" : "false");
+        });
         document.querySelectorAll("article.entry").forEach(function (entry) {
           var categoryMatch = activeCategory === "all" || entry.getAttribute("data-category") === activeCategory;
           var layoutMatch = activeLayout === "all" || entry.getAttribute("data-layout") === activeLayout;
           var slotMatch = activeSlot === "all" || entry.getAttribute("data-slot") === activeSlot;
           var roleMatch = activeRole === "all" || entry.getAttribute("data-role") === activeRole;
           var insertMatch = activeInsert === "all" || entry.getAttribute("data-insert") === activeInsert;
-          entry.classList.toggle("is-hidden", !(categoryMatch && layoutMatch && slotMatch && roleMatch && insertMatch));
+          var captionMatch = activeCaption === "all" || entry.getAttribute("data-caption") === activeCaption;
+          entry.classList.toggle("is-hidden", !(categoryMatch && layoutMatch && slotMatch && roleMatch && insertMatch && captionMatch));
         });
       }
       function copyText(text) {
@@ -1847,6 +1873,8 @@ var PdfImageSaver = (() => {
             activeRole = value;
           } else if (filter === "insert") {
             activeInsert = value;
+          } else if (filter === "caption") {
+            activeCaption = value;
           } else {
             activeCategory = value;
           }
@@ -3892,6 +3920,42 @@ var PdfImageSaver = (() => {
     return `<div class="insert-hint" title="${escapeHTML(formatInsertHintLabel(hint))}"><span class="insert-chip">${escapeHTML(getInsertSizeMark(hint.size))} ${escapeHTML(hint.size)}</span><span class="insert-chip">${escapeHTML(hint.anchor)}</span><span class="insert-chip">w${escapeHTML(String(hint.width_pct))}%</span></div>`;
   }
 
+  function buildCaptionFilterBarHTML(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (list.length < 2) {
+      return "";
+    }
+    const counts = new Map();
+    for (const entry of list) {
+      const hint = normalizeCaptionHint(entry?.captionHint || entry?.caption_hint || deriveCaptionHint({
+        imageCategory: entry?.imageCategory || entry?.image_category,
+        roleHint: entry?.roleHint || entry?.role_hint,
+        slideSlot: entry?.slideSlot || entry?.slide_slot,
+        layoutHint: entry?.layoutHint || entry?.layout_hint,
+        pageNumber: entry?.pageNumber || entry?.page_number,
+        colorFamily: entry?.colorFamily || entry?.color_family,
+        insertHint: entry?.insertHint || entry?.insert_hint,
+      }));
+      counts.set(hint.tone, (counts.get(hint.tone) || 0) + 1);
+    }
+    if (counts.size < 2) {
+      return "";
+    }
+    const chips = [`<button type="button" class="filter-chip" data-filter="caption" data-value="all" aria-pressed="true">Cap all</button>`];
+    for (const [key, count] of counts.entries()) {
+      chips.push(`<button type="button" class="filter-chip" data-filter="caption" data-value="${escapeHTML(key)}" aria-pressed="false">${escapeHTML(getCaptionToneMark(key))} ${count}</button>`);
+    }
+    return `<div class="filter-bar" role="toolbar" aria-label="Caption tone filter">${chips.join("")}</div>`;
+  }
+
+  function buildCaptionHintHTML(captionHint) {
+    const hint = normalizeCaptionHint(captionHint);
+    if (!hint || hint.tone === "unknown") {
+      return "";
+    }
+    return `<div class="caption-hint" title="${escapeHTML(formatCaptionHintLabel(hint))}"><span class="caption-chip">${escapeHTML(getCaptionToneMark(hint.tone))} ${escapeHTML(hint.tone)}</span><div class="caption-title">${escapeHTML(hint.title)}</div><div class="caption-note">${escapeHTML(hint.note)}</div></div>`;
+  }
+
   function buildContrastPairHTML(dominantHex, contrastHex) {
     const dominant = normalizeHexColor(dominantHex);
     const contrast = normalizeHexColor(contrastHex);
@@ -3927,6 +3991,15 @@ var PdfImageSaver = (() => {
       `slot=${slot}`,
       `role=${role}`,
       `ins=${normalizeInsertHint(safe.insertHint || safe.insert_hint || deriveInsertHint(slot, layout, aspect, role)).size}`,
+      `cap=${normalizeCaptionHint(safe.captionHint || safe.caption_hint || deriveCaptionHint({
+        imageCategory: safe.imageCategory || safe.image_category,
+        roleHint: role,
+        slideSlot: slot,
+        layoutHint: layout,
+        pageNumber: safe.pageNumber || safe.page_number,
+        colorFamily: safe.colorFamily || safe.color_family,
+        insertHint: safe.insertHint || safe.insert_hint,
+      })).tone}`,
       `ar=${formatAspectRatioLabel(aspect)}`,
       `hue=${normalizeColorFamily(safe.colorFamily || safe.color_family || deriveColorFamilyFromPalette(palette))}`,
       `dom=${dominant || "none"}`,
@@ -3954,6 +4027,32 @@ var PdfImageSaver = (() => {
       `role=${role}`,
       `lay=${layout}`,
       `ar=${formatAspectRatioLabel(aspect)}`,
+    ].join(";");
+  }
+
+  function buildCaptionPackToken(entry) {
+    const safe = entry && typeof entry === "object" ? entry : {};
+    const aspect = normalizeAspectRatio(safe.aspectRatio || safe.aspect_ratio || deriveAspectRatio(safe.renderedWidth || safe.rendered_width, safe.renderedHeight || safe.rendered_height));
+    const layout = normalizeLayoutHint(safe.layoutHint || safe.layout_hint || deriveLayoutHint(aspect, safe.imageCategory || safe.image_category));
+    const slot = normalizeSlideSlot(safe.slideSlot || safe.slide_slot || deriveSlideSlot(layout, safe.imageCategory || safe.image_category, aspect));
+    const role = normalizeRoleHint(safe.roleHint || safe.role_hint || deriveRoleHint(safe.imageCategory || safe.image_category, slot, layout));
+    const caption = normalizeCaptionHint(safe.captionHint || safe.caption_hint || deriveCaptionHint({
+      imageCategory: safe.imageCategory || safe.image_category,
+      roleHint: role,
+      slideSlot: slot,
+      layoutHint: layout,
+      pageNumber: safe.pageNumber || safe.page_number,
+      colorFamily: safe.colorFamily || safe.color_family,
+      insertHint: safe.insertHint || safe.insert_hint,
+    }));
+    return [
+      `tone=${caption.tone}`,
+      `title=${caption.title}`,
+      `note=${caption.note}`,
+      `role=${role}`,
+      `slot=${slot}`,
+      `cat=${normalizeImageCategoryKey(safe.imageCategory || safe.image_category)}`,
+      `page=${normalizePageNumber(safe.pageNumber || safe.page_number, 1)}`,
     ].join(";");
   }
 
@@ -3991,14 +4090,16 @@ var PdfImageSaver = (() => {
       slide_slots: formatSlideSlotSummary(list),
       roles: formatRoleHintSummary(list),
       inserts: formatInsertHintSummary(list),
+      captions: formatCaptionHintSummary(list),
       token: buildIndexPptAssistToken(list),
       entry_tokens: list.map((entry) => buildPptAssistToken(entry)),
       role_packs: list.map((entry) => buildRolePackToken(entry)),
       insert_packs: list.map((entry) => buildInsertPackToken(entry)),
+      caption_packs: list.map((entry) => buildCaptionPackToken(entry)),
     };
   }
 
-  function buildDrawingStyleTags({ imageCategory, styleTags, palette, colorFamily, layoutHint, aspectRatio, slideSlot, roleHint, insertHint }) {
+  function buildDrawingStyleTags({ imageCategory, styleTags, palette, colorFamily, layoutHint, aspectRatio, slideSlot, roleHint, insertHint, captionHint }) {
     const tags = normalizeStyleTags(styleTags);
     const category = normalizeImageCategoryKey(imageCategory);
     const family = normalizeColorFamily(colorFamily || deriveColorFamilyFromPalette(palette));
@@ -4006,12 +4107,14 @@ var PdfImageSaver = (() => {
     const slot = normalizeSlideSlot(slideSlot || deriveSlideSlot(layout, category, aspectRatio));
     const role = normalizeRoleHint(roleHint || deriveRoleHint(category, slot, layout));
     const insert = normalizeInsertHint(insertHint || deriveInsertHint(slot, layout, aspectRatio, role));
+    const caption = normalizeCaptionHint(captionHint || deriveCaptionHint({ imageCategory: category, roleHint: role, slideSlot: slot, layoutHint: layout, insertHint: insert }));
     const categoryTag = category === "auto" ? null : category;
     const familyTag = family === "unknown" ? null : family;
     const layoutTag = layout === "unknown" ? null : layout;
     const slotTag = slot === "unknown" ? null : slot;
     const roleTag = role === "unknown" ? null : role;
     const insertTag = insert.size === "unknown" ? null : `ins-${insert.size}`;
+    const captionTag = caption.tone === "unknown" ? null : `cap-${caption.tone}`;
     const drawingHints = [];
     if (category === "chart") {
       drawingHints.push("plot", "axes");
@@ -4062,6 +4165,15 @@ var PdfImageSaver = (() => {
     } else if (insert.size === "small") {
       drawingHints.push("insert-small");
     }
+    if (caption.tone === "result") {
+      drawingHints.push("caption-result");
+    } else if (caption.tone === "method") {
+      drawingHints.push("caption-method");
+    } else if (caption.tone === "compare") {
+      drawingHints.push("caption-compare");
+    } else if (caption.tone === "context") {
+      drawingHints.push("caption-context");
+    }
     return normalizeStyleTags([
       ...tags,
       ...(tags.length ? [] : deriveStyleTagsFromPalette(palette)),
@@ -4071,6 +4183,7 @@ var PdfImageSaver = (() => {
       slotTag,
       roleTag,
       insertTag,
+      captionTag,
       ...drawingHints,
     ]);
   }
@@ -4160,6 +4273,96 @@ var PdfImageSaver = (() => {
       return "Ins none";
     }
     return `Ins ${[...counts.entries()].map(([key, count]) => `${getInsertSizeMark(key)}${count}`).join(" ")}`;
+  }
+
+  function deriveCaptionHint({ imageCategory, roleHint, slideSlot, layoutHint, pageNumber, colorFamily, insertHint } = {}) {
+    const category = normalizeImageCategoryKey(imageCategory);
+    const role = normalizeRoleHint(roleHint || deriveRoleHint(category, slideSlot, layoutHint));
+    const slot = normalizeSlideSlot(slideSlot);
+    const layout = normalizeLayoutHint(layoutHint);
+    const family = normalizeColorFamily(colorFamily);
+    const insert = normalizeInsertHint(insertHint);
+    const page = normalizePageNumber(pageNumber, 1);
+    let tone = "context";
+    if (role === "result" || category === "chart" || category === "table") {
+      tone = "result";
+    } else if (role === "method" || category === "diagram" || category === "schematic") {
+      tone = "method";
+    } else if (role === "compare" || slot === "footer") {
+      tone = "compare";
+    } else if (role === "context" || category === "photo") {
+      tone = "context";
+    } else if (role === "evidence" || category === "equation") {
+      tone = "result";
+    }
+    const catLabel = getImageCategoryLabel(category).replace(/^[A-Za-z]{1,3}\s+/, "") || category;
+    const titleMap = {
+      result: `Key ${catLabel} result`,
+      method: `${catLabel} workflow`,
+      compare: `${catLabel} comparison`,
+      context: `${catLabel} context`,
+      unknown: `${catLabel} figure`,
+    };
+    const noteBits = [
+      `p${page}`,
+      role !== "unknown" ? role : null,
+      slot !== "unknown" ? slot : null,
+      layout !== "unknown" ? layout : null,
+      insert.size !== "unknown" ? insert.size : null,
+      family !== "unknown" ? family : null,
+    ].filter(Boolean);
+    return normalizeCaptionHint({
+      tone,
+      title: titleMap[tone] || titleMap.unknown,
+      note: noteBits.join(" · "),
+    });
+  }
+
+  function normalizeCaptionHint(value) {
+    const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const toneRaw = String(source.tone || value || "").trim().toLowerCase();
+    const tone = ["result", "method", "compare", "context", "unknown"].includes(toneRaw) ? toneRaw : "unknown";
+    const title = String(source.title || "").trim().replace(/\s+/g, " ").slice(0, 80) || (tone === "unknown" ? "Figure caption" : `${tone} caption`);
+    const note = String(source.note || "").trim().replace(/\s+/g, " ").slice(0, 120);
+    return { tone, title, note };
+  }
+
+  function getCaptionToneMark(value) {
+    const tone = typeof value === "string" ? value : value?.tone;
+    const key = String(tone || "").trim().toLowerCase();
+    if (key === "result") return "Rt";
+    if (key === "method") return "Mt";
+    if (key === "compare") return "Cm";
+    if (key === "context") return "Cx";
+    return "Uk";
+  }
+
+  function formatCaptionHintLabel(value) {
+    const hint = normalizeCaptionHint(value);
+    if (hint.tone === "unknown") {
+      return "Uk unknown";
+    }
+    return `${getCaptionToneMark(hint.tone)} ${hint.tone}; ${hint.title}`;
+  }
+
+  function formatCaptionHintSummary(entries) {
+    const counts = new Map();
+    for (const entry of Array.isArray(entries) ? entries : []) {
+      const hint = normalizeCaptionHint(entry?.captionHint || entry?.caption_hint || deriveCaptionHint({
+        imageCategory: entry?.imageCategory || entry?.image_category,
+        roleHint: entry?.roleHint || entry?.role_hint,
+        slideSlot: entry?.slideSlot || entry?.slide_slot,
+        layoutHint: entry?.layoutHint || entry?.layout_hint,
+        pageNumber: entry?.pageNumber || entry?.page_number,
+        colorFamily: entry?.colorFamily || entry?.color_family,
+        insertHint: entry?.insertHint || entry?.insert_hint,
+      }));
+      counts.set(hint.tone, (counts.get(hint.tone) || 0) + 1);
+    }
+    if (!counts.size) {
+      return "Cap none";
+    }
+    return `Cap ${[...counts.entries()].map(([key, count]) => `${getCaptionToneMark(key)}${count}`).join(" ")}`;
   }
 
   function deriveRoleHint(imageCategory, slideSlot, layoutHint) {
@@ -5470,11 +5673,14 @@ var PdfImageSaver = (() => {
       formatRoleHintLabel,
       formatInsertHintSummary,
       formatInsertHintLabel,
+      formatCaptionHintSummary,
+      formatCaptionHintLabel,
       formatContrastPairLabel,
       formatPptAssistSummary,
       buildPptAssistToken,
       buildRolePackToken,
       buildInsertPackToken,
+      buildCaptionPackToken,
       buildIndexPptAssistToken,
       buildIndexPptAssistSummary,
       buildDrawingStyleTags,
@@ -5484,16 +5690,19 @@ var PdfImageSaver = (() => {
       deriveSlideSlot,
       deriveRoleHint,
       deriveInsertHint,
+      deriveCaptionHint,
       deriveContrastHex,
       normalizeColorFamily,
       normalizeLayoutHint,
       normalizeSlideSlot,
       normalizeRoleHint,
       normalizeInsertHint,
+      normalizeCaptionHint,
       getLayoutHintMark,
       getSlideSlotMark,
       getRoleHintMark,
       getInsertSizeMark,
+      getCaptionToneMark,
       formatStyleTagsLabel,
       formatPaletteLabel,
       saveAutoDetectedPageImagePreviews,
