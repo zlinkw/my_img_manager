@@ -329,6 +329,7 @@ function createFakeToastDocument() {
 function createFakeElement(tagName) {
   const listeners = Object.create(null);
   const children = [];
+  const attributes = Object.create(null);
   return {
     tagName,
     id: "",
@@ -340,12 +341,19 @@ function createFakeElement(tagName) {
     disabled: false,
     selected: false,
     children,
+    attributes,
     appendChild(element) {
       children.push(element);
       return element;
     },
     append(...elements) {
       children.push(...elements);
+    },
+    setAttribute(name, value) {
+      attributes[name] = String(value);
+    },
+    getAttribute(name) {
+      return Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null;
     },
     addEventListener(type, handler) {
       listeners[type] = handler;
@@ -568,6 +576,22 @@ if (typeof escToastDoc.dispatch === "function") {
   }
 }
 assert.strictEqual(escToastDoc.bodyChildren[0].removed, true, "toast Escape must dismiss toast");
+
+const clipPriorityToastDoc = createFakeToastDocument();
+const clipOverlay = { id: "pdf-image-saver-selection-overlay" };
+clipPriorityToastDoc.getElementById = (id) => {
+  if (id === "pdf-image-saver-selection-overlay") {
+    return clipOverlay;
+  }
+  return [...clipPriorityToastDoc.bodyChildren, ...clipPriorityToastDoc.headChildren].find((element) => element.id === id && !element.removed) || null;
+};
+showReaderToast(
+  { type: "pdf", _iframeWindow: { PDFViewerApplication: {}, document: clipPriorityToastDoc } },
+  "Keep toast during clip",
+  "info",
+);
+clipPriorityToastDoc.dispatch("keydown", { key: "Escape", preventDefault() {}, stopPropagation() {} });
+assert.strictEqual(clipPriorityToastDoc.bodyChildren[0].removed, false, "toast Escape must yield to active clip overlay");
 
 
 context.Services.prompt.alerts = [];
@@ -838,6 +862,7 @@ assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detect
 assert.ok(html.includes(">Open p5</a>"), "HTML entry must expose an explicit source PDF action with page");
 assert.ok(html.includes('title="Open p5"'), "HTML entry Open action title must include page");
 assert.ok(html.includes('class="source-map-link"'), "source region map must be clickable open link");
+assert.ok(html.includes(":focus-visible"), "index open targets must expose keyboard focus style");
 assert.ok(html.includes('title="Open map"'), "source region map link must advertise open action");
 assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region identity must keep full source key in a title");
 assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");
@@ -1916,6 +1941,7 @@ async function assertToolbarUnavailableStateSurvivesQualityChange() {
     toolbarAutoButton.title.includes("n/a"),
     "unsupported auto-raster toolbar button must explain unavailable state",
   );
+  assert.strictEqual(toolbarAutoButton.getAttribute("aria-label"), "Auto n/a", "unsupported auto must expose dense aria-label");
   toolbarSelect.value = "high";
   toolbarSelect.dispatch("change");
   await flushAsyncToolbarState();
@@ -1972,6 +1998,7 @@ async function assertToolbarBusyModeLocksSiblingControls() {
     assert.strictEqual(toolbarAutoButton.disabled, true, "clip click must disable auto button");
     assert.strictEqual(toolbarSelect.disabled, true, "clip click must disable quality select");
     assert.strictEqual(toolbarClipButton.title, "Clip drag", "busy clip title must describe active selection");
+    assert.strictEqual(toolbarChildren[0].getAttribute("aria-busy"), "true", "busy toolbar group must set aria-busy");
     assert.strictEqual(toolbarAutoButton.title, "Auto lock (clip)", "busy auto title must describe clip lock");
 
     // Quality change and second clip click must stay no-ops while busy.

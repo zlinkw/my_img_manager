@@ -204,6 +204,7 @@ var PdfImageSaver = (() => {
       toolbarMode = mode === "clip" || mode === "auto" ? mode : "idle";
       const busy = toolbarMode !== "idle";
       select.disabled = busy;
+      group.setAttribute?.("aria-busy", busy ? "true" : "false");
       if (toolbarMode === "clip") {
         button.disabled = true;
         button.textContent = "Drag...";
@@ -631,6 +632,8 @@ var PdfImageSaver = (() => {
 
     overlay.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
+        event.preventDefault?.();
+        event.stopPropagation?.();
         endSession();
         showReaderToast(reader, `Clip cancel ${formatPageToastToken(pageIndex)}.`, "warning");
       }
@@ -1413,10 +1416,12 @@ var PdfImageSaver = (() => {
     if (isAvailable) {
       button.disabled = false;
       button.title = buildToolbarActionTooltip("Auto page", qualityKey);
+      button.setAttribute?.("aria-label", "Auto");
       return;
     }
     button.disabled = true;
     button.title = "Auto n/a; Use clip.";
+    button.setAttribute?.("aria-label", "Auto n/a");
   }
 
   function supportsPDFJSImageCoordinates(pdfPage) {
@@ -1580,6 +1585,7 @@ var PdfImageSaver = (() => {
     .entry { display: grid; grid-template-columns: minmax(120px, 260px) 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid #ddd; }
     .preview-column { display: grid; gap: 5px; align-content: start; }
     .source-action { display: inline-block; width: fit-content; padding: 2px 7px; border: 1px solid #9ab; border-radius: 3px; color: #0645ad; text-decoration: none; background: #f7faff; }
+    .source-action:focus-visible, .source-map-link:focus-visible, .preview-link:focus-visible { outline: 2px solid #1f73b7; outline-offset: 2px; }
     img { max-width: 100%; height: auto; border: 1px solid #ccc; background: #f6f6f6; }
     .source-map-link { display: inline-block; width: fit-content; text-decoration: none; color: inherit; }
     .source-map { position: relative; width: 76px; aspect-ratio: 0.72; border: 1px solid #bbb; background: #fafafa; }
@@ -2106,6 +2112,7 @@ var PdfImageSaver = (() => {
     th, td { border-top: 1px solid #ddd; padding: 4px 5px; text-align: left; vertical-align: top; }
     th { color: #555; font-weight: 600; }
     .source-action { display: inline-block; width: fit-content; padding: 2px 7px; border: 1px solid #9ab; border-radius: 3px; color: #0645ad; text-decoration: none; background: #f7faff; }
+    .source-action:focus-visible, .source-map-link:focus-visible, .preview-link:focus-visible { outline: 2px solid #1f73b7; outline-offset: 2px; }
     pre { white-space: pre-wrap; word-break: break-word; padding: 8px; background: #f6f8fa; border: 1px solid #ddd; font-size: 11.5px; }
   </style>
 </head>
@@ -2872,10 +2879,15 @@ var PdfImageSaver = (() => {
     toast.onclick = dismissToast;
     if (!toast.__pdfImageSaverEscHandler && doc.addEventListener) {
       toast.__pdfImageSaverEscHandler = (event) => {
-        if (event?.key === "Escape") {
-          event.preventDefault?.();
-          dismissToast();
+        if (event?.key !== "Escape") {
+          return;
         }
+        if (doc.getElementById?.("pdf-image-saver-selection-overlay")) {
+          return;
+        }
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        dismissToast();
       };
       doc.addEventListener("keydown", toast.__pdfImageSaverEscHandler, true);
     }

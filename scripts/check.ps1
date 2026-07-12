@@ -1823,4 +1823,17 @@ if ($mainJS -notmatch 'key === .Escape') {
   throw "Reader toast must dismiss on Escape"
 }
 
+if ($mainJS -notmatch 'aria-busy') {
+  throw "Toolbar busy mode must expose aria-busy"
+}
+if ($mainJS -notmatch 'Auto n/a') {
+  throw "Auto unavailable state must expose dense aria-label"
+}
+if ($mainJS -notmatch 'pdf-image-saver-selection-overlay') {
+  throw "Toast Escape must coordinate with clip overlay"
+}
+if ($mainJS -notmatch 'focus-visible') {
+  throw "Index open targets must include keyboard focus style"
+}
+
 Write-Host "check ok"

@@ -70,6 +70,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Inventable densify churn is exhausted. Further UI only for concrete clarity gaps or user-reported runtime wording.
 - Selection size badge now marks below-min drags as `min12`; toast is click/Esc-dismiss; index Open actions include page (`Open pN`).
 - Clip drag hint shows quality; source-region map is a clickable open-PDF link.
+- Toolbar exposes `aria-busy`; Auto n/a has matching aria-label; toast Esc yields to active clip overlay; index open targets use focus-visible.
 
 ### After UI Is Exhausted
 
