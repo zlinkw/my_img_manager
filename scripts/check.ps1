@@ -1998,6 +1998,21 @@ if ($mainJS -notmatch 'layout_hint') {
 if ($mainJS -notmatch 'aspect_ratio') {
   throw "Preview metadata must include aspect_ratio"
 }
+if ($mainJS -notmatch 'slide_slot') {
+  throw "Preview metadata must include slide_slot for PPT placement assist"
+}
+if ($mainJS -notmatch 'dominant_hex') {
+  throw "Preview metadata must include dominant_hex"
+}
+if ($mainJS -notmatch 'contrast_hex') {
+  throw "Preview metadata must include contrast_hex"
+}
+if ($mainJS -notmatch 'data-filter="slot"') {
+  throw "Index UI must expose slide slot filter chips"
+}
+if ($mainJS -notmatch 'Copy pair') {
+  throw "Index UI must expose contrast pair copy actions"
+}
 if ($mainJS -notmatch 'ppt_assist_token') {
   throw "Preview metadata must include ppt_assist_token"
 }
