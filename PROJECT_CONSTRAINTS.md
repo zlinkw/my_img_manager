@@ -72,6 +72,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Original import skip notes now reuse dense `byte cap` / `over cap` / `dup` tokens with auto success notes.
 - Original HTML index now mirrors preview Open actions and denser header meta.
 - Prefs status now surfaces Auto min and Helper min with the other dense caps.
+- Diagnostics now surfaces dups on/off with quality and caps.
 
 ### After UI Is Exhausted
 

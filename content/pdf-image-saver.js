@@ -404,6 +404,7 @@ var PdfImageSaver = (() => {
       default_quality: getDefaultQualityKey(),
       max_index: formatBytes(getMaxIndexBytes()),
       auto_cap: formatBytes(getAutoMaxPreviewBytes()),
+      duplicate_guard: getBoolPref("duplicateGuard", true),
       warnings: [],
     };
 
@@ -462,7 +463,7 @@ var PdfImageSaver = (() => {
     const lines = [
       `Plugin ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}; Zotero ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
       `On ${formatDiagnosticBoolean(safeReport.started)}; readers ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}; PDF ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
-      `Q ${normalizeQualityKey(safeReport.default_quality)}; auto ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
+      `Q ${normalizeQualityKey(safeReport.default_quality)}; dups ${formatDiagnosticBoolean(safeReport.duplicate_guard)}; auto ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
       `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; orig opt`,
       `Temp ${normalizeNonNegativeInteger(safeReport.temp_leftovers, 0)} (${formatBytes(safeReport.temp_bytes)}); ${normalizeDiagnosticText(safeReport.temp_dir, "unknown", 160)}`,
     ];

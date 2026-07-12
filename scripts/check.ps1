@@ -1520,6 +1520,12 @@ if ($diagnosticsReportEntry.Value -notmatch "const\s+warnings\s*=\s*normalizeDia
 if ($diagnosticsReportEntry.Value -notmatch "normalizeQualityKey\(safeReport\.default_quality\)") {
   throw "Diagnostics report formatter must normalize default quality"
 }
+if ($diagnosticsReportEntry.Value -notmatch "dups \$\{formatDiagnosticBoolean\(safeReport\.duplicate_guard\)\}") {
+  throw "Diagnostics report formatter must surface dups status"
+}
+if ($mainJS -notmatch "duplicate_guard:\s*getBoolPref\(\`"duplicateGuard`",\s*true\)") {
+  throw "Runtime diagnostics must capture duplicate guard preference"
+}
 if ($diagnosticsReportEntry.Value -notmatch "normalizeItemKey\(pdfAttachment\.key,\s*`"UNKNOWN`"\)") {
   throw "Diagnostics report formatter must normalize PDF key"
 }

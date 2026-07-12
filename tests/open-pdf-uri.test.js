@@ -1574,6 +1574,7 @@ const noisyDiagnostics = formatDiagnosticsReport({
   reader_count: { bad: true },
   active_pdf_reader: true,
   default_quality: "constructor",
+  duplicate_guard: { bad: true },
   auto_cap: { bad: true },
   max_index: undefined,
   temp_dir: { bad: true },
@@ -1604,6 +1605,45 @@ for (const forbiddenDiagnosticsText of ["[object Object]", "undefined", "NaN", "
 assert.ok(noisyDiagnostics.includes("Plugin unknown"), "diagnostics plugin must normalize malformed text");
 assert.ok(noisyDiagnostics.includes("On unknown"), "diagnostics booleans must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Q medium"), "diagnostics quality must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("dups unknown"), "diagnostics dups must normalize malformed values");
+assert.strictEqual(
+  formatDiagnosticsReport({
+    plugin: "pdf-image-saver@zlk.local 0.1.0",
+    zotero: "9.0.5",
+    started: true,
+    reader_count: 1,
+    active_pdf_reader: true,
+    default_quality: "high",
+    duplicate_guard: true,
+    auto_cap: "3 MB",
+    max_index: "5 MB",
+    temp_dir: "C:\\Temp\\pdf-image-saver",
+    temp_leftovers: 0,
+    temp_bytes: 0,
+    optional_helper: "python-available",
+  }).includes("Q high; dups on; auto 3 MB; index 5 MB"),
+  true,
+  "diagnostics must surface dups with quality/caps",
+);
+assert.strictEqual(
+  formatDiagnosticsReport({
+    plugin: "pdf-image-saver@zlk.local 0.1.0",
+    zotero: "9.0.5",
+    started: true,
+    reader_count: 0,
+    active_pdf_reader: false,
+    default_quality: "low",
+    duplicate_guard: false,
+    auto_cap: "1 MB",
+    max_index: "2 MB",
+    temp_dir: "C:\\Temp\\pdf-image-saver",
+    temp_leftovers: 0,
+    temp_bytes: 0,
+    optional_helper: "python-missing",
+  }).includes("Q low; dups off; auto 1 MB; index 2 MB"),
+  true,
+  "diagnostics must show dups off when guard disabled",
+);
 assert.ok(noisyDiagnostics.includes("PDF UNKNOWN"), "diagnostics PDF key must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("parent none"), "diagnostics parent item must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Page 1"), "diagnostics page target must normalize malformed values");
