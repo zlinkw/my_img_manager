@@ -917,8 +917,8 @@ if ($mainJS -notmatch "function\s+buildIndexTitle\s*\(\s*parentItem,\s*attachmen
   throw "Index title must accept entries, quality, and index key for concise identity"
 }
 
-if ($mainJS -notmatch "const\s+qualityLabel\s*=\s*normalizedQuality\s*\?\s*QUALITY\[normalizedQuality\]\.label\s*:\s*null") {
-  throw "buildIndexTitle must densify quality labels"
+if ($mainJS -notmatch "getQualityMark\(normalizedQuality\)") {
+  throw "buildIndexTitle must densify quality marks/labels"
 }
 if ($mainJS -notmatch 'entryCount\s*\?\s*`\$\{entryCount\}img`') {
   throw "Index title must include image count when available"
@@ -1934,6 +1934,16 @@ if ((Get-Content -Raw "preferences.xhtml") -notmatch 'L Low; 20-80 KB') {
 }
 if ((Get-Content -Raw "content/preferences.js") -notmatch 'Q \$\{quality\.mark\}') {
   throw "Preference status must include quality mark"
+}
+
+if ($mainJS -notmatch 'Open first p') {
+  throw "Index headers must expose Open first action"
+}
+if ($mainJS -notmatch 'getQualityMark\(normalizedQuality\)') {
+  throw "Index attachment titles must include quality mark"
+}
+if ($mainJS -notmatch 'img index \$\{escapeHTML\(formatPreviewScopeLabel\(normalizedScope\)\)\}\$\{previewQualityKey') {
+  throw "Preview HTML document title must densify quality mark"
 }
 
 Write-Host "check ok"

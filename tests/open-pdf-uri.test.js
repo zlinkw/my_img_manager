@@ -925,7 +925,9 @@ assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapse
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
 assert.ok(html.includes("M Medium; 60-220 KB"), "preview index header must densify quality mark/label/estimate");
 assert.ok(html.includes("HTML; sync; clip."), "preview index header must densify scope label");
-assert.ok(html.includes("img index clip"), "preview HTML document title must densify scope");
+assert.ok(html.includes("img index clip M"), "preview HTML document title must densify scope and quality mark");
+assert.ok(html.includes(">Open first p5</a>"), "preview index header must expose open-first action");
+assert.ok(html.includes('title="Open first p5"'), "preview open-first action must include page");
 assert.strictEqual(formatPreviewScopeLabel("auto-page"), "auto", "auto-page scope must densify");
 assert.strictEqual(formatPreviewScopeLabel("document"), "doc", "document scope must densify");
 assert.strictEqual(formatPreviewScopeLabel("clip"), "clip", "clip scope must stay stable");
@@ -984,6 +986,7 @@ assert.ok(originalIndexHTML.includes("1 img;"), "original index must densify ima
 assert.ok(originalIndexHTML.includes("<th>#</th>"), "original index must expose row numbers");
 assert.ok(originalIndexHTML.includes("position: sticky"), "original index must stick header while scrolling");
 assert.ok(originalIndexHTML.includes("<header>"), "original index must wrap meta in sticky header");
+assert.ok(originalIndexHTML.includes(">Open first p5</a>"), "original index header must expose open-first action");
 assert.ok(originalIndexHTML.includes("<td>#1</td>"), "original index first row must be numbered");
 assert.ok(originalIndexHTML.includes("open PDF page links"), "original index header must state PDF open links");
 assert.ok(originalIndexHTML.includes("Orig page; helper"), "original index header must densify scope/helper meta");
@@ -1193,7 +1196,7 @@ const singleIndexKey = getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "
 const singleIndexTitle = buildIndexTitle(htmlParent, htmlAttachment, "clip", 4, [htmlEntry], "medium", singleIndexKey);
 assert.ok(singleIndexTitle.includes("clip"), "single preview title must include densified scope");
 assert.ok(singleIndexTitle.includes("p5"), "single preview title must include target page");
-assert.ok(singleIndexTitle.includes("Medium"), "single preview title must include quality label");
+assert.ok(singleIndexTitle.includes("M Medium"), "single preview title must include quality mark/label");
 assert.ok(singleIndexTitle.includes("1img"), "single preview title must include image count");
 assert.ok(singleIndexTitle.includes(getPreviewIndexFingerprint(singleIndexKey)), "single preview title must include short identity");
 assert.ok(singleIndexTitle.length <= 140, "single preview title must stay compact");
@@ -1202,7 +1205,7 @@ const multiIndexKey = getPreviewIndexKey(htmlAttachment, [samePageLeft, samePage
 const multiIndexTitle = buildIndexTitle(htmlParent, htmlAttachment, "auto-page", 4, [samePageLeft, samePageRight], "high", multiIndexKey);
 assert.ok(multiIndexTitle.includes("auto"), "multi preview title must include densified auto scope");
 assert.ok(multiIndexTitle.includes("2img"), "multi preview title must include image count");
-assert.ok(multiIndexTitle.includes("High"), "multi preview title must include quality label");
+assert.ok(multiIndexTitle.includes("H High"), "multi preview title must include quality mark/label");
 assert.notStrictEqual(multiIndexTitle, singleIndexTitle, "quality/count/fingerprint variants must be distinguishable");
 
 const malformedPageEntry = {

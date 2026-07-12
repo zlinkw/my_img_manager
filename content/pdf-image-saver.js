@@ -1595,12 +1595,13 @@ var PdfImageSaver = (() => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${escapeHTML(sourceTitle)} - img index ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}</title>
+  <title>${escapeHTML(sourceTitle)} - img index ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}${previewQualityKey ? ` ${escapeHTML(getQualityMark(previewQualityKey))}` : ""}</title>
   <style>
     body { margin: 12px; font: 12.5px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
     header { position: sticky; top: 0; z-index: 2; margin: 0 0 8px; padding: 8px 0 6px; background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid #e5e5e5; }
     h1 { font-size: 14px; margin: 0 0 3px; }
     .meta { color: #555; margin: 0 0 1px; line-height: 1.3; }
+    .meta.actions { margin-top: 4px; }
     .entry { display: grid; grid-template-columns: minmax(120px, 260px) 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid #ddd; }
     .preview-column { display: grid; gap: 5px; align-content: start; position: relative; }
     .entry-badge { position: absolute; top: 4px; left: 4px; z-index: 1; padding: 1px 5px; border-radius: 3px; background: rgba(17, 24, 39, 0.82); color: #fff; font: 10.5px system-ui, sans-serif; pointer-events: none; }
@@ -1625,6 +1626,7 @@ var PdfImageSaver = (() => {
     <h1>${escapeHTML(sourceTitle)}</h1>
     <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync; ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}.</p>
     <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(formatBytes(totalPreviewBytes))}; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}</p>
+    ${normalizedEntries.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedEntries[0].openPDFURI)}" title="Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}">Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}</a></p>` : ""}
   </header>
   ${entriesHTML}
   <details>
@@ -1672,7 +1674,9 @@ var PdfImageSaver = (() => {
     const target = targetPage === null ? null : `p${targetPage + 1}`;
     const entryCount = Array.isArray(entries) ? entries.length : 0;
     const normalizedQuality = qualityKey === null ? null : normalizeQualityKey(qualityKey);
-    const qualityLabel = normalizedQuality ? QUALITY[normalizedQuality].label : null;
+    const qualityLabel = normalizedQuality
+      ? `${getQualityMark(normalizedQuality)} ${QUALITY[normalizedQuality].label}`
+      : null;
     const normalizedIndexKey = normalizePreviewIndexKey(indexKey);
     const fingerprint = normalizedIndexKey ? getPreviewIndexFingerprint(normalizedIndexKey) : null;
     const suffix = [
@@ -2130,6 +2134,7 @@ var PdfImageSaver = (() => {
     header { position: sticky; top: 0; z-index: 2; margin: 0 0 6px; padding: 8px 0 6px; background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid #e5e5e5; }
     h1 { font-size: 14px; margin: 0 0 3px; }
     .meta { color: #555; margin: 0 0 1px; line-height: 1.3; }
+    .meta.actions { margin-top: 4px; }
     table { border-collapse: collapse; width: 100%; margin-top: 6px; }
     th, td { border-top: 1px solid #ddd; padding: 4px 5px; text-align: left; vertical-align: top; }
     th { color: #555; font-weight: 600; position: sticky; top: 52px; background: #fff; z-index: 1; }
@@ -2144,6 +2149,7 @@ var PdfImageSaver = (() => {
     <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
     <p class="meta">Saved ${escapeHTML(createdAt)}. Orig ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}; helper.</p>
     <p class="meta">${normalizedImages.length} img; ${escapeHTML(formatBytes(normalizedImages.reduce((sum, image) => sum + normalizeNonNegativeInteger(image.byte_count, 0), 0)))}; open PDF page links.</p>
+    ${normalizedImages.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedImages[0].open_pdf_uri)}" title="Open first p${escapeHTML(String(normalizedImages[0].page_number))}">Open first p${escapeHTML(String(normalizedImages[0].page_number))}</a></p>` : ""}
   </header>
   <table>
     <thead><tr><th>#</th><th>Page</th><th>ID</th><th>Size</th><th>Box</th><th>Open</th></tr></thead>
