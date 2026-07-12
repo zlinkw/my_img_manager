@@ -2001,6 +2001,18 @@ if ($mainJS -notmatch 'aspect_ratio') {
 if ($mainJS -notmatch 'slide_slot') {
   throw "Preview metadata must include slide_slot for PPT placement assist"
 }
+if ($mainJS -notmatch 'role_hint') {
+  throw "Preview metadata must include role_hint for PPT narrative assist"
+}
+if ($mainJS -notmatch 'buildRolePackToken') {
+  throw "Index must expose role pack tokens for PPT drawing assist"
+}
+if ($mainJS -notmatch 'data-filter="role"') {
+  throw "Index UI must expose role filter chips"
+}
+if ($mainJS -notmatch 'Copy role') {
+  throw "Index UI must expose role pack copy actions"
+}
 if ($mainJS -notmatch 'dominant_hex') {
   throw "Preview metadata must include dominant_hex"
 }
