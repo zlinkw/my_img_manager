@@ -1773,4 +1773,24 @@ if ($mainJS -notmatch "Index: \$\{normalizeDiagnosticText\(safeReport\.max_index
   throw "Diagnostics index cap must densify as preference-style Index line"
 }
 
+
+if ($mainJS -notmatch "Plugin: \$\{normalizeDiagnosticText\(safeReport\.plugin") {
+  throw "Diagnostics plugin line must use labeled Plugin: prefix"
+}
+if ($mainJS -notmatch "Run: \$\{formatDiagnosticBoolean\(safeReport\.started\)\}") {
+  throw "Diagnostics runtime line must use labeled Run: prefix"
+}
+if ($mainJS -notmatch "Temp: \$\{normalizeNonNegativeInteger\(safeReport\.temp_leftovers") {
+  throw "Diagnostics temp line must use labeled Temp: prefix"
+}
+if ($mainJS -notmatch "PDF: \$\{normalizeItemKey\(pdfAttachment\.key") {
+  throw "Diagnostics PDF line must use labeled PDF: prefix"
+}
+if ($mainJS -notmatch "Page: \$\{pageNumber\}") {
+  throw "Diagnostics page line must use labeled Page: prefix"
+}
+if ($mainJS -notmatch "Open: \$\{normalizeDiagnosticText\(safeReport\.open_pdf_uri") {
+  throw "Diagnostics open line must use labeled Open: prefix"
+}
+
 Write-Host "check ok"

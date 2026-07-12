@@ -1639,9 +1639,9 @@ for (const forbiddenDiagnosticsText of ["[object Object]", "undefined", "NaN", "
     `diagnostics text must not contain ${forbiddenDiagnosticsText}`,
   );
 }
-assert.ok(noisyDiagnostics.includes("Plugin unknown"), "diagnostics plugin must normalize malformed text");
+assert.ok(noisyDiagnostics.includes("Plugin: unknown"), "diagnostics plugin must normalize malformed text");
 assert.ok(noisyDiagnostics.includes("Store: HTML; sync PDF"), "diagnostics must surface storage mode");
-assert.ok(noisyDiagnostics.includes("On unknown"), "diagnostics booleans must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Run: unknown"), "diagnostics booleans must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Q Medium; 60-220 KB"), "diagnostics quality must densify malformed values");
 assert.ok(noisyDiagnostics.includes("Dups: unknown"), "diagnostics dups must normalize malformed values");
 assert.strictEqual(formatDiagnosticDups(true), "on; sess+saved", "diagnostics dups must densify enabled guard");
@@ -1706,9 +1706,9 @@ assert.ok(denseDiagnosticsOff.includes("Dups: off"), "diagnostics must show dups
 assert.ok(denseDiagnosticsOff.includes("Auto: min 0.01; 4 max; 1 MB"), "diagnostics must densify auto caps when guard disabled");
 assert.ok(denseDiagnosticsOff.includes("Index: 2 MB"), "diagnostics must densify index cap when guard disabled");
 assert.ok(denseDiagnosticsOff.includes("Helper: opt; py missing; min 0.02; page 8; doc 9; 30s; auto py"), "diagnostics must show helper min/caps and python mode with missing python");
-assert.ok(noisyDiagnostics.includes("PDF UNKNOWN"), "diagnostics PDF key must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("PDF: UNKNOWN"), "diagnostics PDF key must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("parent none"), "diagnostics parent item must normalize malformed values");
-assert.ok(noisyDiagnostics.includes("Page 1"), "diagnostics page target must normalize malformed values");
+assert.ok(noisyDiagnostics.includes("Page: 1"), "diagnostics page target must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Helper: opt; unknown"), "diagnostics helper status must normalize malformed values");
 const autoUnavailableButton = { disabled: false, title: "" };
 applyAutoRasterButtonState(autoUnavailableButton, false, "medium");
