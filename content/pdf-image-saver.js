@@ -469,6 +469,7 @@ var PdfImageSaver = (() => {
     const warnings = normalizeDiagnosticWarningMessages(safeReport.warnings);
     const lines = [
       `Plugin ${normalizeDiagnosticText(safeReport.plugin, "unknown", 120)}; Zotero ${normalizeDiagnosticText(safeReport.zotero, "unknown", 80)}`,
+      "Store: HTML; sync PDF",
       `On ${formatDiagnosticBoolean(safeReport.started)}; readers ${normalizeNonNegativeInteger(safeReport.reader_count, 0)}; PDF ${formatDiagnosticBoolean(safeReport.active_pdf_reader)}`,
       `Q ${getQualityLabelWithEstimate(safeReport.default_quality)}; dups ${formatDiagnosticDups(safeReport.duplicate_guard)}; auto min ${formatDiagnosticArea(safeReport.auto_min_area)}; ${normalizeNonNegativeInteger(safeReport.auto_max_images, 0)} max; auto ${normalizeDiagnosticText(safeReport.auto_cap, "unknown", 80)}; index ${normalizeDiagnosticText(safeReport.max_index, "unknown", 80)}`,
       `Helper ${formatOptionalHelperStatus(safeReport.optional_helper)}; min ${formatDiagnosticArea(safeReport.helper_min_area)}; page ${normalizeNonNegativeInteger(safeReport.helper_page_max, 0)}; doc ${normalizeNonNegativeInteger(safeReport.helper_doc_max, 0)}; ${normalizeNonNegativeInteger(safeReport.helper_timeout_s, 0)}s; ${formatHelperPythonMode(safeReport.helper_python_mode)}; orig opt`,

@@ -65,7 +65,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 - Dense reader toolbar, menus, overlays, toasts, diagnostics, prefs, and HTML indexes landed.
 - Keep fixed category prefixes and shared tokens: `Capture failed:` / `Helper:` / `Storage failed:` / `Byte cap:` / `Auto/Clip/Page skip`; `saved/session dups`; `byte/item/over cap`; quality labels with estimates; detector `manual`/`auto`; scope `clip/page/auto/doc`; fallback `Use clip.`.
-- Prefs status and diagnostics already surface Q/dups(`on; sess+saved`)/caps/auto max/auto-helper mins, helper page/doc/timeout, and custom/auto py mode; preview/original indexes share Open actions and densified headers/titles.
+- Prefs status and diagnostics already surface Store/HTML sync, Q/dups(`on; sess+saved`)/caps/auto max/auto-helper mins, helper page/doc/timeout, and custom/auto py mode; preview/original indexes share Open actions and densified headers/titles.
 - Keep stable toolbar widths/aria and single toast element.
 - Inventable densify churn is exhausted. Further UI only for concrete clarity gaps or user-reported runtime wording.
 

@@ -1640,6 +1640,7 @@ for (const forbiddenDiagnosticsText of ["[object Object]", "undefined", "NaN", "
   );
 }
 assert.ok(noisyDiagnostics.includes("Plugin unknown"), "diagnostics plugin must normalize malformed text");
+assert.ok(noisyDiagnostics.includes("Store: HTML; sync PDF"), "diagnostics must surface storage mode");
 assert.ok(noisyDiagnostics.includes("On unknown"), "diagnostics booleans must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Q Medium; 60-220 KB"), "diagnostics quality must densify malformed values");
 assert.ok(noisyDiagnostics.includes("dups unknown"), "diagnostics dups must normalize malformed values");

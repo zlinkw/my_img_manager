@@ -1524,6 +1524,10 @@ if ($diagnosticsReportEntry.Value -notmatch "const\s+warnings\s*=\s*normalizeDia
 if ($diagnosticsReportEntry.Value -notmatch "getQualityLabelWithEstimate\(safeReport\.default_quality\)") {
   throw "Diagnostics report formatter must densify default quality"
 }
+
+if ($diagnosticsReportEntry.Value -notmatch "Store: HTML; sync PDF") {
+  throw "Diagnostics report must surface dense storage mode"
+}
 if ($diagnosticsReportEntry.Value -notmatch "dups \$\{formatDiagnosticDups\(safeReport\.duplicate_guard\)\}") {
   throw "Diagnostics report formatter must surface dups status"
 }
