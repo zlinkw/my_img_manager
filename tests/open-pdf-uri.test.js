@@ -117,6 +117,7 @@ const {
   formatAutoNoCandidatesReason,
   formatPreviewDuplicateSkipReason,
   classifyPreviewDuplicateSkipReason,
+  formatDiagnosticDups,
   formatDiagnosticArea,
   formatDiagnosticsReport,
   formatHelperPythonMode,
@@ -1642,6 +1643,8 @@ assert.ok(noisyDiagnostics.includes("Plugin unknown"), "diagnostics plugin must 
 assert.ok(noisyDiagnostics.includes("On unknown"), "diagnostics booleans must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Q Medium; 60-220 KB"), "diagnostics quality must densify malformed values");
 assert.ok(noisyDiagnostics.includes("dups unknown"), "diagnostics dups must normalize malformed values");
+assert.strictEqual(formatDiagnosticDups(true), "on; sess+saved", "diagnostics dups must densify enabled guard");
+assert.strictEqual(formatDiagnosticDups(false), "off", "diagnostics dups must densify disabled guard");
 assert.ok(noisyDiagnostics.includes("auto min unknown"), "diagnostics auto min must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("0 max"), "diagnostics auto max must normalize malformed values");
 assert.ok(noisyDiagnostics.includes("Helper unknown; min unknown; page 0; doc 0; 0s; auto py"), "diagnostics helper caps must normalize malformed values");
@@ -1667,7 +1670,7 @@ const denseDiagnostics = formatDiagnosticsReport({
   temp_bytes: 0,
   optional_helper: "python-available",
 });
-assert.ok(denseDiagnostics.includes("Q High; 180-750 KB; dups on; auto min 0.003; 6 max; auto 3 MB; index 5 MB"), "diagnostics must surface dups/min/max with quality/caps");
+assert.ok(denseDiagnostics.includes("Q High; 180-750 KB; dups on; sess+saved; auto min 0.003; 6 max; auto 3 MB; index 5 MB"), "diagnostics must surface dups/min/max with quality/caps");
 assert.ok(denseDiagnostics.includes("Helper py ok; min 0.004; page 12; doc 34; 45s; custom py; orig opt"), "diagnostics must surface helper min/caps and python mode");
 assert.strictEqual(formatDiagnosticArea(0.003), "0.003", "diagnostic area must densify numeric mins");
 assert.strictEqual(formatDiagnosticArea({ bad: true }), "unknown", "diagnostic area must fall back for malformed values");
