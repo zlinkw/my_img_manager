@@ -921,7 +921,7 @@ var PdfImageSaver = (() => {
         notes.push("byte-cap");
       }
       if (skippedOversized) {
-        notes.push(`${skippedOversized} oversized`);
+        notes.push(`${skippedOversized} oversize`);
       }
       showReaderToast(
         reader,
@@ -956,11 +956,11 @@ var PdfImageSaver = (() => {
           ? "session dups"
           : null;
     const capReason = skippedOversized && skippedByteLimit
-      ? "item+total byte caps"
+      ? "item+total caps"
       : skippedOversized
-        ? "item byte cap"
+        ? "item cap"
         : skippedByteLimit
-          ? "total byte cap"
+          ? "total cap"
           : null;
     if (duplicateReason && capReason) {
       return `Auto skip${pageToken}: ${duplicateReason}; ${capReason}.`;
@@ -1946,7 +1946,7 @@ var PdfImageSaver = (() => {
       parts.push(`${importResult.missingCount} missing`);
     }
     if (importResult.errorCount) {
-      parts.push(`${importResult.errorCount} unreadable`);
+      parts.push(`${importResult.errorCount} unread`);
     }
     if (importResult.byteCapCount) {
       parts.push(`${importResult.byteCapCount} byte-cap`);
@@ -3898,13 +3898,13 @@ var PdfImageSaver = (() => {
     if (typeof error === "string" || (typeof error === "number" && Number.isFinite(error))) {
       return normalizeErrorMessageText(error);
     }
-    return "Unknown error.";
+    return "Unknown err.";
   }
 
   function normalizeErrorMessageText(value) {
     const text = normalizeMetadataText(value, null, 320);
     if (!text || text === "undefined" || text === "null" || text === "[object Object]") {
-      return "Unknown error.";
+      return "Unknown err.";
     }
     return text;
   }
@@ -3998,7 +3998,7 @@ var PdfImageSaver = (() => {
     if (category === "capture") {
       return message.startsWith("Capture failed:") ? message : `Capture failed: ${message}`;
     }
-    return message === "Unknown error." ? "Unknown error." : message;
+    return message === "Unknown err." ? "Unknown err." : message;
   }
 
   return {

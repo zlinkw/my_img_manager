@@ -896,12 +896,12 @@ assert.strictEqual(
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSavedDuplicates: 1, skippedByteLimit: 1 }),
-  "Auto skip: saved dups; total byte cap.",
+  "Auto skip: saved dups; total cap.",
   "mixed persisted duplicate and byte-cap feedback must mention both causes",
 );
 assert.strictEqual(
   formatAutoDuplicateSkipReason({ skippedSessionDuplicates: 1, skippedOversized: 1 }),
-  "Auto skip: session dups; item byte cap.",
+  "Auto skip: session dups; item cap.",
   "mixed session duplicate and oversized feedback must mention both causes",
 );
 assert.strictEqual(
@@ -1586,7 +1586,7 @@ assert.strictEqual(getErrorMessage(404), "404", "numeric thrown values must be p
 for (const noisyErrorValue of [{ bad: true }, ["bad"], null, undefined, new Error(""), "[object Object]", "undefined", "null"]) {
   assert.strictEqual(
     getErrorMessage(noisyErrorValue),
-    "Unknown error.",
+    "Unknown err.",
     "malformed error messages must use a compact fallback",
   );
 }

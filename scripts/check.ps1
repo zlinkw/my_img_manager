@@ -767,7 +767,7 @@ if ($mainJS -notmatch "IOUtils\.exists\(filePath\)") {
 if ($mainJS -notmatch "error:\s*true") {
   throw "Original helper file status checker must expose IO errors separately"
 }
-if ($mainJS -notmatch "\$\{importResult\.errorCount\}\s+unreadable") {
+if ($mainJS -notmatch "\$\{importResult\.errorCount\}\s+unread") {
   throw "Original helper import toast must expose unreadable helper files separately"
 }
 if ($mainJS -notmatch "__test__:\s*\{[\s\S]*importOriginalImages") {
@@ -1545,7 +1545,7 @@ if ($errorMessageEntry.Value -notmatch "normalizeErrorMessageText\(error\.messag
 if ($errorMessageEntry.Value -notmatch "typeof\s+error\s*===\s*`"string`"[\s\S]*typeof\s+error\s*===\s*`"number`"") {
   throw "Error message helper must preserve scalar string and numeric errors"
 }
-if ($errorMessageEntry.Value -notmatch "return\s+`"Unknown error\.`"") {
+if ($errorMessageEntry.Value -notmatch "return\s+`"Unknown err\.`"") {
   throw "Error message helper must fall back to a compact unknown error"
 }
 if ($errorMessageEntry.Value -match "String\(error\)") {
