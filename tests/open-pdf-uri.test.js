@@ -129,6 +129,7 @@ const {
   applyAutoRasterButtonState,
   buildToolbarActionTooltip,
   formatPreviewDetectorLabel,
+  formatPreviewScopeLabel,
   formatQualityEstimateShort,
   formatPageToastToken,
   formatOriginalScopeToken,
@@ -768,6 +769,11 @@ assert.ok(html.includes("<details>"), "full JSON metadata must be in a details b
 assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
 assert.ok(html.includes("Medium; 60-220 KB"), "preview index header must densify quality label/estimate");
+assert.ok(html.includes("HTML; sync; clip."), "preview index header must densify scope label");
+assert.strictEqual(formatPreviewScopeLabel("auto-page"), "auto", "auto-page scope must densify");
+assert.strictEqual(formatPreviewScopeLabel("document"), "doc", "document scope must densify");
+assert.strictEqual(formatPreviewScopeLabel("clip"), "clip", "clip scope must stay stable");
+
 assert.ok(html.includes(">manual</dd>"), "preview index trace must densify detector label");
 assert.strictEqual(formatPreviewDetectorLabel("manual_selection"), "manual", "manual detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "auto", "auto detector must densify");
@@ -836,6 +842,15 @@ const samePageHTML = buildIndexHTML({
   qualityKey: "medium",
 });
 const samePageMetadata = extractMetadata(samePageHTML);
+assert.ok(samePageHTML.includes("HTML; sync; clip."), "same-page clip index header must densify scope label");
+const autoPageHTML = buildIndexHTML({
+  attachment: htmlAttachment,
+  parentItem: htmlParent,
+  entries: [samePageLeft, samePageRight],
+  scope: "auto-page",
+  qualityKey: "medium",
+});
+assert.ok(autoPageHTML.includes("HTML; sync; auto."), "auto-page index header must densify scope label");
 assert.strictEqual(samePageMetadata.entries[0].page_number, samePageMetadata.entries[1].page_number);
 assert.notStrictEqual(
   samePageMetadata.entries[0].source_region_key,

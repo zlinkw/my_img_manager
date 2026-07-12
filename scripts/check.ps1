@@ -1670,4 +1670,15 @@ if ($mainJS -match "Helper probe:") {
   throw "Diagnostics must not use legacy Helper probe: prefix"
 }
 
+
+if ($mainJS -notmatch "function\s+formatPreviewScopeLabel\s*\(") {
+  throw "Preview scope label densifier missing"
+}
+if ($mainJS -notmatch "HTML; sync; \$\{escapeHTML\(formatPreviewScopeLabel\(normalizedScope\)\)\}") {
+  throw "Preview index header must densify scope labels"
+}
+if ($mainJS -notmatch "Orig \$\{escapeHTML\(formatPreviewScopeLabel\(normalizedScope\)\)\}; helper") {
+  throw "Original index header must densify scope labels"
+}
+
 Write-Host "check ok"

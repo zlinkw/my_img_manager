@@ -68,6 +68,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Keep session vs saved dups, page/doc tokens, quality estimates, stable toolbar widths/aria, single toast element.
 - Shared dense tokens: `saved/session dups`, `byte cap`, `item/over cap`, quality labels with estimates, detector `manual`/`auto`.
 - Prefs status and diagnostics already surface Q/dups/caps/min areas; original/preview indexes share Open actions.
+- Preview/original HTML headers densify scope labels (`clip`/`page`/`auto`/`doc`).
 - Inventable densify churn is exhausted. Further UI only for concrete clarity gaps or user-reported runtime wording.
 
 ### After UI Is Exhausted

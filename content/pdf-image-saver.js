@@ -1554,7 +1554,7 @@ var PdfImageSaver = (() => {
 <body>
   <header>
     <h1>${escapeHTML(sourceTitle)}</h1>
-    <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync.</p>
+    <p class="meta">Saved ${escapeHTML(createdAt)}. HTML; sync; ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}.</p>
     <p class="meta">Index ${escapeHTML(getPreviewIndexFingerprint(previewIndexKey) || "unknown")}; ${normalizedEntries.length} img; ${escapeHTML(getQualityLabelWithEstimate(previewQualityKey))}</p>
   </header>
   ${entriesHTML}
@@ -2066,7 +2066,7 @@ var PdfImageSaver = (() => {
 </head>
 <body>
   <h1>${escapeHTML(getSourceTitle(parentItem, attachment))}</h1>
-  <p class="meta">Saved ${escapeHTML(createdAt)}. Orig ${escapeHTML(normalizedScope)}; helper.</p>
+  <p class="meta">Saved ${escapeHTML(createdAt)}. Orig ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}; helper.</p>
   <p class="meta">${normalizedImages.length} img; open PDF page links.</p>
   <table>
     <thead><tr><th>Page</th><th>ID</th><th>Size</th><th>Box</th><th>Open</th></tr></thead>
@@ -3317,6 +3317,17 @@ var PdfImageSaver = (() => {
     return text.replace(/_/g, " ");
   }
 
+  function formatPreviewScopeLabel(scope) {
+    const text = normalizeScope(scope);
+    if (text === "auto-page") {
+      return "auto";
+    }
+    if (text === "document") {
+      return "doc";
+    }
+    return text;
+  }
+
   function formatPageToastToken(pageIndex) {
     return `p${normalizePageIndex(pageIndex, 0) + 1}`;
   }
@@ -4060,6 +4071,7 @@ var PdfImageSaver = (() => {
       buildContextMenuActions,
       buildToolbarActionTooltip,
       formatPreviewDetectorLabel,
+      formatPreviewScopeLabel,
       formatQualityEstimateShort,
       formatPageToastToken,
       formatOriginalScopeToken,
