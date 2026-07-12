@@ -587,8 +587,8 @@ if ($mainJS -notmatch "function\s+buildOriginalImageIndexHTML") {
 if ($mainJS -notmatch 'storage_mode:\s*"original_image_index"') {
   throw "Original image index metadata must use original_image_index storage mode"
 }
-if ($mainJS -notmatch 'class="source-action"[\s\S]*title="Open">Open') {
-  throw "Original image index HTML must expose explicit Open actions"
+if ($mainJS -notmatch "Open p\$\{escapeHTML\(String\(image\.page_number\)\)\}") {
+  throw "Original image index HTML must expose explicit Open actions with page"
 }
 if ($mainJS -notmatch "open PDF page links") {
   throw "Original image index HTML must densify open-PDF header text"
@@ -865,8 +865,8 @@ if ($mainJS -match "<details\s+open") {
 if ($mainJS -notmatch "Index\s+\$\{escapeHTML\(getPreviewIndexFingerprint\(previewIndexKey\)\s*\|\|\s*`"unknown`"\)") {
   throw "HTML preview header must expose compact index fingerprint"
 }
-if ($mainJS -notmatch '<a class="source-action" href="\$\{escapeHTML\(uri\)\}" title="Open">Open</a>') {
-  throw "HTML preview entries must expose a visible source PDF action"
+if ($mainJS -notmatch "Open p\$\{escapeHTML\(String\(entry\.pageNumber\)\)\}") {
+  throw "HTML preview entries must expose a visible source PDF action with page"
 }
 if ($mainJS -notmatch 'title="\$\{escapeHTML\(entry\.sourceRegionKey\)\}"') {
   throw "HTML preview compact region identity must retain full source key in title"
@@ -1454,8 +1454,11 @@ if ($mainJS -notmatch "Clip drag") {
 if ($mainJS -notmatch "Auto running") {
   throw "Auto busy mode must update aria-label"
 }
-if ($mainJS -notmatch 'sizeBadge\.textContent\s*=\s*`\$\{width\}x\$\{height\}`') {
-  throw "Selection size badge must use stable ascii pixel format"
+if ($mainJS -notmatch "min12") {
+  throw "Selection size badge must use stable ascii pixel format with min12 marker"
+if ($mainJS -notmatch "const\s+tooSmall\s*=\s*width\s*<\s*12\s*\|\|\s*height\s*<\s*12") {
+  throw "Selection size badge must compute min12 threshold from 12px clip floor"
+}
 }
 if ($mainJS -notmatch "pdf-image-saver-selection-size") {
   throw "Clip selection overlay must show live size badge"
@@ -1791,6 +1794,17 @@ if ($mainJS -notmatch "Page: \$\{pageNumber\}") {
 }
 if ($mainJS -notmatch "Open: \$\{normalizeDiagnosticText\(safeReport\.open_pdf_uri") {
   throw "Diagnostics open line must use labeled Open: prefix"
+}
+
+
+if ($mainJS -notmatch 'title", "Click dismiss"') {
+  throw "Reader toast must advertise click-to-dismiss"
+}
+if ($mainJS -notmatch "toast\.onclick\s*=") {
+  throw "Reader toast must support click-to-dismiss"
+}
+if ($mainJS -notmatch "cursor: pointer;") {
+  throw "Reader toast style must signal click-to-dismiss"
 }
 
 Write-Host "check ok"

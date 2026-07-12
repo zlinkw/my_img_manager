@@ -740,7 +740,8 @@ var PdfImageSaver = (() => {
     if (sizeBadge) {
       const width = Math.max(0, Math.round(rect.width));
       const height = Math.max(0, Math.round(rect.height));
-      sizeBadge.textContent = `${width}x${height}`;
+      const tooSmall = width < 12 || height < 12;
+      sizeBadge.textContent = tooSmall ? `${width}x${height} min12` : `${width}x${height}`;
       sizeBadge.hidden = width < 1 && height < 1;
     }
   }
@@ -1509,7 +1510,7 @@ var PdfImageSaver = (() => {
                 <img src="${escapeHTML(entry.dataURL)}" alt="Preview ${index + 1}">
               </a>
               ${buildSourceRegionMapHTML(entry.sourceRegion)}
-              <a class="source-action" href="${escapeHTML(uri)}" title="Open">Open</a>
+              <a class="source-action" href="${escapeHTML(uri)}" title="Open p${escapeHTML(String(entry.pageNumber))}">Open p${escapeHTML(String(entry.pageNumber))}</a>
             </div>
             <dl class="entry-summary">
               <div><dt>Page</dt><dd><a href="${escapeHTML(uri)}">${escapeHTML(pageText)}</a></dd></div>
@@ -2078,7 +2079,7 @@ var PdfImageSaver = (() => {
         <td title="${escapeHTML(image.original_image_key)}">${escapeHTML(image.original_image_fingerprint)}</td>
         <td>${escapeHTML(formatBytes(image.byte_count))}</td>
         <td>${escapeHTML(image.bbox_normalized.map((value) => value.toFixed(4)).join(", "))}</td>
-        <td><a class="source-action" href="${escapeHTML(image.open_pdf_uri)}" title="Open">Open</a></td>
+        <td><a class="source-action" href="${escapeHTML(image.open_pdf_uri)}" title="Open p${escapeHTML(String(image.page_number))}">Open p${escapeHTML(String(image.page_number))}</a></td>
       </tr>`).join("\n");
     const metadata = {
       schema_version: HELPER_SCHEMA_VERSION,
@@ -2854,6 +2855,14 @@ var PdfImageSaver = (() => {
     toast.id = "pdf-image-saver-toast";
     toast.className = `pdf-image-saver-toast pdf-image-saver-${level || "info"}`;
     toast.setAttribute?.("role", level === "progress" ? "status" : "alert");
+    toast.setAttribute?.("title", "Click dismiss");
+    toast.onclick = () => {
+      if (toast.__pdfImageSaverToastTimer && doc.defaultView?.clearTimeout) {
+        doc.defaultView.clearTimeout(toast.__pdfImageSaverToastTimer);
+      }
+      toast.__pdfImageSaverToastTimer = null;
+      toast.remove?.();
+    };
     toast.textContent = message;
     if (!existing) {
       doc.body.appendChild(toast);
@@ -2928,6 +2937,7 @@ var PdfImageSaver = (() => {
         padding: 6px 8px;
         border-radius: 3px;
         box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
         background: #222;
         color: #fff;
         font: 12px system-ui, sans-serif;

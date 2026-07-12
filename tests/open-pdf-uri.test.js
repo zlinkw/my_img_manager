@@ -271,7 +271,14 @@ function createFakeToastDocument() {
       id: "",
       className: "",
       textContent: "",
+      title: "",
+      onclick: null,
       removed: false,
+      setAttribute(name, value) {
+        if (name === "title") {
+          this.title = String(value);
+        }
+      },
       remove() {
         this.removed = true;
       },
@@ -480,6 +487,10 @@ assert.strictEqual(sessionHint?.textContent, "Drag p1; Esc", "clip overlay hint 
 sessionPage.child.dispatch("pointerdown", { button: 0, pointerId: 1, clientX: 10, clientY: 12 });
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
 assert.strictEqual(sizeBadge.textContent, "60x40", "selection size badge must show live pixel size");
+sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 18, clientY: 20 });
+assert.strictEqual(sizeBadge.textContent, "8x8 min12", "selection size badge must mark below-min drag size");
+sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
+assert.strictEqual(sizeBadge.textContent, "60x40", "selection size badge must clear min12 after valid size");
 sessionPage.child.dispatch("keydown", { key: "Escape" });
 assert.strictEqual(clipSessionEnded, 1, "onSessionEnd must fire when overlay is cancelled");
 assert.strictEqual(sessionPage.child.removed, true, "cancelled overlay must be removed");
@@ -517,6 +528,11 @@ showReaderToast(
 assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "toast updates must reuse the existing toast element");
 assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img note.", "malformed toast messages must normalize to compact fallback text");
 assert.strictEqual(readerToastDoc.bodyChildren[0].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
+assert.strictEqual(readerToastDoc.bodyChildren[0].title, "Click dismiss", "toast must advertise click-to-dismiss");
+assert.strictEqual(typeof readerToastDoc.bodyChildren[0].onclick, "function", "toast must install click dismiss handler");
+readerToastDoc.bodyChildren[0].onclick();
+assert.strictEqual(readerToastDoc.bodyChildren[0].removed, true, "toast click must dismiss toast");
+
 
 context.Services.prompt.alerts = [];
 showReaderToast(null, new Error("Structured failure"), "fatal");
@@ -783,7 +799,8 @@ assert.ok(html.includes(">manual</dd>"), "preview index trace must densify detec
 assert.strictEqual(formatPreviewDetectorLabel("manual_selection"), "manual", "manual detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "auto", "auto detector must densify");
 assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detector", "unknown detector must keep readable text");
-assert.ok(html.includes(">Open</a>"), "HTML entry must expose an explicit source PDF action");
+assert.ok(html.includes(">Open p5</a>"), "HTML entry must expose an explicit source PDF action with page");
+assert.ok(html.includes('title="Open p5"'), "HTML entry Open action title must include page");
 assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region identity must keep full source key in a title");
 assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");
 assert.ok(html.includes('<details class="entry-details">'), "trace metadata must be in a per-entry details block");
@@ -814,7 +831,7 @@ assert.strictEqual(originalIndexMetadata.images[0].open_pdf_uri, "zotero://open-
 assert.strictEqual(originalIndexMetadata.images[0].byte_count, 65536);
 assert.ok(originalIndexHTML.includes("zotero://open-pdf/library/items/HTMLPDF1?page=5"), "original index must include source PDF links");
 assert.ok(originalIndexHTML.includes("abc123"), "original index must keep compact original identity metadata");
-assert.ok(originalIndexHTML.includes(">Open</a>"), "original index must expose explicit Open actions");
+assert.ok(originalIndexHTML.includes(">Open p5</a>"), "original index must expose explicit Open actions with page");
 assert.ok(originalIndexHTML.includes("open PDF page links"), "original index header must state PDF open links");
 assert.ok(originalIndexHTML.includes("Orig page; helper"), "original index header must densify scope/helper meta");
 assert.ok(originalIndexHTML.includes("- orig page"), "original HTML document title must densify page scope");

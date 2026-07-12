@@ -68,6 +68,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Prefs status and diagnostics already share the same Store/Q/Dups/Auto/Index/Helper line shape; indexes share Open actions and densified headers/titles.
 - Keep stable toolbar widths/aria and single toast element.
 - Inventable densify churn is exhausted. Further UI only for concrete clarity gaps or user-reported runtime wording.
+- Selection size badge now marks below-min drags as `min12`; toast is click-dismiss; index Open actions include page (`Open pN`).
 
 ### After UI Is Exhausted
 
