@@ -109,23 +109,28 @@ const {
   formatLayoutHintSummary,
   formatSlideSlotSummary,
   formatRoleHintSummary,
+  formatInsertHintSummary,
   formatContrastPairLabel,
   formatPptAssistSummary,
   buildPptAssistToken,
   buildRolePackToken,
+  buildInsertPackToken,
   buildDrawingStyleTags,
   deriveColorFamilyFromPalette,
   deriveLayoutHint,
   deriveSlideSlot,
   deriveRoleHint,
+  deriveInsertHint,
   deriveContrastHex,
   normalizeColorFamily,
   normalizeLayoutHint,
   normalizeSlideSlot,
   normalizeRoleHint,
+  normalizeInsertHint,
   getLayoutHintMark,
   getSlideSlotMark,
   getRoleHintMark,
+  getInsertSizeMark,
   formatStyleTagsLabel,
   formatPaletteLabel,
   normalizeStyleTags,
@@ -957,6 +962,8 @@ assert.ok(metadata.entries[0].layout_hint, "metadata must include layout_hint fo
 assert.ok("aspect_ratio" in metadata.entries[0], "metadata must include aspect_ratio");
 assert.ok(metadata.entries[0].slide_slot, "metadata must include slide_slot for PPT placement assist");
 assert.ok(metadata.entries[0].role_hint, "metadata must include role_hint for PPT narrative assist");
+assert.ok(metadata.entries[0].insert_hint, "metadata must include insert_hint for PPT placement assist");
+assert.ok(metadata.entries[0].insert_hint.size, "insert_hint must include size");
 assert.ok("dominant_hex" in metadata.entries[0], "metadata must include dominant_hex");
 assert.ok("contrast_hex" in metadata.entries[0], "metadata must include contrast_hex");
 assert.ok(Array.isArray(metadata.entries[0].style_tags), "metadata must include style_tags array");
@@ -965,6 +972,7 @@ assert.ok(metadata.entries[0].ppt_assist_token.includes("cat="), "metadata must 
 assert.ok(metadata.entries[0].ppt_assist_token.includes("lay="), "ppt token must include layout");
 assert.ok(metadata.entries[0].ppt_assist_token.includes("slot="), "ppt token must include slide slot");
 assert.ok(metadata.entries[0].ppt_assist_token.includes("role="), "ppt token must include role hint");
+assert.ok(metadata.entries[0].ppt_assist_token.includes("ins="), "ppt token must include insert size");
 assert.ok(metadata.entries[0].ppt_assist_token.includes("dom="), "ppt token must include dominant hex");
 assert.ok(metadata.ppt_assist?.token, "index metadata must include ppt_assist summary");
 assert.ok(metadata.entries[0].style_tags_json, "metadata must include style_tags_json for PPT consumers");
@@ -998,31 +1006,39 @@ assert.ok(html.includes("Copy PPT"), "preview index must expose PPT token copy a
 assert.ok(html.includes("Copy pal"), "preview index must expose palette copy action");
 assert.ok(html.includes("Copy pair"), "preview index must expose contrast pair copy action");
 assert.ok(html.includes("Copy role"), "preview index must expose role pack copy action");
+assert.ok(html.includes("Copy insert"), "preview index must expose insert pack copy action");
 assert.ok(html.includes("Cat "), "preview index header must densify category summary");
 assert.ok(html.includes("Lay "), "preview index header must densify layout summary");
 assert.ok(html.includes("Slot "), "preview index header must densify slide slot summary");
 assert.ok(html.includes("Role "), "preview index header must densify role summary");
+assert.ok(html.includes("Ins "), "preview index header must densify insert summary");
 assert.ok(html.includes("PPT:"), "preview index header must expose PPT assist summary");
 assert.ok(html.includes("data-category="), "entries must expose category filter attributes");
 assert.ok(html.includes("data-layout="), "entries must expose layout filter attributes");
 assert.ok(html.includes("data-slot="), "entries must expose slide slot filter attributes");
 assert.ok(html.includes("data-role="), "entries must expose role filter attributes");
+assert.ok(html.includes("data-insert="), "entries must expose insert filter attributes");
 assert.ok(html.includes("<dt>Lay</dt>"), "preview index must expose layout summary field");
 assert.ok(html.includes("<dt>Slot</dt>"), "preview index must expose slide slot field");
 assert.ok(html.includes("<dt>Role</dt>"), "preview index must expose role field");
+assert.ok(html.includes("<dt>Ins</dt>"), "preview index must expose insert field");
 assert.ok(html.includes("<dt>Pair</dt>"), "preview index must expose contrast pair field");
 assert.ok(html.includes("<dt>Pack</dt>"), "preview index must expose role pack field");
+assert.ok(html.includes("<dt>Insert</dt>"), "preview index must expose insert pack field");
 assert.strictEqual(normalizeColorFamily("Blue"), "blue", "color family normalize");
 assert.strictEqual(deriveLayoutHint(2.0, "chart"), "wide", "wide aspect maps to wide layout");
 assert.strictEqual(deriveSlideSlot("wide", "chart", 2.0), "hero", "wide chart maps to hero slot");
 assert.strictEqual(deriveRoleHint("chart", "hero", "wide"), "result", "chart hero maps to result role");
+assert.strictEqual(deriveInsertHint("hero", "wide", 1.8, "result").size, "large", "hero result maps to large insert");
 assert.strictEqual(getLayoutHintMark("tall"), "T", "layout mark densify");
 assert.strictEqual(getSlideSlotMark("side"), "Sd", "slot mark densify");
 assert.strictEqual(getRoleHintMark("method"), "Md", "role mark densify");
+assert.strictEqual(getInsertSizeMark("small"), "Sm", "insert size mark densify");
 assert.strictEqual(formatContrastPairLabel("#112233", "#abcdef"), "#112233/#abcdef", "contrast pair densify");
-assert.ok(buildPptAssistToken({ imageCategory: "chart", colorFamily: "blue", styleTags: ["cool"], palette: [{hex:"#0000ff"},{hex:"#ffaa00"}], pageNumber: 3, quality: "high", renderedWidth: 800, renderedHeight: 400 }).includes("role=result"), "ppt token densify role");
+assert.ok(buildPptAssistToken({ imageCategory: "chart", colorFamily: "blue", styleTags: ["cool"], palette: [{hex:"#0000ff"},{hex:"#ffaa00"}], pageNumber: 3, quality: "high", renderedWidth: 800, renderedHeight: 400 }).includes("ins=large"), "ppt token densify insert");
 assert.ok(buildRolePackToken({ imageCategory: "diagram", layoutHint: "wide", slideSlot: "hero", palette: [{hex:"#123456"},{hex:"#abcdef"}], dominantHex: "#123456", contrastHex: "#abcdef" }).includes("use=pipeline-or-steps"), "role pack densify usage");
-assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], palette: [], colorFamily: "blue", layoutHint: "wide", slideSlot: "hero", roleHint: "result" }).includes("role-result"), "drawing tags add role hints");
+assert.ok(buildInsertPackToken({ imageCategory: "chart", layoutHint: "wide", slideSlot: "hero", roleHint: "result", aspectRatio: 1.8 }).includes("size=large"), "insert pack densify size");
+assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], palette: [], colorFamily: "blue", layoutHint: "wide", slideSlot: "hero", roleHint: "result", insertHint: { size: "large", anchor: "center", width_pct: 72, height_pct: 40 } }).includes("ins-large"), "drawing tags add insert hints");
 assert.ok(deriveContrastHex([{hex:"#0000ff",saturation:1,lightness:0.5,hue:240,population:1},{hex:"#ffaa00",saturation:1,lightness:0.5,hue:40,population:0.4}], "#0000ff"), "contrast hex derived");
 assert.strictEqual(normalizeImageCategoryKey("Chart"), "chart", "category normalize must accept case variants");
 assert.strictEqual(getImageCategoryMark("auto"), "Aut", "auto category mark");
@@ -1037,7 +1053,7 @@ assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detect
 assert.ok(html.includes('alt="Preview p5 #1') || /alt="Preview p5 #1[^"]*"/.test(html), "preview image alt must include page and entry index");
 assert.ok(html.includes('class="entry-badge"'), "preview entries must expose dense entry badge");
 assert.ok(html.includes("position: sticky"), "preview index header must stick while scrolling");
-assert.ok(/#1 M [A-Za-z]{3} [WTSU] [A-Za-z]{2} [A-Za-z]{2}/.test(html), "preview entry badge must show quality, category, layout, slot, and role marks");
+assert.ok(/#1 M [A-Za-z]{3} [WTSU] [A-Za-z]{2} [A-Za-z]{2} [A-Za-z]{2}/.test(html), "preview entry badge must show quality, category, layout, slot, role, and insert marks");
 assert.strictEqual(getQualityMark("medium"), "M", "medium quality mark");
 assert.strictEqual(getQualityMark("high"), "H", "high quality mark");
 assert.strictEqual(getQualityMark("low"), "L", "low quality mark");
