@@ -2012,7 +2012,7 @@ var PdfImageSaver = (() => {
   function buildOriginalImageIndexTitle(parentItem, attachment, images, scope) {
     const base = sanitizeTitle(getSourceTitle(parentItem, attachment)).slice(0, 70);
     const count = Array.isArray(images) ? images.length : 0;
-    return `${base} - orig ${normalizeOriginalScope(scope)} ${count}img`.slice(0, 140);
+    return `${base} - orig ${formatPreviewScopeLabel(normalizeOriginalScope(scope))} ${count}img`.slice(0, 140);
   }
 
   function buildOriginalImageIndexHTML({ attachment, parentItem, images, scope }) {
@@ -2054,7 +2054,7 @@ var PdfImageSaver = (() => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${escapeHTML(getSourceTitle(parentItem, attachment))} - orig</title>
+  <title>${escapeHTML(getSourceTitle(parentItem, attachment))} - orig ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}</title>
   <style>
     body { margin: 12px; font: 12.5px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
     h1 { font-size: 14px; margin: 0 0 3px; }
@@ -4044,6 +4044,7 @@ var PdfImageSaver = (() => {
       buildIndexHTML,
       buildIndexTitle,
       buildOriginalImageIndexHTML,
+      buildOriginalImageIndexTitle,
       buildOriginalImageTitle,
       buildOpenPDFURI,
       buildSourceRegion,

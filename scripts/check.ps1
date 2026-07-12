@@ -1689,4 +1689,12 @@ if ($mainJS -notmatch "img index \$\{escapeHTML\(formatPreviewScopeLabel\(normal
   throw "Preview HTML document title must densify scope"
 }
 
+
+if ($mainJS -notmatch "orig \$\{formatPreviewScopeLabel\(normalizeOriginalScope\(scope\)\)\}") {
+  throw "Original index attachment title must densify scope labels"
+}
+if ($mainJS -notmatch "orig \$\{escapeHTML\(formatPreviewScopeLabel\(normalizedScope\)\)\}") {
+  throw "Original HTML document title must densify scope labels"
+}
+
 Write-Host "check ok"

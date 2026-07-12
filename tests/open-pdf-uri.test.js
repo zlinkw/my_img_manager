@@ -102,6 +102,7 @@ const {
   buildIndexHTML,
   buildIndexTitle,
   buildOriginalImageIndexHTML,
+  buildOriginalImageIndexTitle,
   buildOriginalImageTitle,
   buildOpenPDFURI,
   buildSourceRegion,
@@ -813,6 +814,15 @@ assert.ok(originalIndexHTML.includes("abc123"), "original index must keep compac
 assert.ok(originalIndexHTML.includes(">Open</a>"), "original index must expose explicit Open actions");
 assert.ok(originalIndexHTML.includes("open PDF page links"), "original index header must state PDF open links");
 assert.ok(originalIndexHTML.includes("Orig page; helper"), "original index header must densify scope/helper meta");
+assert.ok(originalIndexHTML.includes("- orig page"), "original HTML document title must densify page scope");
+assert.ok(
+  buildOriginalImageIndexTitle(htmlParent, htmlAttachment, [originalIndexImage], "page").includes("orig page 1img"),
+  "original index attachment title must densify page scope",
+);
+assert.ok(
+  buildOriginalImageIndexTitle(htmlParent, htmlAttachment, [originalIndexImage, originalIndexImage], "document").includes("orig doc 2img"),
+  "original index attachment title must densify doc scope",
+);
 const weakOriginalKeyA = getOriginalImageKey(htmlAttachment, { page_number: 5, occurrence: 1 });
 const weakOriginalKeyB = getOriginalImageKey(htmlAttachment, { page_number: 5, occurrence: 2 });
 assert.notStrictEqual(
