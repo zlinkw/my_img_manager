@@ -1529,7 +1529,7 @@ var PdfImageSaver = (() => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${escapeHTML(sourceTitle)} - img index</title>
+  <title>${escapeHTML(sourceTitle)} - img index ${escapeHTML(formatPreviewScopeLabel(normalizedScope))}</title>
   <style>
     body { margin: 12px; font: 12.5px system-ui, sans-serif; color: #1f1f1f; background: #fff; }
     header { margin-bottom: 8px; }
@@ -1598,8 +1598,9 @@ var PdfImageSaver = (() => {
 
   function buildIndexTitle(parentItem, attachment, scope, pageIndex, entries = [], qualityKey = null, indexKey = null) {
     const base = sanitizeTitle(getSourceTitle(parentItem, attachment)).slice(0, 70);
+    const scopeLabel = formatPreviewScopeLabel(scope);
     const targetPage = normalizePageIndex(pageIndex, null);
-    const target = targetPage === null ? normalizeScope(scope) : `p${targetPage + 1}`;
+    const target = targetPage === null ? null : `p${targetPage + 1}`;
     const entryCount = Array.isArray(entries) ? entries.length : 0;
     const normalizedQuality = qualityKey === null ? null : normalizeQualityKey(qualityKey);
     const qualityLabel = normalizedQuality ? QUALITY[normalizedQuality].label : null;
@@ -1607,6 +1608,7 @@ var PdfImageSaver = (() => {
     const fingerprint = normalizedIndexKey ? getPreviewIndexFingerprint(normalizedIndexKey) : null;
     const suffix = [
       "img index",
+      scopeLabel,
       target,
       qualityLabel,
       entryCount ? `${entryCount}img` : null,

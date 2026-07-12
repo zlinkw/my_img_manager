@@ -770,6 +770,7 @@ assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapse
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
 assert.ok(html.includes("Medium; 60-220 KB"), "preview index header must densify quality label/estimate");
 assert.ok(html.includes("HTML; sync; clip."), "preview index header must densify scope label");
+assert.ok(html.includes("img index clip"), "preview HTML document title must densify scope");
 assert.strictEqual(formatPreviewScopeLabel("auto-page"), "auto", "auto-page scope must densify");
 assert.strictEqual(formatPreviewScopeLabel("document"), "doc", "document scope must densify");
 assert.strictEqual(formatPreviewScopeLabel("clip"), "clip", "clip scope must stay stable");
@@ -1007,6 +1008,7 @@ assert.strictEqual(
 
 const singleIndexKey = getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "medium");
 const singleIndexTitle = buildIndexTitle(htmlParent, htmlAttachment, "clip", 4, [htmlEntry], "medium", singleIndexKey);
+assert.ok(singleIndexTitle.includes("clip"), "single preview title must include densified scope");
 assert.ok(singleIndexTitle.includes("p5"), "single preview title must include target page");
 assert.ok(singleIndexTitle.includes("Medium"), "single preview title must include quality label");
 assert.ok(singleIndexTitle.includes("1img"), "single preview title must include image count");
@@ -1015,6 +1017,7 @@ assert.ok(singleIndexTitle.length <= 140, "single preview title must stay compac
 
 const multiIndexKey = getPreviewIndexKey(htmlAttachment, [samePageLeft, samePageRight], "auto-page", "high");
 const multiIndexTitle = buildIndexTitle(htmlParent, htmlAttachment, "auto-page", 4, [samePageLeft, samePageRight], "high", multiIndexKey);
+assert.ok(multiIndexTitle.includes("auto"), "multi preview title must include densified auto scope");
 assert.ok(multiIndexTitle.includes("2img"), "multi preview title must include image count");
 assert.ok(multiIndexTitle.includes("High"), "multi preview title must include quality label");
 assert.notStrictEqual(multiIndexTitle, singleIndexTitle, "quality/count/fingerprint variants must be distinguishable");

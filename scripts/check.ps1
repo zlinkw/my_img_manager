@@ -1681,4 +1681,12 @@ if ($mainJS -notmatch "Orig \$\{escapeHTML\(formatPreviewScopeLabel\(normalizedS
   throw "Original index header must densify scope labels"
 }
 
+
+if ($mainJS -notmatch "scopeLabel,\s*\r?\n\s*target,") {
+  throw "buildIndexTitle must include densified scope before page target"
+}
+if ($mainJS -notmatch "img index \$\{escapeHTML\(formatPreviewScopeLabel\(normalizedScope\)\)\}") {
+  throw "Preview HTML document title must densify scope"
+}
+
 Write-Host "check ok"
