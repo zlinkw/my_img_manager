@@ -1648,6 +1648,7 @@ var PdfImageSaver = (() => {
               ${buildInsertHintHTML(entry.insertHint)}
               ${buildCaptionHintHTML(entry.captionHint)}
               ${buildStoryHintHTML(entry)}
+              ${buildTagChipsHTML(entry.styleTags)}
               <div class="entry-actions">
                 <a class="source-action" href="${escapeHTML(uri)}" title="Open p${escapeHTML(String(entry.pageNumber))}">Open p${escapeHTML(String(entry.pageNumber))}</a>
                 <button type="button" class="source-action copy-token" data-copy="${escapeHTML(pptToken)}" title="Copy PPT token">Copy PPT</button>
@@ -1786,6 +1787,8 @@ var PdfImageSaver = (() => {
     .caption-note { color: #556; }
     .story-hint { display: flex; flex-wrap: wrap; gap: 4px; font: 11px system-ui, sans-serif; color: #345; }
     .story-chip { border: 1px solid #9ab; border-radius: 999px; padding: 0 6px; background: #fff8f0; }
+    .tag-chips { display: flex; flex-wrap: wrap; gap: 3px; font: 10.5px system-ui, sans-serif; }
+    .tag-chip { border: 1px solid #bcd; border-radius: 3px; padding: 0 4px; background: #f0f4fa; color: #456; }
     .filter-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
     .filter-chip { appearance: none; border: 1px solid #9ab; background: #f7faff; color: #0645ad; border-radius: 999px; padding: 1px 8px; font: 11.5px system-ui, sans-serif; cursor: pointer; }
     .filter-chip[aria-pressed="true"] { background: #1f73b7; border-color: #1f73b7; color: #fff; }
@@ -1821,7 +1824,8 @@ var PdfImageSaver = (() => {
     ${buildInsertFilterBarHTML(normalizedEntries)}
     ${buildCaptionFilterBarHTML(normalizedEntries)}
     ${buildStoryFilterBarHTML(normalizedEntries)}
-    ${normalizedEntries.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedEntries[0].openPDFURI)}" title="Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}">Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}</a>${normalizedEntries.length > 1 ? ` <a class="source-action" href="${escapeHTML(normalizedEntries[normalizedEntries.length - 1].openPDFURI)}" title="Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}">Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}</a>` : ""} <button type="button" class="source-action copy-token" data-copy="${escapeHTML(buildIndexPptAssistToken(normalizedEntries))}" title="Copy index PPT assist token">Copy PPT all</button></p>` : ""}
+    ${buildTagFilterBarHTML(normalizedEntries)}
+    ${normalizedEntries.length ? `<p class="meta actions"><a class="source-action" href="${escapeHTML(normalizedEntries[0].openPDFURI)}" title="Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}">Open first p${escapeHTML(String(normalizedEntries[0].pageNumber))}</a>${normalizedEntries.length > 1 ? ` <a class="source-action" href="${escapeHTML(normalizedEntries[normalizedEntries.length - 1].openPDFURI)}" title="Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}">Open last p${escapeHTML(String(normalizedEntries[normalizedEntries.length - 1].pageNumber))}</a>` : ""} <button type="button" class="source-action copy-token" data-copy="${escapeHTML(buildIndexPptAssistToken(normalizedEntries))}" title="Copy index PPT assist token">Copy PPT all</button> <button type="button" class="source-action copy-token" data-copy="${escapeHTML(buildIndexStoryboardToken(normalizedEntries))}" title="Copy storyboard sequence for PPT narrative order">Copy story all</button> <button type="button" class="source-action" id="pdf-image-saver-clear-filters" title="Clear all filters">Clear</button></p>` : ""}
     ${normalizedEntries.length > 1 ? `<p class="meta jumps">${normalizedEntries.map((entry, index) => `<a href="#e${index + 1}" title="Jump #${index + 1} p${escapeHTML(String(entry.pageNumber))}">#${index + 1}p${escapeHTML(String(entry.pageNumber))}</a>`).join(" ")}</p>` : ""}
   </header>
   ${entriesHTML}
@@ -1840,6 +1844,7 @@ var PdfImageSaver = (() => {
       var activeCaption = "all";
       var activeHue = "all";
       var activeBeat = "all";
+      var activeTag = "all";
       function applyFilters() {
         document.querySelectorAll('.filter-chip[data-filter="category"]').forEach(function (chip) {
           chip.setAttribute("aria-pressed", chip.getAttribute("data-value") === activeCategory ? "true" : "false");
@@ -1865,6 +1870,9 @@ var PdfImageSaver = (() => {
         document.querySelectorAll('.filter-chip[data-filter="beat"]').forEach(function (chip) {
           chip.setAttribute("aria-pressed", chip.getAttribute("data-value") === activeBeat ? "true" : "false");
         });
+        document.querySelectorAll('.filter-chip[data-filter="tag"]').forEach(function (chip) {
+          chip.setAttribute("aria-pressed", chip.getAttribute("data-value") === activeTag ? "true" : "false");
+        });
         document.querySelectorAll("article.entry").forEach(function (entry) {
           var categoryMatch = activeCategory === "all" || entry.getAttribute("data-category") === activeCategory;
           var hueMatch = activeHue === "all" || entry.getAttribute("data-hue") === activeHue;
@@ -1874,7 +1882,8 @@ var PdfImageSaver = (() => {
           var insertMatch = activeInsert === "all" || entry.getAttribute("data-insert") === activeInsert;
           var captionMatch = activeCaption === "all" || entry.getAttribute("data-caption") === activeCaption;
           var beatMatch = activeBeat === "all" || entry.getAttribute("data-beat") === activeBeat;
-          entry.classList.toggle("is-hidden", !(categoryMatch && hueMatch && layoutMatch && slotMatch && roleMatch && insertMatch && captionMatch && beatMatch));
+          var tagMatch = activeTag === "all" || (entry.getAttribute("data-style-tags") || "").split(",").includes(activeTag);
+          entry.classList.toggle("is-hidden", !(categoryMatch && hueMatch && layoutMatch && slotMatch && roleMatch && insertMatch && captionMatch && beatMatch && tagMatch));
         });
       }
       function copyText(text) {
@@ -1910,9 +1919,24 @@ var PdfImageSaver = (() => {
             activeHue = value;
           } else if (filter === "beat") {
             activeBeat = value;
+          } else if (filter === "tag") {
+            activeTag = value;
           } else {
             activeCategory = value;
           }
+          applyFilters();
+          return;
+        }
+        if (target.id === "pdf-image-saver-clear-filters") {
+          activeCategory = "all";
+          activeHue = "all";
+          activeLayout = "all";
+          activeSlot = "all";
+          activeRole = "all";
+          activeInsert = "all";
+          activeCaption = "all";
+          activeBeat = "all";
+          activeTag = "all";
           applyFilters();
           return;
         }
@@ -4049,6 +4073,36 @@ var PdfImageSaver = (() => {
     return `<div class="story-hint" title="${escapeHTML(formatStoryHintLabel(safe))}"><span class="story-chip">#${escapeHTML(String(order))}</span><span class="story-chip">${escapeHTML(getStoryBeatMark(beat))} ${escapeHTML(beat)}</span></div>`;
   }
 
+  function buildTagChipsHTML(styleTags) {
+    const tags = normalizeStyleTags(styleTags);
+    if (!tags.length) {
+      return "";
+    }
+    return `<div class="tag-chips" title="Drawing style tags">${tags.slice(0, 8).map((tag) => `<span class="tag-chip">${escapeHTML(tag)}</span>`).join("")}</div>`;
+  }
+
+  function buildTagFilterBarHTML(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (list.length < 2) {
+      return "";
+    }
+    const counts = new Map();
+    for (const entry of list) {
+      for (const tag of normalizeStyleTags(entry?.styleTags || entry?.style_tags)) {
+        counts.set(tag, (counts.get(tag) || 0) + 1);
+      }
+    }
+    if (counts.size < 2) {
+      return "";
+    }
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const chips = [`<button type="button" class="filter-chip" data-filter="tag" data-value="all" aria-pressed="true">Tags all</button>`];
+    for (const [key, count] of top) {
+      chips.push(`<button type="button" class="filter-chip" data-filter="tag" data-value="${escapeHTML(key)}" aria-pressed="false">${escapeHTML(key)} ${count}</button>`);
+    }
+    return `<div class="filter-bar" role="toolbar" aria-label="Style tag filter">${chips.join("")}</div>`;
+  }
+
   function buildContrastPairHTML(dominantHex, contrastHex) {
     const dominant = normalizeHexColor(dominantHex);
     const contrast = normalizeHexColor(contrastHex);
@@ -4211,6 +4265,26 @@ var PdfImageSaver = (() => {
     return list.map((entry, index) => `#${index + 1}:${buildPptAssistToken(entry)}`).join(" || ");
   }
 
+  function buildIndexStoryboardToken(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (!list.length) {
+      return "none";
+    }
+    return list.map((entry, index) => {
+      const safe = entry && typeof entry === "object" ? entry : {};
+      const order = normalizeStoryOrder(safe.storyOrder || safe.story_order || (index + 1));
+      const beat = normalizeStoryBeat(safe.storyBeat || safe.story_beat || deriveStoryBeat({
+        roleHint: safe.roleHint || safe.role_hint,
+        captionHint: safe.captionHint || safe.caption_hint,
+        slideSlot: safe.slideSlot || safe.slide_slot,
+        order,
+        total: list.length,
+      }));
+      const page = normalizePageNumber(safe.pageNumber || safe.page_number, 1);
+      return `#${order}:${beat} p${page}`;
+    }).join(" -> ");
+  }
+
   function buildIndexPptAssistSummary(entries) {
     const list = Array.isArray(entries) ? entries : [];
     return {
@@ -4228,6 +4302,8 @@ var PdfImageSaver = (() => {
       insert_packs: list.map((entry) => buildInsertPackToken(entry)),
       caption_packs: list.map((entry) => buildCaptionPackToken(entry)),
       story_packs: list.map((entry) => buildStoryPackToken(entry)),
+      storyboard_token: buildIndexStoryboardToken(list),
+      board_layout: deriveBoardLayout(list),
       storyboard: list.map((entry, index) => ({
         order: normalizeStoryOrder(entry?.storyOrder || entry?.story_order || (index + 1)),
         beat: normalizeStoryBeat(entry?.storyBeat || entry?.story_beat || deriveStoryBeat({
@@ -4241,6 +4317,33 @@ var PdfImageSaver = (() => {
         role: normalizeRoleHint(entry?.roleHint || entry?.role_hint),
       })),
     };
+  }
+
+  function deriveBoardLayout(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    const n = list.length;
+    if (n <= 0) {
+      return "empty";
+    }
+    if (n === 1) {
+      return "single";
+    }
+    const layouts = list.map((e) => normalizeLayoutHint(e?.layoutHint || e?.layout_hint || deriveLayoutHint(e?.aspectRatio, e?.imageCategory)));
+    const wideCount = layouts.filter((l) => l === "wide").length;
+    const tallCount = layouts.filter((l) => l === "tall").length;
+    if (n === 2) {
+      return wideCount >= 1 ? "split-horizontal" : "split-vertical";
+    }
+    if (n === 3) {
+      return wideCount >= 2 ? "trio-horizontal" : "trio-grid";
+    }
+    if (n === 4) {
+      return "grid-2x2";
+    }
+    if (n <= 6) {
+      return "grid-3x2";
+    }
+    return wideCount > tallCount ? "gallery-horizontal" : "gallery-grid";
   }
 
   function buildDrawingStyleTags({ imageCategory, styleTags, palette, colorFamily, layoutHint, aspectRatio, slideSlot, roleHint, insertHint, captionHint, storyBeat }) {
@@ -5952,8 +6055,12 @@ var PdfImageSaver = (() => {
       buildInsertPackToken,
       buildCaptionPackToken,
       buildStoryPackToken,
+      buildIndexStoryboardToken,
       buildIndexPptAssistToken,
       buildIndexPptAssistSummary,
+      deriveBoardLayout,
+      buildTagChipsHTML,
+      buildTagFilterBarHTML,
       buildDrawingStyleTags,
       deriveColorFamilyFromPalette,
       deriveAspectRatio,
