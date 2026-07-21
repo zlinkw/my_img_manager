@@ -1,17 +1,18 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $buildScript = Join-Path $root "scripts\build.ps1"
-$xpiPath = Join-Path $root "outputs\pdf-image-saver-0.1.0.xpi"
-$shaPath = Join-Path $root "outputs\pdf-image-saver-0.1.0.sha256"
 
 Set-Location $root
 
-& powershell -ExecutionPolicy Bypass -File $buildScript
+$buildOutput = @(& powershell -ExecutionPolicy Bypass -File $buildScript 2>&1)
 if ($LASTEXITCODE -ne 0) {
   throw "build.ps1 failed with exit code $LASTEXITCODE"
 }
-
-if (!(Test-Path -LiteralPath $xpiPath)) {
+$builtLine = $buildOutput | Where-Object { $_ -match '^built\s+(.+\.xpi)$' } | Select-Object -Last 1
+$buildOutput | ForEach-Object { Write-Host $_ }
+$xpiPath = if ($builtLine) { [regex]::Match([string]$builtLine, '^built\s+(.+\.xpi)$').Groups[1].Value } else { "" }
+$shaPath = "$xpiPath.sha256"
+if (!$xpiPath -or !(Test-Path -LiteralPath $xpiPath)) {
   throw "XPI missing after build: $xpiPath"
 }
 

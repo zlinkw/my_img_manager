@@ -1,9 +1,12 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $outputDir = Join-Path $root "outputs"
-$buildRoot = Join-Path $root "work\build"
-$buildDir = Join-Path $buildRoot "pdf-image-saver"
-$xpiPath = Join-Path $outputDir "pdf-image-saver-0.1.0.xpi"
+$manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root "manifest.json") | ConvertFrom-Json
+$version = [string]$manifest.version
+$stamp = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+$buildRoot = Join-Path ([IO.Path]::GetTempPath()) "pdf-image-saver-build"
+$buildDir = Join-Path $buildRoot "$version-$stamp\pdf-image-saver"
+$xpiPath = Join-Path $outputDir "pdf-image-saver-$version-recovery-$stamp.xpi"
 
 Set-Location $root
 function Invoke-Native {
@@ -19,9 +22,6 @@ function Invoke-Native {
 
 Invoke-Native "powershell" @("-ExecutionPolicy", "Bypass", "-File", ".\scripts\check.ps1")
 
-if (Test-Path -LiteralPath $buildDir) {
-  Remove-Item -LiteralPath $buildDir -Recurse -Force
-}
 New-Item -ItemType Directory -Force -Path $buildDir, $outputDir | Out-Null
 
 $paths = @(
@@ -37,23 +37,22 @@ foreach ($path in $paths) {
   Copy-Item -LiteralPath (Join-Path $root $path) -Destination $buildDir -Recurse -Force
 }
 
-if (Test-Path -LiteralPath $xpiPath) {
-  Remove-Item -LiteralPath $xpiPath -Force
-}
+$zipPath = Join-Path (Split-Path -Parent $buildDir) "pdf-image-saver-$version-recovery-$stamp.zip"
 
-$zipPath = Join-Path $outputDir "pdf-image-saver-0.1.0.zip"
-if (Test-Path -LiteralPath $zipPath) {
-  Remove-Item -LiteralPath $zipPath -Force
-}
-
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 Push-Location $buildDir
-Compress-Archive -Path * -DestinationPath $zipPath -Force
+[System.IO.Compression.ZipFile]::CreateFromDirectory(
+  $buildDir,
+  $zipPath,
+  [System.IO.Compression.CompressionLevel]::Optimal,
+  $false
+)
 Pop-Location
 Move-Item -LiteralPath $zipPath -Destination $xpiPath -Force
 
 $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $xpiPath
-$hash.Hash.ToLowerInvariant() | Set-Content -Encoding ASCII -LiteralPath (Join-Path $outputDir "pdf-image-saver-0.1.0.sha256")
+$hash.Hash.ToLowerInvariant() | Set-Content -Encoding ASCII -LiteralPath "$xpiPath.sha256"
 
-Invoke-Native "powershell" @("-ExecutionPolicy", "Bypass", "-File", ".\scripts\check-xpi.ps1")
+Invoke-Native "powershell" @("-ExecutionPolicy", "Bypass", "-File", ".\scripts\check-xpi.ps1", "-XpiPath", $xpiPath)
 
 Write-Host "built $xpiPath"

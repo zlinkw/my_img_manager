@@ -1,11 +1,12 @@
 {
   "name": "zotero-pdf-image-saver",
-  "version": "0.1.0",
+  "version": "0.1.128",
   "private": true,
-  "description": "Zotero plugin for saving lightweight synced PDF figure preview indexes.",
+  "description": "Zotero 论文图片框选、外部 SQLite 原图库与共享图库界面。",
   "scripts": {
-    "test": "node tests/open-pdf-uri.test.js",
-    "check": "powershell -ExecutionPolicy Bypass -File scripts/check.ps1",
+    "test": "node tests/current-release.test.js",
+    "audit:index-buttons": "node scripts/audit-index-buttons.mjs",
+    "check": "powershell -ExecutionPolicy Bypass -File scripts/check-current-release.ps1",
     "build": "powershell -ExecutionPolicy Bypass -File scripts/build.ps1",
     "package:manual": "powershell -ExecutionPolicy Bypass -File scripts/package-manual.ps1",
     "verify:manual": "powershell -ExecutionPolicy Bypass -File scripts/verify-manual-install.ps1",
@@ -13,6 +14,8 @@
     "install:xpi": "powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1 -InstallMode XPI",
     "runtime:status": "powershell -ExecutionPolicy Bypass -File scripts/runtime-status.ps1",
     "smoke:preflight": "powershell -ExecutionPolicy Bypass -File scripts/smoke-preflight.ps1",
-    "smoke:wait": "powershell -ExecutionPolicy Bypass -File scripts/smoke-wait.ps1"
+    "smoke:wait": "powershell -ExecutionPolicy Bypass -File scripts/smoke-wait.ps1",
+    "smoke:close": "powershell -ExecutionPolicy Bypass -File scripts/smoke-one-close.ps1",
+    "smoke:close:isolated": "powershell -ExecutionPolicy Bypass -File scripts/smoke-isolated-close.ps1"
   }
 }

@@ -1,13 +1,20 @@
+param([string]$XpiPath = "")
+
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
-$xpiPath = Join-Path $root "outputs\pdf-image-saver-0.1.0.xpi"
 
-if (!(Test-Path -LiteralPath $xpiPath)) {
-  throw "XPI missing: $xpiPath"
+if (!$XpiPath) {
+  $XpiPath = Get-ChildItem -LiteralPath (Join-Path $root "outputs") -Filter "pdf-image-saver-*-recovery-*.xpi" -File -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1 -ExpandProperty FullName
+}
+
+if (!$XpiPath -or !(Test-Path -LiteralPath $XpiPath)) {
+  throw "XPI missing: $XpiPath"
 }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$archive = [System.IO.Compression.ZipFile]::OpenRead($xpiPath)
+$archive = [System.IO.Compression.ZipFile]::OpenRead($XpiPath)
 try {
   $entries = @($archive.Entries | ForEach-Object { $_.FullName -replace "\\", "/" })
   $required = @(

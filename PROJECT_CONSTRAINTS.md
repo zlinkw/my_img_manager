@@ -15,25 +15,27 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 ## Product Scope
 
 - The plugin captures useful figures from the open Zotero PDF reader.
-- The primary workflow is manual current-page clipping from the rendered PDF reader canvas.
-- `Auto` is optional and must degrade clearly when PDF.js image coordinate access is n/a.
+- Manual current-page clipping is the only regular capture workflow; whole-page preview and original extraction remain explicit secondary actions.
+- Category inference may prefill the confirmation dialog from captions or nearby references, but it must never become an automatic capture workflow.
 - Optional original image extraction must not be required for normal clipping.
-- Zotero 9.0.5 compatibility is the current runtime baseline.
+- Zotero 9.x compatibility is the runtime baseline; manifest `strict_max_version` stays `9.*`.
 
 ## Storage Contract
 
-- Current repository behavior stores compact Zotero HTML index attachments.
-- Do not silently switch storage architecture, sync target, DB schema, or attachment behavior without updating README, tests, and smoke checklist together.
+- The only persistent image store is `%LOCALAPPDATA%\ZLK\paper-image-library\paper_images.sqlite`.
+- `images.image_blob` is the shared original image payload. Do not generate Zotero HTML preview attachments, thumbnail libraries, preview databases, or alternate image stores.
+- The full gallery may materialize original bytes temporarily under `%TEMP%\pdf-image-saver\paper-image-library-view`; those files are rebuildable view output, never a data source.
+- Database schema, gallery UI, sharing, bridge security, and PPT reuse must follow `docs/IMAGE_LIBRARY_ACCESS_AND_UI_PROTOCOL.md` and `docs/IMAGE_LIBRARY_SHARING_PROTOCOL.md`.
 - Do not read or write Zotero internal `zotero.sqlite`, `zotero.sqlite-wal`, or `zotero.sqlite-shm`.
-- Preview payloads must stay bounded by quality, candidate count, preview byte cap, and HTML index size cap.
+- Saved image bytes remain bounded by the selected quality and fixed per-image limits.
 - Saved metadata must preserve source provenance: PDF attachment key, page number, bbox/source region, duplicate keys, annotation key when available, and `zotero://open-pdf` source link.
 
 ## UI Contract
 
-- Reader toolbar actions must stay obvious and low-risk: clip current page first, optional auto/original actions second.
+- Reader toolbar actions must stay obvious and low-risk: quality, clip current page, current-paper gallery, global gallery.
 - Quality choices must show expected storage impact.
 - Error messages must explain whether the failure is capture, helper, duplicate, byte cap, or Zotero storage related.
-- Avoid adding UI that previews or manages large image libraries unless the storage contract is deliberately changed.
+- Full gallery management is owned by the Zotero plugin; PPT must reuse the generated gallery and may keep only its documented lightweight read-only picker.
 
 ## Optimization Priority
 
@@ -64,13 +66,12 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 ### UI First
 
 - Dense reader toolbar, menus, overlays, toasts, diagnostics, prefs, and HTML indexes landed.
-- Keep fixed category prefixes and shared tokens: `Capture failed:` / `Helper:` / `Storage failed:` / `Byte cap:` / `Auto/Clip/Page skip`; `saved/session dups`; `byte/item/over cap`; quality labels with estimates; detector `manual`/`auto`; scope `clip/page/auto/doc`; fallback `Use clip.`.
-- Prefs status and diagnostics already share the same Store/Q/Dups/Auto/Index/Helper line shape; indexes share Open actions and densified headers/titles.
+- Keep fixed internal error categories: `Capture failed:` / `Helper:` / `Storage failed:` / `Byte cap:`; all displayed wording must be native Chinese.
 - Keep stable toolbar widths/aria and single toast element.
 - Inventable densify churn is exhausted. Further UI only for concrete clarity gaps or user-reported runtime wording.
 - Selection size badge now marks below-min drags as `min12`; toast is click/Esc-dismiss; index Open actions include page (`Open pN`).
 - Clip drag hint shows quality; source-region map is a clickable open-PDF link.
-- Toolbar exposes `aria-busy`/`data-mode`; busy Q shows lock title; Auto n/a has matching aria-label; toast Esc yields to active clip overlay; index open targets use focus-visible.
+- Toolbar exposes `aria-busy`/`data-mode`; busy controls explain their lock; toast Esc yields to active clip overlay.
 - Below-min selection badge uses `is-min` visual state.
 - Clip cancel: Esc/RMB; toast uses aria-live/data-level/progress aria-busy; index header shows total preview bytes; prefs short labels keep title tooltips.
 - Selection size badge includes quality mark L/M/H; preview entries show `#N` badge and summary Det; original index rows numbered.
@@ -84,7 +85,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 ### After UI Is Exhausted
 
-- Smoke scripts now distinguish development-proxy vs manual/XPI readiness for Zotero 9.0.5; keep registration checks aligned with that split.
+- Smoke scripts distinguish development-proxy vs manual/XPI readiness for Zotero 9.x; keep registration checks aligned with that split.
 - Optional original extraction remains isolated; missing Python is quiet-failed before helper progress toast, and diagnostics report helper availability.
 - User-facing errors now classify capture / helper / duplicate / byte-cap / storage failures.
 - Historical `docs/target-mode-plan.md` stays a short snapshot only; compress on schedule and whenever it grows, never append batch ledgers.

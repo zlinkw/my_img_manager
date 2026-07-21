@@ -1,124 +1,32 @@
-﻿<vbox xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+<vbox xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
       xmlns:html="http://www.w3.org/1999/xhtml"
-      id="pdf-image-saver-preferences"
-      onload="PdfImageSaverPreferences.init();">
+      id="pdf-image-saver-preferences">
   <groupbox>
-    <label><html:h2>PDF Image Saver</html:h2></label>
-    <html:p class="pdf-image-saver-prefs-intro">Clip/Auto save HTML; sync PDF. Helper opt.</html:p>
+    <label><html:h2>PDF 图片保存</html:h2></label>
+    <html:p class="pdf-image-saver-prefs-intro">框选保存是唯一常规采集方式；高级原图提取收在下方。图片只写入唯一外部 SQLite 原图库，不创建 Zotero HTML 预览附件或缩略图。每次打开都会重新读取当前设置并修复异常值。<html:span id="pdf-image-saver-prefs-save-notice" class="pdf-image-saver-prefs-save-notice" role="status" aria-live="polite">设置修改后自动保存，无需另点确认。</html:span></html:p>
 
     <html:section class="pdf-image-saver-prefs-section" aria-labelledby="pdf-image-saver-prefs-workflow-title">
-      <html:h3 id="pdf-image-saver-prefs-workflow-title" class="pdf-image-saver-prefs-section-title">Workflow</html:h3>
-      <html:div class="pdf-image-saver-prefs-grid">
-        <html:label for="pdf-image-saver-default-quality" title="Preview quality">Q</html:label>
-        <html:select id="pdf-image-saver-default-quality"
-                     preference="extensions.pdfImageSaver.defaultQuality">
-          <html:option value="low">L Low; 20-80 KB</html:option>
-          <html:option value="medium">M Medium; 60-220 KB</html:option>
-          <html:option value="high">H High; 180-750 KB</html:option>
-        </html:select>
+      <html:h3 id="pdf-image-saver-prefs-workflow-title" class="pdf-image-saver-prefs-section-title">采集方式</html:h3>
+      <html:div class="pdf-image-saver-prefs-list">
+        <html:div class="pdf-image-saver-prefs-row"><html:label for="pdf-image-saver-default-quality">默认预览质量</html:label><menulist id="pdf-image-saver-default-quality" class="pdf-image-saver-prefs-menu" title="选择新截图的默认清晰度与文件大小"><menupopup><menuitem value="low" label="低：约 20–80 KB/图"/><menuitem value="medium" label="中：约 60–220 KB/图（推荐）"/><menuitem value="high" label="高：约 180–750 KB/图"/></menupopup></menulist><html:p>影响保存的预览尺寸，不改变原始 PDF。</html:p></html:div>
+        <html:div class="pdf-image-saver-prefs-row"><html:label for="pdf-image-saver-default-category">确认窗口初始类别</html:label><menulist id="pdf-image-saver-default-category" class="pdf-image-saver-prefs-menu" title="设置每次预览确认窗口预先选中的科研图片类别"><menupopup><menuitem value="auto" label="自动判断（推荐）"/><menuitem value="metric_curve" label="指标／训练曲线"/><menuitem value="heatmap" label="热图／矩阵图"/><menuitem value="bar_chart" label="柱状／条形图"/><menuitem value="distribution" label="分布／降维图"/><menuitem value="qualitative" label="定性结果对比"/><menuitem value="architecture" label="网络／模型结构图"/><menuitem value="pipeline" label="方法流程图"/><menuitem value="table" label="科研表格"/><menuitem value="equation" label="公式"/><menuitem value="schematic" label="装置／原理示意"/><menuitem value="photo" label="照片／医学影像"/><menuitem value="chart" label="通用图表"/><menuitem value="diagram" label="通用流程／示意图"/><menuitem value="figure" label="其他插图"/></menupopup></menulist><html:p>选“自动判断”时先读图注，再参考正文引用；选择具体类别时直接预填，保存前仍可修改。</html:p></html:div>
+        <html:div class="pdf-image-saver-prefs-row"><html:label for="pdf-image-saver-duplicate-guard">避免重复保存</html:label><html:div class="pdf-image-saver-prefs-check"><html:input id="pdf-image-saver-duplicate-guard" type="checkbox"/><html:span>同时检查本次会话和外部图片库</html:span></html:div><html:p>建议保持开启，避免相同页面区域反复写入外部图片库。</html:p></html:div>
+      </html:div>
+    </html:section>
 
-        <html:label for="pdf-image-saver-default-category" title="Default figure category for capture/PPT tags">Cat</html:label>
-        <html:select id="pdf-image-saver-default-category"
-                     preference="extensions.pdfImageSaver.defaultImageCategory">
-          <html:option value="auto">Aut Auto</html:option>
-          <html:option value="chart">Cht Chart</html:option>
-          <html:option value="diagram">Dia Diagram</html:option>
-          <html:option value="photo">Pho Photo</html:option>
-          <html:option value="table">Tab Table</html:option>
-          <html:option value="schematic">Sch Schematic</html:option>
-          <html:option value="equation">Eqn Equation</html:option>
-          <html:option value="figure">Fig Figure</html:option>
-        </html:select>
-
-        <html:label for="pdf-image-saver-duplicate-guard" title="Session + saved HTML duplicate guard">Dups</html:label>
-        <html:div class="pdf-image-saver-prefs-check">
-          <html:input id="pdf-image-saver-duplicate-guard"
-                      type="checkbox"
-                      preference="extensions.pdfImageSaver.duplicateGuard"/>
-          <html:span>Sess+saved</html:span>
+    <html:details class="pdf-image-saver-prefs-section pdf-image-saver-prefs-advanced" id="pdf-image-saver-prefs-helper-section">
+      <html:summary id="pdf-image-saver-prefs-helper-title" class="pdf-image-saver-prefs-section-title"><html:span>高级原图提取（可选）</html:span><html:span class="pdf-image-saver-prefs-summary-note">常规采集无需配置</html:span></html:summary>
+      <html:div class="pdf-image-saver-prefs-advanced-body">
+        <html:p class="pdf-image-saver-prefs-note">框选、外部图片库和 PPT 连接均使用插件内置的 Zotero/PDF.js 运行环境，安装后可直接使用，无需 Python、Conda 或联网。本区仅用于从 PDF 额外提取原始嵌入图片，需要 Python 与 PyMuPDF。</html:p>
+        <html:div class="pdf-image-saver-prefs-list">
+        <html:div class="pdf-image-saver-prefs-row"><html:label for="pdf-image-saver-min-area">最小原图面积比例（占页面）</html:label><html:input id="pdf-image-saver-min-area" type="number" step="0.001" min="0.001" max="0.5"/><html:p>助手会跳过占页面比例过小的嵌入图片，减少图标和噪声；0.01 表示页面面积的 1%。</html:p></html:div>
+        <html:div class="pdf-image-saver-prefs-row"><html:label for="pdf-image-saver-max-page-images">每页最多原图数</html:label><html:input id="pdf-image-saver-max-page-images" type="number" min="1" max="500"/><html:p>限制单页从 PDF 提取的原始图片数量。</html:p></html:div>
+        <html:div class="pdf-image-saver-prefs-row"><html:label for="pdf-image-saver-max-document-images">每篇最多原图数</html:label><html:input id="pdf-image-saver-max-document-images" type="number" min="1" max="2000"/><html:p>限制整篇文献的提取总数。</html:p></html:div>
+        <html:div class="pdf-image-saver-prefs-row"><html:label for="pdf-image-saver-helper-timeout">超时（秒）</html:label><html:input id="pdf-image-saver-helper-timeout" type="number" min="5" max="600"/><html:p>助手超过该时间会停止；不影响已保存的预览。</html:p></html:div>
+        <html:div class="pdf-image-saver-prefs-row"><html:label for="pdf-image-saver-python-path">Python 路径（高级）</html:label><html:div class="pdf-image-saver-prefs-python-picker"><html:input id="pdf-image-saver-python-path" type="text" placeholder="留空：自动查找 Python"/><html:button id="pdf-image-saver-python-browse" type="button" title="打开文件资源管理器，选择 python.exe">选择 python.exe…</html:button></html:div><html:p>常规功能无需填写。仅高级原图提取的自动查找失败时使用；点击按钮会打开文件资源管理器。可选择 Conda 环境中的 python.exe。</html:p></html:div>
         </html:div>
       </html:div>
-    </html:section>
+    </html:details>
 
-    <html:section class="pdf-image-saver-prefs-section" aria-labelledby="pdf-image-saver-prefs-caps-title">
-      <html:h3 id="pdf-image-saver-prefs-caps-title" class="pdf-image-saver-prefs-section-title">Caps</html:h3>
-      <html:div class="pdf-image-saver-prefs-grid">
-        <html:label for="pdf-image-saver-min-auto-area" title="Minimum auto-detect area fraction">Auto min</html:label>
-        <html:input id="pdf-image-saver-min-auto-area"
-                    type="number"
-                    step="0.001"
-                    min="0.001"
-                    max="0.5"
-                    preference="extensions.pdfImageSaver.minAutoImageArea"/>
-
-        <html:label for="pdf-image-saver-auto-max-images" title="Maximum auto-detected images per page">Auto max</html:label>
-        <html:input id="pdf-image-saver-auto-max-images"
-                    type="number"
-                    min="1"
-                    max="50"
-                    preference="extensions.pdfImageSaver.autoDetectMaxImages"/>
-
-        <html:label for="pdf-image-saver-auto-max-preview-mb" title="Auto preview byte cap (MB)">Auto MB</html:label>
-        <html:input id="pdf-image-saver-auto-max-preview-mb"
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    max="8"
-                    preference="extensions.pdfImageSaver.autoMaxPreviewBytesMB"/>
-
-        <html:label for="pdf-image-saver-max-index-mb" title="HTML index size cap (MB)">Index MB</html:label>
-        <html:input id="pdf-image-saver-max-index-mb"
-                    type="number"
-                    step="0.5"
-                    min="1"
-                    max="12"
-                    preference="extensions.pdfImageSaver.maxIndexBytesMB"/>
-      </html:div>
-    </html:section>
-
-    <html:section class="pdf-image-saver-prefs-section" aria-labelledby="pdf-image-saver-prefs-helper-title">
-      <html:h3 id="pdf-image-saver-prefs-helper-title" class="pdf-image-saver-prefs-section-title">Helper</html:h3>
-      <html:div class="pdf-image-saver-prefs-grid">
-        <html:label for="pdf-image-saver-min-area" title="Helper minimum image area fraction">Min</html:label>
-        <html:input id="pdf-image-saver-min-area"
-                    type="number"
-                    step="0.001"
-                    min="0.001"
-                    max="0.5"
-                    preference="extensions.pdfImageSaver.minImageArea"/>
-
-        <html:label for="pdf-image-saver-max-page-images" title="Helper max originals per page">Page max</html:label>
-        <html:input id="pdf-image-saver-max-page-images"
-                    type="number"
-                    min="1"
-                    max="500"
-                    preference="extensions.pdfImageSaver.maxPageImages"/>
-
-        <html:label for="pdf-image-saver-max-document-images" title="Helper max originals per document">Doc max</html:label>
-        <html:input id="pdf-image-saver-max-document-images"
-                    type="number"
-                    min="1"
-                    max="2000"
-                    preference="extensions.pdfImageSaver.maxDocumentImages"/>
-
-        <html:label for="pdf-image-saver-helper-timeout" title="Helper timeout seconds">Timeout</html:label>
-        <html:input id="pdf-image-saver-helper-timeout"
-                    type="number"
-                    min="5"
-                    max="600"
-                    preference="extensions.pdfImageSaver.helperTimeoutSeconds"/>
-
-        <html:label for="pdf-image-saver-python-path" title="Custom Python path; empty = auto">Python</html:label>
-        <html:input id="pdf-image-saver-python-path"
-                    type="text"
-                    placeholder="auto"
-                    preference="extensions.pdfImageSaver.pythonPath"/>
-      </html:div>
-    </html:section>
-
-    <html:section class="pdf-image-saver-prefs-section" aria-labelledby="pdf-image-saver-prefs-status-title">
-      <html:h3 id="pdf-image-saver-prefs-status-title" class="pdf-image-saver-prefs-section-title">Status</html:h3>
-      <html:div id="pdf-image-saver-prefs-status" class="pdf-image-saver-prefs-status" role="status" aria-live="polite"></html:div>
-    </html:section>
   </groupbox>
 </vbox>

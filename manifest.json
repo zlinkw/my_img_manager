@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
-  "name": "PDF Image Saver",
-  "version": "0.1.0",
-  "description": "Save lightweight synced figure preview indexes from the Zotero PDF reader with trace metadata.",
+  "name": "PDF 图片保存",
+  "version": "0.1.128",
+  "description": "从 Zotero PDF 阅读器采集科研图片，建立可检索、可分享并可定位原文的本地图片库。",
   "author": "ZLK",
   "homepage_url": "https://local.invalid/pdf-image-saver",
   "icons": {
@@ -12,8 +12,9 @@
   "applications": {
     "zotero": {
       "id": "pdf-image-saver@zlk.local",
+      "update_url": "https://local.invalid/pdf-image-saver/updates.json",
       "strict_min_version": "7.0",
-      "strict_max_version": "9.0.*"
+      "strict_max_version": "9.*"
     }
   }
 }

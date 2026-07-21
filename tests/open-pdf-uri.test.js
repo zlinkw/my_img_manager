@@ -160,8 +160,6 @@ const {
   startClipFromReader,
   confirmAndSaveOriginalImagesFromReader,
   filterExistingOriginalImagesForImport,
-  formatAutoDuplicateSkipReason,
-  formatAutoNoCandidatesReason,
   formatPreviewDuplicateSkipReason,
   classifyPreviewDuplicateSkipReason,
   formatDiagnosticDups,
@@ -177,7 +175,6 @@ const {
   classifyErrorCategory,
   formatUserFacingError,
   getActiveReader,
-  applyAutoRasterButtonState,
   buildToolbarActionTooltip,
   formatPreviewDetectorLabel,
   formatPreviewScopeLabel,
@@ -195,7 +192,6 @@ const {
   getSourceRegionKey,
   hasExistingPreviewIndexAttachment,
   getReaderJobKey,
-  imageCoordinatesToCandidates,
   importOriginalImages,
   isDuplicatePreviewIndexSave,
   limitOriginalImagesForImport,
@@ -213,7 +209,6 @@ const {
   normalizePageNumber,
   prepareSelectionOverlayHost,
   renderCanvasPreview,
-  saveAutoDetectedPageImagePreviews,
   saveClipPreviewIndex,
   saveOriginalImagesFromReader,
   savePagePreviewIndex,
@@ -582,22 +577,22 @@ const selectionBox = (sessionPage.child.children || []).find((node) => node.clas
 assert.ok(selectionBox, "selection overlay must include selection box");
 const sizeBadge = (selectionBox.children || []).find((node) => node.className === "pdf-image-saver-selection-size");
 assert.ok(sizeBadge, "selection box must include live size badge");
-assert.strictEqual(sessionPage.child.title, "Drag p1; Q M Medium; 60-220 KB; Esc/RMB", "clip overlay title must include page, quality, and cancel hints");
+assert.strictEqual(sessionPage.child.title, "框选模式：在第 1 页按住鼠标左键拖动；松开后预览并确认；按 Esc 或右键取消", "clip overlay title must explain the workflow in Chinese");
 assert.strictEqual(
   sessionPage.child.getAttribute("aria-label"),
-  "Clip p1. Drag p1; Q M Medium; 60-220 KB; Esc/RMB.",
-  "clip overlay aria-label must include page, quality, and cancel hints",
+  "框选第 1 页图片。框选模式：在第 1 页按住鼠标左键拖动；松开后预览并确认；按 Esc 或右键取消。清晰度：中（约 60–220 KB/张）。",
+  "clip overlay aria-label must explain page, quality, and cancellation in Chinese",
 );
 const sessionHint = (sessionPage.child.children || []).find((node) => node.className === "pdf-image-saver-selection-hint");
-assert.strictEqual(sessionHint?.textContent, "Drag p1; Q M Medium; 60-220 KB; Esc/RMB", "clip overlay hint must include page, quality, and cancel hints");
+assert.strictEqual(sessionHint?.textContent, sessionPage.child.title, "clip overlay hint must match the Chinese title");
 sessionPage.child.dispatch("pointerdown", { button: 0, pointerId: 1, clientX: 10, clientY: 12 });
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
-assert.strictEqual(sizeBadge.textContent, "60x40 M", "selection size badge must show live pixel size and quality mark");
+assert.strictEqual(sizeBadge.textContent, "60 × 40 像素 · 中清晰度", "selection size badge must show live pixel size and quality in Chinese");
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 18, clientY: 20 });
-assert.strictEqual(sizeBadge.textContent, "8x8 min12 M", "selection size badge must mark below-min drag size with quality mark");
+assert.strictEqual(sizeBadge.textContent, "8 × 8 像素 · 尺寸过小（至少 12 像素） · 中清晰度", "selection size badge must mark a below-min drag in Chinese");
 assert.ok(String(sizeBadge.className || "").includes("is-min"), "below-min size badge must use is-min class");
 sessionPage.child.dispatch("pointermove", { button: 0, pointerId: 1, clientX: 70, clientY: 52 });
-assert.strictEqual(sizeBadge.textContent, "60x40 M", "selection size badge must clear min12 after valid size");
+assert.strictEqual(sizeBadge.textContent, "60 × 40 像素 · 中清晰度", "selection size badge must clear the minimum warning after a valid drag");
 assert.ok(!String(sizeBadge.className || "").includes("is-min"), "valid size badge must clear is-min class");
 // reinstall for RMB cancel path
 clipSessionEnded = 0;
@@ -660,7 +655,7 @@ showReaderToast(
 assert.strictEqual(delayCallCount, 0, "available reader toast must not poll for PDF context");
 assert.strictEqual(context.Services.prompt.alerts.length, 0, "available reader toast must not use fallback alert");
 assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "available reader toast must render into the reader document");
-assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "Reader document toastx", "reader toast must preserve message text and dismiss mark");
+assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "Reader document toast关闭", "reader toast must preserve message text and Chinese dismiss label");
 assert.ok(readerToastDoc.bodyChildren[0].querySelector(".pdf-image-saver-toast-msg"), "toast must use message node");
 assert.ok(readerToastDoc.bodyChildren[0].querySelector(".pdf-image-saver-toast-x"), "toast must show dismiss mark");
 
@@ -670,9 +665,9 @@ showReaderToast(
   { level: "bad" },
 );
 assert.strictEqual(readerToastDoc.bodyChildren.length, 1, "toast updates must reuse the existing toast element");
-assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF Img note.x", "malformed toast messages must normalize to compact fallback text");
+assert.strictEqual(readerToastDoc.bodyChildren[0].textContent, "PDF 图片插件提示。关闭", "malformed toast messages must normalize to a Chinese fallback");
 assert.strictEqual(readerToastDoc.bodyChildren[0].className, "pdf-image-saver-toast pdf-image-saver-info", "malformed toast levels must normalize to info");
-assert.strictEqual(readerToastDoc.bodyChildren[0].title, "Click/Esc dismiss", "toast must advertise click/Esc dismiss");
+assert.strictEqual(readerToastDoc.bodyChildren[0].title, "点击关闭；按 Esc 关闭", "toast must advertise dismissal in Chinese");
 assert.strictEqual(readerToastDoc.bodyChildren[0].getAttribute?.("aria-live") || readerToastDoc.bodyChildren[0].attributes?.["aria-live"], "polite", "info/success toast must use polite aria-live");
 assert.strictEqual(readerToastDoc.bodyChildren[0].getAttribute?.("data-level") || readerToastDoc.bodyChildren[0].attributes?.["data-level"], "info", "normalized toast level must expose data-level");
 assert.strictEqual(readerToastDoc.bodyChildren[0].getAttribute?.("aria-busy") || readerToastDoc.bodyChildren[0].attributes?.["aria-busy"], "false", "non-progress toast must not be aria-busy");
@@ -742,8 +737,8 @@ assert.strictEqual(region.right, 0.4);
 assert.strictEqual(region.bottom, 0.6);
 assert.strictEqual(region.width, 0.3);
 assert.strictEqual(region.height, 0.4);
-assert.ok(region.label.includes("x 10.0%-40.0%"));
-assert.ok(region.label.includes("30.0%x40.0%"), "source region label must densify size token");
+assert.ok(region.label.includes("横向 10.0%–40.0%"));
+assert.ok(region.label.includes("宽 30.0% × 高 40.0%"), "source region label must describe dimensions in Chinese");
 
 const pageRect = { left: 10, top: 20, width: 100, height: 200 };
 const canvasRect = { left: 20, top: 40, width: 80, height: 160 };
@@ -846,7 +841,7 @@ const mediumPreview = renderCanvasPreview({
   selectionRect: { left: 0, top: 0, width: 1200, height: 900 },
 });
 assert.strictEqual(mediumPreview.quality, "medium", "save entries must pass normalized quality into preview rendering");
-assert.strictEqual(mediumPreview.qualityEstimate, "60-220 KB/image", "medium preview must carry medium estimate");
+assert.strictEqual(mediumPreview.qualityEstimate, "约 60–220 KB/张", "medium preview must carry the Chinese estimate");
 assert.strictEqual(qualityCanvas.outputCanvases[0].width, 480, "medium preview must use medium max width");
 assert.strictEqual(qualityCanvas.outputCanvases[0].encodedQuality, 0.78, "medium preview must use medium JPEG quality");
 
@@ -859,7 +854,7 @@ const malformedQualityPreview = renderCanvasPreview({
   selectionRect: { left: 0, top: 0, width: 1200, height: 900 },
 });
 assert.strictEqual(malformedQualityPreview.quality, "medium", "renderer must normalize malformed quality keys");
-assert.strictEqual(malformedQualityPreview.qualityEstimate, "60-220 KB/image", "renderer malformed quality must use medium estimate");
+assert.strictEqual(malformedQualityPreview.qualityEstimate, "约 60–220 KB/张", "renderer malformed quality must use the Chinese medium estimate");
 assert.strictEqual(malformedQualityCanvas.outputCanvases[0].width, 480, "renderer malformed quality must use medium max width");
 assert.strictEqual(malformedQualityCanvas.outputCanvases[0].encodedQuality, 0.78, "renderer malformed quality must use medium JPEG quality");
 assert.strictEqual(malformedQualityCanvas.outputCanvases[0].context.imageSmoothingQuality, "medium", "renderer malformed quality must use medium smoothing");
@@ -962,7 +957,7 @@ assert.strictEqual(metadata.zotero_version, "9.0.5-test");
 assert.strictEqual(metadata.preview_index_key, getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "medium"));
 assert.strictEqual(metadata.preview_index_fingerprint, getPreviewIndexFingerprint(metadata.preview_index_key));
 assert.strictEqual(metadata.entries[0].open_pdf_uri, htmlEntry.openPDFURI);
-assert.strictEqual(metadata.entries[0].quality_estimate, "60-220 KB/image");
+assert.strictEqual(metadata.entries[0].quality_estimate, "约 60–220 KB/张");
 assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normalized_page_rect");
 assert.strictEqual(metadata.entries[0].source_region_key, htmlEntry.sourceRegionKey);
 assert.strictEqual(metadata.entries[0].preview_duplicate_key, getPreviewDuplicateKey(htmlAttachment, htmlEntry));
@@ -1028,6 +1023,11 @@ assert.ok(html.includes("Copy role"), "preview index must expose role pack copy 
 assert.ok(html.includes("Copy insert"), "preview index must expose insert pack copy action");
 assert.ok(html.includes("Copy cap"), "preview index must expose caption pack copy action");
 assert.ok(html.includes("Copy story"), "preview index must expose story pack copy action");
+assert.ok(html.includes('class="preview-link"'), "preview index must expose preview link");
+assert.ok(html.includes('class="zoom-hint" aria-hidden="true"'), "preview index must expose zoom hint span for hover-to-zoom affordance");
+assert.ok(html.includes("hover to zoom"), "preview link title must advertise hover-to-zoom");
+assert.ok(html.includes(".preview-link:hover img"), "preview index CSS must enable hover-to-zoom on preview images");
+assert.ok(html.includes(".preview-link:focus-within img"), "preview index CSS must keep zoom on keyboard focus for accessibility");
 assert.ok(html.includes("Cat "), "preview index header must densify category summary");
 assert.ok(html.includes("Lay "), "preview index header must densify layout summary");
 assert.ok(html.includes("Slot "), "preview index header must densify slide slot summary");
