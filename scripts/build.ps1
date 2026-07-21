@@ -39,15 +39,39 @@ foreach ($path in $paths) {
 
 $zipPath = Join-Path (Split-Path -Parent $buildDir) "pdf-image-saver-$version-recovery-$stamp.zip"
 
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-Push-Location $buildDir
-[System.IO.Compression.ZipFile]::CreateFromDirectory(
-  $buildDir,
-  $zipPath,
-  [System.IO.Compression.CompressionLevel]::Optimal,
-  $false
-)
-Pop-Location
+Add-Type -AssemblyName System.IO.Compression
+$buildDirPrefix = [IO.Path]::GetFullPath($buildDir).TrimEnd("\") + "\"
+$zipStream = [IO.File]::Open($zipPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+try {
+  $archive = [IO.Compression.ZipArchive]::new($zipStream, [IO.Compression.ZipArchiveMode]::Create, $false)
+  try {
+    Get-ChildItem -LiteralPath $buildDir -Recurse -File |
+      Sort-Object FullName |
+      ForEach-Object {
+        $entryName = $_.FullName.Substring($buildDirPrefix.Length).Replace("\", "/")
+        $entry = $archive.CreateEntry($entryName, [IO.Compression.CompressionLevel]::Optimal)
+        $sourceStream = [IO.File]::OpenRead($_.FullName)
+        try {
+          $entryStream = $entry.Open()
+          try {
+            $sourceStream.CopyTo($entryStream)
+          }
+          finally {
+            $entryStream.Dispose()
+          }
+        }
+        finally {
+          $sourceStream.Dispose()
+        }
+      }
+  }
+  finally {
+    $archive.Dispose()
+  }
+}
+finally {
+  $zipStream.Dispose()
+}
 Move-Item -LiteralPath $zipPath -Destination $xpiPath -Force
 
 $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $xpiPath

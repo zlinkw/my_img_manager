@@ -16,7 +16,13 @@ if (!$XpiPath -or !(Test-Path -LiteralPath $XpiPath)) {
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [System.IO.Compression.ZipFile]::OpenRead($XpiPath)
 try {
-  $entries = @($archive.Entries | ForEach-Object { $_.FullName -replace "\\", "/" })
+  $entries = @($archive.Entries | ForEach-Object { $_.FullName })
+  foreach ($entry in $entries) {
+    if ($entry.Contains("\")) {
+      throw "XPI entry uses Windows path separator: $entry"
+    }
+  }
+
   $required = @(
     "manifest.json",
     "bootstrap.js",
@@ -34,6 +40,20 @@ try {
     if ($entries -notcontains $path) {
       throw "XPI missing required payload: $path"
     }
+  }
+
+  $runtimeEntry = $archive.GetEntry("content/pdf-image-saver.js")
+  if (!$runtimeEntry -or $runtimeEntry.Length -eq 0) {
+    throw "XPI runtime entry is missing or empty: content/pdf-image-saver.js"
+  }
+  $runtimeStream = $runtimeEntry.Open()
+  try {
+    if ($runtimeStream.ReadByte() -lt 0) {
+      throw "XPI runtime entry is unreadable: content/pdf-image-saver.js"
+    }
+  }
+  finally {
+    $runtimeStream.Dispose()
   }
 
   $blockedPrefixes = @("work/", "outputs/", "tests/", ".git/", "scripts/")

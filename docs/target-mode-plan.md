@@ -1,5 +1,16 @@
 # 目标模式计划
 
+> 当前文档仅保留恢复与发布状态快照，不作为后台自动执行计划。
+
+## 2026-07-22 XPI 路径兼容修复
+
+- 用户复现包：`pdf-image-saver-0.1.128-recovery-20260722-003651-649.xpi`。
+- 失败原因：Windows 构建生成 `content\pdf-image-saver.js` 等反斜杠 ZIP 条目，Zotero JAR URI 只能读取 `content/pdf-image-saver.js`。
+- 修复范围：`scripts/build.ps1` 逐文件写入正斜杠条目；`scripts/check-xpi.ps1` 拒绝反斜杠并实读运行时入口。
+- 回归：旧故障包被新版检查拒绝；新包 payload、测试、静态检查和构建检查通过。
+- 保护区：未安装、覆盖或修改现有 Zotero profile XPI；未访问外部数据库或 PPT 仓库。
+- 新候选：`outputs/pdf-image-saver-0.1.128-recovery-20260722-010908-072.xpi`。
+
 > 当前恢复批次的持久事实源。修改受 `PROJECT_CONSTRAINTS.md` 约束。
 
 ## 当前目标
