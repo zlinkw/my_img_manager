@@ -1,8 +1,8 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+. (Join-Path $PSScriptRoot "current-xpi.ps1")
 $addonID = "pdf-image-saver@zlk.local"
-$xpiPath = Join-Path $root "outputs\pdf-image-saver-0.1.0.xpi"
-$shaPath = Join-Path $root "outputs\pdf-image-saver-0.1.0.sha256"
+$currentXpi = Get-CurrentXpiInfo -Root $root
 $profileRoot = Join-Path $env:APPDATA "Zotero\Zotero\Profiles"
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) "pdf-image-saver"
 
@@ -404,7 +404,7 @@ $status = [ordered]@{
     preferredHandoff = if ($readyProfiles -gt 0) {
       "registered"
     }
-    elseif ($xpiReadyProfiles -gt 0 -or (Test-Path -LiteralPath $xpiPath)) {
+    elseif ($xpiReadyProfiles -gt 0 -or $currentXpi.exists) {
       "manual-xpi"
     }
     elseif ($proxyReadyProfiles -gt 0) {
@@ -415,9 +415,13 @@ $status = [ordered]@{
     }
   }
   xpi = [ordered]@{
-    path = $xpiPath
-    exists = [bool](Test-Path -LiteralPath $xpiPath)
-    sha256 = if (Test-Path -LiteralPath $shaPath) { (Get-Content -Encoding ASCII -LiteralPath $shaPath -Raw).Trim() } elseif (Test-Path -LiteralPath $xpiPath) { (Get-FileHash -Algorithm SHA256 -LiteralPath $xpiPath).Hash.ToLowerInvariant() } else { "" }
+    version = $currentXpi.version
+    path = $currentXpi.path
+    exists = $currentXpi.exists
+    bytes = $currentXpi.bytes
+    sha256 = $currentXpi.sha256
+    candidateCount = $currentXpi.candidateCount
+    staleNames = @($currentXpi.staleNames)
   }
   profiles = $profiles
   temp = [ordered]@{

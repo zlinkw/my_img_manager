@@ -23,7 +23,7 @@ Zotero 插件：从 PDF 阅读器框选科研图片，保存至固定外部 SQLi
 - 若设置中选择的具体初始类别与当前图片识别结果不同，确认窗口会同时显示“设置预填”和“识别建议”，解释下拉框与识别结果为何不同；使用推荐的“自动判断”且没有冲突时只保留一条简洁识别建议。
 - 自动类别优先读取框选区域上方或下方距离最近的显式图／表标题，其次读取正文引用段落；表格标题位于表格上方、图片标题位于图片下方时均可识别。科研类别包含指标／训练曲线、热图／矩阵图、柱状图、分布／降维图、定性结果对比、网络结构、方法流程、科研表格、公式和医学影像，并保留旧类别兼容。
 - “PDF 图片插件诊断”按“运行与存储／采集设置／高级原图提取／当前文献／提示”分段，使用中文说明运行状态、固定外部数据库路径及文件是否存在、`library.json` 发现文件及文件是否存在、冻结的数据库 schema 2 与发现文件 schema 1、确认窗口初始类别、Python 状态、临时文件和原文定位信息；文件存在只表示已找到文件，不冒充 schema 可读性。路径校验会明确拒绝 Zotero 内部数据库。具体类别会标为“直接预填”，类别推断会说明先图注、后正文引用。Python 路径为空时显示“自动查找”。
-- 设置页每次打开都会重新读取当前偏好，因此阅读器工具栏或其它入口刚修改的清晰度等设置会立即同步，同时不会重复绑定事件。顶部会明确提示修改后自动保存，并在每次变更后显示具体设置已保存；写入失败时改为可见错误，不会假装成功。“确认窗口初始类别”明确说明：“自动判断”会先读图注、再参考正文引用；选择具体类别只会预填每次确认窗口，保存前仍可修改。仅用于 Python/PyMuPDF 的“高级原图提取”默认收起，并明确提示常规采集无需配置，单击后仍可使用全部参数和资源管理器选择。打开时还会修复旧版本遗留的未知清晰度、未知类别、字符串布尔值和异常数值，避免下拉框空白或开关状态误判。
+- 设置页每次打开都会重新读取当前偏好，因此阅读器工具栏或其它入口刚修改的清晰度等设置会立即同步，同时不会重复绑定事件。顶部会明确提示修改后自动保存，并在每次变更后显示具体设置已保存；写入失败时改为可见错误，不会假装成功。“确认窗口初始类别”明确说明：“自动判断”会先读图注、再参考正文引用；选择具体类别只会预填每次确认窗口，保存前仍可修改。仅用于 Python/PyMuPDF 的“高级原图提取”默认收起，并明确提示常规采集无需配置，单击后仍可使用全部参数和资源管理器选择。打开时还会修复旧版本遗留的未知清晰度、未知类别、字符串布尔值和异常数值，避免下拉框空白或开关状态误判；发生修复时顶部提示会直接列出被修复的设置名称（超过三项显示前三项和总数）并说明当前显示的就是生效值，不再静默改写用户设置。手动输入超出允许范围的数值时，提示会写明原输入和被改成的值，例如“已自动保存：每页最多原图数；输入的“4000”超出允许范围，已改为 500。”；范围内的输入按原值保存，不会谎称被调整。
 - 阅读器右键菜单把当前默认清晰度的“框选保存”放在首位，同时保留另外两档清晰度；框选和整页预览都会明确显示初始类别。整页预览依次显示“整页生成中”“整页待确认”和“整页保存中”，确认前不会误报正在保存。“工具”菜单启动框选时也使用相同阶段。
 - Writes each saved preview into the canonical external SQLite library at `%LOCALAPPDATA%\ZLK\paper-image-library\paper_images.sqlite` for PPT search, palette extraction, preview, insertion, provenance, and local sharing. New records store original bytes once in `image_blob`; the gallery reuses that payload directly.
 - Zotero 关闭时由原生插件生命周期触发幂等清理：注销本地桥接、写入停止状态、移除阅读器界面并显式关闭外部 SQLite 连接；应用退出观察器、主窗口卸载和 bootstrap 到达时共用同一个清理任务，最后一个主窗口卸载和 APP_SHUTDOWN bootstrap 都只启动清理而不阻塞原生窗口销毁，避免外部 SQLite 较慢时残留只有标题栏的空白横条。插件不拦截原生关闭事件，也不二次调用 `window.close()`。`smoke:close` 和 `smoke:close:isolated` 都只把本插件装入预置屏幕外位置的全新临时 profile 和空数据目录，再向主窗口发送一次标准关闭请求；自动验证不会启动用户 profile，不会读取、复制或修改用户的 `zotero.sqlite*`，失败清理也不会另启可能生成空白横条的 `zotero -quit` 进程。
@@ -85,7 +85,11 @@ Pop-Location
 
 当 `D:\GitRepo\my_ppt_app` 存在时，`npm.cmd run check` 会自动运行同一个 Zotero 专用协议闸门；PPT 仓库不存在时仅明确跳过，不影响没有该协作仓库的安装者。该检查不运行会被外部 ZLK Cluster 状态拖红的聚合兼容脚本。
 
-`npm.cmd run check` 同时执行单元／静态检查和独立无头 Chromium UI 审计，真实触发阅读器菜单、框选遮罩、确认窗口、设置页、当前论文索引、图库、表格、筛选、查看器及批量管理交互。发布批次不再只依赖按钮文本或 CSS 搜索判断界面可用性。
+`npm.cmd run check` 同时执行单元／静态检查和独立无头 Chromium UI 审计，真实触发阅读器菜单、框选遮罩、确认窗口、设置页、当前论文索引、图库、表格、筛选、查看器及批量管理交互。发布批次不再只依赖按钮文本或 CSS 搜索判断界面可用性。审计固定使用 `tests/current-release.test.js` 生成的夹具：8 条图库记录、单图与多图当前论文索引各一份，以及同样记录的离线只读图库；夹具形状由同一测试断言锁定，避免审计因夹具退化而静默失去覆盖。
+
+本机未安装 Edge 或 Chrome 时，`npm.cmd run check` 只显式跳过 UI 审计并继续其余检查；单独运行 `npm.cmd run audit:index-buttons` 仍要求存在浏览器。
+
+`npm.cmd run check` 还会解析 `manifest.json` 的版本并核对 `outputs` 中的安装包：所有交付脚本都不再硬编码某个版本的 XPI 文件名，检查会在发现其它版本遗留包时明确列出。
 
 `validate-external-plugin-compat.mjs` 同时检查 ZLK Cluster 与 Zotero；若只报告外部 ZLK 目标计划漂移，不能归因于 PDF 图片保存或放宽本地数据库约束。
 
@@ -105,7 +109,7 @@ Install the printed XPI through Zotero's add-on manager:
 
 1. Zotero: Tools > Add-ons.
 2. Gear menu > Install Add-on From File...
-3. Select the printed `outputs\pdf-image-saver-<版本>.xpi` file.
+3. Select the printed `outputs\pdf-image-saver-<版本>-recovery-<时间戳>.xpi` file. 每次构建都会生成带时间戳的新文件而不覆盖旧包，因此务必使用命令打印的那一条路径。
 4. Confirm the install if Zotero prompts.
 5. Restart Zotero if Zotero requests it.
 
@@ -142,9 +146,9 @@ After Zotero has been restarted or the add-on has been reloaded:
 - “图片库”启动时自动读取固定外部 SQLite；历史 Zotero HTML 预览不再参与图库同步。图库不生成额外缩略图或预览文件，页面仍保留 `.pislib` 导入作为跨设备补充。220-460 px 图片尺寸滑杆与自动流式列数、搜索、类别／色系／年份／来源筛选、排序、图库／表格切换、同步多选、批量删除／分享、原图下载、高清查看器和来源定位均可操作。
 - “在全部图片库查看当前论文图片”直接打开外部 SQLite 图片库，并按来源字段筛选当前论文；不创建或打开 HTML 预览附件。
 - Duplicate-skip toasts distinguish session vs saved entries.
-- Error toasts identify capture, helper, duplicate, byte-cap, or Zotero storage failures.
+- Error toasts identify capture, helper, duplicate, byte-cap, or Zotero storage failures. 每一类内部错误都有对应中文说明；带内层原因的组合错误仍显示已知的中文解释，不会退回“详细原因请查看错误控制台”。诊断提示也先翻译再拼接中文分区前缀，因此不会出现“外部图片库：Storage failed: …”这种中英混排。带数值的错误保留具体数值，例如“大小限制：图片索引过大（12.5 MB > 8 MB），请降低清晰度后重试。”“高级原图提取失败：运行超时（高级原图提取超过 60 秒未完成，已停止）”。
 - Optional original helper absence stays quiet; diagnostics show Python n/a or ok.
-- Preferences pane groups workflow / caps / helper / status, with live scannable status.
+- 设置页分为“采集方式”与默认收起的“高级原图提取（可选）”，顶部保存提示实时说明修改已自动保存或保存失败。
 - `%TEMP%\pdf-image-saver` has no leftover child directories after the save.
 
 

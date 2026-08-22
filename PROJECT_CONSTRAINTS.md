@@ -9,7 +9,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Do not create `.agents/`, `.goalpulse/`, `agent-state/`, or similar local agent state directories.
 - `docs/target-mode-plan.md` is historical only. It must not be used as an active execution plan.
 - Compress `docs/target-mode-plan.md` on a schedule and whenever it grows past a short snapshot: rewrite in place, never append batch ledgers.
-- Keep `docs/target-mode-plan.md` under roughly 80 lines / 4 KB. If longer, compress before other documentation work.
+- Keep `docs/target-mode-plan.md` under 80 lines / 4096 bytes. `npm.cmd run check` enforces this; when it fails, compress the file rather than raising the cap.
 - New work must be driven by explicit user requests plus this constraint file, not by autonomous background planning.
 
 ## Product Scope
@@ -58,6 +58,10 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 - Minimum fast iteration validation: `npm.cmd test` plus `git diff --check`.
 - For script, manifest, packaging, or runtime contract changes, also run `npm.cmd run check`.
+- `npm.cmd run check` owns the release gates: unit/static checks, the PPT-side Zotero protocol gate, and the headless Chromium UI audit. Both external gates skip explicitly (never fail) when the PPT repo or a browser is absent.
+- Any UI change must keep `npm.cmd run audit:index-buttons` green. It is the only gate that exercises real DOM behavior.
+- Browser-audit fixtures live in `tests/current-release.test.js` and their shape is asserted there. Never weaken a fixture to make the audit pass; if the audit contradicts the implementation and README, fix whichever one is actually wrong and say which in the batch notes.
+- Handoff XPI paths must be resolved through `scripts/current-xpi.ps1`. Never hardcode an `outputs\pdf-image-saver-<version>.xpi` filename; a static check enforces this.
 - For install handoff changes, run `npm.cmd run build` and package only when explicitly requested.
 - Do not use bare `npm run` in Windows instructions; use `npm.cmd run`.
 
@@ -67,6 +71,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 - Dense reader toolbar, menus, overlays, toasts, diagnostics, prefs, and HTML indexes landed.
 - Keep fixed internal error categories: `Capture failed:` / `Helper:` / `Storage failed:` / `Byte cap:`; all displayed wording must be native Chinese.
+- Every new internal error must gain a Chinese entry in the `known` table in the same batch; a static check fails the build otherwise. Never compose user-visible text as a Chinese prefix plus a raw internal message — translate first, then prefix, or the "contains Chinese" guard passes on the prefix alone and leaks English.
 - Keep stable toolbar widths/aria and single toast element.
 - Inventable densify churn is exhausted. Further UI only for concrete clarity gaps or user-reported runtime wording.
 - Selection size badge now marks below-min drags as `min12`; toast is click/Esc-dismiss; index Open actions include page (`Open pN`).
@@ -83,9 +88,12 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Multi-entry indexes expose jump anchors/lists with page marks (`#NpN`), Open last, top anchor, and Top footer; busy toasts include quality marks.
 - Capture stores figure `image_category`, `color_family`, `layout_hint`, `aspect_ratio`, `slide_slot`, `role_hint`, `insert_hint`, `caption_hint`, `story_order`, `story_beat`, `dominant_hex`, `contrast_hex`, palette, `style_tags`, and `ppt_assist_token` for PPT search/color/layout/placement/narrative/drawing assist; toolbar/prefs expose Cat; indexes expose category/layout/slot/role/insert/caption/hue/story filters, palette chips, Copy PPT/pal/pair/role/insert/cap/story.
 
+- The headless UI audit is restored and wired into `npm.cmd run check`. It had been dead since the recovery batch because the fixtures degraded, so no UI batch between then and 2026-07-26 was actually validated in a real DOM. Re-check any UI claim from that window against the audit before trusting it.
+
 ### After UI Is Exhausted
 
 - Smoke scripts distinguish development-proxy vs manual/XPI readiness for Zotero 9.x; keep registration checks aligned with that split.
+- Handoff scripts resolve the current XPI from `manifest.json`; stale other-version packages in `outputs` are reported, never installed.
 - Optional original extraction remains isolated; missing Python is quiet-failed before helper progress toast, and diagnostics report helper availability.
 - User-facing errors now classify capture / helper / duplicate / byte-cap / storage failures.
 - Historical `docs/target-mode-plan.md` stays a short snapshot only; compress on schedule and whenever it grows, never append batch ledgers.

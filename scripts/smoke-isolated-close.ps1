@@ -6,12 +6,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+. (Join-Path $PSScriptRoot "current-xpi.ps1")
 $tempRoot = Join-Path $env:TEMP ("pdf-image-saver-isolated-" + [guid]::NewGuid().ToString("N"))
 $profilePath = Join-Path $tempRoot "profile"
 $dataPath = Join-Path $tempRoot "data"
+$sourceXpi = Assert-CurrentXpiPath -Root $root -Action "npm.cmd run build"
 try {
   New-Item -ItemType Directory -Force -Path (Join-Path $profilePath "extensions"), $dataPath | Out-Null
-  Copy-Item -LiteralPath (Join-Path $root "outputs\pdf-image-saver-$((Get-Content -Encoding UTF8 -Raw (Join-Path $root "manifest.json") | ConvertFrom-Json).version).xpi") -Destination (Join-Path $profilePath "extensions\pdf-image-saver@zlk.local.xpi")
+  Copy-Item -LiteralPath $sourceXpi -Destination (Join-Path $profilePath "extensions\pdf-image-saver@zlk.local.xpi")
   foreach ($extensionPath in $AdditionalExtensionPaths) {
     if (!(Test-Path -LiteralPath $extensionPath -PathType Leaf)) {
       throw "Additional extension not found: $extensionPath"

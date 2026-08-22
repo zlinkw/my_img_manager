@@ -52,13 +52,19 @@ $status = Invoke-Status
 $readyProfiles = 0
 $registeredProfiles = 0
 
+$xpiHint = if ($status.xpi.exists) { $status.xpi.path } else { "(not built; run npm.cmd run package:manual)" }
+
 Write-Host "manual install verify"
 Write-Host "expected runtime: $expectedRuntime"
 Write-Host "expected strict_max_version: $expectedStrictMaxVersion"
 Write-Host "addon: $addonID"
-Write-Host "xpi: $($status.xpi.path)"
+Write-Host "xpi version: $($status.xpi.version)"
+Write-Host "xpi: $xpiHint"
 Write-Host "xpi exists: $($status.xpi.exists)"
 Write-Host "sha256: $($status.xpi.sha256)"
+if (@($status.xpi.staleNames).Count -gt 0) {
+  Write-Host "ignored other-version XPIs: $(@($status.xpi.staleNames) -join ', ')"
+}
 Write-Host "zotero process count: $($status.zoteroProcessCount)"
 Write-Host "temp children: $($status.temp.childCount)"
 Write-Host "preferred handoff: $($status.summary.preferredHandoff)"
@@ -100,7 +106,7 @@ foreach ($profile in $status.profiles) {
   Write-Host "rescan needed: $($profile.rescan.needsRescan)"
 
   if (!$registered) {
-    Write-Host "next: on $expectedRuntime use Tools > Add-ons > gear > Install Add-on From File... and select outputs\pdf-image-saver-0.1.0.xpi"
+    Write-Host "next: on $expectedRuntime use Tools > Add-ons > gear > Install Add-on From File... and select $xpiHint"
   }
   elseif (!$active) {
     Write-Host "next: enable the add-on in Zotero Add-ons, then restart Zotero if requested."

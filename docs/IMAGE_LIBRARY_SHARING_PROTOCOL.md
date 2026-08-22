@@ -25,3 +25,7 @@
 ## 管理命令
 
 生成的本地图库仅通过受 token 保护的固定 endpoint 调用 `exportImages`、`importImages` 和 `deleteImages`。导入和分享路径必须由 Zotero 原生文件选择器取得。删除为共享库软删除，不删除 Zotero 文献或 PDF。PPT 插件不得发送这些图库管理命令。
+
+## 验证
+
+分享包字段为白名单构建：新增数据库列不会自动进入分享包。`npm.cmd test` 断言分享包不含本机标识（并先确认这些标识确实存在于源记录上，避免空洞断言），同时覆盖导入侧的格式、`schema_version`、`includes_pdf`、空包拒绝措辞与 gzip 往返。修改分享或导入行为时必须同步更新本文件和这些断言。

@@ -5,8 +5,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+. (Join-Path $PSScriptRoot "current-xpi.ps1")
 $addonId = "pdf-image-saver@zlk.local"
-$xpiPath = Join-Path $root "outputs\pdf-image-saver-0.1.0.xpi"
 $profileRoot = Join-Path $env:APPDATA "Zotero\Zotero\Profiles"
 $zoteroRunning = [bool](Get-Process -Name Zotero -ErrorAction SilentlyContinue)
 
@@ -56,8 +56,10 @@ function Install-DevelopmentProxy {
 function Install-ProfileXPI {
   param([string]$ProfilePath)
 
-  if (!(Test-Path -LiteralPath $xpiPath)) {
-    throw "XPI missing: $xpiPath. Run npm.cmd run build first."
+  $xpiPath = Assert-CurrentXpiPath -Root $root -Action "npm.cmd run build"
+  & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "check-xpi.ps1") -XpiPath $xpiPath | Out-Null
+  if ($LASTEXITCODE -ne 0) {
+    throw "XPI payload check failed; refusing to install into a Zotero profile: $xpiPath"
   }
   $extensionsDir = Join-Path $ProfilePath "extensions"
   $proxyPath = Join-Path $extensionsDir $addonId

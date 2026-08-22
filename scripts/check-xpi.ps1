@@ -2,14 +2,13 @@ param([string]$XpiPath = "")
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+. (Join-Path $PSScriptRoot "current-xpi.ps1")
 
 if (!$XpiPath) {
-  $XpiPath = Get-ChildItem -LiteralPath (Join-Path $root "outputs") -Filter "pdf-image-saver-*-recovery-*.xpi" -File -ErrorAction SilentlyContinue |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1 -ExpandProperty FullName
+  $XpiPath = Assert-CurrentXpiPath -Root $root -Action "npm.cmd run build"
 }
 
-if (!$XpiPath -or !(Test-Path -LiteralPath $XpiPath)) {
+if (!(Test-Path -LiteralPath $XpiPath -PathType Leaf)) {
   throw "XPI missing: $XpiPath"
 }
 

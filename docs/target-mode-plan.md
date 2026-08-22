@@ -1,59 +1,26 @@
 # 目标模式计划
 
-> 当前文档仅保留恢复与发布状态快照，不作为后台自动执行计划。
+> 仅保留当前状态快照，不作为后台自动执行计划。修改受 `PROJECT_CONSTRAINTS.md` 约束。按约定压缩重写，不追加批次流水。
 
-## 2026-07-22 XPI 路径兼容修复
+## 当前状态
 
-- 用户复现包：`pdf-image-saver-0.1.128-recovery-20260722-003651-649.xpi`。
-- 失败原因：Windows 构建生成 `content\pdf-image-saver.js` 等反斜杠 ZIP 条目，Zotero JAR URI 只能读取 `content/pdf-image-saver.js`。
-- 修复范围：`scripts/build.ps1` 逐文件写入正斜杠条目；`scripts/check-xpi.ps1` 拒绝反斜杠并实读运行时入口。
-- 回归：旧故障包被新版检查拒绝；新包 payload、测试、静态检查和构建检查通过。
-- 保护区：未安装、覆盖或修改现有 Zotero profile XPI；未访问外部数据库或 PPT 仓库。
-- 新候选：`outputs/pdf-image-saver-0.1.128-recovery-20260722-010908-072.xpi`。
+- 版本 `0.1.128`；插件 ID `pdf-image-saver@zlk.local`；`strict_max_version: 9.*`。
+- 交付包：`outputs/pdf-image-saver-0.1.128-recovery-<时间戳>.xpi`，由 `scripts/build.ps1` 生成、`scripts/check-xpi.ps1` 校验；`outputs` 只保留当前候选。
+- 冻结合同：SQLite schema 2；locator schema 1；producer `zotero-pdf-image-saver`；`GLOBAL_LIBRARY_VIEW_VERSION = "37"`；bridge `POST http://127.0.0.1:23119/pdf-image-saver/bridge`。
+- PPT 仅可调用 `refreshLibrary` 与冻结的来源定位命令；不得发送 `deleteImages`、`exportImages`、`importImages`。
+- 保护区：已安装 XPI、用户 Zotero profile、`zotero.sqlite*`、外部 SQLite、PPT 仓库。
+- 闸门：`npm.cmd run check` = 单元／静态检查 + PPT 侧 `validate-zotero-image-library.mjs` + 无头 Chromium UI 审计；后两者在缺少 PPT 仓库或浏览器时显式跳过而非失败。
 
-> 当前恢复批次的持久事实源。修改受 `PROJECT_CONSTRAINTS.md` 约束。
+## 已关闭的遗留问题（2026-07-26）
 
-## 当前目标
+- 交付链：脚本曾硬编码 `pdf-image-saver-0.1.0.xpi`——既是旧版本又带反斜杠 ZIP 条目（0.1.128 修复的正是该故障），`install:xpi` 会把它装进用户 profile。现统一由 `scripts/current-xpi.ps1` 按 `manifest.json` 解析，安装前先跑 `check-xpi.ps1`，静态检查禁止再硬编码文件名。
+- UI 审计：`audit:index-buttons` 自恢复批次起全程失败，因夹具退化（图库仅 1 条记录、离线图库为空、预览图不可解码、多图索引丢失文献页码与 `auto` 类别）。夹具已重建为 8 条记录 + 离线图库 + 单／多图索引，形状由 `tests/current-release.test.js` 断言锁定；审计脚本自身的移动端焦点断言、设置页夹具与偏好断言已对齐当前实现。**该窗口内的所有 UI 批次都未经真实 DOM 验证。**
+- 用户可见措辞：补齐 8 条只有英文的内部错误；9 类带运行时数值的错误改为定向模式翻译；诊断四处"中文前缀 + 原始英文"改为先翻译再拼接；组合错误按已知前导片段匹配。覆盖率由测试中的抛错全量扫描保证。
+- 设置页：修复异常值时列出被修复项并说明当前显示即生效值；越界输入提示写明原输入与实际保存值。
+- 页码措辞：`formatPageWithLabel()` 成为唯一来源，诊断不再输出缺单位的 `页面：第 8`。
+- 分享边界：`.pislib` 构建为白名单，复核确认不含 `parent_item_key`、`pdf_attachment_key`、`library_id`、`group_id` 与 `zotero://`。已补非空洞测试（先断言这些标识确实在源记录上），并覆盖导入的格式／版本／`includes_pdf`／空包拒绝措辞与 gzip 往返。
+- `恢复审计报告_20260721.md` 对 `audit-index-buttons.mjs` 的"非最终版本"标记已失效，状态以当前实现和 README 为准；报告仅作历史记录。
 
-恢复误删前的最新版 Zotero PDF 图片插件，保护已安装 `0.1.127` XPI，不覆盖安装，仅构建独立 `0.1.128` 候选并逐条对比。
+## 下一步
 
-## 范围
-
-- 恢复源码、测试、构建脚本、图库协议和 PPT 复用合同。
-- 常规采集仅保留框选；整页预览和高级原图提取保留为明确次级入口。
-- 图片仅持久化到 `%LOCALAPPDATA%\ZLK\paper-image-library\paper_images.sqlite` 的 `image_blob`。
-- 图库临时页面固定为 `%TEMP%\pdf-image-saver\paper-image-library-view\paper-image-library.html`。
-- PPT 完整图库必须复用该页面，不维护第二套完整图库。
-
-## 排除范围
-
-- 不覆盖、安装、移动或修改现有 `pdf-image-saver@zlk.local.xpi`。
-- 不读取或修改 `zotero.sqlite*`。
-- 不恢复自动识别采集、Zotero HTML 预览附件、缩略图库或第二份数据库。
-- 不修改 PPT 仓库。
-
-## 冻结合同
-
-- 插件 ID：`pdf-image-saver@zlk.local`。
-- 目标 Zotero：9.x，`strict_max_version: 9.*`。
-- SQLite schema：2；locator schema：1；producer：`zotero-pdf-image-saver`。
-- `GLOBAL_LIBRARY_VIEW_VERSION = "37"`。
-- Bridge：`POST http://127.0.0.1:23119/pdf-image-saver/bridge`。
-- PPT 仅可调用 `refreshLibrary` 和已冻结的来源定位命令；不得发送 `deleteImages`、`exportImages`、`importImages`。
-
-## 当前批次 B101
-
-- 状态：已通过源码、打包和安装包对比验证。
-- 问题：恢复源码与安装 XPI 的 10 个生产文件逐字节一致，但测试、构建、版本元数据和约束文档回退。
-- 修复：同步 `package.json`，清理过时自动采集测试，恢复版本化非覆盖打包，重写当前约束。
-- 保护区：已安装 XPI、用户 Zotero profile、外部 SQLite、PPT 仓库。
-- 验证：`npm.cmd test`、`npm.cmd run check`、`npm.cmd run build`、XPI payload、逐条 archive 对比均通过。旧浏览器审计脚本仍含历史预览索引断言，未作为新版通过证据。
-- 对比：新版只修改 `manifest.json`、`README.md` 和两条成功提示；其余 7 个生产条目与原安装包逐字节一致。
-- 提交：待提交；仓库无 `origin`，无法执行规定的 `origin/master` 推送。
-
-## 已知证据
-
-- 参考 XPI：144836 字节，SHA256 `3ECF0B1F0CCC172D09DDA2C8C94E2E317D7FC5DDE72A7C09BA7874BA754D66F3`。
-- 当前 10 个生产文件与参考 XPI 逐字节一致。
-- 历史提交证据：`0d8ae45`、`e1b43fd`、`346f893`、`3212090`、`5f9ba28`。
-- 参考 XPI 是删除前发布包证据；未打包脚本和测试必须以会话命令及当前合同重建后重新验证。
+- 无进行中的批次。新工作需由明确的用户请求加 `PROJECT_CONSTRAINTS.md` 驱动，不得由后台自动规划产生。

@@ -26,15 +26,15 @@ var PdfImageSaverPreferences = {
   init(doc = document) {
     const root = doc.getElementById("pdf-image-saver-preferences");
     if (root?.getAttribute?.("data-pdf-image-saver-ready") === "true") {
-      this.loadControls(doc);
-      this.updateSaveNotice(doc);
+      const reopenNotice = this.formatRepairNotice(this.loadControls(doc));
+      if (reopenNotice) this.updateSaveNotice(doc, reopenNotice); else this.updateSaveNotice(doc);
       return;
     }
     root?.setAttribute?.("data-pdf-image-saver-ready", "true");
     this.injectStyle(doc);
-    this.loadControls(doc);
+    const openNotice = this.formatRepairNotice(this.loadControls(doc));
     this.bindControls(doc);
-    this.updateSaveNotice(doc);
+    if (openNotice) this.updateSaveNotice(doc, openNotice); else this.updateSaveNotice(doc);
   },
 
   injectStyle(doc) {
@@ -234,7 +234,10 @@ var PdfImageSaverPreferences = {
     "pdf-image-saver-python-path": { name: "pythonPath", label: "Python 路径", fallback: "", type: "text" },
   },
 
+  // Returns the labels of preferences whose stored value had to be repaired, so the pane can say
+  // what it changed instead of silently rewriting the user's settings.
   loadControls(doc) {
+    const repaired = [];
     for (const [id, config] of Object.entries(this.controlPreferences)) {
       const control = doc.getElementById(id);
       if (!control) continue;
@@ -244,6 +247,7 @@ var PdfImageSaverPreferences = {
         control.checked = normalizedValue;
         if (typeof value !== "boolean" || value !== normalizedValue) {
           this.writePreference(config, normalizedValue);
+          repaired.push(config.label);
         }
       } else if (config.type === "number") {
         const rawText = String(value ?? "").trim();
@@ -252,6 +256,7 @@ var PdfImageSaverPreferences = {
         control.value = String(normalizedValue);
         if (!Number.isFinite(rawNumber) || Math.abs(rawNumber - normalizedValue) > 1e-9) {
           this.writePreference(config, normalizedValue);
+          repaired.push(config.label);
         }
       } else {
         const rawText = String(value ?? "").trim();
@@ -259,16 +264,29 @@ var PdfImageSaverPreferences = {
         control.value = normalizedValue;
         if (rawText !== normalizedValue) {
           this.writePreference(config, normalizedValue);
+          repaired.push(config.label);
         }
       }
     }
+    return repaired;
+  },
+
+  formatRepairNotice(repaired) {
+    const labels = Array.isArray(repaired) ? repaired.filter(Boolean) : [];
+    if (!labels.length) {
+      return "";
+    }
+    const shown = labels.slice(0, 3).join("、");
+    const rest = labels.length > 3 ? `等 ${labels.length} 项` : "";
+    return `已修复上次遗留的异常设置并保存：${shown}${rest}。当前显示的就是生效值。`;
   },
 
   saveControl(doc, id) {
     const config = this.controlPreferences[id];
     const control = doc.getElementById(id);
     if (!config || !control) return;
-    let value = config.type === "boolean" ? Boolean(control.checked) : String(control.value ?? "").trim();
+    const typedText = config.type === "boolean" ? "" : String(control.value ?? "").trim();
+    let value = config.type === "boolean" ? Boolean(control.checked) : typedText;
     if (config.type === "number") {
       value = this.normalizeNumericPreference(value, config);
       control.value = String(value);
@@ -276,8 +294,15 @@ var PdfImageSaverPreferences = {
       value = this.normalizeTextPreference(value, config);
       control.value = value;
     }
+    const adjusted = config.type !== "boolean" && typedText !== String(value);
     const saved = this.writePreference(config, value);
-    this.updateSaveNotice(doc, saved ? `已自动保存：${config.label}。` : "设置保存失败，请重新打开设置页后再试。", !saved);
+    if (!saved) {
+      this.updateSaveNotice(doc, "设置保存失败，请重新打开设置页后再试。", true);
+      return;
+    }
+    this.updateSaveNotice(doc, adjusted
+      ? `已自动保存：${config.label}；输入的“${typedText || "空"}”超出允许范围，已改为 ${value}。`
+      : `已自动保存：${config.label}。`);
   },
 
   writePreference(config, value) {

@@ -3033,10 +3033,7 @@ var PdfImageSaver = (() => {
       if (pageNumber === null) {
         continue;
       }
-      const pageLabel = normalizeMetadataText(entry?.pageLabel ?? entry?.page_label, "", 80);
-      const pageText = pageLabel && pageLabel !== String(pageNumber)
-        ? `第 ${pageNumber} 页（文献页码 ${pageLabel}）`
-        : `第 ${pageNumber} 页`;
+      const pageText = formatPageWithLabel(pageNumber, entry?.pageLabel ?? entry?.page_label);
       if (!seenPages.has(pageText)) {
         seenPages.add(pageText);
         pageLabels.push(pageText);
@@ -3231,7 +3228,7 @@ var PdfImageSaver = (() => {
           IOUtils.exists(report.shared_locator_path),
         ]);
       } catch (error) {
-        report.warnings.push(`外部图片库：${getErrorMessage(error)}`);
+        report.warnings.push(`外部图片库：${translateUserFacingErrorDetail(getErrorMessage(error))}`);
       }
     }
 
@@ -3240,7 +3237,7 @@ var PdfImageSaver = (() => {
       report.temp_leftovers = tempStats.count;
       report.temp_bytes = tempStats.bytes;
     } catch (error) {
-      report.warnings.push(`临时文件：${getErrorMessage(error)}`);
+      report.warnings.push(`临时文件：${translateUserFacingErrorDetail(getErrorMessage(error))}`);
     }
 
     await probeOptionalHelperAvailability(report);
@@ -3269,7 +3266,7 @@ var PdfImageSaver = (() => {
       const pdfPage = pageView?.pdfPage || await context?.app?.pdfDocument?.getPage?.(pageIndex + 1);
       report.page_label = getPageLabel(context, pageIndex);
     } catch (error) {
-      report.warnings.push(getErrorMessage(error));
+      report.warnings.push(`当前文献：${translateUserFacingErrorDetail(getErrorMessage(error))}`);
     }
 
     return report;
@@ -3287,7 +3284,7 @@ var PdfImageSaver = (() => {
         : "python-missing";
     } catch (error) {
       target.optional_helper = "unknown";
-      target.warnings.push(`高级原图：${getErrorMessage(error)}`);
+      target.warnings.push(`高级原图：${translateUserFacingErrorDetail(getErrorMessage(error))}`);
     }
     return target.optional_helper;
   }
@@ -3322,7 +3319,7 @@ var PdfImageSaver = (() => {
       lines.push("", "【当前文献】");
       lines.push(
         `当前 PDF：${normalizeItemKey(pdfAttachment.key, "未知")}；${formatDiagnosticLibraryPrefix(safeReport.library_prefix)}；上级条目 ${normalizeDiagnosticText(pdfAttachment.parent_id, "无", 80)}`,
-        `页面：第 ${pageNumber}${pageLabel ? `（${pageLabel}）` : ""}`,
+        `页面：${formatPageWithLabel(pageNumber, pageLabel)}`,
         `定位原文：${normalizeDiagnosticText(safeReport.open_pdf_uri, "不可用", 240)}`,
       );
     }
@@ -3349,6 +3346,16 @@ var PdfImageSaver = (() => {
       }
     }
     return normalized;
+  }
+
+  // Single source for "第 N 页（文献页码 X）". The document page label is only shown when it
+  // actually differs from the physical page, so front matter reads correctly and body pages
+  // do not repeat themselves.
+  function formatPageWithLabel(pageNumber, pageLabel) {
+    const label = normalizeMetadataText(pageLabel, "", 80);
+    return label && label !== String(pageNumber)
+      ? `第 ${pageNumber} 页（文献页码 ${label}）`
+      : `第 ${pageNumber} 页`;
   }
 
   function formatDiagnosticBoolean(value) {
@@ -4708,9 +4715,7 @@ var PdfImageSaver = (() => {
         entry.previewDuplicateKey = getPreviewDuplicateKey(attachment, entry);
         const uri = buildOpenPDFURI(attachment, entry.pageNumber, entry.annotationKey);
         entry.openPDFURI = uri;
-        const pageText = entry.pageLabel && entry.pageLabel !== String(entry.pageNumber)
-          ? `第 ${entry.pageNumber} 页（文献页码 ${entry.pageLabel}）`
-          : `第 ${entry.pageNumber} 页`;
+        const pageText = formatPageWithLabel(entry.pageNumber, entry.pageLabel);
         const regionIdentity = getSourceRegionFingerprint(entry.sourceRegionKey);
         const sourceRegionLabel = entry.sourceRegion?.label || entry.bboxNormalized.map((value) => value.toFixed(4)).join(", ");
         const pptToken = buildPptAssistToken(entry);
@@ -6293,9 +6298,9 @@ var PdfImageSaver = (() => {
         if (report.status === "missing_pymupdf") {
           missingPyMuPDFReport = report;
         }
-        failures.push(`${formatCommand(pythonCommand)}: ${normalizeHelperStatusText(report.status)}`);
+        failures.push(`${formatCommand(pythonCommand)}：${formatHelperStatusLabel(report.status)}`);
       } catch (error) {
-        failures.push(`${formatCommand(pythonCommand)}: ${getErrorMessage(error)}`);
+        failures.push(`${formatCommand(pythonCommand)}：${translateUserFacingErrorDetail(getErrorMessage(error))}`);
       }
     }
 
@@ -7520,22 +7525,33 @@ var PdfImageSaver = (() => {
     if (status === "no_python") {
       return "高级原图提取不可用：未找到 Python。";
     }
-    const statusLabels = {
-      error: "助手运行失败",
-      timeout: "运行超时",
-      invalid_report: "结果格式无效",
-      no_images: "未提取到原图",
-      unknown: "原因未知",
-    };
+    // Translate first: a known internal message must keep its Chinese explanation instead of
+    // collapsing into the generic console hint. The trailing period is dropped because the
+    // detail is rendered inside parentheses.
     const details = normalizeHelperWarningMessages(report?.warnings)
-      .map((warning) => /[\u3400-\u9fff]/.test(warning) ? warning : "详细原因请查看错误控制台")
+      .map((warning) => translateUserFacingErrorDetail(warning).replace(/。$/, ""))
       .filter((warning, index, list) => list.indexOf(warning) === index)
       .join("；");
-    return `高级原图提取失败：${statusLabels[status] || "助手返回异常"}${details ? `（${details}）` : ""}`;
+    return `高级原图提取失败：${formatHelperStatusLabel(status)}${details ? `（${details}）` : ""}`;
   }
 
   function normalizeHelperStatusText(status) {
     return normalizeMetadataText(status, "unknown", 60);
+  }
+
+  const HELPER_STATUS_LABELS = {
+    ok: "已完成",
+    error: "助手运行失败",
+    timeout: "运行超时",
+    invalid_report: "结果格式无效",
+    no_images: "未提取到原图",
+    no_python: "未找到 Python",
+    missing_pymupdf: "未安装 PyMuPDF",
+    unknown: "原因未知",
+  };
+
+  function formatHelperStatusLabel(status) {
+    return HELPER_STATUS_LABELS[normalizeHelperStatusText(status)] || "助手返回异常";
   }
 
   function normalizeHelperSchemaText(schemaVersion) {
@@ -11416,12 +11432,26 @@ var PdfImageSaver = (() => {
       "Storage failed: package reader unavailable.": "当前环境无法读取图片包。",
       "Storage failed: image package file size invalid.": "图片包文件大小无效。",
       "Storage failed: image package exceeds byte cap.": "图片包中的原图总大小超过上限。",
+      "Storage failed: directory unavailable.": "图片库目录路径无效，无法创建。",
+      "Storage failed: directory runtime unavailable.": "当前环境无法创建图片库目录。",
+      "Storage failed: shared SQLite runtime unavailable.": "当前 Zotero 无法打开外部图片库数据库。",
+      "Storage failed: preview image bytes unavailable.": "无法读取本次预览的图片数据。",
+      "Storage failed: source region identity collision.": "同一原文区域已属于另一条图片记录，未覆盖已有记录。",
       "Helper: Python n/a.": "未找到 Python。",
       "Helper: PyMuPDF n/a.": "未安装 PyMuPDF。",
+      "Helper failed: script missing.": "插件内置的原图提取脚本缺失或版本不匹配。",
+      "Helper failed: PDF path n/a.": "找不到该文献的 PDF 文件。",
+      "Helper failed: no report.": "高级原图提取没有返回结果。",
       "Unknown err.": "未知错误。",
     };
     if (known[text]) {
       return known[text];
+    }
+    // Some throws append an inner cause after a known message. Match the known message as an
+    // exact leading segment so the user still gets its explanation instead of the generic fallback.
+    const knownPrefix = Object.keys(known).find((candidate) => text.startsWith(`${candidate} `));
+    if (knownPrefix) {
+      return known[knownPrefix];
     }
     const detail = text
       .replace(/^Capture failed:\s*/i, "")
@@ -11436,9 +11466,24 @@ var PdfImageSaver = (() => {
     if (/^index import failed\.?$/i.test(detail)) {
       return "无法写入 Zotero 图片索引。";
     }
-    const indexLarge = detail.match(/^index large\s*\((.+)\)\.?$/i);
-    if (indexLarge) {
-      return `图片索引过大（${indexLarge[1]}）。`;
+    // Messages that carry a runtime value. Each pattern is anchored and specific so an unknown
+    // message still falls through to the console hint instead of being guessed at.
+    const dynamic = [
+      [/^index large\s*\((.+?)\)\.?(?:\s*Lower Q\.?)?$/i, (match) => `图片索引过大（${match[1]}），请降低清晰度后重试。`],
+      [/^all\s+(\d+)\s+orig imports failed\.?$/i, (match) => `${match[1]} 张原图全部导入失败。`],
+      [/^bad schema\s+(.+?)\.?$/i, (match) => `原图提取脚本版本不匹配（${match[1]}）。`],
+      [/^exit\s+(-?\d+),\s*no report\.?$/i, (match) => `高级原图提取进程异常退出（代码 ${match[1]}），没有返回结果。`],
+      [/^Optional helper timed out after\s+(\d+)\s+seconds?\.?$/i, (match) => `高级原图提取超过 ${match[1]} 秒未完成，已停止。`],
+      [/^Preview data URL bad\.?$/i, () => "预览图片数据无效。"],
+      [/^Preview index bad\.?$/i, () => "图片索引数据无效。"],
+      [/^Preview index empty\.?$/i, () => "图片索引没有任何图片。"],
+      [/^invalid-shared-db-path:\s*(.+)$/i, (match) => `外部图片库路径无效（${match[1]}）。`],
+    ];
+    for (const [pattern, formatter] of dynamic) {
+      const match = detail.match(pattern);
+      if (match) {
+        return formatter(match);
+      }
     }
     return /[\u3400-\u9fff]/.test(detail) ? detail : "详细原因请查看错误控制台。";
   }
@@ -11493,10 +11538,14 @@ var PdfImageSaver = (() => {
       classifyPreviewDuplicateSkipReason,
       buildOriginalImportSkippedText,
       formatHelperFailure,
+      formatHelperStatusLabel,
       getToastDuration,
       getErrorMessage,
       classifyErrorCategory,
       formatUserFacingError,
+      translateUserFacingErrorDetail,
+      formatDiagnosticWarning,
+      formatPageWithLabel,
       normalizeToastLevel,
       getActiveReader,
       getContextPageIndex,
