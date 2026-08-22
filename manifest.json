@@ -1,10 +1,10 @@
 {
   "manifest_version": 2,
   "name": "PDF 图片保存",
-  "version": "0.1.128",
+  "version": "0.1.129",
   "description": "从 Zotero PDF 阅读器采集科研图片，建立可检索、可分享并可定位原文的本地图片库。",
   "author": "ZLK",
-  "homepage_url": "https://local.invalid/pdf-image-saver",
+  "homepage_url": "https://github.com/zlinkw/my_img_manager",
   "icons": {
     "48": "content/icons/pdf-image-saver.svg",
     "96": "content/icons/pdf-image-saver.svg"
@@ -12,7 +12,7 @@
   "applications": {
     "zotero": {
       "id": "pdf-image-saver@zlk.local",
-      "update_url": "https://local.invalid/pdf-image-saver/updates.json",
+      "update_url": "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json",
       "strict_min_version": "7.0",
       "strict_max_version": "9.*"
     }

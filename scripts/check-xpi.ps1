@@ -29,6 +29,7 @@ try {
     "preferences.xhtml",
     "README.md",
     "content/pdf-image-saver.js",
+    "content/update-check.js",
     "content/preferences.js",
     "content/helper/pdf_image_extract.py",
     "content/icons/pdf-image-saver.svg",
@@ -53,6 +54,11 @@ try {
   }
   finally {
     $runtimeStream.Dispose()
+  }
+
+  $updateEntry = $archive.GetEntry("content/update-check.js")
+  if (!$updateEntry -or $updateEntry.Length -eq 0) {
+    throw "XPI update checker entry is missing or empty: content/update-check.js"
   }
 
   $blockedPrefixes = @("work/", "outputs/", "tests/", ".git/", "scripts/")

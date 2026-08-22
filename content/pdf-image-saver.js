@@ -14,6 +14,7 @@ var PdfImageSaver = (() => {
   const BRIDGE_STATUS_COMMANDS = ["status", "getStatus"];
   const BRIDGE_PROVENANCE_COMMANDS = ["openPdfByImageId", "selectParentItemByImageId", "selectPdfAttachmentByImageId"];
   const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "refreshLibrary"];
+  const UPDATE_REPOSITORY = "zlinkw/my_img_manager";
   const GLOBAL_LIBRARY_VIEW_VERSION = "37";
   const GLOBAL_LIBRARY_DIRECTORY_NAME = "paper-image-library-view";
   const GLOBAL_LIBRARY_HTML_NAME = "paper-image-library.html";
@@ -247,6 +248,7 @@ var PdfImageSaver = (() => {
     doc.getElementById("pdf-image-saver-preview-menuitem")?.remove();
     doc.getElementById("pdf-image-saver-delete-menuitem")?.remove();
     doc.getElementById("pdf-image-saver-diagnostics-menuitem")?.remove();
+    doc.getElementById("pdf-image-saver-update-menuitem")?.remove();
     const menuitem = doc.createXULElement
       ? doc.createXULElement("menuitem")
       : doc.createElement("menuitem");
@@ -292,12 +294,22 @@ var PdfImageSaver = (() => {
     diagnosticsItem.addEventListener("command", () => {
       void showDiagnostics(win);
     });
+    const updateItem = doc.createXULElement
+      ? doc.createXULElement("menuitem")
+      : doc.createElement("menuitem");
+    updateItem.id = "pdf-image-saver-update-menuitem";
+    updateItem.setAttribute("label", "检查 PDF 图片保存更新");
+    updateItem.setAttribute("tooltiptext", "读取 GitHub 最新正式发布；Zotero 插件不会自动替换自身文件");
+    updateItem.addEventListener("command", () => {
+      void showUpdateStatus(win);
+    });
     toolsPopup?.appendChild(menuitem);
     toolsPopup?.appendChild(libraryItem);
     toolsPopup?.appendChild(previewItem);
     toolsPopup?.appendChild(deleteItem);
     toolsPopup?.appendChild(diagnosticsItem);
-    windowState.set(win, { menuitems: [menuitem, libraryItem, previewItem, deleteItem, diagnosticsItem] });
+    toolsPopup?.appendChild(updateItem);
+    windowState.set(win, { menuitems: [menuitem, libraryItem, previewItem, deleteItem, diagnosticsItem, updateItem] });
   }
 
   async function removeFromWindow(win) {
@@ -310,6 +322,24 @@ var PdfImageSaver = (() => {
       menuitem?.remove();
     }
     windowState.delete(win);
+  }
+
+  async function showUpdateStatus(ownerWindow) {
+    const win = ownerWindow || Zotero.getMainWindow?.() || null;
+    const state = await PdfImageSaverUpdateCheck.check();
+    const title = state.status === "update_available" ? "PDF 图片保存：发现新版本" : "PDF 图片保存：更新检查";
+    const accepted = Services.prompt.confirm(
+      win,
+      title,
+      `${PdfImageSaverUpdateCheck.formatStatus(state)}\n\n是否打开发布页？`,
+    );
+    if (accepted) {
+      try {
+        PdfImageSaverUpdateCheck.openReleasePage(state);
+      } catch (error) {
+        Services.prompt.alert(win, title, translateUserFacingErrorDetail(getErrorMessage(error)));
+      }
+    }
   }
 
   async function handleMainWindowUnload(win) {
@@ -11542,6 +11572,7 @@ var PdfImageSaver = (() => {
       getToastDuration,
       getErrorMessage,
       classifyErrorCategory,
+      UPDATE_REPOSITORY,
       formatUserFacingError,
       translateUserFacingErrorDetail,
       formatDiagnosticWarning,

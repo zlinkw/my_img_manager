@@ -4,8 +4,8 @@
 
 ## 当前状态
 
-- 版本 `0.1.128`；插件 ID `pdf-image-saver@zlk.local`；`strict_max_version: 9.*`。
-- 交付包：`outputs/pdf-image-saver-0.1.128-recovery-<时间戳>.xpi`，由 `scripts/build.ps1` 生成、`scripts/check-xpi.ps1` 校验；`outputs` 只保留当前候选。
+- 版本 `0.1.129`；插件 ID `pdf-image-saver@zlk.local`；`strict_max_version: 9.*`。
+- 交付包：开发交接为带时间戳的 recovery 包，公开 Release 为稳定命名 `outputs/pdf-image-saver-0.1.129.xpi`；均由 `scripts/build.ps1` 生成并经 `scripts/check-xpi.ps1` 校验。
 - 冻结合同：SQLite schema 2；locator schema 1；producer `zotero-pdf-image-saver`；`GLOBAL_LIBRARY_VIEW_VERSION = "37"`；bridge `POST http://127.0.0.1:23119/pdf-image-saver/bridge`。
 - PPT 仅可调用 `refreshLibrary` 与冻结的来源定位命令；不得发送 `deleteImages`、`exportImages`、`importImages`。
 - 保护区：已安装 XPI、用户 Zotero profile、`zotero.sqlite*`、外部 SQLite、PPT 仓库。
@@ -20,6 +20,12 @@
 - 页码措辞：`formatPageWithLabel()` 成为唯一来源，诊断不再输出缺单位的 `页面：第 8`。
 - 分享边界：`.pislib` 构建为白名单，复核确认不含 `parent_item_key`、`pdf_attachment_key`、`library_id`、`group_id` 与 `zotero://`。已补非空洞测试（先断言这些标识确实在源记录上），并覆盖导入的格式／版本／`includes_pdf`／空包拒绝措辞与 gzip 往返。
 - `恢复审计报告_20260721.md` 对 `audit-index-buttons.mjs` 的"非最终版本"标记已失效，状态以当前实现和 README 为准；报告仅作历史记录。
+
+## 已关闭的更新与公开发布批次
+
+- 工具菜单和设置页提供中文“检查更新”；后端只读 GitHub Latest Release，拒绝 draft/prerelease，按语义化版本比较，并通过安全 HTTPS 发布页交给用户在插件管理器安装。不执行 Git 快进、不覆盖自身、不自动重启。
+- 原生更新源指向 `master/updates.json`；`.github/workflows/release.yml` 在 Windows runner 构建稳定 XPI 和 SHA256，并创建 GitHub Release。
+- README 重写为公开使用文档，覆盖 Zotero 9 要求、Release 安装校验、更新方式、框选流程、图库管理、数据边界、PPT 协议和发布步骤。
 
 ## 下一步
 

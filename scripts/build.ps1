@@ -1,4 +1,9 @@
+param(
+  [switch]$Release
+)
+
 $ErrorActionPreference = "Stop"
+$releaseOutput = [bool]$Release
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $outputDir = Join-Path $root "outputs"
 $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root "manifest.json") | ConvertFrom-Json
@@ -7,6 +12,9 @@ $stamp = Get-Date -Format "yyyyMMdd-HHmmss-fff"
 $buildRoot = Join-Path ([IO.Path]::GetTempPath()) "pdf-image-saver-build"
 $buildDir = Join-Path $buildRoot "$version-$stamp\pdf-image-saver"
 $xpiPath = Join-Path $outputDir "pdf-image-saver-$version-recovery-$stamp.xpi"
+if ($releaseOutput) {
+  $xpiPath = ("{0}\pdf-image-saver-{1}.xpi" -f $outputDir, $version)
+}
 
 Set-Location $root
 function Invoke-Native {

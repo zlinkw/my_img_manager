@@ -23,9 +23,11 @@ async function startup({ id, version, rootURI }) {
   try {
     log("正在启动版本 " + version);
     await registerPreferencePane(id, rootURI);
-    loadRuntimeModules();
-    Services.scriptloader.loadSubScript(rootURI + "content/pdf-image-saver.js");
-    PdfImageSaver.init({ id, version, rootURI });
+  loadRuntimeModules();
+  Services.scriptloader.loadSubScript(rootURI + "content/pdf-image-saver.js");
+  Services.scriptloader.loadSubScript(rootURI + "content/update-check.js");
+  PdfImageSaverUpdateCheck.init({ id, version });
+  PdfImageSaver.init({ id, version, rootURI });
     await PdfImageSaver.startup();
   } catch (error) {
     Zotero.logError(error);
@@ -44,7 +46,7 @@ async function registerPreferencePane(id, rootURI) {
     await Zotero.PreferencePanes.register({
       pluginID: id,
       src: rootURI + "preferences.xhtml",
-      scripts: [rootURI + "content/preferences.js"],
+      scripts: [rootURI + "content/update-check.js", rootURI + "content/preferences.js"],
     });
   } catch (error) {
     Zotero.logError(error);

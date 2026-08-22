@@ -20,7 +20,7 @@ $package = Get-Content -Raw -Encoding UTF8 -LiteralPath ".\package.json" | Conve
 if ($package.version -ne $manifest.version) { throw "package.json version must match manifest.json" }
 if ($manifest.applications.zotero.id -ne "pdf-image-saver@zlk.local") { throw "Unexpected plugin id" }
 if ($manifest.applications.zotero.strict_max_version -ne "9.*") { throw "strict_max_version must be 9.*" }
-if ($manifest.version -ne "0.1.128") { throw "Recovery candidate version must be 0.1.128" }
+if ($manifest.version -ne "0.1.129") { throw "Release candidate version must be 0.1.129" }
 
 $source = Get-Content -Raw -Encoding UTF8 -LiteralPath ".\content\pdf-image-saver.js"
 foreach ($forbidden in @("pdf-image-saver-auto-button", "saveAutoDetectedPageImagePreviews", "imageCoordinatesToCandidates")) {
@@ -29,6 +29,12 @@ foreach ($forbidden in @("pdf-image-saver-auto-button", "saveAutoDetectedPageIma
 foreach ($required in @("publishPreviewEntriesToSharedLibrary", "refreshLibrary", 'GLOBAL_LIBRARY_VIEW_VERSION = "37"', "paper-image-library-view")) {
   if (!$source.Contains($required)) { throw "Missing release contract: $required" }
 }
+$updateSource = Get-Content -Raw -Encoding UTF8 -LiteralPath ".\content\update-check.js"
+foreach ($required in @('REPOSITORY = "zlinkw/my_img_manager"', "releases/latest", "openReleasePage")) {
+  if (!$updateSource.Contains($required)) { throw "Missing update checker contract: $required" }
+}
+if (!(Test-Path -LiteralPath ".\.github\workflows\release.yml" -PathType Leaf)) { throw "Release workflow missing" }
+if (!(Test-Path -LiteralPath ".\updates.json" -PathType Leaf)) { throw "Native update manifest missing" }
 
 foreach ($doc in @(".\PROJECT_CONSTRAINTS.md", ".\docs\IMAGE_LIBRARY_ACCESS_AND_UI_PROTOCOL.md", ".\docs\IMAGE_LIBRARY_SHARING_PROTOCOL.md", ".\docs\target-mode-plan.md")) {
   if (!(Test-Path -LiteralPath $doc -PathType Leaf)) { throw "Required release document missing: $doc" }

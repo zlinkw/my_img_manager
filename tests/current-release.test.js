@@ -32,14 +32,43 @@ context.globalThis = context;
 vm.runInContext(source, context, { filename: "pdf-image-saver.js" });
 context.PdfImageSaver.init({ id: "pdf-image-saver@zlk.local", version: "0.1.128-test", rootURI: "resource://pdf-image-saver/" });
 
+const updateSource = fs.readFileSync(path.join(root, "content", "update-check.js"), "utf8");
+vm.runInContext(updateSource, context, { filename: "update-check.js" });
+const updateAPI = context.PdfImageSaverUpdateCheck;
+updateAPI.init({ id: "pdf-image-saver@zlk.local", version: "0.1.128-test" });
+
 const api = context.PdfImageSaver.__test__;
 assert.ok(api, "release exports test helpers");
 assert.equal(api.normalizeImageCategoryKey("HEATMAP"), "heatmap");
 assert.equal(api.normalizeImageCategoryKey("unknown"), "auto");
+assert.ok(api.UPDATE_REPOSITORY.includes("/"), "update repository contract is exported");
 
 const region = api.buildSourceRegion([0.1, 0.2, 0.4, 0.6]);
 assert.equal(region.coordinate_system, "normalized_page_rect");
 assert.equal(region.label, "横向 10.0%–40.0%；纵向 20.0%–60.0%；宽 30.0% × 高 40.0%");
+
+// GitHub release checking is intentionally read-only. A Zotero XPI cannot safely replace its
+// own files the way a Linux service can, so the runtime reports availability and hands the
+// user off to Zotero's install prompt instead of merging files or restarting itself.
+assert.equal(updateAPI.__test__.REPOSITORY, "zlinkw/my_img_manager");
+assert.equal(updateAPI.normalizeVersion("v0.1.128"), "0.1.128");
+assert.equal(updateAPI.compareSemanticVersions("0.1.9", "0.1.10"), -1);
+assert.equal(updateAPI.compareSemanticVersions("0.2.0", "0.1.128"), 1);
+assert.equal(updateAPI.validateRelease({ tag_name: "v0.1.129", html_url: "https://github.com/zlinkw/my_img_manager/releases/tag/v0.1.129" }), "0.1.129");
+assert.throws(() => updateAPI.validateRelease({ tag_name: "not-a-version", html_url: "https://github.com/example" }), /版本标签/);
+assert.throws(() => updateAPI.validateRelease({ tag_name: "v9.9.9", html_url: "http://github.com/example" }), /安全/);
+const availableState = updateAPI.normalizeRelease({
+  tag_name: "v0.1.129",
+  name: "Patch release",
+  body: "第一行说明\n第二行说明",
+  html_url: "https://github.com/zlinkw/my_img_manager/releases/tag/v0.1.129",
+}, "0.1.128");
+assert.equal(availableState.status, "update_available");
+assert.equal(availableState.latestVersion, "0.1.129");
+assert.equal(availableState.releaseNotes, "第一行说明");
+assert.ok(updateAPI.formatStatus(availableState).includes("请在 Zotero 插件管理器中安装"));
+assert.equal(updateAPI.__test__.formatUpdateError(new Error("NetworkError connection failed")), "网络连接失败或超时，请确认能否访问 GitHub 后重试。");
+assert.equal(updateAPI.__test__.formatUpdateError(new Error("GitHub returned HTTP 503")), "GitHub 发布检查失败（HTTP 503）。");
 
 // Browser-audit fixtures must decode in a real engine, so every image is a self-contained SVG
 // data URL with the exact intrinsic size the viewer asserts at 1:1 zoom.
@@ -523,7 +552,31 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "u
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
 assert.equal(manifest.applications.zotero.strict_max_version, "9.*", "release supports Zotero 9.x");
-assert.equal(manifest.version, "0.1.128", "recovery candidate increments the installed release");
+assert.equal(manifest.version, "0.1.129", "release candidate increments the installed release");
+
+const updatesManifest = JSON.parse(fs.readFileSync(path.join(root, "updates.json"), "utf8"));
+const updatesEntry = updatesManifest.addons["pdf-image-saver@zlk.local"].updates.at(-1);
+assert.equal(manifest.applications.zotero.update_url, "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json");
+assert.equal(updatesEntry.version, manifest.version, "native update manifest must advertise the current XPI");
+assert.equal(
+  updatesEntry.update_link,
+  `https://github.com/zlinkw/my_img_manager/releases/download/v${manifest.version}/pdf-image-saver-${manifest.version}.xpi`,
+  "native update link must target the stable release asset",
+);
+assert.equal(updatesEntry.applications.zotero.strict_min_version, manifest.applications.zotero.strict_min_version);
+assert.equal(updatesEntry.applications.zotero.strict_max_version, "9.*");
+const releaseWorkflowPath = path.join(root, ".github", "workflows", "release.yml");
+const releaseWorkflow = fs.readFileSync(releaseWorkflowPath, "utf8");
+for (const required of ["runs-on: windows-latest", "build.ps1 -Release", "gh release create", "actions/upload-artifact"]) {
+  if (!required.startsWith("actions/upload-artifact") && !releaseWorkflow.includes(required)) {
+    throw new Error(`Release workflow is missing ${required}`);
+  }
+}
+if (!fs.existsSync(releaseWorkflowPath)) throw new Error("Release workflow missing");
+const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+for (const required of ["Zotero 9", "从 GitHub Release 安装", "检查 PDF 图片保存更新", "Windows", "外部 SQLite 原图库"]) {
+  assert.ok(readme.includes(required), `public README must document ${required}`);
+}
 
 // Async checks run last and gate the success line, so a rejected assertion can never be reported
 // as a pass.
