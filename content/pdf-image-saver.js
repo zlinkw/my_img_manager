@@ -1085,6 +1085,31 @@ var PdfImageSaver = (() => {
       menu.hidden = !open;
       trigger.setAttribute?.("aria-expanded", open ? "true" : "false");
     };
+    const focusMenuItem = (index) => {
+      if (disabled || !menuButtons.length) return;
+      const bounded = (index + menuButtons.length) % menuButtons.length;
+      menuButtons[bounded]?.focus?.();
+    };
+    let keyboardFocusTimer = 0;
+    const openWithKeyboard = (position = "current") => {
+      if (disabled) return;
+      if (menu.hidden) toggle();
+      const selectedIndex = menuButtons.findIndex((item) => item.__pdfImageSaverValue === value);
+      const focusIndex = position === "first"
+        ? 0
+        : position === "last"
+          ? menuButtons.length - 1
+          : Math.max(0, selectedIndex);
+      // Chromium can refuse a same-turn focus request while the just-unhidden menu is laid out.
+      if (typeof setTimeout === "function") {
+        clearTimeout?.(keyboardFocusTimer);
+        keyboardFocusTimer = setTimeout(() => {
+          if (!menu.hidden) focusMenuItem(focusIndex);
+        }, 0);
+      } else {
+        focusMenuItem(focusIndex);
+      }
+    };
     const containsTarget = (target) => {
       if (!target) {
         return false;
@@ -1141,7 +1166,11 @@ var PdfImageSaver = (() => {
     for (const target of Array.isArray(options.outsideEventTargets) ? options.outsideEventTargets : []) {
       bindOutsideEventTarget(target);
     }
-    const closeWhenReaderLosesFocus = () => close();
+    const closeWhenReaderLosesFocus = (event) => {
+      // Capture-phase window listeners also see blur dispatched to menu items.
+      if (event?.target !== doc.defaultView) return;
+      close();
+    };
     if (typeof doc.defaultView?.addEventListener === "function") {
       doc.defaultView.addEventListener("blur", closeWhenReaderLosesFocus, true);
       removeDocumentListeners.push(() => doc.defaultView?.removeEventListener?.("blur", closeWhenReaderLosesFocus, true));
@@ -1193,6 +1222,39 @@ var PdfImageSaver = (() => {
         event.stopPropagation?.();
         event.preventDefault?.();
       });
+      item.addEventListener("keydown", (event) => {
+        const currentIndex = menuButtons.indexOf(item);
+        if (event.key === "ArrowDown") {
+          event.preventDefault?.();
+          event.stopPropagation?.();
+          focusMenuItem(currentIndex + 1);
+          return;
+        }
+        if (event.key === "ArrowUp") {
+          event.preventDefault?.();
+          event.stopPropagation?.();
+          focusMenuItem(currentIndex - 1);
+          return;
+        }
+        if (event.key === "Home") {
+          event.preventDefault?.();
+          event.stopPropagation?.();
+          focusMenuItem(0);
+          return;
+        }
+        if (event.key === "End") {
+          event.preventDefault?.();
+          event.stopPropagation?.();
+          focusMenuItem(menuButtons.length - 1);
+          return;
+        }
+        if (event.key === "Escape") {
+          event.preventDefault?.();
+          event.stopPropagation?.();
+          close();
+          trigger.focus?.();
+        }
+      });
       item.addEventListener("click", (event) => {
         event.preventDefault?.();
         event.stopPropagation?.();
@@ -1228,12 +1290,29 @@ var PdfImageSaver = (() => {
       event.stopPropagation?.();
     });
     trigger.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") {
+      if (event.key === "Escape") {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        close();
         return;
       }
-      event.preventDefault?.();
-      event.stopPropagation?.();
-      close();
+      if (event.key === "ArrowDown") {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        openWithKeyboard("current");
+        return;
+      }
+      if (event.key === "Home") {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        openWithKeyboard("first");
+        return;
+      }
+      if (event.key === "ArrowUp" || event.key === "End") {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        openWithKeyboard("last");
+      }
     });
     element.append(trigger, menu);
     const control = {
@@ -1262,6 +1341,7 @@ var PdfImageSaver = (() => {
       },
       destroy() {
         close();
+        clearTimeout?.(keyboardFocusTimer);
         while (removeDocumentListeners.length) {
           removeDocumentListeners.pop()();
         }
@@ -2168,6 +2248,7 @@ var PdfImageSaver = (() => {
     .library-card.is-selected .selection-control { color:var(--accent-emphasis); font-weight:600; }
     .image-button { position:relative; display:block; width:100%; aspect-ratio:4/3; padding:0; border:0; border-bottom:1px solid var(--line); background:#fff; cursor:zoom-in; overflow:hidden; }
     .image-button img { width:100%; height:100%; display:block; object-fit:contain; }
+    .image-button.is-image-error::after { content:"原图加载失败，请刷新图库"; position:absolute; inset:auto 0 0; padding:7px 8px; background:var(--danger-bg); color:var(--danger); font-size:12px; line-height:1.25; text-align:center; }
     .card-body { padding:10px; }
     .card-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:8px; margin-bottom:6px; }
     .card-body h2 { margin:0; min-height:40px; font-size:14px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
@@ -2197,8 +2278,9 @@ var PdfImageSaver = (() => {
     td small { display:block; max-width:360px; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); }
     .table-preview { width:112px; }
     .table-facts { display:none; }
-    .table-image { display:block; padding:0; border:0; background:transparent; color:var(--link); cursor:zoom-in; }
+    .table-image { position:relative; display:block; padding:0; border:0; background:transparent; color:var(--link); cursor:zoom-in; }
     .table-image img { display:block; width:96px; height:72px; object-fit:contain; border:1px solid var(--line); background:#fff; }
+    .table-image.is-image-error::after { content:"加载失败"; position:absolute; right:0; bottom:0; padding:1px 4px; border:1px solid var(--danger); background:var(--danger-bg); color:var(--danger); font-size:10px; line-height:1.2; }
     .table-image-label { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
     .table-title-button { display:block; max-width:100%; padding:0; border:0; background:transparent; color:var(--link); font:inherit; font-weight:600; text-align:left; cursor:zoom-in; }
     .table-title-button:hover, .table-title-button:focus-visible { color:var(--link); text-decoration:underline; }
@@ -2220,6 +2302,7 @@ var PdfImageSaver = (() => {
     .viewer-stage { min-height:0; padding:0 14px; overflow:auto; overscroll-behavior:contain; }
     .viewer-canvas { display:flex; align-items:center; justify-content:center; min-width:100%; min-height:100%; }
     .viewer-stage img { display:block; flex:0 0 auto; max-width:none; max-height:none; object-fit:contain; background:#fff; }
+    .viewer-stage.is-image-error::after { content:"原图加载失败；请刷新图库或重新从 Zotero 打开。"; position:sticky; top:14px; display:block; width:fit-content; max-width:100%; margin:auto; padding:8px 11px; border:1px solid #F87171; border-radius:var(--radius-sm); background:#7F1D1D; color:#FFF; font-size:13px; line-height:1.35; }
     .viewer-status { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
     .viewer-zoom { display:inline-flex; align-items:center; min-height:var(--control-height); overflow:hidden; border:1px solid #94A3B8; border-radius:var(--radius-sm); background:#111827; }
     .viewer .viewer-zoom button { min-width:32px; min-height:30px; padding:5px 8px; border:0; border-left:1px solid #64748B; border-radius:0; background:transparent; font-weight:600; }
@@ -2398,6 +2481,14 @@ var PdfImageSaver = (() => {
       const viewerZoomActual = document.getElementById("viewer-zoom-actual");
       const viewerZoomFit = document.getElementById("viewer-zoom-fit");
       const viewerZoomValue = document.getElementById("viewer-zoom-value");
+      const syncImageFailure = (image, failed) => {
+        if (!image || image.tagName !== "IMG") return;
+        const host = image.closest?.(".image-button,.table-image");
+        host?.classList.toggle("is-image-error", failed);
+        if (image === viewerImage) viewerStage.classList.toggle("is-image-error", failed);
+      };
+      document.addEventListener("load", (event) => syncImageFailure(event.target, false), true);
+      document.addEventListener("error", (event) => syncImageFailure(event.target, true), true);
       let visibleCards = cards.slice();
       let viewerIndex = -1;
       let viewerReturnFocus = null;
@@ -2717,6 +2808,7 @@ var PdfImageSaver = (() => {
         viewerZoomMode = "fit";
         viewerZoomValue.value = "适应窗口";
         viewerZoomValue.textContent = "适应窗口";
+        viewerStage.classList.remove("is-image-error");
         viewerImage.src = record.imageURL;
         viewerImage.alt = record.title + "，第 " + record.pageNumber + " 页";
         viewerTitle.textContent = record.title;
@@ -2749,6 +2841,7 @@ var PdfImageSaver = (() => {
         const returnFocus = viewerReturnFocus;
         viewer.hidden = true;
         viewerImage.removeAttribute("src");
+        viewerStage.classList.remove("is-image-error");
         document.body.style.overflow = "";
         viewerReturnFocus = null;
         if (focusBatchActions && selected.size) {

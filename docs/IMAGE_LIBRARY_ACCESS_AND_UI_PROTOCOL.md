@@ -66,6 +66,7 @@ Windows 上的生成路径由 `Path.GetTempPath()` 或等价系统 API取得，�
 - 220 至 460 像素目标宽度调节和自动流式排布。
 - 原图完整显示，不裁切；卡片下方显示论文、类别、年份、页码、尺寸、大小、来源、时间、配色和标签。
 - 高清查看器：适应窗口、1:1、缩放、滚动、上一张、下一张、下载原图和定位原文。
+- 原图临时文件加载失败时，卡片、表格和高清查看器显示中文恢复提示；不生成备用图像。
 - 图库和表格同步多选、Shift 连选、全选当前结果、清空选择。
 - 批量分享 `.pislib`、导入 `.pislib`、批量软删除。
 - `刷新图库`：重新读取固定 SQLite 并重建当前生成页。
@@ -165,4 +166,3 @@ PPT 的 `打开论文图片库` 必须执行以下顺序：
 - `GLOBAL_LIBRARY_VIEW_VERSION` 只用于诊断和缓存识别；PPT 不得按版本复制页面实现或依赖内部 DOM。
 - Zotero 验证：`npm.cmd test`、`npm.cmd run check`、`npm.cmd run audit:index-buttons`。
 - PPT 验证：`node scripts/validate-zotero-image-library.mjs`、`node scripts/validate-external-plugin-compat.mjs`。
-

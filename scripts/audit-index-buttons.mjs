@@ -666,6 +666,19 @@ async function auditLibraryPage() {
   var viewerSelectionInputsSynced = document.querySelectorAll('[data-select-image="' + firstOpen.dataset.openImage + '"]:checked').length;
   var viewerSelectionSummary = document.getElementById("selection-summary")?.textContent || "";
   var viewerInitialZoom = viewerZoomValue?.textContent || "";
+  var originalViewerSource = viewerImage?.getAttribute("src") || "";
+  viewerImage.src = "data:image/png;base64,not-a-real-image";
+  await wait(function () { return viewerStage.classList.contains("is-image-error"); });
+  var viewerImageErrorFeedback = viewerStage.classList.contains("is-image-error");
+  viewerImage.src = originalViewerSource;
+  await wait(function () { return !viewerStage.classList.contains("is-image-error") && viewerImage.naturalWidth > 0; });
+  var originalCardImage = document.querySelector(".library-card:not([hidden]) .image-button img");
+  var originalCardSource = originalCardImage?.getAttribute("src") || "";
+  originalCardImage.src = "data:image/png;base64,not-a-real-image";
+  await wait(function () { return originalCardImage.closest(".image-button").classList.contains("is-image-error"); });
+  var cardImageErrorFeedback = originalCardImage.closest(".image-button").classList.contains("is-image-error");
+  originalCardImage.src = originalCardSource;
+  await wait(function () { return !originalCardImage.closest(".image-button").classList.contains("is-image-error") && originalCardImage.naturalWidth > 0; });
   document.getElementById("viewer-zoom-actual")?.click();
   var viewerActualZoom = viewerZoomValue?.textContent || "";
   var viewerActualWidth = Math.round(viewerImage.getBoundingClientRect().width);
@@ -764,6 +777,8 @@ async function auditLibraryPage() {
     cardCount: cards.length,
     buttonCount: buttons.length,
     unknownButtonCount: unknownButtons.length,
+    viewerImageErrorFeedback: viewerImageErrorFeedback,
+    cardImageErrorFeedback: cardImageErrorFeedback,
     lightBoundaries: lightBoundaries,
     expandedFilterHeaderHeight: expandedFilterHeaderHeight,
     collapsedFilterHeaderHeight: collapsedFilterHeaderHeight,
@@ -1223,6 +1238,8 @@ try {
   assert.equal(library.persistedTableView, "table", "table selection must persist for the next gallery session");
   assert.equal(library.persistedGalleryView, "gallery", "gallery selection must replace the persisted table mode");
   assert.equal(library.viewerOpened, true, "clicking a saved image must open the full-image viewer");
+  assert.equal(library.viewerImageErrorFeedback, true, "full-image viewer must show a Chinese failure state when an original cannot load");
+  assert.equal(library.cardImageErrorFeedback, true, "gallery card must show a Chinese failure state when an original cannot load");
   assert.equal(library.viewerShortcutDeclaration, "Escape ArrowLeft ArrowRight = - 0 1", "full-image viewer must declare every supported keyboard shortcut");
   assert.equal(library.viewerPrevShortcut, "ArrowLeft", "previous-image action must expose its direction-key shortcut");
   assert.equal(library.viewerNextShortcut, "ArrowRight", "next-image action must expose its direction-key shortcut");
@@ -1838,6 +1855,42 @@ try {
   assert.deepEqual(toolbarDynamicLabelFit.filter((entry) => !entry.fits), [], "every reader toolbar workflow-state label must fit its stable button width");
   const menuOpen = await evaluate(client, `(() => { const trigger=document.querySelector('.pdf-image-saver-toolbar-quality-choice .pdf-image-saver-toolbar-choice-trigger');trigger.click();const menu=document.querySelector('.pdf-image-saver-toolbar-quality-choice .pdf-image-saver-toolbar-choice-menu');return !menu.hidden; })()`);
   assert.equal(menuOpen, true, "reader quality menu must open with one click in a real browser DOM");
+  const menuKeyboard = await evaluate(client, `(async () => {
+    const controls=document.querySelectorAll('.pdf-image-saver-toolbar-quality-choice');const control=controls[0];const trigger=control.querySelector('.pdf-image-saver-toolbar-choice-trigger');const menu=control.querySelector('.pdf-image-saver-toolbar-choice-menu');const items=Array.from(control.querySelectorAll('.pdf-image-saver-toolbar-choice-item'));
+    trigger.focus();trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+    const closedAfterEscape=!menu.hidden;
+    trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));
+    await new Promise(function(resolve){setTimeout(resolve,0)});
+    const openedAfterArrow=!menu.hidden;
+    const selectedAfterOpen=document.activeElement;
+    trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Home',bubbles:true,cancelable:true}));
+    await new Promise(function(resolve){setTimeout(resolve,0)});
+    const firstFocused=document.activeElement===items[0];
+    items[0].dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));
+    const nextFocused=document.activeElement===items[1];
+    items[1].dispatchEvent(new KeyboardEvent('keydown',{key:'End',bubbles:true,cancelable:true}));
+    await new Promise(function(resolve){setTimeout(resolve,0)});
+    const endFocused=document.activeElement===items[items.length-1];
+    items[items.length-1].dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+    await new Promise(function(resolve){setTimeout(resolve,0)});
+    const itemEscapeClosed=menu.hidden;
+    const itemEscapeFocusReturned=document.activeElement===trigger;
+    trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));
+    await new Promise(function(resolve){setTimeout(resolve,0)});
+    items[0].click();
+    await new Promise(function(resolve){setTimeout(resolve,0)});
+    return {closedAfterEscape:closedAfterEscape,opened:openedAfterArrow,controlCount:controls.length,itemCount:items.length,selectedAfterOpen:items.indexOf(selectedAfterOpen),firstFocused:firstFocused,nextFocused:nextFocused,endFocused:endFocused,itemEscapeClosed:itemEscapeClosed,itemEscapeFocusReturned:itemEscapeFocusReturned,closedAfterCommit:menu.hidden,value:Zotero.Prefs.values['extensions.pdfImageSaver.defaultQuality']};
+  })()`);
+  assert.equal(menuKeyboard.closedAfterEscape, false, "reader quality menu Escape must close an open menu");
+  assert.equal(menuKeyboard.opened, true, "ArrowDown must open the reader quality menu");
+  assert.equal(menuKeyboard.selectedAfterOpen, 1, "ArrowDown must focus the current quality choice");
+  assert.equal(menuKeyboard.firstFocused, true, "Home must focus the first quality choice");
+  assert.equal(menuKeyboard.nextFocused, true, "ArrowDown inside the menu must move to the next quality choice");
+  assert.equal(menuKeyboard.endFocused, true, "End must focus the final quality choice");
+  assert.equal(menuKeyboard.itemEscapeClosed, true, "Escape inside the menu must close it");
+  assert.equal(menuKeyboard.itemEscapeFocusReturned, true, "Escape inside the menu must restore trigger focus");
+  assert.equal(menuKeyboard.closedAfterCommit, true, "committing a quality choice must close the menu");
+  assert.equal(menuKeyboard.value, "low", "keyboard-committed quality must persist");
   if (screenshotDirectory) {
     fs.mkdirSync(screenshotDirectory, { recursive: true });
     const menuScreenshot = await client.send("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
