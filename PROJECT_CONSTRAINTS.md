@@ -19,7 +19,8 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Category inference may prefill the confirmation dialog from captions or nearby references, but it must never become an automatic capture workflow.
 - Optional original image extraction must not be required for normal clipping.
 - Zotero 9.x compatibility is the runtime baseline; manifest `strict_max_version` stays `9.*`.
-- Public update checking reads only GitHub Latest Release, rejects draft/prerelease, and compares semantic versions. It must not Git pull, overwrite its own XPI, restart Zotero, or bypass the add-on manager; it hands off to a user-confirmed XPI install.
+- Online update checking is disabled. The manifest must not advertise `update_url`, the plugin must not poll release feeds, and upgrades happen only through a user-initiated stable XPI install in Zotero's add-on manager.
+- Do not add GitHub Actions workflows. Release validation and packaging are local responsibilities; publishing may only hand off locally built artifacts.
 
 ## Storage Contract
 
@@ -63,7 +64,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Any UI change must keep `npm.cmd run audit:index-buttons` green. It is the only gate that exercises real DOM behavior.
 - Browser-audit fixtures live in `tests/current-release.test.js` and their shape is asserted there. Never weaken a fixture to make the audit pass; if the audit contradicts the implementation and README, fix whichever one is actually wrong and say which in the batch notes.
 - Handoff XPI paths must be resolved through `scripts/current-xpi.ps1`. Never hardcode an `outputs\pdf-image-saver-<version>.xpi` filename; a static check enforces this.
-- Release changes must keep `package.json`, `manifest.json`, `updates.json`, the preferences version display, version assertions, stable asset naming, and `.github/workflows/release.yml` synchronized. Stable release assets use `pdf-image-saver-<manifest-version>.xpi`.
+- Release changes must keep `package.json`, `manifest.json`, version assertions, and stable asset naming synchronized. Stable release artifacts use `pdf-image-saver-<manifest-version>.xpi`. Never reintroduce `updates.json`, `update_url`, or `.github/workflows/`.
 - For install handoff changes, run `npm.cmd run build` and package only when explicitly requested.
 - Do not use bare `npm run` in Windows instructions; use `npm.cmd run`.
 

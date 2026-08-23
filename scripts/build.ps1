@@ -82,8 +82,15 @@ finally {
 }
 Move-Item -LiteralPath $zipPath -Destination $xpiPath -Force
 
-$hash = Get-FileHash -Algorithm SHA256 -LiteralPath $xpiPath
-$hash.Hash.ToLowerInvariant() | Set-Content -Encoding ASCII -LiteralPath "$xpiPath.sha256"
+$sha256 = [System.Security.Cryptography.SHA256]::Create()
+try {
+  $hashBytes = $sha256.ComputeHash([System.IO.File]::ReadAllBytes($xpiPath))
+  $hash = [System.BitConverter]::ToString($hashBytes).Replace("-", "").ToLowerInvariant()
+}
+finally {
+  $sha256.Dispose()
+}
+$hash | Set-Content -Encoding ASCII -LiteralPath "$xpiPath.sha256"
 
 Invoke-Native "powershell" @("-ExecutionPolicy", "Bypass", "-File", ".\scripts\check-xpi.ps1", "-XpiPath", $xpiPath)
 

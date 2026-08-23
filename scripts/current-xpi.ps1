@@ -43,7 +43,14 @@ function Get-CurrentXpiInfo {
       (Get-Content -Encoding ASCII -Raw -LiteralPath $shaPath).Trim().ToLowerInvariant()
     }
     elseif ($path) {
-      (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant()
+      $sha256 = [System.Security.Cryptography.SHA256]::Create()
+      try {
+        $hashBytes = $sha256.ComputeHash([System.IO.File]::ReadAllBytes($path))
+        [System.BitConverter]::ToString($hashBytes).Replace("-", "").ToLowerInvariant()
+      }
+      finally {
+        $sha256.Dispose()
+      }
     }
     else { "" }
     candidateCount = @($current).Count

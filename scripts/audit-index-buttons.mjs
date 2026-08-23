@@ -14,7 +14,6 @@ const libraryFixture = path.join(tempRoot, "library.html");
 const offlineLibraryFixture = path.join(tempRoot, "library-offline.html");
 const screenshotDirectory = getArgument("--screenshot-dir");
 const mainSource = fs.readFileSync(path.join(root, "content", "pdf-image-saver.js"), "utf8");
-const updateSource = fs.readFileSync(path.join(root, "content", "update-check.js"), "utf8");
 const preferencesSource = fs.readFileSync(path.join(root, "content", "preferences.js"), "utf8");
 
 function getArgument(name) {
@@ -1944,18 +1943,8 @@ try {
   assert.deepEqual(noReaderHelperProbe, { status: "python-available", warnings: ["未打开 PDF 阅读器。"] }, "Tools diagnostics must report available optional Python without requiring an open PDF");
   await client.send("Page.navigate", { url: "data:text/html;charset=utf-8," + encodeURIComponent(`<!doctype html><html><head><meta charset="utf-8"><title>PDF 图片保存</title><style>html,body{margin:0;min-height:100%;background:#EEF2F7;color:#0F172A;font:14px system-ui,sans-serif}body{padding:28px;box-sizing:border-box}#pdf-image-saver-preferences{display:block;max-width:900px;margin:auto;padding:20px;border:1px solid #CBD5E1;border-radius:8px;background:#FFF}h1{margin:0 0 6px;font-size:20px}.audit-note{margin:0 0 18px;color:#64748B}.pdf-image-saver-prefs-save-notice{display:inline-block;margin-left:8px;color:#16A34A}</style></head><body><main id="pdf-image-saver-preferences"><h1>PDF 图片保存</h1><p class="audit-note">框选保存是主流程；自动识别可选；高级原图提取收在下方。每次打开都会重新读取当前设置并修复异常值。<span id="pdf-image-saver-prefs-save-notice" class="pdf-image-saver-prefs-save-notice" role="status" aria-live="polite">设置修改后自动保存，无需另点确认。</span></p><section class="pdf-image-saver-prefs-section"><h2 class="pdf-image-saver-prefs-section-title">采集方式</h2><div class="pdf-image-saver-prefs-list"><div class="pdf-image-saver-prefs-row"><label for="pdf-image-saver-default-quality">默认预览质量</label><select id="pdf-image-saver-default-quality"><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select><p>未知旧值恢复为推荐的中清晰度。</p></div><div class="pdf-image-saver-prefs-row"><label for="pdf-image-saver-default-category">默认图片类别</label><select id="pdf-image-saver-default-category"><option value="auto">自动判断</option><option value="heatmap">热图／矩阵图</option><option value="table">科研表格</option></select><p>未知旧值恢复为自动判断。</p></div><div class="pdf-image-saver-prefs-row"><label for="pdf-image-saver-duplicate-guard">避免重复保存</label><span><input id="pdf-image-saver-duplicate-guard" type="checkbox"> 同时检查本次会话和已保存内容</span><p>旧版 false 字符串保持关闭，而不是被误判为开启。</p></div></div></section><details class="pdf-image-saver-prefs-section pdf-image-saver-prefs-advanced" id="pdf-image-saver-prefs-helper-section" open><summary class="pdf-image-saver-prefs-section-title"><span>高级原图提取（可选）</span><span class="pdf-image-saver-prefs-summary-note">常规采集无需配置</span></summary><div class="pdf-image-saver-prefs-advanced-body"><div class="pdf-image-saver-prefs-list"><div class="pdf-image-saver-prefs-row"><label for="pdf-image-saver-min-area">最小原图面积比例（占页面）</label><input id="pdf-image-saver-min-area" type="number" step="0.001" min="0.001" max="0.5"><p>留空恢复默认值 0.004。</p></div><div class="pdf-image-saver-prefs-row"><label for="pdf-image-saver-max-page-images">每页最多原图数</label><input id="pdf-image-saver-max-page-images" type="number" min="1" max="500"><p>超过上限时按 500 张保存。</p></div><div class="pdf-image-saver-prefs-row"><label for="pdf-image-saver-max-document-images">每篇最多原图数</label><input id="pdf-image-saver-max-document-images" type="number" min="1" max="2000"><p>非整数会显示并保存最接近的整数。</p></div><div class="pdf-image-saver-prefs-row"><label for="pdf-image-saver-helper-timeout">超时（秒）</label><input id="pdf-image-saver-helper-timeout" type="number" min="5" max="600"><p>低于下限时恢复为 5 秒。</p></div><div class="pdf-image-saver-prefs-row"><label for="pdf-image-saver-python-path">Python 路径（高级）</label><div class="pdf-image-saver-prefs-python-picker"><input id="pdf-image-saver-python-path" type="text" placeholder="留空：自动查找 Python"><button id="pdf-image-saver-python-browse" type="button" title="打开文件资源管理器，选择 python.exe">选择 python.exe…</button></div><p>常规功能无需填写。</p></div></div></div></details></main></body></html>`) });
   await waitFor(async () => evaluate(client, "document.readyState === 'complete'"));
-  await evaluate(client, `(() => {
-    document.querySelector('#pdf-image-saver-prefs-helper-section').insertAdjacentHTML('beforebegin', \`
-      <section class="pdf-image-saver-prefs-section" id="pdf-image-saver-update-section" aria-labelledby="pdf-image-saver-update-title" data-current-version="0.1.129">
-        <h3 id="pdf-image-saver-update-title" class="pdf-image-saver-prefs-section-title">插件更新</h3>
-        <p class="pdf-image-saver-prefs-note">检查只读取 GitHub Latest Release；Zotero 插件不会自动替换自身文件。</p>
-        <div class="pdf-image-saver-prefs-update-actions"><button id="pdf-image-saver-check-update" type="button">检查更新</button><button id="pdf-image-saver-open-release" type="button" hidden>打开发布页</button></div>
-        <p id="pdf-image-saver-update-status" class="pdf-image-saver-prefs-note" role="status" aria-live="polite">当前版本 v0.1.129；尚未检查更新。</p>
-      </section>\`);
-  })()`);
   await evaluate(client, `(() => { document.getElementById('pdf-image-saver-prefs-save-notice').className='pdf-image-saver-prefs-save-notice'; document.querySelector('.audit-note')?.replaceChildren(document.createTextNode('框选保存是唯一常规采集方式；高级原图提取收在下方。每次打开都会重新读取当前设置并修复异常值。'),document.getElementById('pdf-image-saver-prefs-save-notice')); })()`);
   await evaluate(client, `(() => { globalThis.Zotero={Prefs:{values:{'extensions.pdfImageSaver.defaultQuality':'ultra','extensions.pdfImageSaver.defaultImageCategory':'medical_scan','extensions.pdfImageSaver.duplicateGuard':'false','extensions.pdfImageSaver.minImageArea':'','extensions.pdfImageSaver.maxPageImages':999,'extensions.pdfImageSaver.maxDocumentImages':2.7,'extensions.pdfImageSaver.helperTimeoutSeconds':1,'extensions.pdfImageSaver.pythonPath':''},writes:[],reads:[],globalWrites:[],get:function(key,global){this.reads.push({key:key,global:global});return this.values[key]},set:function(key,value,global){this.values[key]=value;this.writes.push({key:key,value:value});this.globalWrites.push(global)}}}; })()`);
-  await evaluate(client, `(0,eval)(${JSON.stringify(updateSource)})`);
   await evaluate(client, `(0,eval)(${JSON.stringify(preferencesSource)})`);
   const readPreferenceControls = `{quality:document.getElementById('pdf-image-saver-default-quality').value,category:document.getElementById('pdf-image-saver-default-category').value,duplicate:document.getElementById('pdf-image-saver-duplicate-guard').checked,area:document.getElementById('pdf-image-saver-min-area').value,page:document.getElementById('pdf-image-saver-max-page-images').value,document:document.getElementById('pdf-image-saver-max-document-images').value,timeout:document.getElementById('pdf-image-saver-helper-timeout').value}`;
   const preferenceNormalization = await evaluate(client, `(() => {
@@ -2005,26 +1994,6 @@ try {
   assert.equal(preferenceClamp.notice, "已自动保存：每页最多原图数；输入的“4000”超出允许范围，已改为 500。", "clamping a typed preference must explain the change in native Chinese");
   assert.equal(preferenceClamp.acceptedValue, "90", "an in-range typed preference must be kept exactly");
   assert.equal(preferenceClamp.acceptedNotice, "已自动保存：高级原图提取超时。", "an unchanged in-range preference must not claim it was adjusted");
-  await evaluate(client, `(() => {
-    Zotero.HTTP={request:async(method,url,options)=>({status:200,response:{tag_name:'v0.1.130',name:'UI update',body:'第一行说明',html_url:'https://github.com/zlinkw/my_img_manager/releases/tag/v0.1.130'}})};
-    Zotero.launchURL=(url)=>{globalThis.__auditLaunchURL=url};
-    PdfImageSaverUpdateCheck.init({version:'0.1.129'});
-  })()`);
-  const updateUI = await evaluate(client, `(async () => {
-    document.getElementById('pdf-image-saver-check-update').click();
-    await new Promise(resolve=>setTimeout(resolve,0));
-    return {
-      status:document.getElementById('pdf-image-saver-update-status').textContent,
-      openVisible:!document.getElementById('pdf-image-saver-open-release').hidden,
-      buttonText:document.getElementById('pdf-image-saver-check-update').textContent,
-    };
-  })()`);
-  assert.ok(updateUI.status.includes("最新 v0.1.130") && updateUI.status.includes("当前 v0.1.129"), "update button must render semantic release comparison in Chinese");
-  assert.ok(updateUI.status.includes("请在 Zotero 插件管理器中安装"), "update result must explain the safe Zotero install handoff");
-  assert.equal(updateUI.openVisible, true, "a successful release check must expose the release-page action");
-  assert.equal(updateUI.buttonText, "检查更新", "a completed update check must restore its button label");
-  const openedRelease = await evaluate(client, `(() => { document.getElementById('pdf-image-saver-open-release').click();return globalThis.__auditLaunchURL; })()`);
-  assert.equal(openedRelease, "https://github.com/zlinkw/my_img_manager/releases/tag/v0.1.130", "release-page action must open the checked GitHub release");
   if (screenshotDirectory) {
     const reopenScreenshot = await client.send("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
     fs.writeFileSync(path.join(screenshotDirectory, "preferences-reopen-refresh.png"), Buffer.from(reopenScreenshot.data, "base64"));

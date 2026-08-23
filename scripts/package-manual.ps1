@@ -16,7 +16,14 @@ if (!$xpiPath -or !(Test-Path -LiteralPath $xpiPath)) {
   throw "XPI missing after build: $xpiPath"
 }
 
-$hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $xpiPath).Hash.ToLowerInvariant()
+$sha256 = [System.Security.Cryptography.SHA256]::Create()
+try {
+  $hashBytes = $sha256.ComputeHash([System.IO.File]::ReadAllBytes($xpiPath))
+  $hash = [System.BitConverter]::ToString($hashBytes).Replace("-", "").ToLowerInvariant()
+}
+finally {
+  $sha256.Dispose()
+}
 $size = (Get-Item -LiteralPath $xpiPath).Length
 $writtenHash = if (Test-Path -LiteralPath $shaPath) {
   (Get-Content -Encoding ASCII -Raw -LiteralPath $shaPath).Trim().ToLowerInvariant()

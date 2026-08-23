@@ -170,22 +170,6 @@ var PdfImageSaverPreferences = {
         font-size: 12px;
         line-height: 1.45;
       }
-      .pdf-image-saver-prefs-update-actions {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 8px;
-      }
-      .pdf-image-saver-prefs-update-actions button {
-        min-height: 32px;
-        min-width: 96px;
-        padding: 6px 12px;
-        border-radius: 6px;
-        cursor: pointer;
-      }
-      .pdf-image-saver-prefs-update-status.is-error {
-        color: #DC2626;
-      }
       .pdf-image-saver-prefs-check {
         display: inline-flex;
         align-items: center;
@@ -235,26 +219,6 @@ var PdfImageSaverPreferences = {
       browseButton.addEventListener("click", (event) => {
         event?.preventDefault?.();
         void this.choosePythonExecutable(doc);
-      });
-    }
-    const updateSection = doc.getElementById("pdf-image-saver-update-section");
-    if (updateSection && typeof PdfImageSaverUpdateCheck?.init === "function") {
-      PdfImageSaverUpdateCheck.init({ version: updateSection.dataset.currentVersion });
-    }
-    const checkButton = doc.getElementById("pdf-image-saver-check-update");
-    if (checkButton) {
-      checkButton.addEventListener("click", () => {
-        void this.checkForUpdate(doc);
-      });
-    }
-    const releaseButton = doc.getElementById("pdf-image-saver-open-release");
-    if (releaseButton) {
-      releaseButton.addEventListener("click", () => {
-        try {
-          PdfImageSaverUpdateCheck.openReleasePage();
-        } catch (error) {
-          this.renderUpdateState(doc, { status: "error", message: String(error.message || error), checkedAt: new Date().toISOString() }, true);
-        }
       });
     }
   },
@@ -315,51 +279,6 @@ var PdfImageSaverPreferences = {
     const shown = labels.slice(0, 3).join("、");
     const rest = labels.length > 3 ? `等 ${labels.length} 项` : "";
     return `已修复上次遗留的异常设置并保存：${shown}${rest}。当前显示的就是生效值。`;
-  },
-
-  async checkForUpdate(doc) {
-    if (typeof PdfImageSaverUpdateCheck?.check !== "function") {
-      this.renderUpdateState(doc, { status: "error", message: "更新模块未加载，请重启 Zotero 后重试。" }, true);
-      return;
-    }
-    const button = doc.getElementById("pdf-image-saver-check-update");
-    if (button) {
-      button.disabled = true;
-      button.textContent = "检查中…";
-    }
-    try {
-      await PdfImageSaverUpdateCheck.check({
-        onState: (state) => this.renderUpdateState(doc, state),
-      });
-    } finally {
-      if (button) {
-        button.disabled = false;
-        button.textContent = "检查更新";
-      }
-    }
-  },
-
-  renderUpdateState(doc, state, isError = false) {
-    const section = doc.getElementById("pdf-image-saver-update-section");
-    const status = doc.getElementById("pdf-image-saver-update-status");
-    const releaseButton = doc.getElementById("pdf-image-saver-open-release");
-    if (!status || !section) return false;
-    const fallbackVersion = String(section.dataset.currentVersion || "");
-    const currentVersion = typeof PdfImageSaverUpdateCheck?.getCurrentVersion === "function"
-      ? PdfImageSaverUpdateCheck.getCurrentVersion() || fallbackVersion
-      : fallbackVersion;
-    const normalizedState = state ? { ...state, currentVersion } : null;
-    const message = typeof PdfImageSaverUpdateCheck?.formatStatus === "function"
-      ? PdfImageSaverUpdateCheck.formatStatus(normalizedState)
-      : "尚未检查更新。";
-    status.textContent = message;
-    status.classList.toggle("is-error", Boolean(isError || state?.status === "error"));
-    if (releaseButton) {
-      const showRelease = ["up_to_date", "update_available", "no_release", "error"].includes(state?.status);
-      releaseButton.hidden = !showRelease;
-      releaseButton.setAttribute("aria-disabled", showRelease ? "false" : "true");
-    }
-    return true;
   },
 
   saveControl(doc, id) {
