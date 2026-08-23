@@ -2141,7 +2141,7 @@ var PdfImageSaver = (() => {
           ${record.doi ? `<div class="doi" title="${escapeHTML(record.doi)}">DOI ${escapeHTML(record.doi)}</div>` : ""}
           <div class="palette" aria-label="图片配色">${paletteHTML || '<span class="muted">未提取配色</span>'}</div>
           ${tagHTML ? `<div class="tags">${tagHTML}</div>` : ""}
-          <div class="card-actions"><button type="button" class="button primary" data-open-image="${escapeHTML(record.imageID)}">查看大图</button>${sourceActionHTML(record)}<a class="button secondary" href="${escapeHTML(record.imageURL)}" download="${escapeHTML(record.downloadName)}" title="下载为 ${escapeHTML(record.downloadName)}">下载原图</a></div>
+        <div class="card-actions"><button type="button" class="button primary" data-open-image="${escapeHTML(record.imageID)}">查看大图</button>${sourceActionHTML(record)}<a class="button secondary" data-download-image="${escapeHTML(record.imageID)}" href="${escapeHTML(record.imageURL)}" download="${escapeHTML(record.downloadName)}" title="下载为 ${escapeHTML(record.downloadName)}">下载原图</a></div>
         </div>
       </article>`;
     }).join("");
@@ -2481,14 +2481,58 @@ var PdfImageSaver = (() => {
       const viewerZoomActual = document.getElementById("viewer-zoom-actual");
       const viewerZoomFit = document.getElementById("viewer-zoom-fit");
       const viewerZoomValue = document.getElementById("viewer-zoom-value");
+      const syncDownloadFailure = (download, failed) => {
+        if (!download) return;
+        if (failed) {
+          if (!download.dataset.failureHref) {
+            download.dataset.failureHref = download.getAttribute("href") || "";
+            download.dataset.failureName = download.getAttribute("download") || "";
+          }
+          download.removeAttribute("href");
+          download.removeAttribute("download");
+          download.classList.add("is-disabled");
+          download.setAttribute("aria-disabled", "true");
+          download.title = "原图加载失败，请刷新图库";
+          return;
+        }
+        if (!download.dataset.failureHref) return;
+        if (download.dataset.failureHref) download.href = download.dataset.failureHref;
+        if (download.dataset.failureName) download.download = download.dataset.failureName;
+        delete download.dataset.failureHref;
+        delete download.dataset.failureName;
+        download.classList.remove("is-disabled");
+        download.removeAttribute("aria-disabled");
+      };
       const syncImageFailure = (image, failed) => {
         if (!image || image.tagName !== "IMG") return;
         const host = image.closest?.(".image-button,.table-image");
-        host?.classList.toggle("is-image-error", failed);
-        if (image === viewerImage) viewerStage.classList.toggle("is-image-error", failed);
+        if (host) {
+          if (failed && !host.dataset.originalAria) {
+            host.dataset.originalAria = host.getAttribute("aria-label") || "";
+          }
+          if (host.dataset.originalAria !== undefined) {
+            const originalAria = host.dataset.originalAria;
+            host.setAttribute("aria-label", failed
+              ? (originalAria ? originalAria + "；" : "") + "原图加载失败，请刷新图库"
+              : originalAria);
+            if (!originalAria && !failed) host.removeAttribute("aria-label");
+          }
+          host.classList.toggle("is-image-error", failed);
+          syncDownloadFailure(host.closest(".library-card")?.querySelector(".card-actions a[data-download-image]"), failed);
+        }
+        if (image === viewerImage) {
+          viewerStage.classList.toggle("is-image-error", failed);
+          syncDownloadFailure(viewerDownload, failed);
+        }
       };
       document.addEventListener("load", (event) => syncImageFailure(event.target, false), true);
       document.addEventListener("error", (event) => syncImageFailure(event.target, true), true);
+      const syncInitialImageFailures = () => {
+        for (const image of document.querySelectorAll(".image-button img,.table-image img")) {
+          if (image.complete && !image.naturalWidth) syncImageFailure(image, true);
+        }
+      };
+      syncInitialImageFailures();
       let visibleCards = cards.slice();
       let viewerIndex = -1;
       let viewerReturnFocus = null;

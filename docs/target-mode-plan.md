@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- 版本 `0.1.131`；插件 ID `pdf-image-saver@zlk.local`；`strict_max_version: 9.*`。
+- 版本 `0.1.132`；插件 ID `pdf-image-saver@zlk.local`；`strict_max_version: 9.*`。
 - 交付包由 `scripts/build.ps1` 生成并校验；开发用带时间戳 recovery 包，公开发布用 `pdf-image-saver-<version>.xpi`。
 - 冻结合同：SQLite schema 2；locator schema 1；producer `zotero-pdf-image-saver`；`GLOBAL_LIBRARY_VIEW_VERSION = "37"`；bridge `POST http://127.0.0.1:23119/pdf-image-saver/bridge`。
 - PPT 仅可调用 `refreshLibrary` 与冻结的来源定位命令；不得发送 `deleteImages`、`exportImages`、`importImages`。
@@ -13,7 +13,7 @@
 
 ## 已关闭事项
 
-- 历史交付链、UI 审计夹具、错误翻译、设置页修复提示、页码措辞、分享白名单和离线发布边界均已关闭，以当前测试、审计和协议文档为准。
+- 历史交付链、UI 审计夹具、错误翻译、设置页修复提示、页码措辞、分享白名单和离线发布边界均已关闭。`0.1.131` 已补齐阅读器菜单键盘操作和图库加载失败提示。
 - 在线更新入口、GitHub Actions 发布工作流、`updates.json` 和更新检查模块保持移除。
 
 ## 当前目标
@@ -22,5 +22,5 @@
 
 ## 已完成批次（2026-08-24）
 
-- 批次 `ui-feedback-keyboard-0.1.131`：补齐阅读器工具栏下拉的方向键、Home、End 和 Esc 操作；为卡片、表格和高清查看器的原图加载失败提供中文恢复提示。范围仅限阅读器控件、完整图库查看器、测试审计与发版号；SQLite schema 与 bridge 合同保持 `37` 版视图不变。
+- 批次 `failure-feedback-prefs-0.1.132`：设置页 Python 选择器不可用时给出中文手动路径指引；统一高级设置默认值；图库在监听器建立前已失败的原图也会进入失败态，失败期间禁用下载原图并在成功后恢复。范围仅限偏好页、完整图库反馈、测试审计与发版号。
 - 验收：`npm.cmd test`、`git diff --check`、`npm.cmd run check`、`npm.cmd run build`；通过后提交并推送 `origin/master`，再按用户既有约定在 Zotero 关闭时安装当前 XPI。

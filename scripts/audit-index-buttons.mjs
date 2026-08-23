@@ -670,15 +670,18 @@ async function auditLibraryPage() {
   viewerImage.src = "data:image/png;base64,not-a-real-image";
   await wait(function () { return viewerStage.classList.contains("is-image-error"); });
   var viewerImageErrorFeedback = viewerStage.classList.contains("is-image-error");
+  var viewerDownloadFailureState = viewerDownload.classList.contains("is-disabled") && viewerDownload.getAttribute("aria-disabled") === "true" && !viewerDownload.hasAttribute("href");
   viewerImage.src = originalViewerSource;
-  await wait(function () { return !viewerStage.classList.contains("is-image-error") && viewerImage.naturalWidth > 0; });
+  await wait(function () { return !viewerStage.classList.contains("is-image-error") && viewerImage.naturalWidth > 0 && !viewerDownload.classList.contains("is-disabled") && !!viewerDownload.getAttribute("href"); });
   var originalCardImage = document.querySelector(".library-card:not([hidden]) .image-button img");
+  var cardDownload = originalCardImage.closest(".library-card").querySelector(".card-actions a[download]");
   var originalCardSource = originalCardImage?.getAttribute("src") || "";
   originalCardImage.src = "data:image/png;base64,not-a-real-image";
   await wait(function () { return originalCardImage.closest(".image-button").classList.contains("is-image-error"); });
   var cardImageErrorFeedback = originalCardImage.closest(".image-button").classList.contains("is-image-error");
+  var cardDownloadFailureState = !!cardDownload && cardDownload.classList.contains("is-disabled") && cardDownload.getAttribute("aria-disabled") === "true" && !cardDownload.hasAttribute("href");
   originalCardImage.src = originalCardSource;
-  await wait(function () { return !originalCardImage.closest(".image-button").classList.contains("is-image-error") && originalCardImage.naturalWidth > 0; });
+  await wait(function () { return !originalCardImage.closest(".image-button").classList.contains("is-image-error") && originalCardImage.naturalWidth > 0 && (!cardDownload || (!cardDownload.classList.contains("is-disabled") && !!cardDownload.getAttribute("href"))); });
   document.getElementById("viewer-zoom-actual")?.click();
   var viewerActualZoom = viewerZoomValue?.textContent || "";
   var viewerActualWidth = Math.round(viewerImage.getBoundingClientRect().width);
@@ -779,6 +782,8 @@ async function auditLibraryPage() {
     unknownButtonCount: unknownButtons.length,
     viewerImageErrorFeedback: viewerImageErrorFeedback,
     cardImageErrorFeedback: cardImageErrorFeedback,
+    viewerDownloadFailureState: viewerDownloadFailureState,
+    cardDownloadFailureState: cardDownloadFailureState,
     lightBoundaries: lightBoundaries,
     expandedFilterHeaderHeight: expandedFilterHeaderHeight,
     collapsedFilterHeaderHeight: collapsedFilterHeaderHeight,
@@ -1240,6 +1245,8 @@ try {
   assert.equal(library.viewerOpened, true, "clicking a saved image must open the full-image viewer");
   assert.equal(library.viewerImageErrorFeedback, true, "full-image viewer must show a Chinese failure state when an original cannot load");
   assert.equal(library.cardImageErrorFeedback, true, "gallery card must show a Chinese failure state when an original cannot load");
+  assert.equal(library.viewerDownloadFailureState, true, "failed full-image originals must disable download until the image loads");
+  assert.equal(library.cardDownloadFailureState, true, "failed gallery originals must disable download until the image loads");
   assert.equal(library.viewerShortcutDeclaration, "Escape ArrowLeft ArrowRight = - 0 1", "full-image viewer must declare every supported keyboard shortcut");
   assert.equal(library.viewerPrevShortcut, "ArrowLeft", "previous-image action must expose its direction-key shortcut");
   assert.equal(library.viewerNextShortcut, "ArrowRight", "next-image action must expose its direction-key shortcut");
@@ -2047,6 +2054,18 @@ try {
   assert.equal(preferenceClamp.notice, "已自动保存：每页最多原图数；输入的“4000”超出允许范围，已改为 500。", "clamping a typed preference must explain the change in native Chinese");
   assert.equal(preferenceClamp.acceptedValue, "90", "an in-range typed preference must be kept exactly");
   assert.equal(preferenceClamp.acceptedNotice, "已自动保存：高级原图提取超时。", "an unchanged in-range preference must not claim it was adjusted");
+  const pickerFeedback = await evaluate(client, `(async () => {
+    const originalFactory=PdfImageSaverPreferences.createNativeFilePicker;
+    PdfImageSaverPreferences.createNativeFilePicker=function(){return null};
+    await PdfImageSaverPreferences.choosePythonExecutable();
+    const result={notice:document.getElementById('pdf-image-saver-prefs-save-notice').textContent,error:document.getElementById('pdf-image-saver-prefs-save-notice').classList.contains('is-error')};
+    PdfImageSaverPreferences.createNativeFilePicker=originalFactory;
+    return result;
+  })()`);
+  assert.deepEqual(pickerFeedback, {
+    notice: "无法打开系统文件选择器；请手动粘贴 Python 解释器路径。",
+    error: true,
+  }, "an unavailable Python file chooser must explain the manual-path fallback");
   if (screenshotDirectory) {
     const reopenScreenshot = await client.send("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
     fs.writeFileSync(path.join(screenshotDirectory, "preferences-reopen-refresh.png"), Buffer.from(reopenScreenshot.data, "base64"));

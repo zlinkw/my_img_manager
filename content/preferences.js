@@ -371,6 +371,7 @@ var PdfImageSaverPreferences = {
     const control = doc?.getElementById?.("pdf-image-saver-python-path");
     const pickerInfo = this.createNativeFilePicker(doc);
     if (!control || !pickerInfo) {
+      this.updateSaveNotice(doc, "无法打开系统文件选择器；请手动粘贴 Python 解释器路径。", true);
       return false;
     }
     const { picker, interfaces } = pickerInfo;
@@ -391,6 +392,7 @@ var PdfImageSaverPreferences = {
       const selectedFile = picker.file;
       const path = String(typeof selectedFile === "string" ? selectedFile : selectedFile?.path || "").trim();
       if (!path) {
+        this.updateSaveNotice(doc, "未取得所选 Python 解释器路径；请重新选择或手动粘贴路径。", true);
         return false;
       }
       control.value = path;
@@ -398,6 +400,7 @@ var PdfImageSaverPreferences = {
       control.focus?.();
       return true;
     } catch (_error) {
+      this.updateSaveNotice(doc, "系统文件选择器不可用；请手动粘贴 Python 解释器路径。", true);
       return false;
     }
   },
@@ -489,11 +492,11 @@ var PdfImageSaverPreferences = {
   },
 
   getHelperPageMax(doc) {
-    return this.getClampedNumber(doc, "pdf-image-saver-max-page-images", this.getPref("maxPageImages", 40), 1, 500);
+    return this.getClampedNumber(doc, "pdf-image-saver-max-page-images", this.getPref("maxPageImages", 80), 1, 500);
   },
 
   getHelperDocMax(doc) {
-    return this.getClampedNumber(doc, "pdf-image-saver-max-document-images", this.getPref("maxDocumentImages", 200), 1, 2000);
+    return this.getClampedNumber(doc, "pdf-image-saver-max-document-images", this.getPref("maxDocumentImages", 250), 1, 2000);
   },
 
   getHelperTimeout(doc) {
