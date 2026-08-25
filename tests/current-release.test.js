@@ -30,7 +30,7 @@ const context = {
 vm.createContext(context);
 context.globalThis = context;
 vm.runInContext(source, context, { filename: "pdf-image-saver.js" });
-context.PdfImageSaver.init({ id: "pdf-image-saver@zlk.local", version: "0.1.132-test", rootURI: "resource://pdf-image-saver/" });
+context.PdfImageSaver.init({ id: "pdf-image-saver@zlk.local", version: "0.1.134-test", rootURI: "resource://pdf-image-saver/" });
 
 const api = context.PdfImageSaver.__test__;
 assert.ok(api, "release exports test helpers");
@@ -521,6 +521,8 @@ assert.ok(source.includes("paper-image-library-view"), "gallery path contract re
 assert.ok(source.includes("openWithKeyboard"), "reader choice menus must support keyboard opening");
 assert.ok(source.includes("原图加载失败，请刷新图库"), "gallery originals must explain load failure in Chinese");
 assert.ok(source.includes("syncInitialImageFailures"), "gallery originals must detect failures that completed before listeners attached");
+assert.ok(source.includes(".batch-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }"), "mobile batch actions must use bounded equal columns instead of clipping labels");
+assert.ok(fs.existsSync(path.join(root, "scripts", "register-profile-xpi.mjs")), "profile XPI registration helper must exist");
 const preferencesSource = fs.readFileSync(path.join(root, "content", "preferences.js"), "utf8");
 assert.ok(preferencesSource.includes("无法打开系统文件选择器"), "preference file-picker failure must provide visible guidance");
 assert.ok(!source.includes("PdfImageSaverUpdateCheck"), "online update runtime is removed");
@@ -529,8 +531,8 @@ assert.ok(!source.includes("UPDATE_REPOSITORY"), "online update repository contr
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8"));
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
-assert.equal(manifest.applications.zotero.strict_max_version, "9.*", "release supports Zotero 9.x");
-assert.equal(manifest.version, "0.1.132", "release candidate increments the installed release");
+assert.equal(manifest.applications.zotero.strict_max_version, "9.0.*", "release supports the Zotero 9.0 profile-install range");
+assert.equal(manifest.version, "0.1.134", "release candidate increments the installed release");
 assert.equal(manifest.applications.zotero.update_url, undefined, "native online updates are disabled");
 assert.ok(!fs.existsSync(path.join(root, ".github", "workflows")), "GitHub Actions release workflow is removed");
 assert.ok(!fs.existsSync(path.join(root, "updates.json")), "native update manifest is removed");

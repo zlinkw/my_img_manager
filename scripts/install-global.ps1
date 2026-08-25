@@ -7,6 +7,8 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 . (Join-Path $PSScriptRoot "current-xpi.ps1")
 $addonId = "pdf-image-saver@zlk.local"
+$manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root "manifest.json") | ConvertFrom-Json
+$addonVersion = [string]$manifest.version
 $profileRoot = Join-Path $env:APPDATA "Zotero\Zotero\Profiles"
 $zoteroRunning = [bool](Get-Process -Name Zotero -ErrorAction SilentlyContinue)
 
@@ -72,6 +74,15 @@ function Install-ProfileXPI {
     Remove-Item -LiteralPath $proxyPath -Force
   }
   Copy-Item -LiteralPath $xpiPath -Destination $profileXPIPath -Force
+  & node (Join-Path $PSScriptRoot "register-profile-xpi.mjs") @(
+    $ProfilePath,
+    $profileXPIPath,
+    $addonId,
+    $addonVersion
+  )
+  if ($LASTEXITCODE -ne 0) {
+    throw "Profile XPI registration failed with exit code $LASTEXITCODE for $($profile.Name)"
+  }
   Write-Host "installed xpi $profileXPIPath <- $xpiPath"
   return $true
 }

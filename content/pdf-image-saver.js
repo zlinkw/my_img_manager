@@ -2229,7 +2229,7 @@ var PdfImageSaver = (() => {
     .batch-row[data-has-selection="false"] #share-selected,
     .batch-row[data-has-selection="false"] #delete-selected,
     .batch-row[data-has-selection="false"] #selection-summary { display:none; }
-    .action, .reset { min-height:var(--control-height); padding:6px 10px; border:1px solid var(--control-line); border-radius:var(--radius-sm); background:var(--surface); cursor:pointer; line-height:1.25; }
+    .action, .reset { box-sizing:border-box; min-height:var(--control-height); padding:6px 10px; border:1px solid var(--control-line); border-radius:var(--radius-sm); background:var(--surface); cursor:pointer; line-height:1.25; }
     #select-visible { min-width:136px; }
     #share-selected, #delete-selected { min-width:88px; }
     .action.primary { border-color:var(--accent); background:var(--accent); color:#fff; }
@@ -2331,8 +2331,8 @@ var PdfImageSaver = (() => {
       .filter-collapse { display:none; }
       .size-control { grid-template-columns:auto minmax(80px,1fr) 52px auto; width:100%; }
       .size-control input { width:100%; }
-      .batch-row { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
-      .batch-row .action { width:100%; }
+      .batch-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+      .batch-row .action { width:100%; min-width:0; white-space:normal; }
       .batch-row .spacer { display:none; }
       .batch-row .message, #selection-summary { grid-column:1/-1; width:100%; }
       body.has-mobile-selection-bar main { padding-bottom:104px; }

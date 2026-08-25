@@ -18,7 +18,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Manual current-page clipping is the only regular capture workflow; whole-page preview and original extraction remain explicit secondary actions.
 - Category inference may prefill the confirmation dialog from captions or nearby references, but it must never become an automatic capture workflow.
 - Optional original image extraction must not be required for normal clipping.
-- Zotero 9.x compatibility is the runtime baseline; manifest `strict_max_version` stays `9.*`.
+- Zotero 9.0.x compatibility is the runtime baseline; manifest `strict_max_version` stays `9.0.*` because Zotero removes profile XPIs using `9.*`.
 - Online update checking is disabled. The manifest must not advertise `update_url`, the plugin must not poll release feeds, and upgrades happen only through a user-initiated stable XPI install in Zotero's add-on manager.
 - Do not add GitHub Actions workflows. Release validation and packaging are local responsibilities; publishing may only hand off locally built artifacts.
 
