@@ -853,11 +853,13 @@ const malformedQualityPreview = renderCanvasPreview({
   qualityKey: "constructor",
   selectionRect: { left: 0, top: 0, width: 1200, height: 900 },
 });
-assert.strictEqual(malformedQualityPreview.quality, "medium", "renderer must normalize malformed quality keys");
-assert.strictEqual(malformedQualityPreview.qualityEstimate, "约 120–450 KB/张", "renderer malformed quality must use the Chinese medium estimate");
-assert.strictEqual(malformedQualityCanvas.outputCanvases[0].width, 480, "renderer malformed quality must use medium max width");
-assert.strictEqual(malformedQualityCanvas.outputCanvases[0].encodedQuality, 0.78, "renderer malformed quality must use medium JPEG quality");
-assert.strictEqual(malformedQualityCanvas.outputCanvases[0].context.imageSmoothingQuality, "medium", "renderer malformed quality must use medium smoothing");
+// The tier is pinned now, so an unusable key falls back to the one tier that is ever captured
+// rather than to a lower-DPI tier the reader can no longer choose.
+assert.strictEqual(malformedQualityPreview.quality, "high", "renderer must normalize malformed quality keys to the pinned tier");
+assert.strictEqual(malformedQualityPreview.qualityEstimate, "约 0.5–4 MB/张", "renderer malformed quality must use the pinned tier estimate");
+assert.strictEqual(malformedQualityCanvas.outputCanvases[0].width, 1200, "renderer malformed quality must use the pinned tier max width");
+assert.strictEqual(malformedQualityCanvas.outputCanvases[0].encodedType, "image/png", "renderer malformed quality must use the pinned tier lossless encoding");
+assert.strictEqual(malformedQualityCanvas.outputCanvases[0].context.imageSmoothingQuality, "high", "renderer malformed quality must use the pinned tier smoothing");
 
 function stubItem(fields, extra = {}) {
   return {
@@ -993,49 +995,52 @@ assert.ok(metadata.entries[0].style_tags_json, "metadata must include style_tags
 assert.ok(metadata.entries[0].palette_json, "metadata must include palette_json for PPT consumers");
 assert.ok(html.includes("<details>"), "full JSON metadata must be in a details block");
 assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
-assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
-assert.ok(html.includes("M Medium; 120-450 KB"), "preview index header must densify quality mark/label/estimate");
-assert.ok(html.includes("HTML; sync; clip."), "preview index header must densify scope label");
-assert.ok(html.includes("img index clip M"), "preview HTML document title must densify scope and quality mark");
+// The page is Chinese-only, so the compact identity is introduced by 索引 rather than an English
+// "Index" label; asserting the translated label keeps this guard honest after localisation.
+assert.ok(html.includes(`索引 ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
+assert.ok(html.includes("中清晰度"), "preview index header must carry the Chinese quality mark");
+assert.ok(html.includes("中（约 120–450 KB/张）"), "preview index header must carry the matching Chinese estimate");
+assert.ok(html.includes("框选"), "preview index header must densify scope label");
+assert.ok(/<title>[^<]*图片索引[^<]*框选[^<]*中清晰度[^<]*<\/title>/.test(html), "preview HTML document title must densify scope and quality mark");
 assert.ok(html.includes('id="top"'), "preview index sticky header must expose top anchor");
-assert.ok(html.includes(">Open first p5</a>"), "preview index header must expose open-first action");
-assert.ok(html.includes('title="Open first p5"'), "preview open-first action must include page");
-assert.ok(!html.includes('Open last p'), "single preview index must not show open-last action");
+assert.ok(html.includes(">定位第一张图片</a>"), "preview index header must expose open-first action");
+assert.ok(html.includes('title="定位第一张图片的原文第 5 页"'), "preview open-first action must include page");
+assert.ok(!html.includes('>定位最后一张图片</a>'), "single preview index must not render an open-last action");
 assert.ok(!html.includes('class="meta jumps"'), "single preview index must not show jump list");
 assert.ok(!html.includes('href="#top"'), "single preview index must not show top footer");
-assert.ok(!html.includes('>Top</a>'), "single preview index must not show Top label");
+assert.ok(!html.includes('>返回顶部</a>'), "single preview index must not show the back-to-top label");
 assert.ok(html.includes('id="e1"'), "preview entries must expose entry anchors");
-assert.strictEqual(formatPreviewScopeLabel("auto-page"), "auto", "auto-page scope must densify");
-assert.strictEqual(formatPreviewScopeLabel("document"), "doc", "document scope must densify");
-assert.strictEqual(formatPreviewScopeLabel("clip"), "clip", "clip scope must stay stable");
+assert.strictEqual(formatPreviewScopeLabel("auto-page"), "历史候选采集", "auto-page scope must read as a Chinese label");
+assert.strictEqual(formatPreviewScopeLabel("document"), "全文", "document scope must read as a Chinese label");
+assert.strictEqual(formatPreviewScopeLabel("clip"), "框选", "clip scope must stay stable");
 
-assert.ok(html.includes("<dt>Det</dt>"), "preview index must expose detector in summary");
-assert.ok(html.includes(">manual</dd>"), "preview index detector must densify detector label");
-assert.ok(html.includes("<dt>Cat</dt>"), "preview index must expose category summary");
-assert.ok(html.includes("<dt>Tags</dt>"), "preview index must expose style tags");
-assert.ok(html.includes("<dt>Pal</dt>"), "preview index must expose palette");
-assert.ok(html.includes("<dt>Hue</dt>"), "preview index must expose color family");
+assert.ok(html.includes("<dt>采集方式</dt>"), "preview index must expose detector in summary");
+assert.ok(html.includes(">手动框选</dd>"), "preview index detector must densify detector label");
+assert.ok(html.includes("<dt>类别</dt>"), "preview index must expose category summary");
+assert.ok(html.includes("<dt>标签</dt>"), "preview index must expose style tags");
+assert.ok(html.includes("<dt>配色</dt>"), "preview index must expose palette");
+assert.ok(html.includes("<dt>色调</dt>"), "preview index must expose color family");
 assert.ok(html.includes("palette-chip") || html.includes("palette-chips") || true, "palette chips optional when empty");
-assert.ok(html.includes("Copy PPT"), "preview index must expose PPT token copy action");
-assert.ok(html.includes("Copy pal"), "preview index must expose palette copy action");
-assert.ok(html.includes("Copy pair"), "preview index must expose contrast pair copy action");
-assert.ok(html.includes("Copy role"), "preview index must expose role pack copy action");
-assert.ok(html.includes("Copy insert"), "preview index must expose insert pack copy action");
-assert.ok(html.includes("Copy cap"), "preview index must expose caption pack copy action");
-assert.ok(html.includes("Copy story"), "preview index must expose story pack copy action");
+assert.ok(html.includes("复制 PPT 信息"), "preview index must expose PPT token copy action");
+assert.ok(html.includes("复制颜色<"), "preview index must expose palette copy action");
+assert.ok(html.includes("复制颜色对"), "preview index must expose contrast pair copy action");
+assert.ok(html.includes("复制角色信息"), "preview index must expose role pack copy action");
+assert.ok(html.includes("复制位置建议"), "preview index must expose insert pack copy action");
+assert.ok(html.includes("复制图注建议"), "preview index must expose caption pack copy action");
+assert.ok(html.includes("复制叙事建议"), "preview index must expose story pack copy action");
 assert.ok(html.includes('class="preview-link"'), "preview index must expose preview link");
 assert.ok(html.includes('class="zoom-hint" aria-hidden="true"'), "preview index must expose zoom hint span for hover-to-zoom affordance");
-assert.ok(html.includes("hover to zoom"), "preview link title must advertise hover-to-zoom");
+assert.ok(html.includes("悬停可放大图片"), "preview link title must advertise hover-to-zoom");
 assert.ok(html.includes(".preview-link:hover img"), "preview index CSS must enable hover-to-zoom on preview images");
 assert.ok(html.includes(".preview-link:focus-within img"), "preview index CSS must keep zoom on keyboard focus for accessibility");
-assert.ok(html.includes("Cat "), "preview index header must densify category summary");
-assert.ok(html.includes("Lay "), "preview index header must densify layout summary");
-assert.ok(html.includes("Slot "), "preview index header must densify slide slot summary");
-assert.ok(html.includes("Role "), "preview index header must densify role summary");
-assert.ok(html.includes("Ins "), "preview index header must densify insert summary");
-assert.ok(html.includes("Cap "), "preview index header must densify caption summary");
-assert.ok(html.includes("Story "), "preview index header must densify story summary");
-assert.ok(html.includes("PPT:"), "preview index header must expose PPT assist summary");
+assert.ok(html.includes("类别："), "preview index header must densify category summary");
+assert.ok(html.includes("布局："), "preview index header must densify layout summary");
+assert.ok(html.includes("位置："), "preview index header must densify slide slot summary");
+assert.ok(html.includes("用途："), "preview index header must densify role summary");
+assert.ok(html.includes("插入尺寸："), "preview index header must densify insert summary");
+assert.ok(html.includes("图注语气："), "preview index header must densify caption summary");
+assert.ok(html.includes("叙事阶段："), "preview index header must densify story summary");
+assert.ok(html.includes("PPT 使用信息："), "preview index header must expose PPT assist summary");
 assert.ok(html.includes("data-category="), "entries must expose category filter attributes");
 assert.ok(html.includes("data-layout="), "entries must expose layout filter attributes");
 assert.ok(html.includes("data-slot="), "entries must expose slide slot filter attributes");
@@ -1044,17 +1049,17 @@ assert.ok(html.includes("data-insert="), "entries must expose insert filter attr
 assert.ok(html.includes("data-caption="), "entries must expose caption filter attributes");
 assert.ok(html.includes("data-hue="), "entries must expose hue filter attributes");
 assert.ok(html.includes("data-beat="), "entries must expose story beat filter attributes");
-assert.ok(html.includes("<dt>Lay</dt>"), "preview index must expose layout summary field");
-assert.ok(html.includes("<dt>Slot</dt>"), "preview index must expose slide slot field");
-assert.ok(html.includes("<dt>Role</dt>"), "preview index must expose role field");
-assert.ok(html.includes("<dt>Ins</dt>"), "preview index must expose insert field");
-assert.ok(html.includes("<dt>Cap</dt>"), "preview index must expose caption field");
-assert.ok(html.includes("<dt>Story</dt>"), "preview index must expose story field");
-assert.ok(html.includes("<dt>Pair</dt>"), "preview index must expose contrast pair field");
-assert.ok(html.includes("<dt>Pack</dt>"), "preview index must expose role pack field");
-assert.ok(html.includes("<dt>Insert</dt>"), "preview index must expose insert pack field");
-assert.ok(html.includes("<dt>Caption</dt>"), "preview index must expose caption pack field");
-assert.ok(html.includes("<dt>StoryPack</dt>"), "preview index must expose story pack field");
+assert.ok(html.includes("<dt>布局</dt>"), "preview index must expose layout summary field");
+assert.ok(html.includes("<dt>位置</dt>"), "preview index must expose slide slot field");
+assert.ok(html.includes("<dt>用途</dt>"), "preview index must expose role field");
+assert.ok(html.includes("<dt>插入</dt>"), "preview index must expose insert field");
+assert.ok(html.includes("<dt>图注</dt>"), "preview index must expose caption field");
+assert.ok(html.includes("<dt>叙事</dt>"), "preview index must expose story field");
+assert.ok(html.includes("<dt>颜色对</dt>"), "preview index must expose contrast pair field");
+assert.ok(html.includes("<dt>用途数据</dt>"), "preview index must expose role pack field");
+assert.ok(html.includes("<dt>插入数据</dt>"), "preview index must expose insert pack field");
+assert.ok(html.includes("<dt>图注数据</dt>"), "preview index must expose caption pack field");
+assert.ok(html.includes("<dt>叙事数据</dt>"), "preview index must expose story pack field");
 assert.strictEqual(normalizeColorFamily("Blue"), "blue", "color family normalize");
 assert.strictEqual(deriveLayoutHint(2.0, "chart"), "wide", "wide aspect maps to wide layout");
 assert.strictEqual(deriveSlideSlot("wide", "chart", 2.0), "hero", "wide chart maps to hero slot");
@@ -1062,13 +1067,13 @@ assert.strictEqual(deriveRoleHint("chart", "hero", "wide"), "result", "chart her
 assert.strictEqual(deriveInsertHint("hero", "wide", 1.8, "result").size, "large", "hero result maps to large insert");
 assert.strictEqual(deriveCaptionHint({ imageCategory: "chart", roleHint: "result", slideSlot: "hero", layoutHint: "wide", pageNumber: 3, colorFamily: "blue" }).tone, "result", "chart result maps to result caption");
 assert.strictEqual(deriveStoryBeat({ roleHint: "method", captionHint: { tone: "method" }, order: 2, total: 4 }), "method", "method role maps to method beat");
-assert.strictEqual(getLayoutHintMark("tall"), "T", "layout mark densify");
-assert.strictEqual(getSlideSlotMark("side"), "Sd", "slot mark densify");
-assert.strictEqual(getRoleHintMark("method"), "Md", "role mark densify");
-assert.strictEqual(getInsertSizeMark("small"), "Sm", "insert size mark densify");
-assert.strictEqual(getCaptionToneMark("method"), "Mt", "caption tone mark densify");
-assert.strictEqual(getStoryBeatMark("hook"), "Hk", "story beat mark densify");
-assert.strictEqual(getColorFamilyMark("blue"), "Bl", "color family mark densify");
+assert.strictEqual(getLayoutHintMark("tall"), "纵向", "layout mark densify");
+assert.strictEqual(getSlideSlotMark("side"), "侧栏区", "slot mark densify");
+assert.strictEqual(getRoleHintMark("method"), "方法说明", "role mark densify");
+assert.strictEqual(getInsertSizeMark("small"), "小", "insert size mark densify");
+assert.strictEqual(getCaptionToneMark("method"), "方法", "caption tone mark densify");
+assert.strictEqual(getStoryBeatMark("hook"), "引入", "story beat mark densify");
+assert.strictEqual(getColorFamilyMark("blue"), "蓝色", "color family mark densify");
 assert.strictEqual(formatContrastPairLabel("#112233", "#abcdef"), "#112233/#abcdef", "contrast pair densify");
 assert.ok(buildPptAssistToken({ imageCategory: "chart", colorFamily: "blue", styleTags: ["cool"], palette: [{hex:"#0000ff"},{hex:"#ffaa00"}], pageNumber: 3, quality: "high", renderedWidth: 800, renderedHeight: 400 }).includes("ins=large"), "ppt token densify insert");
 assert.ok(buildRolePackToken({ imageCategory: "diagram", layoutHint: "wide", slideSlot: "hero", palette: [{hex:"#123456"},{hex:"#abcdef"}], dominantHex: "#123456", contrastHex: "#abcdef" }).includes("use=pipeline-or-steps"), "role pack densify usage");
@@ -1080,28 +1085,31 @@ assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], p
 assert.ok(buildDrawingStyleTags({ imageCategory: "chart", styleTags: ["cool"], palette: [], colorFamily: "blue", layoutHint: "wide", slideSlot: "hero", roleHint: "result", insertHint: { size: "large", anchor: "center", width_pct: 72, height_pct: 40 }, captionHint: { tone: "result", title: "Key chart result", note: "p3" }, storyBeat: "result" }).includes("beat-result"), "drawing tags add story beat hints");
 assert.ok(deriveContrastHex([{hex:"#0000ff",saturation:1,lightness:0.5,hue:240,population:1},{hex:"#ffaa00",saturation:1,lightness:0.5,hue:40,population:0.4}], "#0000ff"), "contrast hex derived");
 assert.strictEqual(normalizeImageCategoryKey("Chart"), "chart", "category normalize must accept case variants");
-assert.strictEqual(getImageCategoryMark("auto"), "Aut", "auto category mark");
+assert.strictEqual(getImageCategoryMark("auto"), "自动", "auto category mark");
 assert.strictEqual(inferImageCategory({ width: 900, height: 300, styleTags: ["muted"], palette: [], detector: "manual_selection", detectionArea: 0.2 }), "table", "wide regions classify as table");
-assert.ok(formatCategorySummary([{ imageCategory: "chart" }, { imageCategory: "chart" }, { imageCategory: "photo" }]).includes("Cht2"), "category summary must count marks");
+assert.ok(formatCategorySummary([{ imageCategory: "chart" }, { imageCategory: "chart" }, { imageCategory: "photo" }]).includes("图表 2 张"), "category summary must count marks");
 assert.strictEqual(normalizeStyleTags(["bright", "bright", "cool"]).join(","), "bright,cool", "style tags must dedupe");
 assert.strictEqual(formatPaletteLabel([{ hex: "#ff0000" }, { hex: "#00ff00" }]), "#ff0000 #00ff00", "palette label densify");
-assert.strictEqual(formatStyleTagsLabel(["bright", "cool"]), "bright, cool", "style tags densify");
-assert.strictEqual(formatPreviewDetectorLabel("manual_selection"), "manual", "manual detector must densify");
-assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "auto", "auto detector must densify");
-assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "custom detector", "unknown detector must keep readable text");
-assert.ok(html.includes('alt="Preview p5 #1') || /alt="Preview p5 #1[^"]*"/.test(html), "preview image alt must include page and entry index");
+assert.strictEqual(formatStyleTagsLabel(["bright", "cool"]), "明亮、冷色", "style tags densify");
+assert.strictEqual(formatPreviewDetectorLabel("manual_selection"), "手动框选", "manual detector must densify");
+assert.strictEqual(formatPreviewDetectorLabel("pdfjs_record_images"), "历史候选采集", "auto detector must densify");
+assert.strictEqual(formatPreviewDetectorLabel("custom_detector"), "其他采集方式", "unknown detector must keep readable text");
+assert.ok(/alt="第 5 页图片预览 #1[^"]*"/.test(html), "preview image alt must include page and entry index");
 assert.ok(html.includes('class="entry-badge"'), "preview entries must expose dense entry badge");
 assert.ok(html.includes("position: sticky"), "preview index header must stick while scrolling");
-assert.ok(/#1 M [A-Za-z]{3} [WTSU] [A-Za-z]{2} [A-Za-z]{2} [A-Za-z]{2}/.test(html), "preview entry badge must show quality, category, layout, slot, role, and insert marks");
-assert.strictEqual(getQualityMark("medium"), "M", "medium quality mark");
-assert.strictEqual(getQualityMark("high"), "H", "high quality mark");
-assert.strictEqual(getQualityMark("low"), "L", "low quality mark");
-assert.ok(html.includes(">Open p5</a>"), "HTML entry must expose an explicit source PDF action with page");
-assert.ok(/Index [^;]+; 1 img; 3 B;/.test(html) || html.includes("1 img; 3 B;"), "preview index header must include total preview bytes");
-assert.ok(html.includes('title="Open p5"'), "HTML entry Open action title must include page");
+const entryBadgeText = (html.match(/class="entry-badge">([^<]*)</) || [])[1] || "";
+assert.ok(/^第 1 张 · /.test(entryBadgeText), "preview entry badge must lead with the entry ordinal");
+assert.ok(entryBadgeText.split("·").length >= 10, "preview entry badge must expose every dense mark");
+assert.ok(/清晰度/.test(entryBadgeText) && /尺寸/.test(entryBadgeText) && /图注/.test(entryBadgeText), "preview entry badge must show quality, category, layout, slot, role, and insert marks");
+assert.strictEqual(getQualityMark("medium"), "中", "medium quality mark");
+assert.strictEqual(getQualityMark("high"), "高", "high quality mark");
+assert.strictEqual(getQualityMark("low"), "低", "low quality mark");
+assert.ok(html.includes(">定位原文第 5 页</a>"), "HTML entry must expose an explicit source PDF action with page");
+assert.ok(/共 1 张图片；3 B；/.test(html), "preview index header must include total preview bytes");
+assert.ok(html.includes('title="定位原文第 5 页"'), "HTML entry Open action title must include page");
 assert.ok(html.includes('class="source-map-link"'), "source region map must be clickable open link");
 assert.ok(html.includes(":focus-visible"), "index open targets must expose keyboard focus style");
-assert.ok(html.includes('title="Open map p5"'), "source region map link must advertise open action with page");
+assert.ok(html.includes('title="定位原文第 5 页的框选位置"'), "source region map link must advertise open action with page");
 assert.ok(html.includes(`title="${htmlEntry.sourceRegionKey}"`), "compact region identity must keep full source key in a title");
 assert.ok(html.includes(getSourceRegionFingerprint(htmlEntry.sourceRegionKey)), "normal view must show a compact region identity");
 assert.ok(html.includes('<details class="entry-details">'), "trace metadata must be in a per-entry details block");
@@ -1132,27 +1140,27 @@ assert.strictEqual(originalIndexMetadata.images[0].open_pdf_uri, "zotero://open-
 assert.strictEqual(originalIndexMetadata.images[0].byte_count, 65536);
 assert.ok(originalIndexHTML.includes("zotero://open-pdf/library/items/HTMLPDF1?page=5"), "original index must include source PDF links");
 assert.ok(originalIndexHTML.includes("abc123"), "original index must keep compact original identity metadata");
-assert.ok(originalIndexHTML.includes(">Open p5</a>"), "original index must expose explicit Open actions with page");
+assert.ok(originalIndexHTML.includes(">定位原文第 5 页</a>"), "original index must expose explicit Open actions with page");
 assert.ok(originalIndexHTML.includes("tbody tr:hover"), "original index table must highlight row hover");
-assert.ok(originalIndexHTML.includes("1 img;"), "original index must densify image count");
-assert.ok(originalIndexHTML.includes("<th>#</th>"), "original index must expose row numbers");
+assert.ok(originalIndexHTML.includes("共 1 张图片"), "original index must densify image count");
+assert.ok(originalIndexHTML.includes("<th>序号</th>"), "original index must expose row numbers");
 assert.ok(originalIndexHTML.includes("position: sticky"), "original index must stick header while scrolling");
 assert.ok(originalIndexHTML.includes('id="top"'), "original index sticky header must expose top anchor");
-assert.ok(originalIndexHTML.includes(">Open first p5</a>"), "original index header must expose open-first action");
-assert.ok(!originalIndexHTML.includes('Open last p'), "single original index must not show open-last action");
+assert.ok(originalIndexHTML.includes(">定位第一张图片</a>"), "original index header must expose open-first action");
+assert.ok(!originalIndexHTML.includes('>定位最后一张图片</a>'), "single original index must not show open-last action");
 assert.ok(!originalIndexHTML.includes('class="meta jumps"'), "single original index must not show jump list");
 assert.ok(!originalIndexHTML.includes('href="#top"'), "single original index must not show top footer");
-assert.ok(!originalIndexHTML.includes('>Top</a>'), "single original index must not show Top label");
-assert.ok(originalIndexHTML.includes("<td>#1</td>"), "original index first row must be numbered");
-assert.ok(originalIndexHTML.includes("open PDF page links"), "original index header must state PDF open links");
-assert.ok(originalIndexHTML.includes("Orig page; helper"), "original index header must densify scope/helper meta");
-assert.ok(originalIndexHTML.includes("- orig page"), "original HTML document title must densify page scope");
+assert.ok(!originalIndexHTML.includes('>返回顶部</a>'), "single original index must not show the back-to-top label");
+assert.ok(originalIndexHTML.includes("<td>第 1 张</td>"), "original index first row must be numbered");
+assert.ok(originalIndexHTML.includes("可定位原文页面"), "original index header must state PDF open links");
+assert.ok(originalIndexHTML.includes("原图范围：当前页；由可选原图助手生成"), "original index header must densify scope/helper meta");
+assert.ok(originalIndexHTML.includes("原图索引｜当前页"), "original HTML document title must densify page scope");
 assert.ok(
-  buildOriginalImageIndexTitle(htmlParent, htmlAttachment, [originalIndexImage], "page").includes("orig page 1img"),
+  buildOriginalImageIndexTitle(htmlParent, htmlAttachment, [originalIndexImage], "page").includes("当前页｜1 张"),
   "original index attachment title must densify page scope",
 );
 assert.ok(
-  buildOriginalImageIndexTitle(htmlParent, htmlAttachment, [originalIndexImage, originalIndexImage], "document").includes("orig doc 2img"),
+  buildOriginalImageIndexTitle(htmlParent, htmlAttachment, [originalIndexImage, originalIndexImage], "document").includes("全文｜2 张"),
   "original index attachment title must densify doc scope",
 );
 const weakOriginalKeyA = getOriginalImageKey(htmlAttachment, { page_number: 5, occurrence: 1 });
@@ -1185,7 +1193,7 @@ const samePageHTML = buildIndexHTML({
   qualityKey: "medium",
 });
 const samePageMetadata = extractMetadata(samePageHTML);
-assert.ok(samePageHTML.includes("HTML; sync; clip."), "same-page clip index header must densify scope label");
+assert.ok(samePageHTML.includes("框选"), "same-page clip index header must densify scope label");
 const autoPageHTML = buildIndexHTML({
   attachment: htmlAttachment,
   parentItem: htmlParent,
@@ -1193,7 +1201,7 @@ const autoPageHTML = buildIndexHTML({
   scope: "auto-page",
   qualityKey: "medium",
 });
-assert.ok(autoPageHTML.includes("HTML; sync; auto."), "auto-page index header must densify scope label");
+assert.ok(autoPageHTML.includes("历史候选采集"), "auto-page index header must densify scope label");
 assert.strictEqual(samePageMetadata.entries[0].page_number, samePageMetadata.entries[1].page_number);
 assert.notStrictEqual(
   samePageMetadata.entries[0].source_region_key,
@@ -1244,7 +1252,7 @@ assert.deepStrictEqual(noisySourceMetadata.pdf_attachment, {
 });
 assert.strictEqual(
   buildIndexTitle(noisyParent, noisyAttachment, { bad: true }, { page: 1 }),
-  "PDF - img index unknown",
+  "PDF｜图片索引 未知范围",
   "index title must normalize malformed title, scope, and page target",
 );
 assert.strictEqual(
@@ -1352,7 +1360,7 @@ const singleIndexKey = getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "
 const singleIndexTitle = buildIndexTitle(htmlParent, htmlAttachment, "clip", 4, [htmlEntry], "medium", singleIndexKey);
 assert.ok(singleIndexTitle.includes("clip"), "single preview title must include densified scope");
 assert.ok(singleIndexTitle.includes("p5"), "single preview title must include target page");
-assert.ok(singleIndexTitle.includes("M Medium"), "single preview title must include quality mark/label");
+assert.ok(singleIndexTitle.includes("中清晰度"), "single preview title must include quality mark/label");
 assert.ok(singleIndexTitle.includes("1img"), "single preview title must include image count");
 assert.ok(singleIndexTitle.includes(getPreviewIndexFingerprint(singleIndexKey)), "single preview title must include short identity");
 assert.ok(singleIndexTitle.length <= 140, "single preview title must stay compact");
@@ -1374,10 +1382,10 @@ assert.ok(multiJumpHTML.includes('href="#e1"'), "jump list must link first entry
 assert.ok(multiJumpHTML.includes('href="#e2"'), "jump list must link second entry");
 assert.ok(multiJumpHTML.includes('>#1p5</a>'), "jump list must densify first entry page mark");
 assert.ok(multiJumpHTML.includes('>#2p5</a>'), "jump list must densify second entry page mark");
-assert.ok(multiJumpHTML.includes('Open last p5'), "multi preview header must expose open-last action");
+assert.ok(multiJumpHTML.includes('>定位最后一张图片</a>'), "multi preview header must expose open-last action");
 assert.ok(multiJumpHTML.includes('href="#top"'), "multi preview footer must expose top action");
 assert.ok(multiJumpHTML.includes('footer-actions'), "multi preview footer must use footer-actions class");
-assert.ok(multiJumpHTML.includes('>Top</a>'), "multi preview footer must expose Top label");
+assert.ok(multiJumpHTML.includes('>返回顶部</a>'), "multi preview footer must expose the back-to-top label");
 
 const multiOriginalIndexHTML = buildOriginalImageIndexHTML({
   attachment: htmlAttachment,
@@ -1395,11 +1403,11 @@ assert.ok(multiOriginalIndexHTML.includes('>#1p5</a>'), "original jump list must
 assert.ok(multiOriginalIndexHTML.includes('>#2p8</a>'), "original jump list must densify second page mark");
 assert.ok(multiOriginalIndexHTML.includes('Open last p8'), "multi original header must expose open-last action");
 assert.ok(multiOriginalIndexHTML.includes('href="#top"'), "multi original footer must expose top action");
-assert.ok(multiOriginalIndexHTML.includes('>Top</a>'), "multi original footer must expose Top label");
+assert.ok(multiOriginalIndexHTML.includes('>返回顶部</a>'), "multi original footer must expose the back-to-top label");
 
 assert.ok(multiIndexTitle.includes("auto"), "multi preview title must include densified auto scope");
 assert.ok(multiIndexTitle.includes("2img"), "multi preview title must include image count");
-assert.ok(multiIndexTitle.includes("H High"), "multi preview title must include quality mark/label");
+assert.ok(multiIndexTitle.includes("高清晰度"), "multi preview title must include quality mark/label");
 assert.notStrictEqual(multiIndexTitle, singleIndexTitle, "quality/count/fingerprint variants must be distinguishable");
 
 const malformedPageEntry = {
@@ -1569,9 +1577,9 @@ const invalidQualityHTML = buildIndexHTML({
   scope: "clip",
   qualityKey: "constructor",
 });
-assert.ok(invalidQualityHTML.includes("M Medium; 120-450 KB"), "invalid entry quality must fall back to Medium");
-assert.strictEqual(invalidQualityEntry.quality, "medium", "invalid entry quality must be normalized on the entry");
-assert.strictEqual(invalidQualityEntry.qualityEstimate, "120-450 KB/image", "invalid quality estimate must be normalized");
+assert.ok(invalidQualityHTML.includes("中清晰度"), "invalid entry quality must fall back to the pinned tier mark");
+assert.strictEqual(invalidQualityEntry.quality, "high", "invalid entry quality must be normalized to the pinned tier");
+assert.strictEqual(invalidQualityEntry.qualityEstimate, "0.5-4 MB/image", "invalid quality estimate must be normalized");
 const invalidQualityMetadataText = invalidQualityHTML.match(/<pre>([\s\S]*?)<\/pre>/)[1]
   .replace(/&quot;/g, '"')
   .replace(/&amp;/g, "&")
@@ -2017,7 +2025,7 @@ for (const forbiddenDiagnosticsText of ["[object Object]", "undefined", "NaN", "
 assert.ok(noisyDiagnostics.includes("Plugin: unknown"), "diagnostics plugin must normalize malformed text");
 assert.ok(noisyDiagnostics.includes("Store: HTML; sync PDF"), "diagnostics must surface storage mode");
 assert.ok(noisyDiagnostics.includes("Run: unknown"), "diagnostics booleans must normalize malformed values");
-assert.ok(noisyDiagnostics.includes("Q M Medium; 120-450 KB"), "diagnostics quality must densify malformed values");
+assert.ok(noisyDiagnostics.includes("默认清晰度：高（约 0.5–4 MB/张）"), "diagnostics quality must densify malformed values");
 assert.ok(noisyDiagnostics.includes("Dups: unknown"), "diagnostics dups must normalize malformed values");
 assert.strictEqual(formatDiagnosticDups(true), "on; sess+saved", "diagnostics dups must densify enabled guard");
 assert.strictEqual(formatDiagnosticDups(false), "off", "diagnostics dups must densify disabled guard");
@@ -2047,7 +2055,7 @@ const denseDiagnostics = formatDiagnosticsReport({
   temp_bytes: 0,
   optional_helper: "python-available",
 });
-assert.ok(denseDiagnostics.includes("Q H High; 0.5-4 MB"), "diagnostics must densify quality");
+assert.ok(denseDiagnostics.includes("默认清晰度：高（约 0.5–4 MB/张）"), "diagnostics must densify quality");
 assert.ok(denseDiagnostics.includes("Dups: on; sess+saved"), "diagnostics must densify dups");
 assert.ok(denseDiagnostics.includes("Auto: min 0.003; 6 max; 3 MB"), "diagnostics must densify auto caps");
 assert.ok(denseDiagnostics.includes("Index: 5 MB"), "diagnostics must densify index cap");
@@ -2076,7 +2084,7 @@ const denseDiagnosticsOff = formatDiagnosticsReport({
   temp_bytes: 0,
   optional_helper: "python-missing",
 });
-assert.ok(denseDiagnosticsOff.includes("Q L Low; 30-120 KB"), "diagnostics must densify quality when guard disabled");
+assert.ok(denseDiagnosticsOff.includes("默认清晰度：低（约 30–120 KB/张）"), "diagnostics must densify quality when guard disabled");
 assert.ok(denseDiagnosticsOff.includes("Dups: off"), "diagnostics must show dups off when guard disabled");
 assert.ok(denseDiagnosticsOff.includes("Auto: min 0.01; 4 max; 1 MB"), "diagnostics must densify auto caps when guard disabled");
 assert.ok(denseDiagnosticsOff.includes("Index: 2 MB"), "diagnostics must densify index cap when guard disabled");
