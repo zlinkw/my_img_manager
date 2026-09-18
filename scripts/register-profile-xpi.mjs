@@ -54,7 +54,7 @@ extensionsData.addons.push({
   targetApplications: [{
     id: "zotero@zotero.org",
     minVersion: "7.0",
-    maxVersion: "9.0.*",
+    maxVersion: "11.*",
   }],
   targetPlatforms: [],
   signedState: 0,

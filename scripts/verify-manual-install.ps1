@@ -2,8 +2,8 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $statusScript = Join-Path $root "scripts\runtime-status.ps1"
 $addonID = "pdf-image-saver@zlk.local"
-$expectedRuntime = "Zotero 9.0.5"
-$expectedStrictMaxVersion = "9.0.*"
+$expectedRuntime = "Zotero 10.x"
+$expectedStrictMaxVersion = "11.*"
 
 function Invoke-Status {
   $jsonText = & powershell -ExecutionPolicy Bypass -File $statusScript

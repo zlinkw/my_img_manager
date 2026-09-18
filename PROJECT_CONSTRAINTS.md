@@ -18,8 +18,9 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Manual current-page clipping is the only regular capture workflow; whole-page preview and original extraction remain explicit secondary actions.
 - Category inference may prefill the confirmation dialog from captions or nearby references, but it must never become an automatic capture workflow.
 - Optional original image extraction must not be required for normal clipping.
-- Zotero 9.0.x compatibility is the runtime baseline; manifest `strict_max_version` stays `9.0.*` because Zotero removes profile XPIs using `9.*`.
-- Online update checking is disabled. The manifest must not advertise `update_url`, the plugin must not poll release feeds, and upgrades happen only through a user-initiated stable XPI install in Zotero's add-on manager.
+- Zotero 10.x compatibility is the runtime baseline; manifest `strict_max_version` stays `11.*` so that Zotero 10 and 11 profile installs remain enabled. Zotero disables any add-on whose declared range does not cover the running app version, so the range must always include the current release line.
+- Zotero 10 rejects an XPI whose `applications.zotero.update_url` is absent: `Extension.sys.mjs` records `applications.zotero.update_url not provided`, `XPIInstall.sys.mjs` turns that into `Extension is invalid`, and the add-on manager reports an install failure. The manifest must therefore declare `update_url`.
+- `update_url` must point at the repository's static `updates.json`, and that file must stay an empty feed (`{"addons": {}}`). Zotero then finds no update entry and returns "no available update information", so nothing is ever downloaded. The plugin must not poll release feeds itself, no release automation is added, and upgrades still happen only through a user-initiated stable XPI install in Zotero's add-on manager.
 - Do not add GitHub Actions workflows. Release validation and packaging are local responsibilities; publishing may only hand off locally built artifacts.
 
 ## Storage Contract
@@ -28,6 +29,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - `images.image_blob` is the shared original image payload. Do not generate Zotero HTML preview attachments, thumbnail libraries, preview databases, or alternate image stores.
 - The full gallery may materialize original bytes temporarily under `%TEMP%\pdf-image-saver\paper-image-library-view`; those files are rebuildable view output, never a data source.
 - Database schema, gallery UI, sharing, bridge security, and PPT reuse must follow `docs/IMAGE_LIBRARY_ACCESS_AND_UI_PROTOCOL.md` and `docs/IMAGE_LIBRARY_SHARING_PROTOCOL.md`.
+- `images.user_note` is the only user-authored column. It is written by exactly two owners: the capture review dialog and the generated gallery via the `updateImageNote` bridge command. Capture and import UPSERTs must keep `COALESCE(NULLIF(excluded.user_note, ''), images.user_note)` so an empty value never erases a stored description.
 - Do not read or write Zotero internal `zotero.sqlite`, `zotero.sqlite-wal`, or `zotero.sqlite-shm`.
 - Saved image bytes remain bounded by the selected quality and fixed per-image limits.
 - Saved metadata must preserve source provenance: PDF attachment key, page number, bbox/source region, duplicate keys, annotation key when available, and `zotero://open-pdf` source link.
@@ -38,6 +40,8 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Quality choices must show expected storage impact.
 - Error messages must explain whether the failure is capture, helper, duplicate, byte cap, or Zotero storage related.
 - Full gallery management is owned by the Zotero plugin; PPT must reuse the generated gallery and may keep only its documented lightweight read-only picker.
+- The large-image viewer is an in-page overlay. No plugin surface may use `window.open`, `target="_blank"`, or any other hand-off to a second browser tab; closing the overlay returns the user to the gallery list.
+- Generated pages are built from one outer template literal, so their inline scripts must not nest template literals and must escape every regex/string backslash as `\\`. `tests/current-release.test.js` parses each generated `<script>` so a broken page script cannot ship while the markup still looks correct.
 
 ## Optimization Priority
 
@@ -62,9 +66,10 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - For script, manifest, packaging, or runtime contract changes, also run `npm.cmd run check`.
 - `npm.cmd run check` owns the release gates: unit/static checks, the PPT-side Zotero protocol gate, and the headless Chromium UI audit. Both external gates skip explicitly (never fail) when the PPT repo or a browser is absent.
 - Any UI change must keep `npm.cmd run audit:index-buttons` green. It is the only gate that exercises real DOM behavior.
+- The browser audit also asserts that no audited interaction creates an extra browser page target. A change that sends the user out of the generated page must fail there, not in a user report.
 - Browser-audit fixtures live in `tests/current-release.test.js` and their shape is asserted there. Never weaken a fixture to make the audit pass; if the audit contradicts the implementation and README, fix whichever one is actually wrong and say which in the batch notes.
 - Handoff XPI paths must be resolved through `scripts/current-xpi.ps1`. Never hardcode an `outputs\pdf-image-saver-<version>.xpi` filename; a static check enforces this.
-- Release changes must keep `package.json`, `manifest.json`, version assertions, and stable asset naming synchronized. Stable release artifacts use `pdf-image-saver-<manifest-version>.xpi`. Never reintroduce `updates.json`, `update_url`, or `.github/workflows/`.
+- Release changes must keep `package.json`, `manifest.json`, version assertions, and stable asset naming synchronized. Stable release artifacts use `pdf-image-saver-<manifest-version>.xpi`. Keep `updates.json` an empty feed and `update_url` pointing at it; never reintroduce `.github/workflows/`.
 - For install handoff changes, run `npm.cmd run build` and package only when explicitly requested.
 - Do not use bare `npm run` in Windows instructions; use `npm.cmd run`.
 
@@ -95,7 +100,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 
 ### After UI Is Exhausted
 
-- Smoke scripts distinguish development-proxy vs manual/XPI readiness for Zotero 9.x; keep registration checks aligned with that split.
+- Smoke scripts distinguish development-proxy vs manual/XPI readiness for Zotero 10.x; keep registration checks aligned with that split.
 - Handoff scripts resolve the current XPI from `manifest.json`; stale other-version packages in `outputs` are reported, never installed.
 - Optional original extraction remains isolated; missing Python is quiet-failed before helper progress toast, and diagnostics report helper availability.
 - User-facing errors now classify capture / helper / duplicate / byte-cap / storage failures.

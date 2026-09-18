@@ -367,7 +367,7 @@ async function auditLibraryPage() {
     });
   }).length;
   var unknownButtons = buttons.filter(function (button) {
-    return !button.matches("#library-reset,#library-empty-reset,#library-filter-collapse,[data-view],[data-open-image],#viewer-close,#viewer-prev,#viewer-next,#viewer-zoom-out,#viewer-zoom-in,#viewer-zoom-actual,#viewer-zoom-fit,#select-visible,#clear-selection,#share-selected,#delete-selected,#refresh-library,#import-package,#mobile-clear-selection,#mobile-share-selected,#mobile-delete-selected");
+    return !button.matches("#library-reset,#library-empty-reset,#library-filter-collapse,[data-view],[data-open-image],[data-edit-note],[data-note-save],[data-note-cancel],#viewer-close,#viewer-prev,#viewer-next,#viewer-zoom-out,#viewer-zoom-in,#viewer-zoom-actual,#viewer-zoom-fit,#select-visible,#clear-selection,#share-selected,#delete-selected,#refresh-library,#import-package,#mobile-clear-selection,#mobile-share-selected,#mobile-delete-selected");
   });
   var category = document.getElementById("library-category");
   var search = document.getElementById("library-search");
@@ -608,9 +608,10 @@ async function auditLibraryPage() {
   window.__libraryCommands = [];
   window.fetch = async function (_url, options) {
     var fields = new URLSearchParams(options.body);
-    window.__libraryCommands.push({ command: fields.get("command"), imageIDs: fields.get("image_ids") || "" });
+    window.__libraryCommands.push({ command: fields.get("command"), imageIDs: fields.get("image_ids") || "", userNote: fields.get("user_note") || "" });
     if (fields.get("command") === "exportImages") return { ok: true, json: async function () { return { ok: true, exported: 1, bytes: 100 }; } };
     if (fields.get("command") === "importImages") return { ok: true, json: async function () { return { ok: true, imported: 0, matched: 0, unmatched: 0, skipped: 0 }; } };
+    if (fields.get("command") === "updateImageNote") return { ok: true, json: async function () { return { ok: true, updated: 1, userNote: fields.get("user_note") || "" }; } };
     return { ok: true, json: async function () { return { ok: true, deleted: 0 }; } };
   };
   document.getElementById("share-selected")?.click();
@@ -654,6 +655,8 @@ async function auditLibraryPage() {
   var viewerSelectedCountInitial = viewerSelectionCount?.textContent || "";
   var viewerSelectionTextInitial = viewerSelectionText?.textContent || "";
   var viewerCloseInitialText = viewerClose?.textContent || "";
+  var viewerCloseGlyph = getComputedStyle(viewerClose, "::before").content || "";
+  var viewerCloseInitialAria = viewerClose?.getAttribute("aria-label") || "";
   viewerSelect.checked = true;
   viewerSelect.dispatchEvent(new Event("change", { bubbles: true }));
   var viewerSelectChecked = viewerSelect.checked && viewerSelect.closest(".viewer-selection")?.classList.contains("is-selected");
@@ -753,6 +756,73 @@ async function auditLibraryPage() {
   var viewerPlainCloseText = viewerClose?.textContent || "";
   viewerClose?.click();
   var viewerPlainCloseFocusRestored = document.activeElement === firstOpen;
+  // The description is the only gallery-side field the user authors, so the audit drives the real
+  // editor instead of trusting the markup: open, cancel, reopen, save, then re-read every surface.
+  var noteCard = firstOpen.closest(".library-card");
+  var noteEdit = noteCard.querySelector("[data-edit-note]");
+  var noteForm = noteCard.querySelector("[data-note-form]");
+  var noteText = noteCard.querySelector("[data-note-text]");
+  var noteInput = noteForm.querySelector("textarea");
+  var noteCell = Array.from(table.querySelectorAll("td[data-note-cell]")).find(function (cell) { return cell.dataset.noteCell === noteCard.dataset.id; });
+  var noteEmptyCard = Array.from(document.querySelectorAll(".library-card")).find(function (card) { return card.querySelector("[data-note-text]")?.hidden === true; });
+  var noteEmptyCell = Array.from(table.querySelectorAll("td[data-note-cell]")).find(function (cell) { return cell.dataset.noteCell === noteEmptyCard?.dataset.id; });
+  var noteInitial = {
+    text: noteText?.textContent || "",
+    textHidden: noteText?.hidden === true,
+    editLabel: noteEdit?.textContent || "",
+    formHidden: noteForm?.hidden === true,
+    cell: noteCell?.textContent.trim() || "",
+    cellTitle: noteCell?.title || "",
+  };
+  var noteInitialSearch = noteCard.dataset.search || "";
+  var noteEmptyState = {
+    editLabel: noteEmptyCard?.querySelector("[data-edit-note]")?.textContent || "",
+    textHidden: noteEmptyCard?.querySelector("[data-note-text]")?.hidden !== false,
+    cell: noteEmptyCell?.textContent.trim() || "",
+  };
+  var noteCardCount = document.querySelectorAll("[data-edit-note]").length;
+  var noteFormCount = document.querySelectorAll("[data-note-form]").length;
+  noteEdit.focus();
+  noteEdit.click();
+  var noteOpened = noteForm.hidden === false && noteEdit.hidden === true;
+  var noteFocusInForm = document.activeElement === noteInput;
+  noteForm.querySelector("[data-note-cancel]")?.click();
+  var noteCancelled = noteForm.hidden === true && noteEdit.hidden === false;
+  var noteCancelKeptValue = noteInput.value === noteInitial.text;
+  noteEdit.click();
+  noteInput.value = "审计写入的描述\n第二行";
+  noteInput.dispatchEvent(new Event("input", { bubbles: true }));
+  noteForm.querySelector("[data-note-save]")?.click();
+  await wait();
+  await wait();
+  var noteCommands = window.__libraryCommands.filter(function (entry) { return entry.command === "updateImageNote"; });
+  var noteSaved = {
+    formHidden: noteForm.hidden === true,
+    editLabel: noteEdit.textContent,
+    text: noteText.textContent,
+    textHidden: noteText.hidden === true,
+    cell: noteCell.textContent.trim(),
+    cellTitle: noteCell.title,
+    inputValue: noteInput.value,
+    message: document.getElementById("library-message")?.textContent || "",
+  };
+  var noteSavedSearch = noteCard.dataset.search || "";
+  firstOpen.click();
+  await wait();
+  var noteViewerNote = document.getElementById("viewer-note");
+  var noteViewerState = {
+    text: noteViewerNote?.textContent || "",
+    hidden: noteViewerNote?.hidden !== false,
+    clipped: noteViewerNote ? noteViewerNote.scrollHeight > noteViewerNote.clientHeight + 1 || noteViewerNote.scrollWidth > noteViewerNote.clientWidth + 1 : false,
+    meta: document.getElementById("viewer-meta")?.textContent || "",
+  };
+  document.getElementById("viewer-close")?.click();
+  search.value = "审计写入的描述";
+  search.dispatchEvent(new Event("input", { bubbles: true }));
+  var noteSearchVisible = visibleCount();
+  var noteSearchKeptCard = !noteCard.hidden;
+  reset.click();
+  var noteSearchResetVisible = visibleCount();
   firstSelection.checked = true;
   firstSelection.dispatchEvent(new Event("change", { bubbles: true }));
   window.fetch = async function () { return { ok: false, json: async function () { return { ok: false, error: "Unexpected internal value" }; } }; };
@@ -884,6 +954,8 @@ async function auditLibraryPage() {
     viewerSelectedCountInitial: viewerSelectedCountInitial,
     viewerSelectionTextInitial: viewerSelectionTextInitial,
     viewerCloseInitialText: viewerCloseInitialText,
+    viewerCloseGlyph: viewerCloseGlyph,
+    viewerCloseInitialAria: viewerCloseInitialAria,
     viewerSelectChecked: viewerSelectChecked,
     viewerSelectedCountAfterAdd: viewerSelectedCountAfterAdd,
     viewerSelectionTextAfterAdd: viewerSelectionTextAfterAdd,
@@ -982,6 +1054,22 @@ async function auditLibraryPage() {
     availableAfterUnknownError: availableAfterUnknownError,
     networkFeedback: networkFeedback,
     liveDisconnectState: liveDisconnectState,
+    noteCardCount: noteCardCount,
+    noteFormCount: noteFormCount,
+    noteInitial: noteInitial,
+    noteInitialSearch: noteInitialSearch,
+    noteEmptyState: noteEmptyState,
+    noteOpened: noteOpened,
+    noteFocusInForm: noteFocusInForm,
+    noteCancelled: noteCancelled,
+    noteCancelKeptValue: noteCancelKeptValue,
+    noteCommands: noteCommands,
+    noteSaved: noteSaved,
+    noteSavedSearch: noteSavedSearch,
+    noteViewerState: noteViewerState,
+    noteSearchVisible: noteSearchVisible,
+    noteSearchKeptCard: noteSearchKeptCard,
+    noteSearchResetVisible: noteSearchResetVisible,
     sourceBadgeCount: document.querySelectorAll(".library-card .source-badge").length,
     originalDownloadCount: document.querySelectorAll('.library-card a[download]').length,
     obstructedImageCount: obstructedImageCount,
@@ -1044,6 +1132,12 @@ try {
   client = new CdpClient(target.webSocketDebuggerUrl);
   await client.send("Runtime.enable");
   await client.send("Page.enable");
+  // Every large-image view must stay inside the generated page. Discovering targets lets the audit
+  // prove that no gallery action hands the user off to a second browser tab.
+  await client.send("Target.setDiscoverTargets", { discover: true });
+  await waitFor(() => client.notifications.some((message) => message.method === "Target.targetCreated"));
+  const countPageTargets = () => client.notifications.filter((message) => message.method === "Target.targetCreated" && message.params?.targetInfo?.type === "page").length;
+  const initialPageTargetCount = countPageTargets();
   await waitForDocument(client, 1);
   const single = await evaluate(client, `(${auditSinglePage.toString()})()`);
   assert.equal(single.readable, true, "readable layout must be applied");
@@ -1159,6 +1253,45 @@ try {
   const library = await evaluate(client, `(${auditLibraryPage.toString()})()`);
   assert.equal(library.cardCount, 8, "global library must show every fixture image");
   assert.equal(library.unknownButtonCount, 0, "every global-library button must have a runtime action");
+  assert.equal(library.noteCardCount, library.cardCount, "every gallery card must expose one description action");
+  assert.equal(library.noteFormCount, library.cardCount, "every gallery card must own one description editor");
+  assert.deepEqual(library.noteInitial, {
+    text: "复现实验第 2 轮，阈值 0.5；定稿前需替换为最终版曲线。",
+    textHidden: false,
+    editLabel: "编辑描述",
+    formHidden: true,
+    cell: "复现实验第 2 轮，阈值 0.5；定稿前需替换为最终版曲线。",
+    cellTitle: "复现实验第 2 轮，阈值 0.5；定稿前需替换为最终版曲线。",
+  }, "a stored description must render identically on the card and in the table cell");
+  assert.ok(library.noteInitialSearch.includes("复现实验第 2 轮"), "the description must join the card search index");
+  assert.deepEqual(library.noteEmptyState, { editLabel: "添加描述", textHidden: true, cell: "无描述" }, "an undescribed image must offer 添加描述 and state 无描述 instead of an empty cell");
+  assert.equal(library.noteOpened, true, "the description action must reveal the editor and hide itself");
+  assert.equal(library.noteFocusInForm, true, "opening the description editor must focus its textarea");
+  assert.equal(library.noteCancelled, true, "cancelling must restore the description action without saving");
+  assert.equal(library.noteCancelKeptValue, true, "cancelling must discard the typed text");
+  assert.equal(library.noteCommands.length, 1, "saving a description must send exactly one bridge command");
+  assert.deepEqual(library.noteCommands[0], { command: "updateImageNote", imageIDs: "", userNote: "审计写入的描述\n第二行" }, "the description must reach the bridge verbatim, line breaks included");
+  assert.deepEqual(library.noteSaved, {
+    formHidden: true,
+    editLabel: "编辑描述",
+    text: "审计写入的描述\n第二行",
+    textHidden: false,
+    cell: "审计写入的描述 第二行",
+    cellTitle: "审计写入的描述 第二行",
+    inputValue: "审计写入的描述\n第二行",
+    message: "描述已保存到外部数据库",
+  }, "a saved description must refresh the card, the table cell, the editor value and the feedback in one pass");
+  assert.ok(library.noteSavedSearch.includes("审计写入的描述"), "the refreshed description must rejoin the search index");
+  assert.deepEqual(library.noteViewerState, {
+    text: "描述：审计写入的描述\n第二行",
+    hidden: false,
+    clipped: false,
+    meta: library.noteViewerState.meta,
+  }, "the large viewer must show the saved description on its own unwrapped line");
+  assert.ok(!library.noteViewerState.meta.includes("描述："), "the description must stay out of the single-line metadata strip that mobile clamps");
+  assert.equal(library.noteSearchVisible, 1, "a description-only search term must filter the gallery down to the described image");
+  assert.equal(library.noteSearchKeptCard, true, "the described image must survive its own description search");
+  assert.equal(library.noteSearchResetVisible, library.cardCount, "clearing the description search must restore every card");
   assert.ok(getContrastRatio(library.lightBoundaries.searchBorder, library.lightBoundaries.searchBackground) >= 3, "light search boundary must reach 3:1 non-text contrast");
   assert.ok(getContrastRatio(library.lightBoundaries.importBorder, library.lightBoundaries.importBackground) >= 3, "light action boundary must reach 3:1 non-text contrast");
   assert.ok(getContrastRatio(library.lightBoundaries.segmentedBorder, library.lightBoundaries.segmentedBackground) >= 3, "light view-switch boundary must reach 3:1 non-text contrast");
@@ -1219,7 +1352,7 @@ try {
   assert.equal(library.tableTitleViewerOpened, true, "clicking a table paper title must open the full-image viewer");
   assert.equal(library.tableTitleViewerTitle, "Segmentation <script> benchmark", "table paper title viewer must open the matching image record");
   assert.equal(library.tableTitleFocusRestored, true, "closing a table-title viewer must restore focus to the invoked title");
-  assert.equal(library.desktopTableHeaderCount, 9, "desktop table must retain all nine dedicated metadata columns");
+  assert.equal(library.desktopTableHeaderCount, 10, "desktop table must retain all ten dedicated metadata columns, including the description column");
   assert.equal(library.desktopTableFactsHidden, true, "desktop table must avoid duplicating compact mobile facts");
   assert.equal(library.tablePreviewHeaderText, "预览", "desktop table must name the image column by its actual preview purpose");
   assert.equal(library.tableImageLabelsHidden, true, "desktop table must not repeat a visible view command beside every clickable thumbnail");
@@ -1260,12 +1393,14 @@ try {
   assert.equal(library.viewerSelectedCountInitial, "0", "full-image viewer must expose the initial total selection count");
   assert.equal(library.viewerSelectionTextInitial, "加入批量", "unselected viewer image must name the available batch action");
   assert.equal(library.viewerCloseInitialText, "关闭", "full-image viewer must retain a plain close action before selection");
+  assert.ok(library.viewerCloseGlyph.includes("×"), `the large-image viewer must show a × on its close control so it reads as "close and return": ${library.viewerCloseGlyph}`);
+  assert.ok(library.viewerCloseInitialAria.includes("返回图片库列表"), `the close control must announce that it returns to the gallery list: ${library.viewerCloseInitialAria}`);
   assert.equal(library.viewerSelectChecked, true, "full-image viewer must visibly mark the current image as selected");
   assert.equal(library.viewerSelectedCountAfterAdd, "1", "full-image viewer count must update after selecting the current image");
   assert.equal(library.viewerSelectionTextAfterAdd, "移出批量", "selected viewer image must name the removal action");
   assert.ok(library.viewerSelectionAriaAfterAdd.includes("当前共选择 1 张"), "full-image viewer checkbox must announce the total selection count");
   assert.equal(library.viewerFinishText, "完成选择", "full-image viewer must expose a clear completion action after selection");
-  assert.equal(library.viewerFinishTitle, "关闭高清查看并前往批量操作；按 Esc 仅关闭查看", "selection completion action must explain its destination and distinct Escape behavior");
+  assert.equal(library.viewerFinishTitle, "关闭大图查看并前往批量操作；按 Esc 仅关闭查看", "selection completion action must explain its destination and distinct Escape behavior");
   assert.equal(library.viewerFinishHighlighted, true, "selection completion action must be visually distinct");
   assert.equal(library.viewerSelectionInputsSynced, 2, "full-image selection must synchronize gallery and table checkboxes");
   assert.ok(library.viewerSelectionSummary.startsWith("已选择 1 张"), "full-image selection must update the batch summary");
@@ -1346,7 +1481,7 @@ try {
   assert.equal(library.hiddenClearLabel, "清空全部 1 张", "clear action must visibly warn that it includes a filter-hidden selection");
   assert.ok(library.hiddenShareAria.includes("当前筛选外 1 张"), "share action accessible name must expose hidden selected scope");
   assert.ok(library.deleteConfirmMessage.includes("其中 1 张当前不在筛选结果中"), "delete confirmation must explicitly include hidden selected images");
-  assert.deepEqual(library.commands.map((item) => item.command), ["exportImages", "importImages"], "share/import buttons must call authenticated gallery commands");
+  assert.deepEqual(library.commands.map((item) => item.command), ["exportImages", "importImages", "updateImageNote"], "share, import and description editing must each call one authenticated gallery command");
   assert.ok(JSON.parse(library.commands[0].imageIDs).length === 1, "share command must contain only selected image IDs");
   assert.equal(library.shareFeedback, "已分享 1 张图片，不含 PDF 文献文件", "share action must explain PDF exclusion in Chinese");
   assert.equal(library.importFeedback, "已导入 0 张；匹配文献 0 张；未匹配 0 张；跳过 0 张", "import action must report match results in Chinese");
@@ -1754,7 +1889,7 @@ try {
   assert.equal(mobileFilterDisclosure.overlap, false, "mobile collapsed filter value must not overlap its heading or disclosure action");
   assert.equal(mobileTable.horizontalOverflow, 0, "mobile metadata table must fit without horizontal scrolling");
   assert.deepEqual(mobileTable.visibleHeaders, ["选择", "预览", "论文", "来源"], "mobile metadata table must retain the four workflow columns");
-  assert.equal(mobileTable.hiddenHeaderCount, 5, "mobile metadata table must fold five secondary columns into paper facts");
+  assert.equal(mobileTable.hiddenHeaderCount, 6, "mobile metadata table must fold six secondary columns, including the description column, into paper facts");
   assert.equal(mobileTable.factsVisible, 8, "mobile metadata table must show compact facts for every image");
   assert.equal(mobileTable.factsComplete, true, "mobile compact facts must preserve category, year, page, size, and source context");
   assert.equal(mobileTable.sourceActionCount, 8, "mobile metadata table must retain every source action");
@@ -1946,7 +2081,7 @@ try {
   assert.ok(reviewState.categoryOptions.length >= 10, "review dialog must retain the complete concrete research-category set");
   assert.equal(reviewState.roleValue, "auto", "review dialog must retain automatic PPT-use inference");
   assert.equal(reviewState.suggestionText, "识别建议：热图／矩阵图。", "automatic review must present one concise inferred category");
-  assert.equal(reviewState.fieldHelp, "类别用于图库筛选；PPT 用途用于插入与叙事建议，不会改变原图。", "review dialog must explain the distinct effect of both editable decisions");
+  assert.equal(reviewState.fieldHelp, "类别用于图库筛选；PPT 用途用于插入与叙事建议；自定义描述会随图片保存，并可在图库中继续修改。", "review dialog must explain the distinct effect of all three editable decisions, including where the description can be edited later");
   assert.ok(reviewState.describedBy.includes("pdf-image-saver-preview-review-field-help"), "review dialog accessibility description must include the field-effect explanation");
   assert.equal(reviewState.activeID, "pdf-image-saver-review-quality", "review dialog must focus the database quality decision first");
   assert.equal(reviewState.cancelText, "取消", "reader review must expose a concise cancellation action");
@@ -1954,7 +2089,7 @@ try {
   assert.equal(reviewState.stopText, "", "clip review must not expose a queue-stop action");
   assert.equal(reviewState.stopTitle, "", "clip review must not expose a queue-stop tooltip");
   assert.equal(reviewState.confirmText, "确认并保存", "reader review must explain the clip save action");
-  assert.equal(reviewState.confirmTitle, "使用当前类别、画质和 PPT 用途保存图片", "reader review save tooltip must explain its saved metadata");
+  assert.equal(reviewState.confirmTitle, "使用当前类别、画质、PPT 用途和自定义描述保存图片", "reader review save tooltip must explain its saved metadata");
   await waitFor(async () => evaluate(client, `(() => { const image=document.querySelector('.pdf-image-saver-preview-review-image'); return !!image?.complete && image.naturalWidth > 0; })()`));
   const reviewLayout = await evaluate(client, `(() => { const dialog=document.getElementById('pdf-image-saver-preview-review-dialog');const panel=dialog.querySelector('.pdf-image-saver-preview-review-panel');const image=dialog.querySelector('.pdf-image-saver-preview-review-image');const actions=dialog.querySelector('.pdf-image-saver-preview-review-actions');const panelRect=panel.getBoundingClientRect();const imageRect=image.getBoundingClientRect();const actionRect=actions.getBoundingClientRect();return {panelTop:panelRect.top,panelBottom:panelRect.bottom,panelClientWidth:panel.clientWidth,panelScrollWidth:panel.scrollWidth,imageWidth:imageRect.width,imageHeight:imageRect.height,actionsTop:actionRect.top,actionsBottom:actionRect.bottom,viewportHeight:innerHeight}; })()`);
   assert.ok(reviewLayout.panelTop >= 0 && reviewLayout.panelBottom <= reviewLayout.viewportHeight, "review panel must fit inside the fixed desktop viewport");
@@ -2077,6 +2212,7 @@ try {
   assert.deepEqual(reopenListenerResult, [{ key: "extensions.pdfImageSaver.defaultQuality", value: "low" }], "reopening preferences must not duplicate change listeners");
   const browserExceptions = client.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
   assert.equal(browserExceptions.length, 0, "button audit must not produce browser exceptions");
+  assert.equal(countPageTargets(), initialPageTargetCount, "no gallery or index action may open an extra browser tab; every large-image view must stay inside the page");
   console.log(`browser UI audit ok: ${single.buttonCount} saved-page buttons, ${multi.filterButtonCount} filters, ${library.cardCount} global-library images, ${library.buttonCount} library buttons, reader menu + live clip + review`);
 } finally {
   client?.close();

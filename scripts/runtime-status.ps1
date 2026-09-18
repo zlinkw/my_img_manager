@@ -181,7 +181,7 @@ function Get-DirectoryManifestInfo {
     version = $version
     strictMinVersion = $strictMinVersion
     strictMaxVersion = $strictMaxVersion
-    strictMaxVersionExpected = $strictMaxVersion -eq "9.0.*"
+    strictMaxVersionExpected = $strictMaxVersion -eq "11.*"
     description = $description
     missingPayload = $missingPayload
     optionalMissingPayload = $optionalMissingPayload
@@ -239,7 +239,7 @@ function Get-XPIManifestInfo {
     idMatches = $id -eq $addonID
     version = $version
     strictMaxVersion = $strictMaxVersion
-    strictMaxVersionExpected = $strictMaxVersion -eq "9.0.*"
+    strictMaxVersionExpected = $strictMaxVersion -eq "11.*"
   }
 }
 
@@ -389,8 +389,8 @@ $xpiReadyProfiles = @($profiles | Where-Object {
 $status = [ordered]@{
   addonID = $addonID
   workspace = $root
-  expectedRuntime = "Zotero 9.0.5"
-  expectedStrictMaxVersion = "9.0.*"
+  expectedRuntime = "Zotero 10.x"
+  expectedStrictMaxVersion = "11.*"
   zoteroProcessCount = $zoteroProcesses.Count
   zoteroProcesses = $zoteroProcesses
   summary = [ordered]@{

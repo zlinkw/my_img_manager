@@ -1,7 +1,7 @@
 var PdfImageSaver = (() => {
   const ADDON_REF = "pdf-image-saver";
   const HELPER_SCHEMA_VERSION = "zotero-pdf-image-saver/v1";
-  const SHARED_DB_SCHEMA_VERSION = 2;
+  const SHARED_DB_SCHEMA_VERSION = 3;
   const SHARED_LIBRARY_LOCATOR_FILE_NAME = "library.json";
   const SHARED_LIBRARY_LOCATOR_SCHEMA_VERSION = 1;
   const SHARED_LIBRARY_LOCATOR_PRODUCER = "zotero-pdf-image-saver";
@@ -13,8 +13,8 @@ var PdfImageSaver = (() => {
   const BRIDGE_URL = `http://127.0.0.1:23119${BRIDGE_ENDPOINT}`;
   const BRIDGE_STATUS_COMMANDS = ["status", "getStatus"];
   const BRIDGE_PROVENANCE_COMMANDS = ["openPdfByImageId", "selectParentItemByImageId", "selectPdfAttachmentByImageId"];
-  const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "refreshLibrary"];
-  const GLOBAL_LIBRARY_VIEW_VERSION = "37";
+  const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "refreshLibrary", "updateImageNote"];
+  const GLOBAL_LIBRARY_VIEW_VERSION = "38";
   const GLOBAL_LIBRARY_DIRECTORY_NAME = "paper-image-library-view";
   const GLOBAL_LIBRARY_HTML_NAME = "paper-image-library.html";
   const GLOBAL_LIBRARY_MAX_IMAGE_BYTES = 25 * 1024 * 1024;
@@ -24,7 +24,7 @@ var PdfImageSaver = (() => {
     "library_id", "library_type", "group_id", "bbox_json", "palette_json", "image_category",
     "color_family", "style_tags_json", "quality", "detector", "rendered_width", "rendered_height",
     "dominant_hex", "contrast_hex", "content_sha256", "origin_type", "source_match_status",
-    "imported_at", "zotero_select_item_uri", "image_bytes",
+    "imported_at", "zotero_select_item_uri", "user_note", "image_bytes",
   ];
   const LEGACY_PREVIEW_SYNC_VERSION = "2";
   const LEGACY_PREVIEW_SYNC_PREF = "legacyPreviewSyncVersion";
@@ -50,6 +50,7 @@ var PdfImageSaver = (() => {
   const HARD_MAX_HELPER_TIMEOUT_SECONDS = 600;
   const ORIGINAL_MAX_IMAGE_BYTES = 25 * 1024 * 1024;
   const ORIGINAL_MAX_TOTAL_BYTES = 150 * 1024 * 1024;
+  const USER_NOTE_MAX_LENGTH = 300;
   const QUALITY = {
     low: { label: "低", maxWidth: 240, jpegQuality: 0.62, estimate: "约 20–80 KB/张" },
     medium: { label: "中", maxWidth: 480, jpegQuality: 0.78, estimate: "约 60–220 KB/张" },
@@ -1605,7 +1606,7 @@ var PdfImageSaver = (() => {
       image_category, color_family, style_tags_json, quality, detector,
       rendered_width, rendered_height, dominant_hex, contrast_hex,
       content_sha256, origin_type, source_match_status, imported_at,
-      zotero_select_item_uri,
+      zotero_select_item_uri, user_note,
       length(image_blob) AS image_bytes
       FROM images WHERE deleted = 0
       ORDER BY created_at DESC, title COLLATE NOCASE, page_number, image_id`, [], {
@@ -2047,6 +2048,7 @@ var PdfImageSaver = (() => {
       colorFamilyLabel: formatColorFamilyLabel(colorFamily),
       styleTags,
       palette,
+      userNote: normalizeUserNote(row?.user_note ?? row?.userNote),
       quality: Object.prototype.hasOwnProperty.call(QUALITY, String(row?.quality || "")) ? String(row.quality) : "",
       detector: normalizeMetadataText(row?.detector, "", 80),
       renderedWidth: normalizePositiveInteger(row?.rendered_width ?? row?.renderedWidth, null),
@@ -2089,6 +2091,37 @@ var PdfImageSaver = (() => {
     return `${safeTitle}${year ? `_${year}` : ""}_第${pageNumber}页_图${ordinal}.${extension}`;
   }
 
+  // The gallery owns note editing: the capture dialog and this block are the only two writers
+  // of images.user_note.
+  function buildLibraryNoteBlockHTML(record, index) {
+    const imageID = escapeHTML(record.imageID);
+    const note = normalizeUserNote(record.userNote);
+    const inputID = `pdf-image-saver-library-note-${normalizeNonNegativeInteger(index, 0) + 1}`;
+    const title = escapeHTML(record.title);
+    const actionLabel = note ? "编辑描述" : "添加描述";
+    return `<div class="note-block" data-note-block="${imageID}">
+            <p class="note-text" data-note-text="${imageID}"${note ? "" : " hidden"}>${escapeHTML(note)}</p>
+            <button type="button" class="button secondary note-edit" data-edit-note="${imageID}" title="${actionLabel}：${title}" aria-label="${actionLabel}：${title}">${actionLabel}</button>
+            <div class="note-form" data-note-form="${imageID}" hidden>
+              <label class="sr-only" for="${inputID}">自定义描述</label>
+              <textarea id="${inputID}" class="note-input" rows="3" maxlength="${USER_NOTE_MAX_LENGTH}" placeholder="记录这张图的特殊信息，例如样本来源、复现要点或写作备注">${escapeHTML(note)}</textarea>
+              <div class="note-form-actions">
+                <button type="button" class="button primary" data-note-save="${imageID}" title="把描述写回外部 SQLite 图库">保存描述</button>
+                <button type="button" class="button secondary" data-note-cancel="${imageID}" title="放弃本次修改">取消</button>
+              </div>
+            </div>
+          </div>`;
+  }
+
+  function formatLibraryNoteCellText(value) {
+    const note = normalizeUserNote(value);
+    if (!note) {
+      return "无描述";
+    }
+    const single = note.replace(/\n+/g, " ");
+    return single.length > 60 ? `${single.slice(0, 59)}…` : single;
+  }
+
   function buildGlobalImageLibraryHTML({ records = [], skippedCount = 0, generatedAt = null, bridgeURL = "", bridgeToken: pageBridgeToken = "", initialPdfAttachmentKey = "" } = {}) {
     const list = (Array.isArray(records) ? records : [])
       .map((record) => normalizeGlobalImageLibraryRecord(record, record?.imageURL, record?.imageBytes))
@@ -2126,11 +2159,12 @@ var PdfImageSaver = (() => {
     };
     const cardsHTML = list.map((record, index) => {
       const source = sourceInfo(record);
-      const searchText = [record.title, record.year, record.doi, record.pageNumber, record.categoryLabel, record.colorFamilyLabel, source.label, ...record.styleTags, ...record.styleTags.map(formatStyleTagLabel)].join(" ").toLowerCase();
+      const searchBase = [record.title, record.year, record.doi, record.pageNumber, record.categoryLabel, record.colorFamilyLabel, source.label, ...record.styleTags, ...record.styleTags.map(formatStyleTagLabel)].join(" ").toLowerCase();
+      const noteSearchText = formatUserNoteSummary(record.userNote, USER_NOTE_MAX_LENGTH).toLowerCase();
       const paletteHTML = record.palette.slice(0, 6).map((swatch) => `<span class="palette-swatch" style="--swatch:${escapeHTML(swatch.hex)}" title="${escapeHTML(swatch.hex)}"><span class="sr-only">${escapeHTML(swatch.hex)}</span></span>`).join("");
       const tagHTML = record.styleTags.slice(0, 4).map((tag) => `<span class="tag">${escapeHTML(formatStyleTagLabel(tag))}</span>`).join("");
       const qualityLabel = record.quality && QUALITY[record.quality] ? `清晰度 ${QUALITY[record.quality].label}` : "";
-      return `<article class="library-card" data-id="${escapeHTML(record.imageID)}" data-index="${index}" data-search="${escapeHTML(searchText)}" data-category="${escapeHTML(record.category)}" data-color="${escapeHTML(record.colorFamily)}" data-year="${escapeHTML(record.year)}" data-created="${escapeHTML(record.createdAt)}" data-title="${escapeHTML(record.title.toLowerCase())}" data-page="${record.pageNumber}" data-size="${record.imageBytes}" data-source="${source.kind}" data-pdf-attachment-key="${escapeHTML(record.pdfAttachmentKey)}">
+      return `<article class="library-card" data-id="${escapeHTML(record.imageID)}" data-index="${index}" data-search-base="${escapeHTML(searchBase)}" data-search="${escapeHTML(`${searchBase} ${noteSearchText}`)}" data-category="${escapeHTML(record.category)}" data-color="${escapeHTML(record.colorFamily)}" data-year="${escapeHTML(record.year)}" data-created="${escapeHTML(record.createdAt)}" data-title="${escapeHTML(record.title.toLowerCase())}" data-page="${record.pageNumber}" data-size="${record.imageBytes}" data-source="${source.kind}" data-pdf-attachment-key="${escapeHTML(record.pdfAttachmentKey)}">
         <button type="button" class="image-button" data-open-image="${escapeHTML(record.imageID)}" aria-label="高清查看：${escapeHTML(record.title)}">
           <img src="${escapeHTML(record.imageURL)}" alt="${escapeHTML(record.title)}，第 ${record.pageNumber} 页" loading="lazy" decoding="async">
         </button>
@@ -2141,6 +2175,7 @@ var PdfImageSaver = (() => {
           ${record.doi ? `<div class="doi" title="${escapeHTML(record.doi)}">DOI ${escapeHTML(record.doi)}</div>` : ""}
           <div class="palette" aria-label="图片配色">${paletteHTML || '<span class="muted">未提取配色</span>'}</div>
           ${tagHTML ? `<div class="tags">${tagHTML}</div>` : ""}
+          ${buildLibraryNoteBlockHTML(record, index)}
         <div class="card-actions"><button type="button" class="button primary" data-open-image="${escapeHTML(record.imageID)}">查看大图</button>${sourceActionHTML(record)}<a class="button secondary" data-download-image="${escapeHTML(record.imageID)}" href="${escapeHTML(record.imageURL)}" download="${escapeHTML(record.downloadName)}" title="下载为 ${escapeHTML(record.downloadName)}">下载原图</a></div>
         </div>
       </article>`;
@@ -2151,7 +2186,7 @@ var PdfImageSaver = (() => {
         <td class="table-select"><input type="checkbox" data-select-image="${escapeHTML(record.imageID)}" data-selection-label="选择图片：${escapeHTML(record.title)}" title="选择图片；电脑端按住 Shift 可连续选择" aria-label="选择图片：${escapeHTML(record.title)}；电脑端按住 Shift 可连续选择"></td>
         <td class="table-preview"><button type="button" class="table-image" data-open-image="${escapeHTML(record.imageID)}" title="查看大图：${escapeHTML(record.title)}" aria-label="高清查看：${escapeHTML(record.title)}"><img src="${escapeHTML(record.imageURL)}" alt="" loading="lazy" decoding="async"><span class="table-image-label">查看大图</span></button></td>
         <td class="table-paper"><button type="button" class="table-title-button" data-open-image="${escapeHTML(record.imageID)}" title="高清查看：${escapeHTML(record.title)}" aria-label="高清查看：${escapeHTML(record.title)}">${escapeHTML(record.title)}</button>${record.doi ? `<small class="table-doi">${escapeHTML(record.doi)}</small>` : ""}<small class="table-facts">${escapeHTML(record.categoryLabel)} · ${record.year ? escapeHTML(record.year) : "年份未知"} · 第 ${record.pageNumber} 页 · ${formatBytes(record.imageBytes)} · ${escapeHTML(source.label)}</small></td>
-        <td class="table-category">${escapeHTML(record.categoryLabel)}</td><td class="table-year">${record.year ? escapeHTML(record.year) : "未知"}</td><td class="table-page">${record.pageNumber}</td><td class="table-size">${formatBytes(record.imageBytes)}</td><td class="table-source-status"><span class="source-badge ${source.kind}">${escapeHTML(source.label)}</span></td><td class="table-source">${sourceActionHTML(record, "table-link")}</td>
+        <td class="table-category">${escapeHTML(record.categoryLabel)}</td><td class="table-year">${record.year ? escapeHTML(record.year) : "未知"}</td><td class="table-page">${record.pageNumber}</td><td class="table-size">${formatBytes(record.imageBytes)}</td><td class="table-source-status"><span class="source-badge ${source.kind}">${escapeHTML(source.label)}</span></td><td class="table-source">${sourceActionHTML(record, "table-link")}</td><td class="table-note" data-note-cell="${escapeHTML(record.imageID)}" title="${escapeHTML(formatUserNoteSummary(record.userNote, USER_NOTE_MAX_LENGTH))}">${escapeHTML(formatLibraryNoteCellText(record.userNote))}</td>
       </tr>`;
     }).join("");
     const libraryData = list.map((record) => {
@@ -2169,6 +2204,7 @@ var PdfImageSaver = (() => {
         sourceLabel: source.label,
         openPDFURI: record.openPDFURI,
         selectItemURI: record.selectItemURI,
+        userNote: normalizeUserNote(record.userNote),
       };
     });
     const serializedLibraryData = JSON.stringify(libraryData).replace(/</g, "\\u003c");
@@ -2261,6 +2297,13 @@ var PdfImageSaver = (() => {
     .palette-swatch { width:22px; height:22px; border:1px solid rgba(0,0,0,.24); border-radius:3px; background:var(--swatch); }
     .tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:7px; }
     .tag { padding:2px 5px; border:1px solid var(--line); border-radius:3px; color:var(--muted); font-size:11px; }
+    .note-block { margin-top:8px; }
+    .note-text { margin:0; padding:5px 7px; border-left:3px solid var(--accent-emphasis); border-radius:0 var(--radius-sm) var(--radius-sm) 0; background:var(--surface-2); color:var(--text); font-size:12px; line-height:1.45; overflow-wrap:anywhere; white-space:pre-wrap; }
+    .note-edit { min-height:26px; padding:3px 8px; font-size:11px; }
+    .note-form { display:grid; gap:6px; }
+    .note-input { width:100%; min-height:58px; box-sizing:border-box; padding:5px 7px; border:1px solid var(--control-line); border-radius:var(--radius-sm); background:var(--bg); color:var(--text); font:400 12px/1.45 system-ui, sans-serif; resize:vertical; }
+    .note-form-actions { display:flex; gap:6px; }
+    .note-form-actions .button { min-height:26px; padding:3px 8px; font-size:11px; }
     .card-actions { display:flex; flex-wrap:wrap; gap:7px; margin-top:9px; }
     .button { display:inline-flex; align-items:center; justify-content:center; min-height:var(--control-height); padding:6px 10px; border-radius:var(--radius-sm); text-decoration:none; cursor:pointer; line-height:1.25; }
     .button.primary { border:1px solid var(--accent); background:var(--accent); color:#fff; }
@@ -2272,7 +2315,7 @@ var PdfImageSaver = (() => {
     .empty { display:none; padding:64px 20px; text-align:center; color:var(--muted); }
     .empty.is-visible { display:flex; flex-direction:column; align-items:center; gap:10px; }
     .table-view { overflow:visible; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); }
-    table { width:100%; border-collapse:collapse; min-width:1050px; }
+    table { width:100%; border-collapse:collapse; min-width:1180px; }
     th { position:sticky; top:var(--library-header-height); z-index:2; background:var(--surface); text-align:left; font-size:12px; color:var(--muted); }
     th, td { padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
     td small { display:block; max-width:360px; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); }
@@ -2286,6 +2329,7 @@ var PdfImageSaver = (() => {
     .table-title-button:hover, .table-title-button:focus-visible { color:var(--link); text-decoration:underline; }
     .table-link { color:var(--link); white-space:nowrap; }
     .table-link.is-disabled { color:var(--muted); text-decoration:none; }
+    .table-note { max-width:230px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
     .viewer { position:fixed; inset:0; z-index:100; display:grid; grid-template-rows:auto minmax(0,1fr) auto; background:#111827; color:#F8FAFC; }
     .viewer-header, .viewer-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; }
     .viewer-heading { min-width:0; }
@@ -2297,7 +2341,9 @@ var PdfImageSaver = (() => {
     .viewer-selection.is-selected .viewer-selection-count { border-color:#BFDBFE; background:#EFF6FF; color:#1E3A8A; }
     .viewer-title { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
     .viewer-meta { margin-top:2px; overflow:hidden; color:#cbd3d8; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+    .viewer-note { margin:4px 0 0; color:#e4eaee; font-size:12px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; }
     #viewer-close { flex:0 0 auto; min-width:54px; white-space:nowrap; }
+    #viewer-close::before { content:"×"; margin-right:5px; font-size:15px; line-height:1; }
     #viewer-close.is-finish { border-color:#2563EB; background:#2563EB; }
     .viewer-stage { min-height:0; padding:0 14px; overflow:auto; overscroll-behavior:contain; }
     .viewer-canvas { display:flex; align-items:center; justify-content:center; min-width:100%; min-height:100%; }
@@ -2342,7 +2388,7 @@ var PdfImageSaver = (() => {
       .table-view { overflow:visible; }
       .table-view table { min-width:0; table-layout:fixed; }
       .table-view th, .table-view td { box-sizing:border-box; padding:6px 5px; }
-      .table-category, .table-year, .table-page, .table-size, .table-source-status { display:none; }
+      .table-category, .table-year, .table-page, .table-size, .table-source-status, .table-note { display:none; }
       .table-select { width:36px; text-align:center; }
       .table-preview { width:78px; }
       .table-source { width:78px; font-size:12px; }
@@ -2360,6 +2406,7 @@ var PdfImageSaver = (() => {
       .viewer-title, .viewer-meta { white-space:normal; }
       .viewer-title { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
       .viewer-meta { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+      .viewer-note { font-size:11px; }
       .viewer-stage { padding:0 6px; }
       .viewer-footer { align-items:flex-start; flex-direction:column; gap:7px; padding:8px 10px; }
       .viewer-status { justify-content:space-between; width:100%; }
@@ -2402,12 +2449,12 @@ var PdfImageSaver = (() => {
   </header>
   <main>
     <section class="library-grid" id="library-grid" role="tabpanel" aria-labelledby="library-view-gallery">${cardsHTML}</section>
-    <section class="table-view" id="library-table" role="tabpanel" aria-labelledby="library-view-table" hidden><table><thead><tr><th class="table-select">选择</th><th class="table-preview">预览</th><th class="table-paper">论文</th><th class="table-category">类别</th><th class="table-year">年份</th><th class="table-page">页码</th><th class="table-size">大小</th><th class="table-source-status">来源状态</th><th class="table-source">来源</th></tr></thead><tbody>${rowsHTML}</tbody></table></section>
+    <section class="table-view" id="library-table" role="tabpanel" aria-labelledby="library-view-table" hidden><table><thead><tr><th class="table-select">选择</th><th class="table-preview">预览</th><th class="table-paper">论文</th><th class="table-category">类别</th><th class="table-year">年份</th><th class="table-page">页码</th><th class="table-size">大小</th><th class="table-source-status">来源状态</th><th class="table-source">来源</th><th class="table-note">描述</th></tr></thead><tbody>${rowsHTML}</tbody></table></section>
     <div class="empty${list.length ? "" : " is-visible"}" id="library-empty"><span>${list.length ? "没有符合当前筛选条件的图片" : "尚无已保存图片；图片库会自动读取 Zotero 外部数据库。需要接收他人图片时使用上方“导入分享包”。"}</span>${list.length ? '<button class="action" id="library-empty-reset" type="button">清除筛选并显示全部</button>' : ""}</div>
   </main>
   <div class="mobile-selection-bar" id="mobile-selection-bar" role="toolbar" aria-label="移动端批量操作" hidden><strong id="mobile-selection-summary" role="status" aria-live="polite">未选择图片</strong><button class="action" id="mobile-clear-selection" type="button">清空</button><button class="action primary" id="mobile-share-selected" type="button">分享 0 张</button><button class="action danger" id="mobile-delete-selected" type="button">删除 0 张</button></div>
   <div class="viewer" id="library-viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" aria-describedby="viewer-meta viewer-position" aria-keyshortcuts="Escape ArrowLeft ArrowRight = - 0 1" hidden>
-    <div class="viewer-header"><div class="viewer-heading"><div class="viewer-title" id="viewer-title"></div><div class="viewer-meta" id="viewer-meta"></div></div><div class="viewer-header-actions"><label class="viewer-selection" id="viewer-selection-label" title="将当前图片加入批量选择；当前共选择 0 张"><input id="viewer-select" type="checkbox" aria-label="将当前图片加入批量选择；当前共选择 0 张"><span>加入批量</span><output class="viewer-selection-count" id="viewer-selection-count" aria-live="polite" title="当前共选择 0 张图片">0</output></label><button type="button" id="viewer-close" title="关闭高清查看；也可按 Esc">关闭</button></div></div>
+    <div class="viewer-header"><div class="viewer-heading"><div class="viewer-title" id="viewer-title"></div><div class="viewer-meta" id="viewer-meta"></div><p class="viewer-note" id="viewer-note" hidden></p></div><div class="viewer-header-actions"><label class="viewer-selection" id="viewer-selection-label" title="将当前图片加入批量选择；当前共选择 0 张"><input id="viewer-select" type="checkbox" aria-label="将当前图片加入批量选择；当前共选择 0 张"><span>加入批量</span><output class="viewer-selection-count" id="viewer-selection-count" aria-live="polite" title="当前共选择 0 张图片">0</output></label><button type="button" id="viewer-close" aria-label="关闭大图查看并返回图片库列表" title="关闭大图查看并返回图片库列表；也可按 Esc">关闭</button></div></div>
     <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""></div></div>
     <div class="viewer-footer"><div class="viewer-status"><span id="viewer-position" title="可按左右方向键切换图片"></span><div class="viewer-zoom" role="group" aria-label="图像缩放"><button type="button" id="viewer-zoom-out" aria-label="缩小图像" aria-keyshortcuts="-" title="缩小图像；也可按减号键">−</button><output id="viewer-zoom-value" aria-live="polite">适应窗口</output><button type="button" id="viewer-zoom-in" aria-label="放大图像" aria-keyshortcuts="=" title="放大图像；也可按加号键">＋</button><button type="button" id="viewer-zoom-actual" aria-label="按原始像素显示" aria-keyshortcuts="1" title="按原始像素显示；也可按数字 1">1:1</button><button type="button" id="viewer-zoom-fit" aria-label="完整显示当前图片" aria-keyshortcuts="0" title="完整显示当前图片；也可按数字 0">适应</button></div></div><div class="viewer-actions"><button type="button" id="viewer-prev" aria-label="查看上一张图片" aria-keyshortcuts="ArrowLeft" title="查看上一张图片；也可按方向键左">← 上一张</button><button type="button" id="viewer-next" aria-label="查看下一张图片" aria-keyshortcuts="ArrowRight" title="查看下一张图片；也可按方向键右">下一张 →</button><a id="viewer-download" href="" download title="下载当前完整原图">下载原图</a><a id="viewer-source" href="" title="定位当前图片的本机文献">定位原文</a></div></div>
   </div>
@@ -2468,6 +2515,7 @@ var PdfImageSaver = (() => {
       const viewerImage = document.getElementById("viewer-image");
       const viewerTitle = document.getElementById("viewer-title");
       const viewerMeta = document.getElementById("viewer-meta");
+      const viewerNote = document.getElementById("viewer-note");
       const viewerPosition = document.getElementById("viewer-position");
       const viewerSource = document.getElementById("viewer-source");
       const viewerDownload = document.getElementById("viewer-download");
@@ -2690,8 +2738,11 @@ var PdfImageSaver = (() => {
         viewerSelect.setAttribute("aria-label", selectionLabel);
         const finishSelection = managementAvailable && selected.size > 0;
         viewerClose.textContent = finishSelection ? "完成选择" : "关闭";
-        viewerClose.title = finishSelection ? "关闭高清查看并前往批量操作；按 Esc 仅关闭查看" : "关闭高清查看；也可按 Esc";
+        viewerClose.title = finishSelection
+          ? "关闭大图查看并前往批量操作；按 Esc 仅关闭查看"
+          : "关闭大图查看并返回图片库列表；也可按 Esc";
         viewerClose.classList.toggle("is-finish", finishSelection);
+        viewerClose.setAttribute("aria-label", viewerClose.title);
       };
       const syncSelection = () => {
         document.querySelectorAll("[data-select-image]").forEach((input) => { input.checked = selected.has(input.dataset.selectImage); });
@@ -2748,6 +2799,15 @@ var PdfImageSaver = (() => {
         const importLabel = managementAvailable ? "导入图片包" : "导入不可用；" + managementRecoveryHint;
         importPackage.title = importLabel;
         importPackage.setAttribute("aria-label", importLabel);
+        for (const noteButton of Array.from(document.querySelectorAll("[data-edit-note]"))) {
+          const noteRecord = byID.get(noteButton.dataset.editNote);
+          const noteAction = noteRecord?.userNote ? "编辑描述" : "添加描述";
+          const noteBase = noteAction + "：" + (noteRecord ? noteRecord.title : "");
+          const noteLabel = managementAvailable ? noteBase : "描述编辑不可用；" + managementRecoveryHint;
+          noteButton.disabled = commandBusy || !managementAvailable;
+          noteButton.title = noteLabel;
+          noteButton.setAttribute("aria-label", noteLabel);
+        }
         const visibleIDs = visibleCards.map((card) => card.dataset.id);
         const allVisibleSelected = visibleIDs.length > 0 && visibleIDs.every((id) => selected.has(id));
         selectVisible.textContent = (allVisibleSelected ? "取消当前 " : "全选当前 ") + visibleIDs.length + " 张";
@@ -2841,6 +2901,86 @@ var PdfImageSaver = (() => {
         }
         finally { commandBusy = false; syncSelection(); }
       };
+      // Page-local note helpers. The generated page cannot call plugin-scope functions, it must
+      // avoid template literals because the whole document is built from one, and every backslash
+      // in a regex has to be doubled or this outer template literal eats it as an escape.
+      const normalizeNoteText = (value) => String(value == null ? "" : value)
+        .replace(/\\r\\n?/g, "\\n")
+        .split("\\n")
+        .map((line) => line.replace(/[ \\t]+/g, " ").trim())
+        .join("\\n")
+        .replace(/\\n{3,}/g, "\\n\\n")
+        .trim()
+        .slice(0, 300);
+      const noteSearchToken = (value) => normalizeNoteText(value).replace(/\\n+/g, " ").toLowerCase();
+      const noteCellText = (value) => {
+        const note = normalizeNoteText(value);
+        if (!note) return "无描述";
+        const single = note.replace(/\\n+/g, " ");
+        return single.length > 60 ? single.slice(0, 59) + "…" : single;
+      };
+      const noteTitleText = (value) => normalizeNoteText(value).replace(/\\n+/g, " ");
+      const findCard = (imageID) => cards.find((entry) => entry.dataset.id === imageID) || null;
+      const syncNoteDOM = (imageID, note) => {
+        const record = byID.get(imageID);
+        if (record) record.userNote = note;
+        const card = findCard(imageID);
+        if (card) {
+          card.dataset.search = String(card.dataset.searchBase || "") + " " + noteSearchToken(note);
+          const text = card.querySelector("[data-note-text]");
+          if (text) { text.textContent = note; text.hidden = !note; }
+          const edit = card.querySelector("[data-edit-note]");
+          if (edit) {
+            const label = note ? "编辑描述" : "添加描述";
+            edit.textContent = label;
+            edit.title = label + "：" + (record ? record.title : "");
+            edit.setAttribute("aria-label", edit.title);
+          }
+          const input = card.querySelector("[data-note-form] textarea");
+          if (input) input.value = note;
+        }
+        const cell = Array.from(tableBody.querySelectorAll("td[data-note-cell]"))
+          .find((candidate) => candidate.dataset.noteCell === imageID);
+        if (cell) {
+          cell.textContent = noteCellText(note);
+          cell.title = noteTitleText(note);
+        }
+      };
+      const openNoteEditor = (imageID) => {
+        const card = findCard(imageID);
+        if (!card || !managementAvailable) return;
+        cards.forEach((entry) => { if (entry !== card) closeNoteEditor(entry.dataset.id); });
+        const form = card.querySelector("[data-note-form]");
+        const edit = card.querySelector("[data-edit-note]");
+        if (!form) return;
+        form.hidden = false;
+        if (edit) edit.hidden = true;
+        form.querySelector("textarea")?.focus?.();
+      };
+      const closeNoteEditor = (imageID) => {
+        const card = findCard(imageID);
+        if (!card) return;
+        const form = card.querySelector("[data-note-form]");
+        const edit = card.querySelector("[data-edit-note]");
+        if (form) form.hidden = true;
+        if (edit) edit.hidden = false;
+        const input = form?.querySelector("textarea");
+        if (input) input.value = byID.get(imageID)?.userNote || "";
+      };
+      const saveNote = async (imageID) => {
+        const card = findCard(imageID);
+        const input = card?.querySelector("[data-note-form] textarea");
+        if (!input) return;
+        const result = await runCommand("正在把描述写回外部数据库…", () => postCommand("updateImageNote", {
+          image_id: imageID,
+          user_note: String(input.value || ""),
+        }));
+        if (!result) return;
+        if (!result.updated) { setMessage("该图片已不在图库中，描述未保存"); return; }
+        syncNoteDOM(imageID, String(result.userNote || ""));
+        closeNoteEditor(imageID);
+        setMessage("描述已保存到外部数据库");
+      };
       const showRecord = (index, opener = null) => {
         if (!visibleCards.length) return;
         const opening = viewer.hidden;
@@ -2856,7 +2996,9 @@ var PdfImageSaver = (() => {
         viewerImage.src = record.imageURL;
         viewerImage.alt = record.title + "，第 " + record.pageNumber + " 页";
         viewerTitle.textContent = record.title;
-        viewerMeta.textContent = [record.categoryLabel, record.year || "年份未知", "原文第 " + record.pageNumber + " 页", record.dimensions, formatSize(record.imageBytes), record.sourceLabel].join(" · ");
+        viewerMeta.textContent = [record.categoryLabel, record.year || "年份未知", "原文第 " + record.pageNumber + " 页", record.dimensions, formatSize(record.imageBytes), record.sourceLabel].filter(Boolean).join(" · ");
+        viewerNote.textContent = record.userNote ? "描述：" + record.userNote : "";
+        viewerNote.hidden = !record.userNote;
         viewerPosition.textContent = "第 " + (viewerIndex + 1) + " 张，共 " + visibleCards.length + " 张";
         if (sourceURI) {
           viewerSource.href = sourceURI;
@@ -3044,6 +3186,12 @@ var PdfImageSaver = (() => {
         if (opener) { const index = visibleCards.findIndex((card) => card.dataset.id === opener.dataset.openImage); if (index >= 0) showRecord(index, opener); return; }
         const viewButton = event.target.closest?.("button[data-view]");
         if (viewButton) setLibraryView(viewButton.dataset.view, true);
+        const noteEdit = event.target.closest?.("[data-edit-note]");
+        if (noteEdit) { openNoteEditor(noteEdit.dataset.editNote); return; }
+        const noteCancel = event.target.closest?.("[data-note-cancel]");
+        if (noteCancel) { closeNoteEditor(noteCancel.dataset.noteCancel); return; }
+        const noteSave = event.target.closest?.("[data-note-save]");
+        if (noteSave) { void saveNote(noteSave.dataset.noteSave); }
       });
       document.querySelector(".segmented").addEventListener("keydown", (event) => {
         const current = event.target.closest?.("button[data-view]");
@@ -4290,7 +4438,7 @@ var PdfImageSaver = (() => {
       await publishPreviewEntriesToSharedLibrary({ attachment, parentItem, entries: [preview] });
       showReaderToast(
         reader,
-        `已保存${formatPageToastToken(pageIndex)}的框选图片：画质 ${getQualityLabelWithEstimate(preview.quality)}；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}。已写入外部 SQLite 图片库。`,
+        `已保存${formatPageToastToken(pageIndex)}的框选图片：画质 ${getQualityLabelWithEstimate(preview.quality)}；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。已写入外部 SQLite 图片库。`,
         "success",
       );
       rememberPreviewIndexSave(attachment, [preview], indexKey);
@@ -4422,7 +4570,7 @@ var PdfImageSaver = (() => {
       showReaderToast(reader, `正在保存${formatPageToastToken(pageIndex)}已确认的整页图片…`, "progress");
       await publishPreviewEntriesToSharedLibrary({ attachment, parentItem, entries: [preview] });
       rememberPreviewIndexSave(attachment, [preview], indexKey);
-      showReaderToast(reader, `已保存${formatPageToastToken(pageIndex)}整页图片：画质 ${getQualityLabelWithEstimate(preview.quality)}；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}。已写入外部 SQLite 图片库。`, "success");
+      showReaderToast(reader, `已保存${formatPageToastToken(pageIndex)}整页图片：画质 ${getQualityLabelWithEstimate(preview.quality)}；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。已写入外部 SQLite 图片库。`, "success");
     } catch (error) {
       logError(error);
       showReaderToast(reader, formatUserFacingError(error), "error");
@@ -4801,6 +4949,7 @@ var PdfImageSaver = (() => {
         entry.quality = normalizeQualityKey(entry.quality);
         entry.qualityEstimate = QUALITY[entry.quality].estimate;
         entry.imageCategory = normalizeImageCategoryKey(entry.imageCategory || entry.image_category || getDefaultImageCategoryKey());
+        entry.userNote = normalizeUserNote(entry.userNote ?? entry.user_note);
         entry.palette = normalizePalette(entry.palette);
         entry.colorFamily = normalizeColorFamily(entry.colorFamily || entry.color_family || deriveColorFamilyFromPalette(entry.palette));
         entry.dataURL = normalizePreviewDataURL(entry.dataURL);
@@ -4948,6 +5097,7 @@ var PdfImageSaver = (() => {
         quality: entry.quality,
         quality_estimate: entry.qualityEstimate,
         image_category: entry.imageCategory,
+        user_note: entry.userNote,
         color_family: entry.colorFamily,
         layout_hint: entry.layoutHint,
         aspect_ratio: entry.aspectRatio,
@@ -7504,11 +7654,27 @@ var PdfImageSaver = (() => {
         cursor: pointer;
         font: inherit;
       }
+      .pdf-image-saver-preview-review-field-note { grid-column: 1 / -1; }
+      .pdf-image-saver-preview-review-note {
+        width: 100%;
+        min-height: 62px;
+        box-sizing: border-box;
+        padding: 6px 7px;
+        border: 1px solid var(--fill-secondary, #64748B);
+        border-radius: 6px;
+        background: var(--material-background, #FFFFFF);
+        color: inherit;
+        font: 400 13px/1.4 system-ui, sans-serif;
+        resize: vertical;
+      }
+      .pdf-image-saver-preview-review-note::placeholder { color: var(--fill-secondary, #94A3B8); }
+      .pdf-image-saver-preview-review-note-count { color: var(--fill-secondary, #64748B); font-size: 11px; font-weight: 400; text-align: right; }
       .pdf-image-saver-preview-review-actions { position: sticky; bottom: -16px; z-index: 2; display: flex; justify-content: flex-end; gap: 8px; margin: 16px -16px -16px; padding: 11px 16px 16px; border-top: 1px solid var(--fill-quinary, #CBD5E1); background: var(--material-background, #FFFFFF); }
       .pdf-image-saver-preview-review-actions button { min-height: 32px; padding: 6px 10px; border-radius: 6px; cursor: pointer; font: 600 13px/1.25 system-ui, sans-serif; }
       .pdf-image-saver-preview-review-cancel { border: 1px solid var(--fill-secondary, #64748B); background: var(--material-background, #FFFFFF); color: inherit; }
       .pdf-image-saver-preview-review-confirm { border: 1px solid #2563EB; background: #2563EB; color: #FFFFFF; }
       .pdf-image-saver-preview-review-field select:focus-visible,
+      .pdf-image-saver-preview-review-note:focus-visible,
       .pdf-image-saver-preview-review-actions button:focus-visible { outline: 2px solid #2563EB; outline-offset: 2px; }
       @media (max-width: 460px) {
         .pdf-image-saver-preview-review-backdrop { padding: 8px; }
@@ -7521,9 +7687,11 @@ var PdfImageSaver = (() => {
         .pdf-image-saver-preview-review-panel,
         .pdf-image-saver-preview-review-actions,
         .pdf-image-saver-preview-review-field select,
+        .pdf-image-saver-preview-review-note,
         .pdf-image-saver-preview-review-cancel { background: var(--material-background, #111827); color: var(--fill-primary, #F8FAFC); }
         .pdf-image-saver-preview-review-instruction { color: var(--accent-color, #60A5FA); }
         .pdf-image-saver-preview-review-meta,
+        .pdf-image-saver-preview-review-note-count,
         .pdf-image-saver-preview-review-field-help { color: var(--fill-secondary, #94A3B8); }
         .pdf-image-saver-preview-review-evidence { background: #1E293B; }
       }
@@ -7840,6 +8008,37 @@ var PdfImageSaver = (() => {
       return fallback;
     }
     return text.slice(0, maxLength);
+  }
+
+  // User-authored description. Unlike normalizeMetadataText this keeps intentional line
+  // breaks, because the note is free text the user may lay out themselves.
+  function normalizeUserNote(value, fallback = "") {
+    if (typeof value !== "string" && !(typeof value === "number" && Number.isFinite(value))) {
+      return fallback;
+    }
+    const text = String(value)
+      .replace(/\r\n?/g, "\n")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+      .split("\n")
+      .map((line) => line.replace(/[ \t]+/g, " ").trim())
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    if (!text) {
+      return fallback;
+    }
+    return text.slice(0, USER_NOTE_MAX_LENGTH);
+  }
+
+  // Single-line form for compact surfaces: card metadata, table cells and search tokens.
+  function formatUserNoteSummary(value, maxLength = 120) {
+    const note = normalizeUserNote(value);
+    if (!note) {
+      return "";
+    }
+    const single = note.replace(/\n+/g, " ");
+    return single.length > maxLength ? `${single.slice(0, maxLength - 1)}…` : single;
   }
 
   function normalizeScope(value) {
@@ -8328,6 +8527,7 @@ var PdfImageSaver = (() => {
         image_category TEXT,
         color_family TEXT,
         style_tags_json TEXT,
+        user_note TEXT,
         quality TEXT,
         detector TEXT,
         rendered_width INTEGER,
@@ -8362,6 +8562,7 @@ var PdfImageSaver = (() => {
       image_category: "TEXT",
       color_family: "TEXT",
       style_tags_json: "TEXT",
+      user_note: "TEXT",
       quality: "TEXT",
       detector: "TEXT",
       rendered_width: "INTEGER",
@@ -8432,6 +8633,7 @@ var PdfImageSaver = (() => {
         const dominantHex = normalizeHexColor(entry?.dominantHex || entry?.dominant_hex) || palette[0]?.hex || null;
         const contrastHex = normalizeHexColor(entry?.contrastHex || entry?.contrast_hex) || deriveContrastHex(palette, dominantHex);
         const originType = normalizeMetadataText(entry?.originType || entry?.origin_type, "local", 40);
+        const userNote = normalizeUserNote(entry?.userNote ?? entry?.user_note);
         const existing = await database.rowQueryAsync("SELECT image_id, preview_duplicate_key, origin_type FROM images WHERE source_region_key = ?", [sourceRegionKey]);
         if (existing && String(existing.image_id || "") !== imageID) {
           throw new Error("Storage failed: source region identity collision.");
@@ -8444,8 +8646,8 @@ var PdfImageSaver = (() => {
           library_id, library_type, group_id, bbox_json, palette_json,
           image_category, color_family, style_tags_json, quality, detector,
           rendered_width, rendered_height, dominant_hex, contrast_hex,
-          content_sha256, origin_type, source_match_status, imported_at, deleted
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+          content_sha256, origin_type, source_match_status, imported_at, user_note, deleted
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
         ON CONFLICT(image_id) DO UPDATE SET
           thumbnail_blob=NULL, title=excluded.title, year=excluded.year,
           doi=excluded.doi, page_number=excluded.page_number, created_at=excluded.created_at,
@@ -8459,6 +8661,7 @@ var PdfImageSaver = (() => {
           rendered_width=excluded.rendered_width, rendered_height=excluded.rendered_height,
           dominant_hex=excluded.dominant_hex, contrast_hex=excluded.contrast_hex,
           content_sha256=excluded.content_sha256, origin_type='local', source_match_status='local', imported_at=NULL,
+          user_note=COALESCE(NULLIF(excluded.user_note, ''), images.user_note),
           deleted=0`, [
           imageID, imageBytes, null,
           getItemField(parentItem, "title"), getItemField(parentItem, "date"), getItemField(parentItem, "DOI"), pageNumber,
@@ -8470,7 +8673,7 @@ var PdfImageSaver = (() => {
           JSON.stringify(normalizeBBoxNormalized(entry?.bboxNormalized)), JSON.stringify(palette),
           imageCategory, colorFamily, JSON.stringify(styleTags), quality, detector,
           renderedWidth, renderedHeight, dominantHex, contrastHex,
-          contentSHA256 || null, originType, "local", null,
+          contentSHA256 || null, originType, "local", null, userNote || null,
         ]);
         await database.queryAsync("DELETE FROM image_palette_swatches WHERE image_id = ?", [imageID]);
         for (const [index, swatch] of palette.entries()) {
@@ -8530,6 +8733,7 @@ var PdfImageSaver = (() => {
       rendered_height: normalizePositiveInteger(row?.rendered_height, null),
       dominant_hex: normalizeHexColor(row?.dominant_hex) || null,
       contrast_hex: normalizeHexColor(row?.contrast_hex) || null,
+      user_note: normalizeUserNote(row?.user_note),
     };
   }
 
@@ -8674,7 +8878,7 @@ var PdfImageSaver = (() => {
       const row = await database.rowQueryAsync(`SELECT
         image_id, image_blob, title, year, doi, page_number, created_at, bbox_json, palette_json,
         image_category, color_family, style_tags_json, quality, detector, rendered_width,
-        rendered_height, dominant_hex, contrast_hex, content_sha256
+        rendered_height, dominant_hex, contrast_hex, content_sha256, user_note
         FROM images WHERE image_id = ? AND deleted = 0 LIMIT 1`, [imageID]);
       const imageBytes = normalizeDatabaseImageBytes(row?.image_blob);
       if (!imageBytes?.length || imageBytes.length > GLOBAL_LIBRARY_MAX_IMAGE_BYTES) continue;
@@ -8887,6 +9091,7 @@ var PdfImageSaver = (() => {
         category: normalizeImageCategoryKey(record?.image_category || "figure"),
         colorFamily: normalizeColorFamily(record?.color_family || deriveColorFamilyFromPalette(palette)),
         styleTags: normalizeStyleTags(record?.style_tags),
+        userNote: normalizeUserNote(record?.user_note),
         quality: normalizeQualityKey(record?.quality),
         detector: normalizeMetadataText(record?.detector, "shared", 80),
         renderedWidth: normalizePositiveInteger(record?.rendered_width, null),
@@ -8907,8 +9112,8 @@ var PdfImageSaver = (() => {
           library_id, library_type, group_id, bbox_json, palette_json,
           image_category, color_family, style_tags_json, quality, detector,
           rendered_width, rendered_height, dominant_hex, contrast_hex,
-          content_sha256, origin_type, source_match_status, imported_at, deleted
-        ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'shared', ?, ?, 0)`, [
+          content_sha256, origin_type, source_match_status, imported_at, user_note, deleted
+        ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'shared', ?, ?, ?, 0)`, [
           record.imageID, record.imageBytes, record.title, record.year, record.doi, record.pageNumber,
           record.createdAt, record.imageID, `shared-content:v1:${record.contentSHA256}`,
           record.source.parentItemKey || null, record.source.pdfAttachmentKey || null,
@@ -8917,7 +9122,7 @@ var PdfImageSaver = (() => {
           JSON.stringify(record.bbox), JSON.stringify(record.palette), record.category, record.colorFamily,
           JSON.stringify(record.styleTags), record.quality, record.detector, record.renderedWidth,
           record.renderedHeight, record.dominantHex, record.contrastHex, record.contentSHA256,
-          record.source.matchStatus, importedAt,
+          record.source.matchStatus, importedAt, record.userNote || null,
         ]);
         for (const [index, swatch] of record.palette.entries()) {
           await database.queryAsync(
@@ -8937,6 +9142,27 @@ var PdfImageSaver = (() => {
       skipped,
       filePath,
     };
+  }
+
+  // Gallery-side note editing. Only the user-authored description is writable; every other
+  // column stays owned by the capture and import paths.
+  async function updateSharedImageNote(imageID, userNote) {
+    const normalizedImageID = normalizeMetadataText(imageID, "", 1000);
+    if (!normalizedImageID) {
+      throw new Error("Storage failed: image identity missing.");
+    }
+    const database = await ensureSharedLibrarySchema();
+    const row = await database.rowQueryAsync(
+      "SELECT image_id FROM images WHERE image_id = ? AND deleted = 0 LIMIT 1",
+      [normalizedImageID],
+    );
+    if (!row) return { updated: 0, userNote: "" };
+    const note = normalizeUserNote(userNote);
+    await database.queryAsync(
+      "UPDATE images SET user_note = ? WHERE image_id = ? AND deleted = 0",
+      [note || null, normalizedImageID],
+    );
+    return { updated: 1, userNote: note };
   }
 
   async function deleteSharedLibraryImages(imageIDs) {
@@ -9032,6 +9258,7 @@ var PdfImageSaver = (() => {
       imageID: normalizeMetadataText(fields.image_id, "", 1000),
       imageIDs: normalizeBridgeImageIDs(fields.image_ids),
       pdfAttachmentKey: normalizeItemKey(fields.pdf_attachment_key, ""),
+      userNote: normalizeUserNote(fields.user_note),
     };
   }
 
@@ -9083,6 +9310,10 @@ var PdfImageSaver = (() => {
             skippedCount: result.skippedCount,
             totalBytes: result.totalBytes,
           });
+        }
+        if (command === "updateImageNote") {
+          const result = await updateSharedImageNote(parsed.imageID, parsed.userNote);
+          return buildBridgeJSONResponse(200, { ok: true, registered: true, updated: result.updated, userNote: result.userNote });
         }
         if (command === "deleteImages") {
           const result = await deleteSharedLibraryImages(parsed.imageIDs);
@@ -10173,8 +10404,8 @@ var PdfImageSaver = (() => {
     instruction.className = "pdf-image-saver-preview-review-instruction";
     instruction.id = "pdf-image-saver-preview-review-instruction";
     instruction.textContent = isPage
-      ? "检查整页图像、分类和画质；确认后才会写入数据库。"
-      : "检查图片范围、分类和画质；确认后才会写入数据库。";
+      ? "检查整页图像、分类、画质和描述；确认后才会写入数据库。"
+      : "检查图片范围、分类、画质和描述；确认后才会写入数据库。";
     let currentPreview = preview;
     const image = doc.createElement("img");
     image.className = "pdf-image-saver-preview-review-image";
@@ -10229,11 +10460,17 @@ var PdfImageSaver = (() => {
     );
     const roleOptions = getPreviewReviewRoleOptions(initialRole);
     const roleField = createPreviewReviewSelect(doc, "pdf-image-saver-review-role", "在 PPT 中的用途", roleOptions, "auto");
-    fields.append(qualityField.element, categoryField.element, roleField.element);
+    const noteField = createPreviewReviewNoteField(
+      doc,
+      "pdf-image-saver-review-note",
+      "自定义描述（可选）",
+      currentPreview?.userNote,
+    );
+    fields.append(qualityField.element, categoryField.element, roleField.element, noteField.element);
     const fieldHelp = doc.createElement("p");
     fieldHelp.id = "pdf-image-saver-preview-review-field-help";
     fieldHelp.className = "pdf-image-saver-preview-review-field-help";
-    fieldHelp.textContent = "类别用于图库筛选；PPT 用途用于插入与叙事建议，不会改变原图。";
+    fieldHelp.textContent = "类别用于图库筛选；PPT 用途用于插入与叙事建议；自定义描述会随图片保存，并可在图库中继续修改。";
     const buttons = doc.createElement("div");
     buttons.className = "pdf-image-saver-preview-review-actions";
     buttons.setAttribute?.("aria-label", "保存操作");
@@ -10247,8 +10484,8 @@ var PdfImageSaver = (() => {
     confirmButton.className = "pdf-image-saver-preview-review-confirm";
     confirmButton.textContent = "确认并保存";
     confirmButton.title = isPage
-      ? "使用当前类别、画质和 PPT 用途保存整页图片"
-      : "使用当前类别、画质和 PPT 用途保存图片";
+      ? "使用当前类别、画质、PPT 用途和自定义描述保存整页图片"
+      : "使用当前类别、画质、PPT 用途和自定义描述保存图片";
     buttons.append(cancelButton, confirmButton);
     panel.append(heading, instruction, image, metadata, suggestion, evidenceNode, fields, fieldHelp, buttons);
     backdrop.appendChild(panel);
@@ -10275,6 +10512,7 @@ var PdfImageSaver = (() => {
         resolve(applyPreviewReview(currentPreview, {
           category: categoryField.select.value,
           role: roleField.select.value,
+          note: noteField.textarea.value,
           suggested: safeOptions.suggested,
           evidence,
         }));
@@ -10293,7 +10531,7 @@ var PdfImageSaver = (() => {
       };
       const onKeyDown = (event) => {
         if (event?.key === "Tab") {
-          const focusable = [qualityField.select, categoryField.select, roleField.select, cancelButton, confirmButton]
+          const focusable = [qualityField.select, categoryField.select, roleField.select, noteField.textarea, cancelButton, confirmButton]
             .filter((control) => control && !control.disabled && !control.hidden);
           if (!focusable.length) {
             event.preventDefault?.();
@@ -10379,6 +10617,39 @@ var PdfImageSaver = (() => {
     return { element, select, options: normalizedOptions };
   }
 
+  function createPreviewReviewNoteField(doc, id, labelText, value) {
+    const element = doc.createElement("label");
+    element.className = "pdf-image-saver-preview-review-field pdf-image-saver-preview-review-field-note";
+    const label = doc.createElement("span");
+    label.textContent = labelText;
+    const textarea = doc.createElement("textarea");
+    textarea.id = id;
+    textarea.className = "pdf-image-saver-preview-review-note";
+    textarea.rows = 3;
+    textarea.maxLength = USER_NOTE_MAX_LENGTH;
+    textarea.value = normalizeUserNote(value);
+    textarea.placeholder = "记录这张图的特殊信息，例如样本来源、复现要点或写作备注";
+    textarea.setAttribute?.("aria-label", labelText);
+    const counter = doc.createElement("output");
+    counter.className = "pdf-image-saver-preview-review-note-count";
+    counter.id = `${id}-count`;
+    counter.setAttribute?.("for", id);
+    const syncCounter = () => {
+      const used = normalizeUserNote(textarea.value).length;
+      counter.textContent = `已用 ${used}/${USER_NOTE_MAX_LENGTH} 字`;
+      counter.setAttribute?.("aria-live", "polite");
+    };
+    textarea.addEventListener?.("input", syncCounter);
+    syncCounter();
+    element.append(label, textarea, counter);
+    return { element, textarea, syncCounter };
+  }
+
+  function formatSavedUserNoteSuffix(value) {
+    const note = normalizeUserNote(value);
+    return note ? `；描述 ${note.length} 字` : "";
+  }
+
   function formatPreviewReviewCategorySuggestion({ requestedCategory, initialCategory, suggestedCategory } = {}) {
     const requestedKey = normalizeImageCategoryKey(requestedCategory || "auto");
     const initialKey = normalizeConfirmedImageCategory(initialCategory, suggestedCategory || "figure");
@@ -10419,7 +10690,7 @@ var PdfImageSaver = (() => {
     return deriveRoleHint(category, slideSlot, layoutHint);
   }
 
-  function applyPreviewReview(preview, { category, role, suggested, evidence } = {}) {
+  function applyPreviewReview(preview, { category, role, note, suggested, evidence } = {}) {
     const imageCategory = normalizeConfirmedImageCategory(
       category || preview?.imageCategory,
       suggested || preview?.imageCategory || "figure",
@@ -10445,6 +10716,7 @@ var PdfImageSaver = (() => {
           : "visual_confirmed"
       : "user_confirmed";
     preview.categoryEvidence = evidence?.caption || evidence?.reference || "";
+    preview.userNote = normalizeUserNote(note ?? preview?.userNote);
     return preview;
   }
 
@@ -11574,6 +11846,7 @@ var PdfImageSaver = (() => {
       "Storage failed: shared SQLite runtime unavailable.": "当前 Zotero 无法打开外部图片库数据库。",
       "Storage failed: preview image bytes unavailable.": "无法读取本次预览的图片数据。",
       "Storage failed: source region identity collision.": "同一原文区域已属于另一条图片记录，未覆盖已有记录。",
+      "Storage failed: image identity missing.": "图片记录标识缺失，无法更新描述。",
       "Helper: Python n/a.": "未找到 Python。",
       "Helper: PyMuPDF n/a.": "未安装 PyMuPDF。",
       "Helper failed: script missing.": "插件内置的原图提取脚本缺失或版本不匹配。",
@@ -11831,6 +12104,9 @@ var PdfImageSaver = (() => {
       exportSharedLibraryPackage,
       importSharedLibraryPackage,
       deleteSharedLibraryImages,
+      updateSharedImageNote,
+      normalizeUserNote,
+      formatUserNoteSummary,
       normalizeCitationDOI,
       normalizeCitationTitle,
       normalizeCitationYear,

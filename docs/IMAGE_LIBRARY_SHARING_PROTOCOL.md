@@ -10,7 +10,7 @@
 
 分享包只包含原始图片字节和可独立使用的图片元数据。禁止包含 PDF 文件、Zotero 文献附件、`parent_item_key`、`pdf_attachment_key`、`library_id`、`group_id` 或本机 `zotero://` URI。
 
-每张图片必须包含 `content_sha256`、`mime_type`、`image_base64`、论文标题、年份、DOI、页码和采集时间。类别、色系、样式标签、清晰度、识别方式、尺寸、边界框、调色板、主色和对比色存在时必须原样分享。
+每张图片必须包含 `content_sha256`、`mime_type`、`image_base64`、论文标题、年份、DOI、页码和采集时间。类别、色系、样式标签、清晰度、识别方式、尺寸、边界框、调色板、主色、对比色和自定义描述 `user_note` 存在时必须原样分享。
 
 ## 导入规则
 
@@ -24,7 +24,15 @@
 
 ## 管理命令
 
-生成的本地图库仅通过受 token 保护的固定 endpoint 调用 `exportImages`、`importImages` 和 `deleteImages`。导入和分享路径必须由 Zotero 原生文件选择器取得。删除为共享库软删除，不删除 Zotero 文献或 PDF。PPT 插件不得发送这些图库管理命令。
+生成的本地图库仅通过受 token 保护的固定 endpoint 调用 `exportImages`、`importImages`、`deleteImages` 和 `updateImageNote`。导入和分享路径必须由 Zotero 原生文件选择器取得。删除为共享库软删除，不删除 Zotero 文献或 PDF。PPT 插件不得发送这些图库管理命令。
+
+`updateImageNote` 只写 `images.user_note`，是唯一能清空描述的路径（保存空文本即写回 `NULL`）。采集与导入的 UPSERT 使用 `user_note=COALESCE(NULLIF(excluded.user_note, ''), images.user_note)`，因此空值不会顺带清掉已有描述。
+
+## 自定义描述
+
+- `user_note` 是唯一由用户手写的字段，上限 300 字，保留换行，其余列仍由采集与导入路径独占。
+- 写入方只有两处：采集确认窗口和生成的图库页面。
+- 分享包与导入都按白名单显式带上 `user_note`；导入时 `user_note` 为空不会清掉本机已有描述。
 
 ## 验证
 

@@ -1,6 +1,6 @@
 {
   "name": "zotero-pdf-image-saver",
-  "version": "0.1.134",
+  "version": "0.1.137",
   "private": true,
   "description": "Zotero 论文图片框选、外部 SQLite 原图库与共享图库界面。",
   "scripts": {

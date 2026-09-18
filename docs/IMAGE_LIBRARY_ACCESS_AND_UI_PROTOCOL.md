@@ -6,7 +6,7 @@
 
 - 唯一图片库是 `%LOCALAPPDATA%\ZLK\paper-image-library\paper_images.sqlite`。
 - `images.image_blob` 是图库、下载、高清查看和 PPT 插图共同使用的原图字节；不得另建缩略图库、预览数据库或图片 HTTP 接口。
-- Zotero 插件是完整图库界面的唯一实现方。界面由 `buildGlobalImageLibraryHTML()` 生成，当前 `GLOBAL_LIBRARY_VIEW_VERSION` 为 `37`。
+- Zotero 插件是完整图库界面的唯一实现方。界面由 `buildGlobalImageLibraryHTML()` 生成，当前 `GLOBAL_LIBRARY_VIEW_VERSION` 为 `38`。
 - **PPT 插件必须复用 Zotero 生成的完整图库界面。** PPT 不得另写一套完整图库的卡片、表格、筛选、排序、高清查看、批量选择、分享、导入或删除界面，也不得把生成页的 HTML、CSS 或 JavaScript 复制进 PPT 仓库形成分叉版本。
 - PPT 可保留任务窗格内服务于“快速搜索、取色、插入当前图片”的轻量选择器；它不是完整图库，不得替代或复制本文件定义的完整图库管理界面。
 
@@ -60,12 +60,14 @@ Windows 上的生成路径由 `Path.GetTempPath()` 或等价系统 API取得，�
 
 完整图库统一提供：
 
-- 中文搜索：论文标题、DOI、年份、页码、类别、色系和标签。
+- 中文搜索：论文标题、DOI、年份、页码、类别、色系、标签和自定义描述。
 - 类别、色系、年份、来源状态筛选，以及多种排序。
 - `图库` 与 `表格` 两种视图。
 - 220 至 460 像素目标宽度调节和自动流式排布。
-- 原图完整显示，不裁切；卡片下方显示论文、类别、年份、页码、尺寸、大小、来源、时间、配色和标签。
-- 高清查看器：适应窗口、1:1、缩放、滚动、上一张、下一张、下载原图和定位原文。
+- 原图完整显示，不裁切；卡片下方显示论文、类别、年份、页码、尺寸、大小、来源、时间、配色、标签和自定义描述。
+- 自定义描述：采集确认窗口可填写；图库卡片内可就地编辑并写回 SQLite；表格视图有独立 `描述` 列。上限 300 字，保留换行。
+- 高清查看器：适应窗口、1:1、缩放、滚动、上一张、下一张、下载原图和定位原文；有关联描述时在标题下单独成行显示。
+- 高清查看器使用页内浮层，绝不打开新的浏览器标签页；关闭控件显示 `×` 并声明返回图片库列表，关闭后焦点回到打开它的元素。
 - 原图临时文件加载失败时，卡片、表格和高清查看器显示中文恢复提示；不生成备用图像。
 - 图库和表格同步多选、Shift 连选、全选当前结果、清空选择。
 - 批量分享 `.pislib`、导入 `.pislib`、批量软删除。
@@ -85,10 +87,13 @@ Windows 上的生成路径由 `Path.GetTempPath()` 或等价系统 API取得，�
 | 下载原图 | 生成页相对原图文件 | 完整图库 | 只能由复用页面执行 |
 | 分享所选 | `exportImages` | 完整图库 | PPT 不得直接发送 |
 | 导入分享包 | `importImages` | 完整图库 | PPT 不得直接发送 |
+| 修改自定义描述 | `updateImageNote` | 完整图库 | PPT 不得直接发送 |
 | 软删除所选 | `deleteImages` | 完整图库 | PPT 不得直接发送 |
 | 直接写 SQLite | SQLite 写事务 | Zotero 插件 | 禁止 |
 
-`refreshLibrary` 只读取 SQLite 并重建临时界面，不修改图片记录，因此是 PPT 为复用完整图库可使用的唯一图库命令。`deleteImages`、`exportImages`、`importImages` 仍只属于生成页。
+`refreshLibrary` 只读取 SQLite 并重建临时界面，不修改图片记录，因此是 PPT 为复用完整图库可使用的唯一图库命令。`deleteImages`、`exportImages`、`importImages`、`updateImageNote` 仍只属于生成页。
+
+`updateImageNote` 是唯一由用户手写内容的写命令：它只更新 `images.user_note`，其余列仍由采集和导入路径独占。
 
 ## 6. Bridge 合同
 
@@ -131,7 +136,7 @@ pdf_attachment_key=<可选的当前 PDF 附件键>
 | --- | --- | --- |
 | Zotero 运行且 bridge 就绪 | 可刷新、管理、定位来源 | 从 SQLite 正常读取 |
 | Zotero 运行但 token／endpoint 无效 | 生成页降级只读；提示从 Zotero 重新打开 | 从 SQLite 正常读取；来源操作走白名单 fallback |
-| Zotero 已关闭且生成 HTML 仍存在 | 可打开最后生成版本；搜索、查看、下载可用，刷新和管理禁用 | 从 SQLite 正常读取、取色和插图 |
+| Zotero 已关闭且生成 HTML 仍存在 | 可打开最后生成版本；搜索、查看、下载可用，刷新、描述编辑和批量管理禁用 | 从 SQLite 正常读取、取色和插图 |
 | 生成 HTML 不存在 | 完整图库入口显示中文说明，要求启动 Zotero 后重试 | 从 SQLite 正常读取，不得临时生成另一套完整图库 |
 | SQLite 不存在或不可读 | 完整图库不可生成 | 保留 UI 状态并显示中文只读错误；禁止访问 `zotero.sqlite*` |
 
@@ -154,7 +159,7 @@ PPT 的 `打开论文图片库` 必须执行以下顺序：
 - 禁止 PPT 创建第二份完整图库 UI 或长期维护 Zotero 图库的 HTML/CSS/JS 副本。
 - 禁止 PPT 通过 DOM 选择器自动操纵生成页；PPT 只负责导航到页面，页面内部交互由页面自身处理。
 - 禁止把临时 HTML 或 `images/` 当作数据库、缓存协议或插图字节来源。
-- 禁止 PPT 发送 `deleteImages`、`exportImages`、`importImages`。
+- 禁止 PPT 发送 `deleteImages`、`exportImages`、`importImages`、`updateImageNote`。
 - 禁止增加图片 HTTP endpoint、随机端口、WebSocket 或未文档化文件消息。
 - 禁止读取、复制、锁定或修改 Zotero 内置 `zotero.sqlite*`。
 - 禁止为了 PPT 兼容放宽固定数据库路径、token 校验、URI 白名单或分享包校验。
@@ -164,5 +169,8 @@ PPT 的 `打开论文图片库` 必须执行以下顺序：
 - Zotero 修改完整图库结构、管理动作、生成路径或 bridge 命令时，必须同步更新本文件和 PPT 仓库的 `docs/ZOTERO_EXTERNAL_DATABASE_PROTOCOL.md`。
 - PPT 修改论文图库入口时，必须验证它打开的是本文件定义的同一生成 HTML，而不是 PPT 自己的完整图库实现。
 - `GLOBAL_LIBRARY_VIEW_VERSION` 只用于诊断和缓存识别；PPT 不得按版本复制页面实现或依赖内部 DOM。
+- 生成页整体由一个外层模板字符串构建，因此页面内嵌脚本有两条硬约束：不得嵌套模板字符串（反引号会截断外层），且正则与字符串里的反斜杠必须写成 `\\`（否则外层模板会把 `\n`、`\t` 当成转义序列吃掉，页面脚本整体语法失效而标记看起来仍然正常）。
+- `tests/current-release.test.js` 会逐个解析每份生成页的 `<script>`，语法失效必须在此拦截，不得靠人工目视。
+- `scripts/audit-index-buttons.mjs` 断言审计期间不产生新的浏览器 page target：任何把用户送出当前页面的改动都会在这里失败。
 - Zotero 验证：`npm.cmd test`、`npm.cmd run check`、`npm.cmd run audit:index-buttons`。
 - PPT 验证：`node scripts/validate-zotero-image-library.mjs`、`node scripts/validate-external-plugin-compat.mjs`。

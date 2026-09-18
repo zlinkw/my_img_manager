@@ -19,18 +19,29 @@ $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath ".\manifest.json" | Con
 $package = Get-Content -Raw -Encoding UTF8 -LiteralPath ".\package.json" | ConvertFrom-Json
 if ($package.version -ne $manifest.version) { throw "package.json version must match manifest.json" }
 if ($manifest.applications.zotero.id -ne "pdf-image-saver@zlk.local") { throw "Unexpected plugin id" }
-if ($manifest.applications.zotero.strict_max_version -ne "9.0.*") { throw "strict_max_version must be 9.0.*" }
-if ($manifest.version -ne "0.1.134") { throw "Release candidate version must be 0.1.134" }
+if ($manifest.applications.zotero.strict_max_version -ne "11.*") { throw "strict_max_version must be 11.*" }
+if ($manifest.version -ne "0.1.137") { throw "Release candidate version must be 0.1.137" }
 
 $source = Get-Content -Raw -Encoding UTF8 -LiteralPath ".\content\pdf-image-saver.js"
 foreach ($forbidden in @("pdf-image-saver-auto-button", "saveAutoDetectedPageImagePreviews", "imageCoordinatesToCandidates")) {
   if ($source.Contains($forbidden)) { throw "Automatic capture residue: $forbidden" }
 }
-foreach ($required in @("publishPreviewEntriesToSharedLibrary", "refreshLibrary", 'GLOBAL_LIBRARY_VIEW_VERSION = "37"', "paper-image-library-view")) {
+foreach ($required in @("publishPreviewEntriesToSharedLibrary", "refreshLibrary", 'GLOBAL_LIBRARY_VIEW_VERSION = "38"', "paper-image-library-view")) {
   if (!$source.Contains($required)) { throw "Missing release contract: $required" }
 }
-if ($manifest.applications.zotero.update_url) { throw "Native online updates must stay disabled" }
-foreach ($forbidden in @(".\updates.json", ".\content\update-check.js", ".\.github\workflows")) {
+$expectedUpdateUrl = "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json"
+if ($manifest.applications.zotero.update_url -ne $expectedUpdateUrl) {
+  throw "update_url must be the repository's static empty feed: $expectedUpdateUrl"
+}
+if (!(Test-Path -LiteralPath ".\updates.json" -PathType Leaf)) { throw "updates.json must exist for update_url to resolve" }
+$updateFeed = Get-Content -Raw -Encoding UTF8 -LiteralPath ".\updates.json" | ConvertFrom-Json
+if (@($updateFeed.PSObject.Properties).Count -ne 1 -or $updateFeed.PSObject.Properties.Name -ne "addons") {
+  throw "updates.json must contain only an addons key"
+}
+if (@($updateFeed.addons.PSObject.Properties).Count -ne 0) {
+  throw "updates.json must stay an empty feed so no update is ever offered"
+}
+foreach ($forbidden in @(".\content\update-check.js", ".\.github\workflows")) {
   if (Test-Path -LiteralPath $forbidden) { throw "Online update or GitHub Actions residue exists: $forbidden" }
 }
 

@@ -135,6 +135,9 @@ const libraryRecords = [
     pdfAttachmentKey: "PDF00001",
     openPDFURI: "zotero://open-pdf/library/items/PDF00001?page=2",
     selectItemURI: "zotero://select/library/items/ITEM0001",
+    // The gallery note audit reads this record: the first visible card is also the first table
+    // row, so one fixture note covers the card block, the table column and the viewer meta.
+    userNote: "复现实验第 2 轮，阈值 0.5；定稿前需替换为最终版曲线。",
   },
   {
     imageID: "fixture-heatmap",
@@ -272,7 +275,7 @@ const fixture = api.buildGlobalImageLibraryHTML({
   bridgeToken: "token",
 });
 for (const text of [
-  'data-paper-image-library-version="37"',
+  'data-paper-image-library-version="38"',
   "刷新图库",
   "导入分享包",
   "分享所选",
@@ -340,6 +343,28 @@ assert.ok(
 assert.ok(fixture.includes("117.2 KB"), "gallery must format the audited original size");
 assert.ok(fixture.includes("1200 × 800 像素"), "gallery must state the audited original dimensions");
 
+// Note rendering: the browser audit drives the note editor, so both states must exist in the
+// fixture — one record with a description and the rest without.
+assert.equal(
+  libraryRecords.filter((record) => (record.userNote || "").trim()).length,
+  1,
+  "note audit needs exactly one described record so the empty state stays covered too",
+);
+assert.ok(fixture.includes('class="note-text" data-note-text="fixture-metric-curve"'), "gallery must render the described card note block");
+assert.ok(fixture.includes("复现实验第 2 轮，阈值 0.5；定稿前需替换为最终版曲线。"), "gallery must render the stored description text");
+assert.ok(fixture.includes(">编辑描述</button>"), "a described record must offer 编辑描述");
+assert.ok(fixture.includes(">添加描述</button>"), "an undescribed record must offer 添加描述");
+assert.equal(
+  (fixture.match(/data-note-cell="/g) || []).length,
+  libraryRecords.length,
+  "every table row must expose its description cell",
+);
+assert.ok(
+  fixture.includes('data-note-cell="fixture-metric-curve" title="复现实验第 2 轮，阈值 0.5；定稿前需替换为最终版曲线。"'),
+  "the described row must carry the full description as its hover title",
+);
+assert.ok(fixture.includes(">无描述</td>"), "rows without a description must state 无描述 instead of an empty cell");
+
 const indexAttachment = { libraryID: 1, key: "PDF00001", attachmentContentType: "application/pdf" };
 const indexParentItem = { key: "ITEM0001", getField(field) { return field === "title" ? "科研论文" : ""; } };
 
@@ -370,6 +395,18 @@ for (const [name, value] of [
     generatedAt: "2026-07-19T02:00:00.000Z",
   })],
 ]) {
+  // Every generated page embeds its whole behaviour in one inline script that is itself produced
+  // from an outer template literal. One stray backslash (`\n` inside a regex, say) is consumed by
+  // that outer template and leaves the page syntactically dead while the markup still looks right,
+  // so the generated script is parsed here instead of trusted.
+  const scripts = [...value.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)];
+  assert.ok(scripts.length >= 1, `${name} must embed its page script`);
+  scripts.forEach((match, index) => {
+    assert.doesNotThrow(
+      () => new vm.Script(match[1], { filename: `${name}-script-${index}.js` }),
+      `${name} script ${index} must parse as valid JavaScript`,
+    );
+  });
   const target = process.env[name];
   if (target) fs.writeFileSync(target, value, "utf8");
 }
@@ -531,15 +568,18 @@ assert.ok(!source.includes("UPDATE_REPOSITORY"), "online update repository contr
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8"));
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
-assert.equal(manifest.applications.zotero.strict_max_version, "9.0.*", "release supports the Zotero 9.0 profile-install range");
-assert.equal(manifest.version, "0.1.134", "release candidate increments the installed release");
-assert.equal(manifest.applications.zotero.update_url, undefined, "native online updates are disabled");
+assert.equal(manifest.applications.zotero.strict_max_version, "11.*", "release supports the Zotero 10 and 11 profile-install range");
+assert.equal(manifest.version, "0.1.137", "release candidate increments the installed release");
+const expectedUpdateUrl = "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json";
+assert.equal(manifest.applications.zotero.update_url, expectedUpdateUrl, "Zotero 10 requires update_url and it must point at the static empty feed");
+const updateFeed = JSON.parse(fs.readFileSync(path.join(root, "updates.json"), "utf8"));
+assert.deepEqual(Object.keys(updateFeed), ["addons"], "update feed exposes only an addons map");
+assert.deepEqual(updateFeed.addons, {}, "update feed must stay empty so no update is ever offered");
 assert.ok(!fs.existsSync(path.join(root, ".github", "workflows")), "GitHub Actions release workflow is removed");
-assert.ok(!fs.existsSync(path.join(root, "updates.json")), "native update manifest is removed");
 assert.ok(!fs.existsSync(path.join(root, "content", "update-check.js")), "update checker source is removed");
 
 const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
-for (const required of ["Zotero 9", "手动安装 XPI", "Windows", "外部 SQLite 原图库"]) {
+for (const required of ["Zotero 10", "手动安装 XPI", "Windows", "外部 SQLite 原图库"]) {
   assert.ok(readme.includes(required), `public README must document ${required}`);
 }
 
