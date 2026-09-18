@@ -1,6 +1,6 @@
 {
   "name": "zotero-pdf-image-saver",
-  "version": "0.1.137",
+  "version": "0.1.139",
   "private": true,
   "description": "Zotero 论文图片框选、外部 SQLite 原图库与共享图库界面。",
   "scripts": {
@@ -8,6 +8,8 @@
     "audit:index-buttons": "node scripts/audit-index-buttons.mjs",
     "check": "powershell -ExecutionPolicy Bypass -File scripts/check-current-release.ps1",
     "build": "powershell -ExecutionPolicy Bypass -File scripts/build.ps1",
+    "fetch:runtime": "powershell -ExecutionPolicy Bypass -File scripts/fetch-runtime.ps1",
+    "prepackage:manual": "powershell -ExecutionPolicy Bypass -File scripts/fetch-runtime.ps1",
     "package:manual": "powershell -ExecutionPolicy Bypass -File scripts/package-manual.ps1",
     "verify:manual": "powershell -ExecutionPolicy Bypass -File scripts/verify-manual-install.ps1",
     "install:global": "powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1",
@@ -16,6 +18,7 @@
     "smoke:preflight": "powershell -ExecutionPolicy Bypass -File scripts/smoke-preflight.ps1",
     "smoke:wait": "powershell -ExecutionPolicy Bypass -File scripts/smoke-wait.ps1",
     "smoke:close": "powershell -ExecutionPolicy Bypass -File scripts/smoke-one-close.ps1",
-    "smoke:close:isolated": "powershell -ExecutionPolicy Bypass -File scripts/smoke-isolated-close.ps1"
+    "smoke:close:isolated": "powershell -ExecutionPolicy Bypass -File scripts/smoke-isolated-close.ps1",
+    "audit:viewer": "node scripts/audit-viewer-engine.mjs"
   }
 }

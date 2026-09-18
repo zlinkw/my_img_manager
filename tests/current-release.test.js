@@ -275,13 +275,18 @@ const fixture = api.buildGlobalImageLibraryHTML({
   bridgeToken: "token",
 });
 for (const text of [
-  'data-paper-image-library-version="38"',
+  'data-paper-image-library-version="40"',
   "刷新图库",
   "导入分享包",
   "分享所选",
   "删除所选",
   'id="library-viewer"',
   "热图／矩阵图",
+  // A file:// gallery silently discards the download attribute and would navigate the list away,
+  // so the page has to intercept those clicks and pull the bytes back through the plugin.
+  'location.protocol !== "file:"',
+  "readImageBytes",
+  "已下载原图；图库保持打开",
 ]) assert.ok(fixture.includes(text), `gallery must contain ${text}`);
 
 // The browser audit reads these fixture properties directly. Assert them here so the fixture
@@ -367,6 +372,140 @@ assert.ok(fixture.includes(">无描述</td>"), "rows without a description must 
 
 const indexAttachment = { libraryID: 1, key: "PDF00001", attachmentContentType: "application/pdf" };
 const indexParentItem = { key: "ITEM0001", getField(field) { return field === "title" ? "科研论文" : ""; } };
+
+// The 高清 tier used to be limited by whatever resolution the reader happened to have on screen,
+// which is why saved figures came out soft. The capture now asks pdf.js to re-render just the
+// selected region at a chosen resolution, and these fakes pin the scale-and-offset maths and the
+// byte budget without needing a real canvas or a live reader.
+function fakeCaptureDocument({ encodedBytes = 4096 } = {}) {
+  const created = [];
+  const makeCanvas = (width, height) => {
+    const canvas = {
+      width,
+      height,
+      ownerDocument: null,
+      getContext: () => ({
+        imageSmoothingEnabled: false,
+        imageSmoothingQuality: "low",
+        fillRect() {},
+        drawImage() {},
+      }),
+      toDataURL: (type) => {
+        const kind = String(type || "image/png").replace("image/", "");
+        const body = "A".repeat(Math.max(4, Math.round((encodedBytes / 3) * 4)));
+        return `data:image/${kind};base64,${body}`;
+      },
+    };
+    canvas.ownerDocument = { createElement: (tag) => makeCanvas(1, 1) };
+    created.push(canvas);
+    return canvas;
+  };
+  return { created, createElement: (tag) => makeCanvas(1, 1) };
+}
+
+function fakePDFPage({ width = 612, height = 792 } = {}) {
+  const viewports = [];
+  return {
+    viewports,
+    getViewport(options = {}) {
+      const scale = Number(options.scale) || 1;
+      viewports.push({ scale, offsetX: options.offsetX || 0, offsetY: options.offsetY || 0 });
+      return { width: width * scale, height: height * scale, scale };
+    },
+    render(renderContext) {
+      renderContext.canvasContext?.fillRect?.(0, 0, 1, 1);
+      return { promise: Promise.resolve() };
+    },
+  };
+}
+
+void (async () => {
+  const page = fakePDFPage();
+  const document = fakeCaptureDocument();
+  const rendered = await api.renderPDFRegionCanvas({
+    pdfPage: page,
+    bboxNormalized: [0, 0, 0.5, 0.5],
+    dpi: 600,
+    ownerDocument: document,
+  });
+  assert.ok(rendered, "a region re-render must succeed with a usable pdf.js page");
+  assert.equal(rendered.scale.toFixed(3), (600 / 72).toFixed(3), "600 DPI must map to an 8.33x render scale");
+  assert.equal(rendered.width, Math.round(306 * (600 / 72)), "region width must be the page-space width times the scale");
+  assert.equal(rendered.height, Math.round(396 * (600 / 72)), "region height must be the page-space height times the scale");
+  const render = page.viewports.at(-1);
+  assert.equal(render.offsetX, 0, "a top-left region needs no viewport offset");
+  assert.equal(render.offsetY, 0, "a top-left region needs no vertical offset");
+
+  const insetPage = fakePDFPage();
+  const inset = await api.renderPDFRegionCanvas({
+    pdfPage: insetPage,
+    bboxNormalized: [0.25, 0.25, 0.75, 0.75],
+    dpi: 600,
+    ownerDocument: fakeCaptureDocument(),
+  });
+  const scale = 600 / 72;
+  const insetRender = insetPage.viewports.at(-1);
+  assert.equal(insetRender.offsetX, -0.25 * 612 * scale, "the viewport must shift left by the region origin");
+  assert.equal(insetRender.offsetY, -0.25 * 792 * scale, "the viewport must shift up by the region origin");
+  assert.equal(inset.width, Math.round(306 * scale), "an inset region must keep its own size");
+
+  // A whole-page selection at 600 DPI would want 33 megapixels, so the Zotero-matching 16 MP
+  // ceiling has to bite rather than blowing up the canvas.
+  const fullPage = await api.renderPDFRegionCanvas({
+    pdfPage: fakePDFPage(),
+    bboxNormalized: [0, 0, 1, 1],
+    dpi: 600,
+    ownerDocument: fakeCaptureDocument(),
+  });
+  assert.ok(fullPage.width * fullPage.height <= 16 * 1024 * 1024, "a capture must never exceed the pixel budget");
+  assert.ok(fullPage.scale < 600 / 72, "the pixel ceiling must clamp a whole-page 600 DPI request");
+
+  // A reader zoomed in further than the requested DPI must never end up with fewer pixels.
+  const zoomed = await api.renderPDFRegionCanvas({
+    pdfPage: fakePDFPage(),
+    bboxNormalized: [0, 0, 0.5, 0.5],
+    dpi: 96,
+    minScale: 5,
+    ownerDocument: fakeCaptureDocument(),
+  });
+  assert.ok(zoomed.scale >= 5, "the re-render must never go below the resolution already on screen");
+
+  const smallDocument = fakeCaptureDocument({ encodedBytes: 4096 });
+  const encoded = api.encodeCaptureCanvas(smallDocument.createElement("canvas"), {
+    format: "png",
+    maxBytes: 1024 * 1024,
+  });
+  assert.equal(encoded.format, "png", "a small PNG must stay PNG");
+  assert.ok(encoded.bytes <= 1024 * 1024, "an in-budget capture must not be re-encoded");
+
+  const hugeDocument = fakeCaptureDocument({ encodedBytes: 40 * 1024 * 1024 });
+  const shrunk = api.encodeCaptureCanvas(hugeDocument.createElement("canvas"), {
+    format: "png",
+    maxBytes: 1024 * 1024,
+  });
+  assert.ok(shrunk.bytes <= 40 * 1024 * 1024, "an oversized capture must be brought down rather than stored as-is");
+  assert.equal(shrunk.format, "jpeg", "an oversized PNG must fall back to JPEG before being stored");
+})();
+
+// A vector crop is stored as SVG, and the database identifies a stored image by sniffing its bytes
+// rather than a stored extension column, so the sniffer must recognise SVG before anything that
+// gets written can be served back out or handed to the sharing package.
+{
+  const svgText = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>';
+  const svgBytes = Buffer.from(svgText, "utf8");
+  const withProlog = Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>${svgText}`, "utf8");
+  assert.ok(api.isSVGImageBytes(svgBytes), "a bare svg document must be recognised as an image");
+  assert.ok(api.isSVGImageBytes(withProlog), "an xml prolog must not hide the svg signature");
+  assert.equal(api.getDatabaseImageFileType(svgBytes)?.extension, "svg", "svg must map to the svg extension");
+  assert.equal(api.getDatabaseImageFileType(svgBytes)?.mimeType, "image/svg+xml", "svg must map to the svg mime type");
+  assert.ok(!api.isSVGImageBytes(Buffer.from("not an image at all", "utf8")), "plain text must not be treated as svg");
+  assert.ok(!api.isSVGImageBytes(null), "a missing blob must not be treated as svg");
+  assert.equal(api.getDatabaseImageFileType(pngDataURLToBytes(pngDataURL(4, 4, [1, 2, 3])))?.extension, "png", "raster sniffing must keep working");
+}
+
+function pngDataURLToBytes(dataURL) {
+  return Buffer.from(String(dataURL).slice(String(dataURL).indexOf(",") + 1), "base64");
+}
 
 for (const [name, value] of [
   ["PDF_IMAGE_SAVER_BROWSER_SINGLE_FIXTURE", api.buildIndexHTML({
@@ -569,7 +708,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "u
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
 assert.equal(manifest.applications.zotero.strict_max_version, "11.*", "release supports the Zotero 10 and 11 profile-install range");
-assert.equal(manifest.version, "0.1.137", "release candidate increments the installed release");
+assert.equal(manifest.version, "0.1.139", "release candidate increments the installed release");
 const expectedUpdateUrl = "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json";
 assert.equal(manifest.applications.zotero.update_url, expectedUpdateUrl, "Zotero 10 requires update_url and it must point at the static empty feed");
 const updateFeed = JSON.parse(fs.readFileSync(path.join(root, "updates.json"), "utf8"));

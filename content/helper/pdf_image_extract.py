@@ -19,6 +19,9 @@ SCHEMA_VERSION = "zotero-pdf-image-saver/v1"
 MIN_PIXEL_EDGE = 16
 MAX_IMAGE_BYTES = 25 * 1024 * 1024
 MAX_TOTAL_BYTES = 150 * 1024 * 1024
+# A crop smaller than roughly a tenth of an inch is not a figure, and exporting it as vector
+# would only produce noise.
+MIN_VECTOR_EDGE = 8
 
 
 @dataclass(frozen=True)
@@ -51,6 +54,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-images", type=int, default=80)
     parser.add_argument("--attachment-key", default="")
     parser.add_argument("--document-id", default="")
+    # Vector crop mode: "<page_index>:<nx0>,<ny0>,<nx1>,<ny1>" with the bbox normalized against
+    # the page as displayed (top-left origin), which is exactly how the plugin stores a selection.
+    parser.add_argument("--vector-region", default="")
     return parser.parse_args()
 
 
@@ -61,7 +67,12 @@ def main() -> int:
     args.report.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        import fitz  # type: ignore
+        # PyMuPDF deprecated the `fitz` name in favour of `pymupdf`; either import works, but the
+        # new name is the one that will keep working.
+        try:
+            import pymupdf as fitz  # type: ignore
+        except ImportError:
+            import fitz  # type: ignore
     except ImportError as exc:
         write_report(
             args.report,
@@ -79,7 +90,7 @@ def main() -> int:
         return 20
 
     try:
-        report = extract_images(fitz, args, started)
+        report = export_region_vector(fitz, args, started) if args.vector_region else extract_images(fitz, args, started)
         write_report(args.report, report)
         return 0 if report["status"] == "ok" else 10
     except Exception as exc:
@@ -201,6 +212,105 @@ def extract_images(fitz: Any, args: argparse.Namespace, started: float) -> dict[
             "images": images,
             "total_image_bytes": total_bytes,
             "warnings": warnings,
+            "elapsed_ms": elapsed_ms(started),
+        }
+    finally:
+        doc.close()
+
+
+def parse_vector_region(value: str) -> tuple[int, list[float]]:
+    """Split "<page_index>:<nx0>,<ny0>,<nx1>,<ny1>" into its parts."""
+    text = str(value or "").strip()
+    if ":" not in text:
+        raise ValueError(f"Invalid vector region: {value}")
+    page_text, bbox_text = text.split(":", 1)
+    parts = [float(part) for part in bbox_text.split(",")]
+    if len(parts) != 4:
+        raise ValueError(f"Invalid vector bbox: {value}")
+    return int(page_text), parts
+
+
+def region_rect(page: Any, bbox: list[float]):
+    """Map a normalized, top-left-origin bbox onto the page as it is displayed."""
+    rect = page.rect
+    return type(rect)(
+        rect.x0 + bbox[0] * rect.width,
+        rect.y0 + bbox[1] * rect.height,
+        rect.x0 + bbox[2] * rect.width,
+        rect.y0 + bbox[3] * rect.height,
+    )
+
+
+def export_region_vector(fitz: Any, args: argparse.Namespace, started: float) -> dict[str, Any]:
+    """Export one selected region as a vector SVG.
+
+    Setting the cropbox and then keeping only that page leaves the page's own drawing operations
+    untouched, so a plotted figure stays real vector geometry instead of being re-encoded, while a
+    figure that is really an embedded bitmap keeps its native pixels. Text becomes paths so the
+    result does not depend on which fonts the reader has.
+    """
+    page_index, bbox = parse_vector_region(args.vector_region)
+    pdf_path = args.pdf.resolve()
+    if not pdf_path.exists():
+        raise FileNotFoundError(f"PDF not found: {pdf_path}")
+
+    doc = fitz.open(pdf_path)
+    try:
+        if page_index < 0 or page_index >= len(doc):
+            raise ValueError(f"Page index out of range: {page_index}")
+        page = doc[page_index]
+        crop = region_rect(page, bbox)
+        if page.rotation:
+            # The cropbox lives in unrotated page coordinates; the user selected in the displayed
+            # frame, so undo the page rotation before cropping.
+            crop = crop * page.derotation_matrix
+        if crop.width < MIN_VECTOR_EDGE or crop.height < MIN_VECTOR_EDGE:
+            return {
+                "schema_version": SCHEMA_VERSION,
+                "status": "too_small",
+                "vector": None,
+                "warnings": [f"Region too small for vector export: {crop.width:.1f}x{crop.height:.1f} pt"],
+                "elapsed_ms": elapsed_ms(started),
+            }
+
+        page.set_cropbox(crop)
+        doc.select([page_index])
+        svg = doc[0].get_svg_image(text_as_path=True)
+        payload = svg.encode("utf-8")
+        if not payload:
+            return {
+                "schema_version": SCHEMA_VERSION,
+                "status": "empty",
+                "vector": None,
+                "warnings": ["Vector export produced no content."],
+                "elapsed_ms": elapsed_ms(started),
+            }
+
+        digest = hashlib.sha256(payload).hexdigest()
+        file_name = f"vector-p{page_index + 1:04d}-{digest[:10]}.svg"
+        output_path = args.out_dir / file_name
+        output_path.write_bytes(payload)
+
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "status": "ok",
+            "source_pdf": str(pdf_path),
+            "attachment_key": args.attachment_key,
+            "document_id": args.document_id,
+            "page_count": len(doc),
+            "vector": {
+                "format": "svg",
+                "file_path": str(output_path),
+                "file_name": file_name,
+                "page_index": page_index,
+                "page_number": page_index + 1,
+                "bbox_pdf": [round(crop.x0, 3), round(crop.y0, 3), round(crop.x1, 3), round(crop.y1, 3)],
+                "width_pt": round(crop.width, 3),
+                "height_pt": round(crop.height, 3),
+                "byte_count": len(payload),
+                "sha256": digest,
+            },
+            "warnings": [],
             "elapsed_ms": elapsed_ms(started),
         }
     finally:

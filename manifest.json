@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "PDF 图片保存",
-  "version": "0.1.137",
+  "version": "0.1.139",
   "description": "从 Zotero PDF 阅读器采集科研图片，建立可检索、可分享并可定位原文的本地图片库。",
   "author": "ZLK",
   "homepage_url": "https://github.com/zlinkw/my_img_manager",

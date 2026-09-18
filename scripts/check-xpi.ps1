@@ -69,7 +69,10 @@ try {
     "(?i)[A-Z]:[\\/]+.*[\\/]Documents[\\/]Codex[\\/]"
   )
   foreach ($entry in $archive.Entries) {
-    if ($entry.Length -gt 2MB) {
+    # The self-contained vector runtime is a packaged interpreter plus PyMuPDF, so its files are
+    # legitimately large; everything else still has to stay small.
+    $isRuntime = $entry.FullName.StartsWith("content/runtime/", [StringComparison]::OrdinalIgnoreCase)
+    if ((-not $isRuntime) -and ($entry.Length -gt 2MB)) {
       throw "Unexpected large XPI entry: $($entry.FullName)"
     }
     if ($entry.Length -eq 0) {

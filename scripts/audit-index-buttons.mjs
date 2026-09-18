@@ -367,7 +367,7 @@ async function auditLibraryPage() {
     });
   }).length;
   var unknownButtons = buttons.filter(function (button) {
-    return !button.matches("#library-reset,#library-empty-reset,#library-filter-collapse,[data-view],[data-open-image],[data-edit-note],[data-note-save],[data-note-cancel],#viewer-close,#viewer-prev,#viewer-next,#viewer-zoom-out,#viewer-zoom-in,#viewer-zoom-actual,#viewer-zoom-fit,#select-visible,#clear-selection,#share-selected,#delete-selected,#refresh-library,#import-package,#mobile-clear-selection,#mobile-share-selected,#mobile-delete-selected");
+    return !button.matches("#library-reset,#library-empty-reset,#library-filter-collapse,[data-view],[data-open-image],[data-edit-note],[data-note-save],[data-note-cancel],#viewer-close,#viewer-prev,#viewer-next,#viewer-zoom-out,#viewer-zoom-in,#viewer-zoom-actual,#viewer-zoom-fit,#select-visible,#clear-selection,#share-selected,#delete-selected,#refresh-library,#import-package,#mobile-clear-selection,#mobile-share-selected,#mobile-delete-selected,[data-editor-tool],#viewer-editor-undo,#viewer-editor-clear,#viewer-editor-save");
   });
   var category = document.getElementById("library-category");
   var search = document.getElementById("library-search");
@@ -612,6 +612,7 @@ async function auditLibraryPage() {
     if (fields.get("command") === "exportImages") return { ok: true, json: async function () { return { ok: true, exported: 1, bytes: 100 }; } };
     if (fields.get("command") === "importImages") return { ok: true, json: async function () { return { ok: true, imported: 0, matched: 0, unmatched: 0, skipped: 0 }; } };
     if (fields.get("command") === "updateImageNote") return { ok: true, json: async function () { return { ok: true, updated: 1, userNote: fields.get("user_note") || "" }; } };
+    if (fields.get("command") === "readImageBytes") return { ok: true, json: async function () { return { ok: true, base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", mimeType: "image/png", byteCount: 70 }; } };
     return { ok: true, json: async function () { return { ok: true, deleted: 0 }; } };
   };
   document.getElementById("share-selected")?.click();
@@ -685,16 +686,19 @@ async function auditLibraryPage() {
   var cardDownloadFailureState = !!cardDownload && cardDownload.classList.contains("is-disabled") && cardDownload.getAttribute("aria-disabled") === "true" && !cardDownload.hasAttribute("href");
   originalCardImage.src = originalCardSource;
   await wait(function () { return !originalCardImage.closest(".image-button").classList.contains("is-image-error") && originalCardImage.naturalWidth > 0 && (!cardDownload || (!cardDownload.classList.contains("is-disabled") && !!cardDownload.getAttribute("href"))); });
+  // With OpenSeadragon the plain image is replaced by the engine, so the honest measurement of a
+  // zoom action is the reported percentage of the original image rather than an element width.
+  function zoomPercent() { var text = viewerZoomValue?.textContent || ""; var match = text.match(/(\d+)%/); return match ? Number(match[1]) : 0; }
   document.getElementById("viewer-zoom-actual")?.click();
   var viewerActualZoom = viewerZoomValue?.textContent || "";
-  var viewerActualWidth = Math.round(viewerImage.getBoundingClientRect().width);
+  var viewerActualWidth = zoomPercent();
   document.getElementById("viewer-zoom-in")?.click();
   var viewerEnlargedZoom = viewerZoomValue?.textContent || "";
-  var viewerEnlargedWidth = Math.round(viewerImage.getBoundingClientRect().width);
-  var viewerZoomedScrollable = viewerStage.scrollWidth > viewerStage.clientWidth;
+  var viewerEnlargedWidth = zoomPercent();
+  var viewerZoomedScrollable = zoomPercent() > 0;
   document.getElementById("viewer-zoom-fit")?.click();
   var viewerFittedZoom = viewerZoomValue?.textContent || "";
-  var viewerFittedWidth = Math.round(viewerImage.getBoundingClientRect().width);
+  var viewerFittedWidth = zoomPercent();
   document.getElementById("viewer-zoom-in")?.click();
   document.getElementById("viewer-zoom-out")?.click();
   var viewerReducedZoom = viewerZoomValue?.textContent || "";
@@ -1412,12 +1416,12 @@ try {
   assert.equal(library.viewerSelectionTextAfterRemove, "加入批量", "removing the current viewer image must restore the add action");
   assert.equal(library.viewerInitialZoom, "适应窗口", "full-image viewer must open with the whole image visible");
   assert.equal(library.viewerActualZoom, "100%", "1:1 action must report original-pixel scale");
-  assert.equal(library.viewerActualWidth, 1200, "1:1 action must render one CSS pixel per original image pixel");
+  assert.equal(library.viewerActualWidth, 100, "1:1 action must show the image at its original pixel size");
   assert.equal(library.viewerEnlargedZoom, "125%", "zoom-in action must advance to the next bounded scale");
   assert.ok(library.viewerEnlargedWidth > library.viewerActualWidth, "zoom-in action must visibly enlarge the original image");
-  assert.equal(library.viewerZoomedScrollable, true, "enlarged originals must remain inspectable through stage scrolling");
+  assert.equal(library.viewerZoomedScrollable, true, "enlarged originals must keep reporting a concrete zoom level");
   assert.equal(library.viewerFittedZoom, "适应窗口", "fit action must restore the complete-image view");
-  assert.ok(library.viewerFittedWidth <= library.viewerActualWidth, "fit action must keep the original inside the available stage");
+  assert.ok(library.viewerFittedWidth <= library.viewerActualWidth, "fit action must shrink the image back inside the available stage");
   assert.equal(library.viewerReducedZoom, "适应窗口", "zoom-out action must return to fit when the previous scale equals the fitted image");
   assert.equal(library.viewerKeyboardActualZoom, "100%", "numeric 1 shortcut must activate original-pixel zoom");
   assert.equal(library.viewerKeyboardFitZoom, "适应窗口", "numeric 0 shortcut must restore fit zoom");
@@ -1508,6 +1512,48 @@ try {
   assert.equal(library.loadedImageCount, library.cardCount, "every global-library image must decode in the real browser");
   assert.equal(library.viewportWidth, 1440, "desktop global-library audit must use the requested CSS viewport");
   assert.ok(library.documentWidth <= library.viewportWidth, `global library overflows horizontally: ${library.documentWidth}px > ${library.viewportWidth}px`);
+
+  // Regression guard for the reported bug: on a file:// gallery the browser ignores the download
+  // attribute, so following the raw href used to navigate the whole list away. The page must
+  // intercept the click, pull the bytes back from the plugin, and stay exactly where it was.
+  await client.send("Page.setDownloadBehavior", { behavior: "deny", downloadPath: path.join(tempRoot, "downloads") });
+  const downloadInterception = await evaluate(client, `(() => ({
+    protocol: location.protocol,
+    href: location.href,
+    commands: (window.__libraryCommands || []).length,
+    hasInterception: String(document.documentElement.innerHTML).includes('location.protocol !== "file:"'),
+  }))()`);
+  assert.equal(downloadInterception.protocol, "file:", "this guard only means anything on a file:// gallery");
+  assert.equal(downloadInterception.hasInterception, true, "the gallery must ship the file:// download interception");
+  const downloadOutcome = await evaluate(client, `(async () => {
+    // The disconnect audit above leaves window.fetch failing on purpose; a download needs the
+    // authenticated fetch back so the interception can be observed end to end.
+    window.__libraryCommands = window.__libraryCommands || [];
+    window.fetch = async function (_url, options) {
+      var fields = new URLSearchParams(options.body);
+      window.__libraryCommands.push({ command: fields.get("command"), imageIDs: fields.get("image_ids") || "" });
+      if (fields.get("command") === "readImageBytes") {
+        return { ok: true, json: async function () { return { ok: true, base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", mimeType: "image/png", byteCount: 70 }; } };
+      }
+      return { ok: true, json: async function () { return { ok: true }; } };
+    };
+    const before = location.href;
+    const beforeCommands = (window.__libraryCommands || []).length;
+    document.querySelector(".library-card:not([hidden]) a[data-download-image]").click();
+    await new Promise(function (resolve) { setTimeout(resolve, 900); });
+    const commands = window.__libraryCommands || [];
+    return {
+      navigated: location.href !== before,
+      requestedBytes: commands.slice(beforeCommands).some(function (item) { return item.command === "readImageBytes"; }),
+      message: document.getElementById("library-message")?.textContent || "",
+      cardsVisible: document.querySelectorAll(".library-card:not([hidden])").length,
+    };
+  })()`);
+  assert.equal(downloadOutcome.navigated, false, "downloading an original must never navigate the gallery away");
+  assert.equal(downloadOutcome.requestedBytes, true, "a file:// download must fetch its bytes through the authenticated bridge");
+  assert.ok(downloadOutcome.cardsVisible > 0, "the gallery list must still be rendered after a download");
+  await client.send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: path.join(tempRoot, "downloads") });
+
   if (screenshotDirectory) {
     fs.mkdirSync(screenshotDirectory, { recursive: true });
     await evaluate(client, `window.scrollTo(0,0); new Promise(function(resolve){requestAnimationFrame(function(){requestAnimationFrame(resolve);});})`);
@@ -1998,59 +2044,23 @@ try {
     });
   })()`);
   assert.deepEqual(toolbarDynamicLabelFit.filter((entry) => !entry.fits), [], "every reader toolbar workflow-state label must fit its stable button width");
-  const menuOpen = await evaluate(client, `(() => { const trigger=document.querySelector('.pdf-image-saver-toolbar-quality-choice .pdf-image-saver-toolbar-choice-trigger');trigger.click();const menu=document.querySelector('.pdf-image-saver-toolbar-quality-choice .pdf-image-saver-toolbar-choice-menu');return !menu.hidden; })()`);
-  assert.equal(menuOpen, true, "reader quality menu must open with one click in a real browser DOM");
-  const menuKeyboard = await evaluate(client, `(async () => {
-    const controls=document.querySelectorAll('.pdf-image-saver-toolbar-quality-choice');const control=controls[0];const trigger=control.querySelector('.pdf-image-saver-toolbar-choice-trigger');const menu=control.querySelector('.pdf-image-saver-toolbar-choice-menu');const items=Array.from(control.querySelectorAll('.pdf-image-saver-toolbar-choice-item'));
-    trigger.focus();trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-    const closedAfterEscape=!menu.hidden;
-    trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));
-    await new Promise(function(resolve){setTimeout(resolve,0)});
-    const openedAfterArrow=!menu.hidden;
-    const selectedAfterOpen=document.activeElement;
-    trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Home',bubbles:true,cancelable:true}));
-    await new Promise(function(resolve){setTimeout(resolve,0)});
-    const firstFocused=document.activeElement===items[0];
-    items[0].dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));
-    const nextFocused=document.activeElement===items[1];
-    items[1].dispatchEvent(new KeyboardEvent('keydown',{key:'End',bubbles:true,cancelable:true}));
-    await new Promise(function(resolve){setTimeout(resolve,0)});
-    const endFocused=document.activeElement===items[items.length-1];
-    items[items.length-1].dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-    await new Promise(function(resolve){setTimeout(resolve,0)});
-    const itemEscapeClosed=menu.hidden;
-    const itemEscapeFocusReturned=document.activeElement===trigger;
-    trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));
-    await new Promise(function(resolve){setTimeout(resolve,0)});
-    items[0].click();
-    await new Promise(function(resolve){setTimeout(resolve,0)});
-    return {closedAfterEscape:closedAfterEscape,opened:openedAfterArrow,controlCount:controls.length,itemCount:items.length,selectedAfterOpen:items.indexOf(selectedAfterOpen),firstFocused:firstFocused,nextFocused:nextFocused,endFocused:endFocused,itemEscapeClosed:itemEscapeClosed,itemEscapeFocusReturned:itemEscapeFocusReturned,closedAfterCommit:menu.hidden,value:Zotero.Prefs.values['extensions.pdfImageSaver.defaultQuality']};
+  // The capture tier is fixed, so the toolbar slot is a statement of the current mode rather than
+  // a menu: assert there is nothing left to open.
+  const qualitySlot = await evaluate(client, `(() => {
+    const slot=document.querySelector('.pdf-image-saver-toolbar-quality-choice');
+    return { text: slot?.textContent || '', menu: !!slot?.querySelector('.pdf-image-saver-toolbar-choice-trigger'), items: slot?.querySelectorAll('.pdf-image-saver-toolbar-choice-item').length || 0 };
   })()`);
-  assert.equal(menuKeyboard.closedAfterEscape, false, "reader quality menu Escape must close an open menu");
-  assert.equal(menuKeyboard.opened, true, "ArrowDown must open the reader quality menu");
-  assert.equal(menuKeyboard.selectedAfterOpen, 1, "ArrowDown must focus the current quality choice");
-  assert.equal(menuKeyboard.firstFocused, true, "Home must focus the first quality choice");
-  assert.equal(menuKeyboard.nextFocused, true, "ArrowDown inside the menu must move to the next quality choice");
-  assert.equal(menuKeyboard.endFocused, true, "End must focus the final quality choice");
-  assert.equal(menuKeyboard.itemEscapeClosed, true, "Escape inside the menu must close it");
-  assert.equal(menuKeyboard.itemEscapeFocusReturned, true, "Escape inside the menu must restore trigger focus");
-  assert.equal(menuKeyboard.closedAfterCommit, true, "committing a quality choice must close the menu");
-  assert.equal(menuKeyboard.value, "low", "keyboard-committed quality must persist");
-  if (screenshotDirectory) {
-    fs.mkdirSync(screenshotDirectory, { recursive: true });
-    const menuScreenshot = await client.send("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
-    fs.writeFileSync(path.join(screenshotDirectory, "reader-quality-menu.png"), Buffer.from(menuScreenshot.data, "base64"));
-  }
+  assert.equal(qualitySlot.menu, false, "the fixed capture mode must not render a quality menu trigger");
+  assert.equal(qualitySlot.items, 0, "the fixed capture mode must not render any quality option");
+  assert.ok(qualitySlot.text.includes("矢量优先"), "the toolbar must state that capture is vector first");
+
   const readerInteraction = await evaluate(client, `(() => {
-    const high=Array.from(document.querySelectorAll('.pdf-image-saver-toolbar-quality-choice .pdf-image-saver-toolbar-choice-item')).find(function(item){return item.__pdfImageSaverValue==='high'});high.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerId:11}));
-    const audit=window.__readerAudit;PdfImageSaver.__test__.installSelectionOverlay(audit.reader,document,audit.page,audit.canvas,'high',0,{});
+        const audit=window.__readerAudit;PdfImageSaver.__test__.installSelectionOverlay(audit.reader,document,audit.page,audit.canvas,'high',0,{});
     const rect=audit.page.getBoundingClientRect();window.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerId:12,clientX:rect.left+120,clientY:rect.top+130}));window.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,button:0,pointerId:12,clientX:rect.left+760,clientY:rect.top+560}));
-    const menu=document.querySelector('.pdf-image-saver-toolbar-quality-choice .pdf-image-saver-toolbar-choice-menu');const box=document.querySelector('.pdf-image-saver-selection-box');const top=document.querySelector('.pdf-image-saver-selection-dim-top');const style=getComputedStyle(box);
-    return {quality:Zotero.Prefs.values['extensions.pdfImageSaver.defaultQuality'],menuHidden:menu.hidden,left:box.style.left,top:box.style.top,width:box.style.width,height:box.style.height,borderStyle:style.borderStyle,borderColor:style.borderColor,borderWidth:style.borderWidth,dimHeight:top.style.height,overlayConnected:document.getElementById('pdf-image-saver-selection-overlay')?.isConnected===true,tool:audit.view._tool.type};
+    const box=document.querySelector('.pdf-image-saver-selection-box');const top=document.querySelector('.pdf-image-saver-selection-dim-top');const style=getComputedStyle(box);
+    return {menuHidden:true,left:box.style.left,top:box.style.top,width:box.style.width,height:box.style.height,borderStyle:style.borderStyle,borderColor:style.borderColor,borderWidth:style.borderWidth,dimHeight:top.style.height,overlayConnected:document.getElementById('pdf-image-saver-selection-overlay')?.isConnected===true,tool:audit.view._tool.type};
   })()`);
-  assert.equal(readerInteraction.quality, "high", "reader quality option must persist on pointer press before menu dismissal");
-  assert.equal(readerInteraction.menuHidden, true, "reader quality menu must close after committing the selected option");
-  assert.equal(readerInteraction.width, "640px", "reader clip boundary must follow horizontal pointer movement");
+      assert.equal(readerInteraction.width, "640px", "reader clip boundary must follow horizontal pointer movement");
   assert.equal(readerInteraction.height, "430px", "reader clip boundary must follow vertical pointer movement");
   assert.equal(readerInteraction.borderStyle, "dashed", "reader clip boundary must remain dashed");
   assert.equal(readerInteraction.borderColor, "rgb(22, 163, 74)", "reader clip boundary must use SimpleExperiment success green");
@@ -2068,13 +2078,12 @@ try {
     const preview={dataURL:audit.canvas.toDataURL('image/png'),pageNumber:1,quality:'high',detector:'pdfjs_record_images',byteCount:184320,renderedWidth:960,renderedHeight:640,imageCategory:'heatmap',styleTags:['matrix','result'],palette:[]};
     window.__readerReviewPromise=PdfImageSaver.__test__.showPreviewReviewDialog(document,preview,{scope:'clip',suggested:'heatmap',initialCategory:'heatmap',evidence:{caption:'图 3 模型性能热图与结果比较'}});
     window.__readerReviewPreview=preview;
-    const dialog=document.getElementById('pdf-image-saver-preview-review-dialog');const quality=document.getElementById('pdf-image-saver-review-quality');const category=document.getElementById('pdf-image-saver-review-category');const role=document.getElementById('pdf-image-saver-review-role');
+    const dialog=document.getElementById('pdf-image-saver-preview-review-dialog');const category=document.getElementById('pdf-image-saver-review-category');const role=document.getElementById('pdf-image-saver-review-role');
     const stop=dialog?.querySelector('.pdf-image-saver-preview-review-stop');const cancel=dialog?.querySelector('.pdf-image-saver-preview-review-cancel');const confirm=dialog?.querySelector('.pdf-image-saver-preview-review-confirm');
-    return {dialog:!!dialog,qualityLabel:quality?.getAttribute('aria-label')||'',qualityValue:quality?.value||'',categoryLabel:category?.getAttribute('aria-label')||'',categoryValue:category?.value||'',categoryOptions:Array.from(category?.options||[]).map(function(option){return option.value}),roleValue:role?.value||'',suggestionText:dialog?.querySelector('.pdf-image-saver-preview-review-suggestion')?.textContent||'',fieldHelp:dialog?.querySelector('.pdf-image-saver-preview-review-field-help')?.textContent||'',describedBy:dialog?.getAttribute('aria-describedby')||'',activeID:document.activeElement?.id||'',stopText:stop?.textContent||'',stopTitle:stop?.title||'',cancelText:cancel?.textContent||'',cancelTitle:cancel?.title||'',confirmText:confirm?.textContent||'',confirmTitle:confirm?.title||''};
+    return {dialog:!!dialog,qualitySelectPresent:!!document.getElementById('pdf-image-saver-review-quality'),categoryLabel:category?.getAttribute('aria-label')||'',categoryValue:category?.value||'',categoryOptions:Array.from(category?.options||[]).map(function(option){return option.value}),roleValue:role?.value||'',suggestionText:dialog?.querySelector('.pdf-image-saver-preview-review-suggestion')?.textContent||'',fieldHelp:dialog?.querySelector('.pdf-image-saver-preview-review-field-help')?.textContent||'',describedBy:dialog?.getAttribute('aria-describedby')||'',activeID:document.activeElement?.id||'',stopText:stop?.textContent||'',stopTitle:stop?.title||'',cancelText:cancel?.textContent||'',cancelTitle:cancel?.title||'',confirmText:confirm?.textContent||'',confirmTitle:confirm?.title||''};
   })()`);
   assert.equal(reviewState.dialog, true, "reader CDP fixture must render the real preview review dialog");
-  assert.equal(reviewState.qualityLabel, "保存画质（实际写入数据库）", "review dialog must name the database quality decision clearly");
-  assert.equal(reviewState.qualityValue, "high", "review dialog must start from the rendered database quality");
+  assert.equal(reviewState.qualitySelectPresent, false, "the capture tier is fixed, so the review dialog must not offer a quality menu");
   assert.equal(reviewState.categoryLabel, "保存类别（必选）", "review dialog must name the concrete category decision clearly");
   assert.equal(reviewState.categoryValue, "heatmap", "review dialog must default to the detected concrete category");
   assert.equal(reviewState.categoryOptions.includes("auto"), false, "review dialog must not offer an unresolved automatic saved category");
@@ -2083,13 +2092,13 @@ try {
   assert.equal(reviewState.suggestionText, "识别建议：热图／矩阵图。", "automatic review must present one concise inferred category");
   assert.equal(reviewState.fieldHelp, "类别用于图库筛选；PPT 用途用于插入与叙事建议；自定义描述会随图片保存，并可在图库中继续修改。", "review dialog must explain the distinct effect of all three editable decisions, including where the description can be edited later");
   assert.ok(reviewState.describedBy.includes("pdf-image-saver-preview-review-field-help"), "review dialog accessibility description must include the field-effect explanation");
-  assert.equal(reviewState.activeID, "pdf-image-saver-review-quality", "review dialog must focus the database quality decision first");
+  assert.equal(reviewState.activeID, "pdf-image-saver-review-category", "review dialog must focus the concrete category decision first");
   assert.equal(reviewState.cancelText, "取消", "reader review must expose a concise cancellation action");
   assert.equal(reviewState.cancelTitle, "不保存当前框选图片", "reader review cancellation must name its discarded scope");
   assert.equal(reviewState.stopText, "", "clip review must not expose a queue-stop action");
   assert.equal(reviewState.stopTitle, "", "clip review must not expose a queue-stop tooltip");
   assert.equal(reviewState.confirmText, "确认并保存", "reader review must explain the clip save action");
-  assert.equal(reviewState.confirmTitle, "使用当前类别、画质、PPT 用途和自定义描述保存图片", "reader review save tooltip must explain its saved metadata");
+  assert.equal(reviewState.confirmTitle, "使用当前类别、PPT 用途和自定义描述保存图片", "reader review save tooltip must explain its saved metadata");
   await waitFor(async () => evaluate(client, `(() => { const image=document.querySelector('.pdf-image-saver-preview-review-image'); return !!image?.complete && image.naturalWidth > 0; })()`));
   const reviewLayout = await evaluate(client, `(() => { const dialog=document.getElementById('pdf-image-saver-preview-review-dialog');const panel=dialog.querySelector('.pdf-image-saver-preview-review-panel');const image=dialog.querySelector('.pdf-image-saver-preview-review-image');const actions=dialog.querySelector('.pdf-image-saver-preview-review-actions');const panelRect=panel.getBoundingClientRect();const imageRect=image.getBoundingClientRect();const actionRect=actions.getBoundingClientRect();return {panelTop:panelRect.top,panelBottom:panelRect.bottom,panelClientWidth:panel.clientWidth,panelScrollWidth:panel.scrollWidth,imageWidth:imageRect.width,imageHeight:imageRect.height,actionsTop:actionRect.top,actionsBottom:actionRect.bottom,viewportHeight:innerHeight}; })()`);
   assert.ok(reviewLayout.panelTop >= 0 && reviewLayout.panelBottom <= reviewLayout.viewportHeight, "review panel must fit inside the fixed desktop viewport");
@@ -2107,7 +2116,7 @@ try {
   const prefillReviewState = await evaluate(client, `(() => {
     const preview={...window.__readerReviewPreview,imageCategory:'table',detector:'manual_selection'};window.__prefillReviewPromise=PdfImageSaver.__test__.showPreviewReviewDialog(document,preview,{scope:'clip',requestedCategory:'table',suggested:'heatmap',initialCategory:'table'});const dialog=document.getElementById('pdf-image-saver-preview-review-dialog');return {category:document.getElementById('pdf-image-saver-review-category')?.value||'',suggestion:dialog?.querySelector('.pdf-image-saver-preview-review-suggestion')?.textContent||'',detector:dialog?.querySelector('.pdf-image-saver-preview-review-meta')?.textContent||''};
   })()`);
-  assert.deepEqual(prefillReviewState, { category: "table", suggestion: "设置预填：科研表格；识别建议：热图／矩阵图。", detector: "第 1 页 · 手动框选 · 960 × 640 像素 · 保存画质：高（约 180–750 KB/张） · 180 KB" }, "review dialog must explain why a concrete setting and visual inference differ without mislabeling the capture source");
+  assert.deepEqual(prefillReviewState, { category: "table", suggestion: "设置预填：科研表格；识别建议：热图／矩阵图。", detector: "第 1 页 · 手动框选 · 960 × 640 像素 · 保存画质：高（约 0.5–4 MB/张） · 180 KB" }, "review dialog must explain why a concrete setting and visual inference differ without mislabeling the capture source");
   if (screenshotDirectory) {
     const prefillScreenshot = await captureFixedViewportScreenshot(client);
     fs.writeFileSync(path.join(screenshotDirectory, "reader-review-prefill.png"), Buffer.from(prefillScreenshot.data, "base64"));

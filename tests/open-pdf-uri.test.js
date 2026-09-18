@@ -580,7 +580,7 @@ assert.ok(sizeBadge, "selection box must include live size badge");
 assert.strictEqual(sessionPage.child.title, "框选模式：在第 1 页按住鼠标左键拖动；松开后预览并确认；按 Esc 或右键取消", "clip overlay title must explain the workflow in Chinese");
 assert.strictEqual(
   sessionPage.child.getAttribute("aria-label"),
-  "框选第 1 页图片。框选模式：在第 1 页按住鼠标左键拖动；松开后预览并确认；按 Esc 或右键取消。清晰度：中（约 60–220 KB/张）。",
+  "框选第 1 页图片。框选模式：在第 1 页按住鼠标左键拖动；松开后预览并确认；按 Esc 或右键取消。清晰度：中（约 120–450 KB/张）。",
   "clip overlay aria-label must explain page, quality, and cancellation in Chinese",
 );
 const sessionHint = (sessionPage.child.children || []).find((node) => node.className === "pdf-image-saver-selection-hint");
@@ -841,7 +841,7 @@ const mediumPreview = renderCanvasPreview({
   selectionRect: { left: 0, top: 0, width: 1200, height: 900 },
 });
 assert.strictEqual(mediumPreview.quality, "medium", "save entries must pass normalized quality into preview rendering");
-assert.strictEqual(mediumPreview.qualityEstimate, "约 60–220 KB/张", "medium preview must carry the Chinese estimate");
+assert.strictEqual(mediumPreview.qualityEstimate, "约 120–450 KB/张", "medium preview must carry the Chinese estimate");
 assert.strictEqual(qualityCanvas.outputCanvases[0].width, 480, "medium preview must use medium max width");
 assert.strictEqual(qualityCanvas.outputCanvases[0].encodedQuality, 0.78, "medium preview must use medium JPEG quality");
 
@@ -854,7 +854,7 @@ const malformedQualityPreview = renderCanvasPreview({
   selectionRect: { left: 0, top: 0, width: 1200, height: 900 },
 });
 assert.strictEqual(malformedQualityPreview.quality, "medium", "renderer must normalize malformed quality keys");
-assert.strictEqual(malformedQualityPreview.qualityEstimate, "约 60–220 KB/张", "renderer malformed quality must use the Chinese medium estimate");
+assert.strictEqual(malformedQualityPreview.qualityEstimate, "约 120–450 KB/张", "renderer malformed quality must use the Chinese medium estimate");
 assert.strictEqual(malformedQualityCanvas.outputCanvases[0].width, 480, "renderer malformed quality must use medium max width");
 assert.strictEqual(malformedQualityCanvas.outputCanvases[0].encodedQuality, 0.78, "renderer malformed quality must use medium JPEG quality");
 assert.strictEqual(malformedQualityCanvas.outputCanvases[0].context.imageSmoothingQuality, "medium", "renderer malformed quality must use medium smoothing");
@@ -913,7 +913,7 @@ const htmlEntry = {
   pageNumber: 5,
   pageLabel: "v",
   quality: "medium",
-  qualityEstimate: "60-220 KB/image",
+  qualityEstimate: "120-450 KB/image",
   dataURL: "data:image/jpeg;base64,AAAA",
   byteCount: 3,
   renderedWidth: 120,
@@ -957,7 +957,7 @@ assert.strictEqual(metadata.zotero_version, "9.0.5-test");
 assert.strictEqual(metadata.preview_index_key, getPreviewIndexKey(htmlAttachment, [htmlEntry], "clip", "medium"));
 assert.strictEqual(metadata.preview_index_fingerprint, getPreviewIndexFingerprint(metadata.preview_index_key));
 assert.strictEqual(metadata.entries[0].open_pdf_uri, htmlEntry.openPDFURI);
-assert.strictEqual(metadata.entries[0].quality_estimate, "约 60–220 KB/张");
+assert.strictEqual(metadata.entries[0].quality_estimate, "约 120–450 KB/张");
 assert.strictEqual(metadata.entries[0].source_region.coordinate_system, "normalized_page_rect");
 assert.strictEqual(metadata.entries[0].source_region_key, htmlEntry.sourceRegionKey);
 assert.strictEqual(metadata.entries[0].preview_duplicate_key, getPreviewDuplicateKey(htmlAttachment, htmlEntry));
@@ -994,7 +994,7 @@ assert.ok(metadata.entries[0].palette_json, "metadata must include palette_json 
 assert.ok(html.includes("<details>"), "full JSON metadata must be in a details block");
 assert.ok(!/<details[^>]*open/i.test(html), "full JSON metadata must be collapsed by default");
 assert.ok(html.includes(`Index ${getPreviewIndexFingerprint(metadata.preview_index_key)}`), "header must show compact index identity");
-assert.ok(html.includes("M Medium; 60-220 KB"), "preview index header must densify quality mark/label/estimate");
+assert.ok(html.includes("M Medium; 120-450 KB"), "preview index header must densify quality mark/label/estimate");
 assert.ok(html.includes("HTML; sync; clip."), "preview index header must densify scope label");
 assert.ok(html.includes("img index clip M"), "preview HTML document title must densify scope and quality mark");
 assert.ok(html.includes('id="top"'), "preview index sticky header must expose top anchor");
@@ -1569,9 +1569,9 @@ const invalidQualityHTML = buildIndexHTML({
   scope: "clip",
   qualityKey: "constructor",
 });
-assert.ok(invalidQualityHTML.includes("M Medium; 60-220 KB"), "invalid entry quality must fall back to Medium");
+assert.ok(invalidQualityHTML.includes("M Medium; 120-450 KB"), "invalid entry quality must fall back to Medium");
 assert.strictEqual(invalidQualityEntry.quality, "medium", "invalid entry quality must be normalized on the entry");
-assert.strictEqual(invalidQualityEntry.qualityEstimate, "60-220 KB/image", "invalid quality estimate must be normalized");
+assert.strictEqual(invalidQualityEntry.qualityEstimate, "120-450 KB/image", "invalid quality estimate must be normalized");
 const invalidQualityMetadataText = invalidQualityHTML.match(/<pre>([\s\S]*?)<\/pre>/)[1]
   .replace(/&quot;/g, '"')
   .replace(/&amp;/g, "&")
@@ -1581,7 +1581,7 @@ const invalidQualityMetadataText = invalidQualityHTML.match(/<pre>([\s\S]*?)<\/p
 const invalidQualityMetadata = JSON.parse(invalidQualityMetadataText);
 assert.strictEqual(invalidQualityMetadata.preview_quality, "medium", "invalid request quality must be normalized");
 assert.strictEqual(invalidQualityMetadata.entries[0].quality, "medium");
-assert.strictEqual(invalidQualityMetadata.entries[0].quality_estimate, "60-220 KB/image");
+assert.strictEqual(invalidQualityMetadata.entries[0].quality_estimate, "120-450 KB/image");
 
 assert.throws(
   () => buildIndexHTML({
@@ -2017,7 +2017,7 @@ for (const forbiddenDiagnosticsText of ["[object Object]", "undefined", "NaN", "
 assert.ok(noisyDiagnostics.includes("Plugin: unknown"), "diagnostics plugin must normalize malformed text");
 assert.ok(noisyDiagnostics.includes("Store: HTML; sync PDF"), "diagnostics must surface storage mode");
 assert.ok(noisyDiagnostics.includes("Run: unknown"), "diagnostics booleans must normalize malformed values");
-assert.ok(noisyDiagnostics.includes("Q M Medium; 60-220 KB"), "diagnostics quality must densify malformed values");
+assert.ok(noisyDiagnostics.includes("Q M Medium; 120-450 KB"), "diagnostics quality must densify malformed values");
 assert.ok(noisyDiagnostics.includes("Dups: unknown"), "diagnostics dups must normalize malformed values");
 assert.strictEqual(formatDiagnosticDups(true), "on; sess+saved", "diagnostics dups must densify enabled guard");
 assert.strictEqual(formatDiagnosticDups(false), "off", "diagnostics dups must densify disabled guard");
@@ -2047,7 +2047,7 @@ const denseDiagnostics = formatDiagnosticsReport({
   temp_bytes: 0,
   optional_helper: "python-available",
 });
-assert.ok(denseDiagnostics.includes("Q H High; 180-750 KB"), "diagnostics must densify quality");
+assert.ok(denseDiagnostics.includes("Q H High; 0.5-4 MB"), "diagnostics must densify quality");
 assert.ok(denseDiagnostics.includes("Dups: on; sess+saved"), "diagnostics must densify dups");
 assert.ok(denseDiagnostics.includes("Auto: min 0.003; 6 max; 3 MB"), "diagnostics must densify auto caps");
 assert.ok(denseDiagnostics.includes("Index: 5 MB"), "diagnostics must densify index cap");
@@ -2076,7 +2076,7 @@ const denseDiagnosticsOff = formatDiagnosticsReport({
   temp_bytes: 0,
   optional_helper: "python-missing",
 });
-assert.ok(denseDiagnosticsOff.includes("Q L Low; 20-80 KB"), "diagnostics must densify quality when guard disabled");
+assert.ok(denseDiagnosticsOff.includes("Q L Low; 30-120 KB"), "diagnostics must densify quality when guard disabled");
 assert.ok(denseDiagnosticsOff.includes("Dups: off"), "diagnostics must show dups off when guard disabled");
 assert.ok(denseDiagnosticsOff.includes("Auto: min 0.01; 4 max; 1 MB"), "diagnostics must densify auto caps when guard disabled");
 assert.ok(denseDiagnosticsOff.includes("Index: 2 MB"), "diagnostics must densify index cap when guard disabled");
@@ -2176,12 +2176,12 @@ assert.strictEqual(formatOriginalScopeToken("page", null), "page", "original pag
 
 assert.strictEqual(
   buildToolbarActionTooltip("Clip a figure preview", "high"),
-  "Clip a figure preview; H High; 180-750 KB",
+  "Clip a figure preview; H High; 0.5-4 MB",
   "toolbar tooltip must show selected high quality estimate",
 );
 assert.strictEqual(
   buildToolbarActionTooltip("Clip a figure preview", "constructor"),
-  "Clip a figure preview; M Medium; 60-220 KB",
+  "Clip a figure preview; M Medium; 120-450 KB",
   "toolbar tooltip must normalize malformed quality to medium",
 );
 const autoRasterStateButton = { disabled: false, title: "" };
@@ -2195,7 +2195,7 @@ applyAutoRasterButtonState(autoRasterStateButton, true, "high");
 assert.strictEqual(autoRasterStateButton.disabled, false, "available auto-raster state must re-enable the button");
 assert.strictEqual(
   autoRasterStateButton.title,
-  "Auto page; H High; 180-750 KB",
+  "Auto page; H High; 0.5-4 MB",
   "available auto-raster state must restore selected quality tooltip",
 );
 
@@ -2403,11 +2403,11 @@ onCreateViewContextMenu({
   },
 });
 assert.ok(
-  contextMenuItems.some((item) => String(item.label || "").startsWith("Auto H High; 180-750 KB")),
+  contextMenuItems.some((item) => String(item.label || "").startsWith("Auto H High; 0.5-4 MB")),
   "context menu auto-raster label must show the default quality estimate",
 );
 assert.ok(
-  contextMenuItems.some((item) => String(item.label || "").startsWith("Page H High; 180-750 KB")),
+  contextMenuItems.some((item) => String(item.label || "").startsWith("Page H High; 0.5-4 MB")),
   "context menu page-preview label must show the default quality estimate",
 );
 assert.ok(
@@ -3250,14 +3250,14 @@ function assertPreferenceStatusRendering() {
   prefContext.PdfImageSaverPreferences.init();
   const status = prefDoc.getElementById("pdf-image-saver-prefs-status");
   assert.ok(status.textContent.includes("Store: HTML"), "preference status must render storage mode");
-  assert.ok(status.textContent.includes("Q H High; 180-750 KB"), "preference status must render selected quality estimate");
+  assert.ok(status.textContent.includes("Q H High; 0.5-4 MB"), "preference status must render selected quality estimate");
   assert.ok(status.textContent.includes("Dups: on; sess+saved"), "preference status must render duplicate guard state");
   assert.ok(status.textContent.includes("Auto: min 0.005; 6 max; 3 MB"), "preference status must render auto min/caps");
   assert.ok(status.textContent.includes("Index: 5 MB"), "preference status must render HTML index cap");
   assert.ok(status.textContent.includes("Helper: opt; min 0.02; page 12; doc 34; 45s; custom py"), "preference status must render helper min/caps and python path mode");
   prefDoc.getElementById("pdf-image-saver-default-quality").value = "low";
   prefDoc.getElementById("pdf-image-saver-default-quality").dispatch("change");
-  assert.ok(status.textContent.includes("Q L Low; 20-80 KB"), "preference status must refresh after quality change");
+  assert.ok(status.textContent.includes("Q L Low; 30-120 KB"), "preference status must refresh after quality change");
   prefDoc.getElementById("pdf-image-saver-python-path").value = "";
   prefDoc.getElementById("pdf-image-saver-python-path").dispatch("input");
   assert.ok(status.textContent.includes("auto py"), "preference status must refresh helper python mode");

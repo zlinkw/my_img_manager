@@ -32,6 +32,9 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - `images.user_note` is the only user-authored column. It is written by exactly two owners: the capture review dialog and the generated gallery via the `updateImageNote` bridge command. Capture and import UPSERTs must keep `COALESCE(NULLIF(excluded.user_note, ''), images.user_note)` so an empty value never erases a stored description.
 - Do not read or write Zotero internal `zotero.sqlite`, `zotero.sqlite-wal`, or `zotero.sqlite-shm`.
 - Saved image bytes remain bounded by the selected quality and fixed per-image limits.
+- `image_blob` has no format column; the format is sniffed from the bytes. Vector crops are stored as SVG, which must be recognised alongside the raster magic numbers.
+- Capture must re-render the selected region from pdf.js at the tier's DPI instead of cropping the reader's on-screen canvas. The reader canvas is typically about 145 DPI, so cropping it cannot produce a sharp figure; the re-render must also never yield fewer pixels than the canvas already had.
+- Vector export (`set_cropbox` + `select` + SVG) is preferred only when it is not larger than the raster. Carrying a vector figure costs kilobytes; carrying a figure that is really an embedded bitmap costs its whole byte payload, so the raster must win whenever it is leaner.
 - Saved metadata must preserve source provenance: PDF attachment key, page number, bbox/source region, duplicate keys, annotation key when available, and `zotero://open-pdf` source link.
 
 ## UI Contract
@@ -41,6 +44,8 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Error messages must explain whether the failure is capture, helper, duplicate, byte cap, or Zotero storage related.
 - Full gallery management is owned by the Zotero plugin; PPT must reuse the generated gallery and may keep only its documented lightweight read-only picker.
 - The large-image viewer is an in-page overlay. No plugin surface may use `window.open`, `target="_blank"`, or any other hand-off to a second browser tab; closing the overlay returns the user to the gallery list.
+- On a `file://` gallery the browser ignores the `download` attribute and following the `href` navigates the whole list away. Downloads must be intercepted and served from bytes returned by the `readImageBytes` bridge command via a Blob URL; fetch, XHR, and canvas export are all unavailable on that origin.
+- A download failure must surface the same Chinese recovery guidance as other management actions. Never leak a raw browser error such as "Failed to fetch".
 - Generated pages are built from one outer template literal, so their inline scripts must not nest template literals and must escape every regex/string backslash as `\\`. `tests/current-release.test.js` parses each generated `<script>` so a broken page script cannot ship while the markup still looks correct.
 
 ## Optimization Priority

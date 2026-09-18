@@ -4,11 +4,11 @@
 
 ## 当前状态
 
-- 版本 `0.1.137`；插件 ID `pdf-image-saver@zlk.local`；`strict_max_version: 11.*`；`update_url` 指向仓库静态空 feed。
+- 版本 `0.1.139`；插件 ID `pdf-image-saver@zlk.local`；`strict_max_version: 11.*`；`update_url` 指向仓库静态空 feed。
 - `0.1.135` 放宽兼容上限到 `11.*`：Zotero 10.0.2 下旧上限使插件被置为 `appDisabled`。
 - `0.1.136` 补上 `applications.zotero.update_url`：Zotero 10 缺该字段即报 `Extension is invalid`，从文件安装失败。`updates.json` 保持空 feed，永不下载更新。
-- `0.1.137` 新增自定义描述 `user_note`（schema 3）：采集窗口可填、图库卡片可就地编辑并写回、表格新增“描述”列、随分享包往返；查看器关闭控件改为 `×` 并声明返回列表。
-- `0.1.137` 修复生成页脚本整体失效：脚本外层是模板字符串，正则里的 `\n` 被当转义序列吃掉导致语法错误，图库交互全部静默失效。测试现在逐个解析生成页 `<script>` 拦截。
+- `0.1.139` 新增自定义描述 `user_note`（schema 3）：采集窗口可填、图库卡片可就地编辑并写回、表格新增“描述”列、随分享包往返；查看器关闭控件改为 `×` 并声明返回列表。
+- `0.1.139` 修复生成页脚本整体失效：脚本外层是模板字符串，正则里的 `\n` 被当转义序列吃掉导致语法错误，图库交互全部静默失效。测试现在逐个解析生成页 `<script>` 拦截。
 - 交付包由 `scripts/build.ps1` 生成并校验；开发用带时间戳 recovery 包，公开发布用 `pdf-image-saver-<version>.xpi`。
 - 冻结合同：SQLite schema 3；locator schema 1；producer `zotero-pdf-image-saver`；`GLOBAL_LIBRARY_VIEW_VERSION = "38"`；bridge `POST http://127.0.0.1:23119/pdf-image-saver/bridge`。
 - PPT 仅可调用 `refreshLibrary` 与冻结的来源定位命令；不得发送 `deleteImages`、`exportImages`、`importImages`、`updateImageNote`。

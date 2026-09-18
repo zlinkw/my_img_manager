@@ -6,7 +6,7 @@
 
 - 唯一图片库是 `%LOCALAPPDATA%\ZLK\paper-image-library\paper_images.sqlite`。
 - `images.image_blob` 是图库、下载、高清查看和 PPT 插图共同使用的原图字节；不得另建缩略图库、预览数据库或图片 HTTP 接口。
-- Zotero 插件是完整图库界面的唯一实现方。界面由 `buildGlobalImageLibraryHTML()` 生成，当前 `GLOBAL_LIBRARY_VIEW_VERSION` 为 `38`。
+- Zotero 插件是完整图库界面的唯一实现方。界面由 `buildGlobalImageLibraryHTML()` 生成，当前 `GLOBAL_LIBRARY_VIEW_VERSION` 为 `40`。
 - **PPT 插件必须复用 Zotero 生成的完整图库界面。** PPT 不得另写一套完整图库的卡片、表格、筛选、排序、高清查看、批量选择、分享、导入或删除界面，也不得把生成页的 HTML、CSS 或 JavaScript 复制进 PPT 仓库形成分叉版本。
 - PPT 可保留任务窗格内服务于“快速搜索、取色、插入当前图片”的轻量选择器；它不是完整图库，不得替代或复制本文件定义的完整图库管理界面。
 
@@ -68,6 +68,11 @@ Windows 上的生成路径由 `Path.GetTempPath()` 或等价系统 API取得，�
 - 自定义描述：采集确认窗口可填写；图库卡片内可就地编辑并写回 SQLite；表格视图有独立 `描述` 列。上限 300 字，保留换行。
 - 高清查看器：适应窗口、1:1、缩放、滚动、上一张、下一张、下载原图和定位原文；有关联描述时在标题下单独成行显示。
 - 高清查看器使用页内浮层，绝不打开新的浏览器标签页；关闭控件显示 `×` 并声明返回图片库列表，关闭后焦点回到打开它的元素。
+- 高清查看器由 OpenSeadragon 提供滚轮居中缩放、鼠标拖动与左下角鸟瞰图，由 Fabric 提供笔刷、直线、矩形、文字、橡皮与撤销；两者以 UMD 脚本随插件打包（图库页是 `file://`，ES Module 无法加载），缺失时自动回退为纯图片查看。
+- 框选保存不再提供清晰度挡位：统一为矢量优先、否则 600 DPI 无损 PNG。
+- 以 `file://` 打开图库时，浏览器会忽略 `download` 属性，直接跟随 `href` 会把整个图库页导航走。页面必须在捕获阶段拦截 `[data-download-image]` 与 `#viewer-download`，改由 `readImageBytes` 取回字节并以 Blob URL 触发下载；失败时只显示中文提示，绝不导航离开。
+- 框选保存按 DPI 重新渲染，而不是裁剪阅读器屏幕上的 canvas：阅读器 canvas 通常只有约 145 DPI，裁剪它必然发虚。低/中/高分别对应 96/150/600 DPI，高挡使用 PNG 无损编码；像素上限 16 MP（与 Zotero 自身 `renderArea` 一致），且永不低于阅读器当前分辨率。
+- 若 Python 与 PyMuPDF 可用，框选保存会用 `set_cropbox` + `select` 把选区裁成单页再导出 SVG，使查看时保持矢量、任意缩放锐利；仅在矢量结果不比栅格更大时才采用，避免位图型插图白白膨胀体积。
 - 原图临时文件加载失败时，卡片、表格和高清查看器显示中文恢复提示；不生成备用图像。
 - 图库和表格同步多选、Shift 连选、全选当前结果、清空选择。
 - 批量分享 `.pislib`、导入 `.pislib`、批量软删除。
@@ -88,10 +93,11 @@ Windows 上的生成路径由 `Path.GetTempPath()` 或等价系统 API取得，�
 | 分享所选 | `exportImages` | 完整图库 | PPT 不得直接发送 |
 | 导入分享包 | `importImages` | 完整图库 | PPT 不得直接发送 |
 | 修改自定义描述 | `updateImageNote` | 完整图库 | PPT 不得直接发送 |
+| 下载原图字节 | `readImageBytes` | 完整图库 | PPT 不得直接发送；以 `file://` 打开时下载必需 |
 | 软删除所选 | `deleteImages` | 完整图库 | PPT 不得直接发送 |
 | 直接写 SQLite | SQLite 写事务 | Zotero 插件 | 禁止 |
 
-`refreshLibrary` 只读取 SQLite 并重建临时界面，不修改图片记录，因此是 PPT 为复用完整图库可使用的唯一图库命令。`deleteImages`、`exportImages`、`importImages`、`updateImageNote` 仍只属于生成页。
+`refreshLibrary` 只读取 SQLite 并重建临时界面，不修改图片记录，因此是 PPT 为复用完整图库可使用的唯一图库命令。`deleteImages`、`exportImages`、`importImages`、`readImageBytes`、`updateImageNote` 仍只属于生成页。
 
 `updateImageNote` 是唯一由用户手写内容的写命令：它只更新 `images.user_note`，其余列仍由采集和导入路径独占。
 
@@ -159,7 +165,7 @@ PPT 的 `打开论文图片库` 必须执行以下顺序：
 - 禁止 PPT 创建第二份完整图库 UI 或长期维护 Zotero 图库的 HTML/CSS/JS 副本。
 - 禁止 PPT 通过 DOM 选择器自动操纵生成页；PPT 只负责导航到页面，页面内部交互由页面自身处理。
 - 禁止把临时 HTML 或 `images/` 当作数据库、缓存协议或插图字节来源。
-- 禁止 PPT 发送 `deleteImages`、`exportImages`、`importImages`、`updateImageNote`。
+- 禁止 PPT 发送 `deleteImages`、`exportImages`、`importImages`、`readImageBytes`、`updateImageNote`。
 - 禁止增加图片 HTTP endpoint、随机端口、WebSocket 或未文档化文件消息。
 - 禁止读取、复制、锁定或修改 Zotero 内置 `zotero.sqlite*`。
 - 禁止为了 PPT 兼容放宽固定数据库路径、token 校验、URI 白名单或分享包校验。

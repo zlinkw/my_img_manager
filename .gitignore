@@ -7,3 +7,6 @@ outputs/*.xpi
 outputs/*.zip
 outputs/*.sha256
 *.log
+__pycache__/
+*.pyc
+content/runtime/

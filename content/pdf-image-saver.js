@@ -13,8 +13,8 @@ var PdfImageSaver = (() => {
   const BRIDGE_URL = `http://127.0.0.1:23119${BRIDGE_ENDPOINT}`;
   const BRIDGE_STATUS_COMMANDS = ["status", "getStatus"];
   const BRIDGE_PROVENANCE_COMMANDS = ["openPdfByImageId", "selectParentItemByImageId", "selectPdfAttachmentByImageId"];
-  const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "refreshLibrary", "updateImageNote"];
-  const GLOBAL_LIBRARY_VIEW_VERSION = "38";
+  const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "readImageBytes", "refreshLibrary", "updateImageNote"];
+  const GLOBAL_LIBRARY_VIEW_VERSION = "40";
   const GLOBAL_LIBRARY_DIRECTORY_NAME = "paper-image-library-view";
   const GLOBAL_LIBRARY_HTML_NAME = "paper-image-library.html";
   const GLOBAL_LIBRARY_MAX_IMAGE_BYTES = 25 * 1024 * 1024;
@@ -51,10 +51,21 @@ var PdfImageSaver = (() => {
   const ORIGINAL_MAX_IMAGE_BYTES = 25 * 1024 * 1024;
   const ORIGINAL_MAX_TOTAL_BYTES = 150 * 1024 * 1024;
   const USER_NOTE_MAX_LENGTH = 300;
+  // `dpi` drives the re-render path: it asks pdf.js for the selected region at a chosen print
+  // resolution instead of reusing whatever the reader happens to have on screen. That is the only
+  // way to get sharp output, because the on-screen canvas is usually far below print resolution.
+  // `maxWidth` survives as the ceiling for the fallback path, which can only crop the existing
+  // canvas. Zotero caps its own region renders at 16 megapixels (renderArea in document-worker);
+  // the same ceiling keeps one capture from exhausting memory.
+  const MAX_CAPTURE_PIXELS = 16 * 1024 * 1024;
+  const MAX_CAPTURE_SCALE = 12;
+  // A vector figure stays tiny, but a figure that is really an embedded bitmap gets its bytes
+  // carried inside the exported vector. This keeps one saved image from swallowing the library.
+  const MAX_STORED_IMAGE_BYTES = 1536 * 1024;
   const QUALITY = {
-    low: { label: "低", maxWidth: 240, jpegQuality: 0.62, estimate: "约 20–80 KB/张" },
-    medium: { label: "中", maxWidth: 480, jpegQuality: 0.78, estimate: "约 60–220 KB/张" },
-    high: { label: "高", maxWidth: 960, jpegQuality: 0.9, estimate: "约 180–750 KB/张" },
+    low: { label: "低", dpi: 96, maxWidth: 240, format: "jpeg", jpegQuality: 0.62, estimate: "约 30–120 KB/张" },
+    medium: { label: "中", dpi: 150, maxWidth: 480, format: "jpeg", jpegQuality: 0.78, estimate: "约 120–450 KB/张" },
+    high: { label: "高", dpi: 600, maxWidth: 1920, format: "png", jpegQuality: 0.9, estimate: "约 0.5–4 MB/张" },
   };
   const IMAGE_CATEGORIES = {
     auto: { label: "自动判断", mark: "自动" },
@@ -815,23 +826,13 @@ var PdfImageSaver = (() => {
     group.__pdfImageSaverDestroyed = false;
     disableToolbarWindowDragging(group);
     const outsideEventTargets = getReaderInteractionDocuments(reader, doc);
-    const qualityControl = createToolbarChoiceControl(doc, {
+    // Nothing is left to choose: every capture takes the best available fidelity, so the toolbar
+    // states the capture mode instead of offering a menu.
+    const qualityControl = createToolbarStaticLabel(doc, {
       id: "pdf-image-saver-quality-control",
       className: "pdf-image-saver-toolbar-quality-choice",
-      ariaLabel: "保存画质",
-      initialValue: getDefaultQualityKey(),
-      normalize: normalizeQualityKey,
-      triggerLabel: (key) => `清晰度：${QUALITY[normalizeQualityKey(key)].label}`,
-      title: (key) => `保存画质：${getQualityLabelWithEstimate(key)}。单击选择。`,
-      options: Object.keys(QUALITY).map((key) => ({
-        value: key,
-        label: getQualityLabelWithEstimate(key),
-      })),
-      outsideEventTargets,
-      onChange(key) {
-        const qualityKey = normalizeQualityKey(key);
-        setStringPref("defaultQuality", qualityKey);
-      },
+      text: "保存：矢量优先",
+      title: "选区含矢量内容时保存为矢量；否则保存 600 DPI 无损 PNG。",
     });
     const categoryControl = createToolbarChoiceControl(doc, {
       id: "pdf-image-saver-category-control",
@@ -1049,6 +1050,27 @@ var PdfImageSaver = (() => {
         }
       });
     }
+  }
+
+  // Same surface as the choice control so the toolbar lifecycle code does not need to care whether
+  // a slot is a menu or just a statement of the current mode.
+  function createToolbarStaticLabel(doc, options = {}) {
+    const safeOptions = normalizeOptionsObject(options);
+    const element = doc.createElement("span");
+    element.id = normalizeMetadataText(safeOptions.id, null, 120) || "";
+    element.className = normalizeMetadataText(safeOptions.className, null, 200) || "";
+    const text = String(safeOptions.text || "");
+    element.textContent = text;
+    element.title = String(safeOptions.title || text);
+    element.setAttribute?.("aria-label", text);
+    return {
+      element,
+      getValue: () => getDefaultQualityKey(),
+      setValue: () => {},
+      setTitle(value) { element.title = String(value || text); },
+      setDisabled(disabled) { element.classList.toggle("is-disabled", Boolean(disabled)); },
+      destroy() { element.remove?.(); },
+    };
   }
 
   function createToolbarChoiceControl(doc, options = {}) {
@@ -1594,6 +1616,28 @@ var PdfImageSaver = (() => {
     }
   }
 
+  // The gallery page is opened from file://, where ES modules are blocked by CORS, so the viewer
+  // libraries ship as classic scripts and have to sit next to the generated HTML.
+  const LIBRARY_VIEW_VENDOR_FILES = [
+    "content/vendor/openseadragon.min.js",
+    "content/vendor/fabric.min.js",
+  ];
+
+  async function ensureLibraryViewVendor(outputDirectory) {
+    try {
+      const vendorDirectory = PathUtils.join(outputDirectory, "vendor");
+      await ensureDirectoryRecursively(vendorDirectory);
+      for (const sourcePath of LIBRARY_VIEW_VENDOR_FILES) {
+        const target = PathUtils.join(vendorDirectory, sourcePath.split("/").pop());
+        const bytes = await readAddonBinary(sourcePath);
+        if (!bytes) continue;
+        await IOUtils.write(target, bytes);
+      }
+    } catch (error) {
+      safeLogError(error);
+    }
+  }
+
   async function prepareGlobalImageLibraryView(options = {}) {
     const safeOptions = normalizeOptionsObject(options);
     const pdfAttachmentKey = normalizeItemKey(safeOptions.pdfAttachmentKey, "");
@@ -1622,6 +1666,7 @@ var PdfImageSaver = (() => {
       try { await IOUtils.remove(imageDirectory, { recursive: true, ignoreAbsent: true }); } catch (error) { safeLogError(error); }
     }
     await ensureDirectoryRecursively(imageDirectory);
+    await ensureLibraryViewVendor(outputDirectory);
     for (const [index, rawRow] of (Array.isArray(rows) ? rows : []).entries()) {
       try {
         const row = rawRow;
@@ -1893,6 +1938,11 @@ var PdfImageSaver = (() => {
     if (!data || data.length < 4) {
       return null;
     }
+    // SVG has no magic number, so the leading markup is the signature. Checking for "<svg" within
+    // the first chunk avoids treating an arbitrary text blob as an image.
+    if (isSVGImageBytes(data)) {
+      return { extension: "svg", mimeType: "image/svg+xml" };
+    }
     if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) {
       return { extension: "jpg", mimeType: "image/jpeg" };
     }
@@ -1910,6 +1960,17 @@ var PdfImageSaver = (() => {
       return { extension: "webp", mimeType: "image/webp" };
     }
     return null;
+  }
+
+  function isSVGImageBytes(bytes) {
+    const data = normalizeDatabaseImageBytes(bytes);
+    if (!data || data.length < 8) return false;
+    const head = String.fromCharCode(...data.subarray(0, Math.min(1024, data.length)))
+      .replace(/^﻿/, "")
+      .trimStart()
+      .toLowerCase();
+    if (!head.startsWith("<?xml") && !head.startsWith("<svg")) return false;
+    return head.includes("<svg");
   }
 
   function normalizeSHA256(value) {
@@ -2346,7 +2407,14 @@ var PdfImageSaver = (() => {
     #viewer-close::before { content:"×"; margin-right:5px; font-size:15px; line-height:1; }
     #viewer-close.is-finish { border-color:#2563EB; background:#2563EB; }
     .viewer-stage { min-height:0; padding:0 14px; overflow:auto; overscroll-behavior:contain; }
-    .viewer-canvas { display:flex; align-items:center; justify-content:center; min-width:100%; min-height:100%; }
+    .viewer-canvas { display:flex; align-items:center; justify-content:center; min-width:100%; min-height:100%; position:relative; }
+    .viewer-osd { position:absolute; inset:0; background:#11161a; }
+    .viewer-annot { position:absolute; inset:0; pointer-events:auto; }
+    .viewer-editor { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:8px 14px; border-top:1px solid rgba(255,255,255,0.12); background:rgba(17,22,26,0.92); }
+    .viewer-editor button { font:inherit; font-size:12px; color:#e4eaee; background:#252c31; border:1px solid rgba(255,255,255,0.16); border-radius:6px; padding:4px 10px; cursor:pointer; }
+    .viewer-editor button:hover { background:#2f373d; }
+    .viewer-editor button.is-active { background:#185fa5; border-color:#378add; color:#ffffff; }
+    .viewer-editor-sep { width:1px; height:18px; background:rgba(255,255,255,0.18); margin:0 2px; }
     .viewer-stage img { display:block; flex:0 0 auto; max-width:none; max-height:none; object-fit:contain; background:#fff; }
     .viewer-stage.is-image-error::after { content:"原图加载失败；请刷新图库或重新从 Zotero 打开。"; position:sticky; top:14px; display:block; width:fit-content; max-width:100%; margin:auto; padding:8px 11px; border:1px solid #F87171; border-radius:var(--radius-sm); background:#7F1D1D; color:#FFF; font-size:13px; line-height:1.35; }
     .viewer-status { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
@@ -2455,9 +2523,12 @@ var PdfImageSaver = (() => {
   <div class="mobile-selection-bar" id="mobile-selection-bar" role="toolbar" aria-label="移动端批量操作" hidden><strong id="mobile-selection-summary" role="status" aria-live="polite">未选择图片</strong><button class="action" id="mobile-clear-selection" type="button">清空</button><button class="action primary" id="mobile-share-selected" type="button">分享 0 张</button><button class="action danger" id="mobile-delete-selected" type="button">删除 0 张</button></div>
   <div class="viewer" id="library-viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" aria-describedby="viewer-meta viewer-position" aria-keyshortcuts="Escape ArrowLeft ArrowRight = - 0 1" hidden>
     <div class="viewer-header"><div class="viewer-heading"><div class="viewer-title" id="viewer-title"></div><div class="viewer-meta" id="viewer-meta"></div><p class="viewer-note" id="viewer-note" hidden></p></div><div class="viewer-header-actions"><label class="viewer-selection" id="viewer-selection-label" title="将当前图片加入批量选择；当前共选择 0 张"><input id="viewer-select" type="checkbox" aria-label="将当前图片加入批量选择；当前共选择 0 张"><span>加入批量</span><output class="viewer-selection-count" id="viewer-selection-count" aria-live="polite" title="当前共选择 0 张图片">0</output></label><button type="button" id="viewer-close" aria-label="关闭大图查看并返回图片库列表" title="关闭大图查看并返回图片库列表；也可按 Esc">关闭</button></div></div>
-    <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""></div></div>
+    <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""><div class="viewer-osd" id="viewer-osd" hidden></div><canvas class="viewer-annot" id="viewer-annot" hidden></canvas></div></div>
+    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注工具"><button type="button" data-editor-tool="pan" title="拖动查看；也可直接用鼠标拖动图像">移动</button><button type="button" data-editor-tool="brush" title="自由笔刷涂画">笔刷</button><button type="button" data-editor-tool="line" title="绘制直线">直线</button><button type="button" data-editor-tool="rect" title="绘制矩形">矩形</button><button type="button" data-editor-tool="text" title="添加文字">文字</button><button type="button" data-editor-tool="eraser" title="擦除已画的标注">橡皮</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><button type="button" id="viewer-editor-save" title="把原图与标注合并导出为 PNG">导出标注</button></div>
     <div class="viewer-footer"><div class="viewer-status"><span id="viewer-position" title="可按左右方向键切换图片"></span><div class="viewer-zoom" role="group" aria-label="图像缩放"><button type="button" id="viewer-zoom-out" aria-label="缩小图像" aria-keyshortcuts="-" title="缩小图像；也可按减号键">−</button><output id="viewer-zoom-value" aria-live="polite">适应窗口</output><button type="button" id="viewer-zoom-in" aria-label="放大图像" aria-keyshortcuts="=" title="放大图像；也可按加号键">＋</button><button type="button" id="viewer-zoom-actual" aria-label="按原始像素显示" aria-keyshortcuts="1" title="按原始像素显示；也可按数字 1">1:1</button><button type="button" id="viewer-zoom-fit" aria-label="完整显示当前图片" aria-keyshortcuts="0" title="完整显示当前图片；也可按数字 0">适应</button></div></div><div class="viewer-actions"><button type="button" id="viewer-prev" aria-label="查看上一张图片" aria-keyshortcuts="ArrowLeft" title="查看上一张图片；也可按方向键左">← 上一张</button><button type="button" id="viewer-next" aria-label="查看下一张图片" aria-keyshortcuts="ArrowRight" title="查看下一张图片；也可按方向键右">下一张 →</button><a id="viewer-download" href="" download title="下载当前完整原图">下载原图</a><a id="viewer-source" href="" title="定位当前图片的本机文献">定位原文</a></div></div>
   </div>
+  <script src="vendor/openseadragon.min.js"></script>
+  <script src="vendor/fabric.min.js"></script>
   <script data-paper-image-library-version="${GLOBAL_LIBRARY_VIEW_VERSION}">
     (() => {
       const records = ${serializedLibraryData};
@@ -2524,6 +2595,9 @@ var PdfImageSaver = (() => {
       const viewerSelectionText = viewerSelectionLabel.querySelector("span");
       const viewerSelectionCount = document.getElementById("viewer-selection-count");
       const viewerClose = document.getElementById("viewer-close");
+      const viewerOSD = document.getElementById("viewer-osd");
+      const viewerAnnot = document.getElementById("viewer-annot");
+      const viewerEditor = document.getElementById("viewer-editor");
       const viewerZoomOut = document.getElementById("viewer-zoom-out");
       const viewerZoomIn = document.getElementById("viewer-zoom-in");
       const viewerZoomActual = document.getElementById("viewer-zoom-actual");
@@ -2644,11 +2718,37 @@ var PdfImageSaver = (() => {
           viewerStage.scrollTop = Math.max(0, (viewerStage.scrollHeight - viewerStage.clientHeight) / 2);
         }
       };
+      // With OpenSeadragon in charge the old fixed-step model would fight the viewport, so the
+      // same buttons drive the viewport directly: "fit" goes home, 1:1 asks for native pixels and
+      // anything else asks for a percentage of the original image.
+      const getOSDZoomForScale = (scale) => {
+        const container = viewerOSD.getBoundingClientRect();
+        if (!container.width || !annotImageSize.width) return null;
+        return (annotImageSize.width * scale) / container.width;
+      };
       const setViewerZoom = (mode) => {
+        if (osdViewer) {
+          if (mode === "fit") {
+            osdViewer.viewport.goHome();
+            return;
+          }
+          const target = getOSDZoomForScale(Math.min(4, Math.max(0.25, Number(mode) || 1)));
+          if (target) {
+            osdViewer.viewport.zoomTo(target);
+            osdViewer.viewport.applyConstraints();
+          }
+          return;
+        }
         viewerZoomMode = mode === "fit" ? "fit" : Math.min(4, Math.max(0.25, Number(mode) || 1));
         renderViewerZoom(true);
       };
       const stepViewerZoom = (direction) => {
+        if (osdViewer) {
+          const zoom = osdViewer.viewport.getZoom();
+          osdViewer.viewport.zoomTo(direction > 0 ? zoom * 1.25 : zoom / 1.25);
+          osdViewer.viewport.applyConstraints();
+          return;
+        }
         const fitScale = getViewerFitScale();
         const current = viewerZoomMode === "fit" ? fitScale : Number(viewerZoomMode);
         if (direction > 0) {
@@ -2659,6 +2759,225 @@ var PdfImageSaver = (() => {
         if (!previous || previous <= fitScale + 0.005) setViewerZoom("fit");
         else setViewerZoom(previous);
       };
+      // Zoom, pan and the bottom-left overview are OpenSeadragon's job; freehand drawing and the
+      // other annotation primitives are Fabric's. Fabric's eraser and free-drawing brushes are
+      // built in, so no drawing maths is reimplemented here.
+      const viewerEngineAvailable = () => typeof window.OpenSeadragon !== "undefined" && typeof window.fabric !== "undefined";
+      let osdViewer = null;
+      let annotCanvas = null;
+      let activeEditorTool = "pan";
+      let annotUndoStack = [];
+      let annotSourceURL = "";
+      let annotDownloadName = "image";
+      let annotImageSize = { width: 0, height: 0 };
+      const ANNOT_COLORS = { brush: "#e24b4a", line: "#185fa5", rect: "#0f6e56", text: "#2c2c2a" };
+
+      const destroyViewerEngine = () => {
+        if (osdViewer) {
+          try { osdViewer.destroy(); } catch (_error) { /* the container may already be gone */ }
+          osdViewer = null;
+        }
+        if (annotCanvas) {
+          try { annotCanvas.dispose(); } catch (_error) { /* ignore */ }
+          annotCanvas = null;
+        }
+        annotUndoStack = [];
+        viewerOSD.hidden = true;
+        viewerAnnot.hidden = true;
+        viewerEditor.hidden = true;
+        viewerOSD.innerHTML = "";
+      };
+
+      const syncAnnotViewport = () => {
+        if (!osdViewer || !annotCanvas || !annotImageSize.width) return;
+        const container = viewerOSD.getBoundingClientRect();
+        if (!container.width || !container.height) return;
+        const viewport = osdViewer.viewport;
+        const zoom = viewport.getZoom(true);
+        const center = viewport.getCenter(true);
+        const displayedWidth = zoom * container.width;
+        const scale = displayedWidth / annotImageSize.width;
+        const left = container.width / 2 - center.x * displayedWidth;
+        const top = container.height / 2 - center.y * displayedWidth * (annotImageSize.height / annotImageSize.width);
+        annotCanvas.setDimensions({ width: Math.round(container.width), height: Math.round(container.height) });
+        annotCanvas.setViewportTransform([scale, 0, 0, scale, left, top]);
+        annotCanvas.renderAll();
+        // Keep the footer readout honest: OpenSeadragon owns the zoom now, so the percentage has
+        // to come from its viewport rather than from the old image-width maths.
+        const fitScale = Math.min(container.width / annotImageSize.width, container.height / annotImageSize.height);
+        const label = scale <= fitScale + 0.005 ? "适应窗口" : Math.max(1, Math.round(scale * 100)) + "%";
+        viewerZoomValue.value = label;
+        viewerZoomValue.textContent = label;
+        // The old image renderer disabled these against its own scale model; with the engine in
+        // charge they have to stay live or 适应 and 1:1 silently stop responding.
+        viewerZoomIn.disabled = false;
+        viewerZoomOut.disabled = false;
+        viewerZoomFit.disabled = false;
+        viewerZoomActual.disabled = false;
+      };
+
+      const pushAnnotUndo = () => {
+        if (!annotCanvas) return;
+        annotUndoStack.push(JSON.stringify(annotCanvas.toJSON()));
+        if (annotUndoStack.length > 30) annotUndoStack.shift();
+      };
+
+      const ensureAnnotCanvas = () => {
+        if (annotCanvas) return annotCanvas;
+        annotCanvas = new window.fabric.Canvas(viewerAnnot, {
+          preserveObjectStacking: true,
+          selection: true,
+        });
+        annotCanvas.freeDrawingBrush.color = ANNOT_COLORS.brush;
+        annotCanvas.freeDrawingBrush.width = 4;
+        annotCanvas.on("object:added", () => { if (!annotCanvas.__restoring) pushAnnotUndo(); });
+        return annotCanvas;
+      };
+
+      const setEditorTool = (tool) => {
+        activeEditorTool = tool;
+        if (!annotCanvas) return;
+        annotCanvas.isDrawingMode = tool === "brush";
+        if (tool === "eraser") {
+          annotCanvas.isDrawingMode = true;
+          const eraser = new window.fabric.EraserBrush(annotCanvas);
+          eraser.width = 20;
+          annotCanvas.freeDrawingBrush = eraser;
+        } else if (annotCanvas.freeDrawingBrush && annotCanvas.freeDrawingBrush.type === "EraserBrush") {
+          annotCanvas.freeDrawingBrush = new window.fabric.PencilBrush(annotCanvas);
+          annotCanvas.freeDrawingBrush.color = ANNOT_COLORS.brush;
+          annotCanvas.freeDrawingBrush.width = 4;
+        }
+        annotCanvas.defaultCursor = tool === "pan" ? "default" : "crosshair";
+        // Panning with the image is OpenSeadragon's job, so it only runs while no drawing tool is
+        // armed; otherwise a drag would both pan and draw.
+        if (osdViewer) osdViewer.setMouseNavEnabled(tool === "pan");
+        annotCanvas.skipTargetFind = tool === "pan";
+        document.querySelectorAll("[data-editor-tool]").forEach((button) => {
+          const active = button.dataset.editorTool === tool;
+          button.classList.toggle("is-active", active);
+          button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+      };
+
+      const addAnnotShape = (tool) => {
+        if (!annotCanvas) return;
+        const center = annotCanvas.getCenterPoint();
+        const matrix = annotCanvas.viewportTransform;
+        const scale = matrix[0] || 1;
+        const point = new window.fabric.Point((center.left - matrix[4]) / scale, (center.top - matrix[5]) / scale);
+        let object = null;
+        if (tool === "line") {
+          object = new window.fabric.Line([point.x - 60, point.y, point.x + 60, point.y], {
+            stroke: ANNOT_COLORS.line, strokeWidth: 3, strokeUniform: true,
+          });
+        } else if (tool === "rect") {
+          object = new window.fabric.Rect({
+            left: point.x - 60, top: point.y - 40, width: 120, height: 80,
+            fill: "rgba(15,110,86,0.12)", stroke: ANNOT_COLORS.rect, strokeWidth: 3, strokeUniform: true,
+          });
+        } else if (tool === "text") {
+          object = new window.fabric.IText("说明", {
+            left: point.x - 30, top: point.y - 14, fontSize: 28, fill: ANNOT_COLORS.text,
+          });
+        }
+        if (object) {
+          annotCanvas.add(object);
+          annotCanvas.setActiveObject(object);
+          annotCanvas.renderAll();
+        }
+      };
+
+      const openViewerWithEngine = (record) => {
+        const image = new window.Image();
+        image.onload = () => {
+          annotImageSize = { width: image.naturalWidth || 1, height: image.naturalHeight || 1 };
+          destroyViewerEngine();
+          viewerImage.hidden = true;
+          viewerOSD.hidden = false;
+          viewerAnnot.hidden = false;
+          viewerEditor.hidden = false;
+          annotSourceURL = record.imageURL;
+          annotDownloadName = record.downloadName || record.id || "image";
+          osdViewer = window.OpenSeadragon({
+            element: viewerOSD,
+            tileSources: { type: "image", url: record.imageURL },
+            showNavigationControl: false,
+            showNavigator: true,
+            navigatorPosition: "BOTTOM_LEFT",
+            navigatorAutoFade: false,
+            navigatorBackground: "#ffffff",
+            gestureSettingsMouse: { scrollToZoom: true, clickToZoom: false, dblClickToZoom: false },
+            zoomPerScroll: 1.4,
+            animationTime: 0.4,
+            visibilityRatio: 0.2,
+            minZoomLevel: 0.2,
+            maxZoomLevel: 40,
+          });
+          osdViewer.addHandler("open", () => {
+            ensureAnnotCanvas();
+            syncAnnotViewport();
+            setEditorTool(activeEditorTool);
+          });
+          osdViewer.addHandler("viewport-change", syncAnnotViewport);
+          osdViewer.addHandler("resize", syncAnnotViewport);
+        };
+        image.onerror = () => { destroyViewerEngine(); viewerImage.hidden = false; };
+        image.src = record.imageURL;
+      };
+
+      const exportAnnotatedImage = () => {
+        if (!annotCanvas || !annotSourceURL) return;
+        const previous = annotCanvas.viewportTransform.slice();
+        annotCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+        annotCanvas.renderAll();
+        const source = new window.Image();
+        source.onload = () => {
+          const merged = document.createElement("canvas");
+          merged.width = annotImageSize.width;
+          merged.height = annotImageSize.height;
+          const context = merged.getContext("2d");
+          context.fillStyle = "#ffffff";
+          context.fillRect(0, 0, merged.width, merged.height);
+          context.drawImage(source, 0, 0);
+          context.drawImage(annotCanvas.getElement(), 0, 0, annotImageSize.width, annotImageSize.height);
+          const link = document.createElement("a");
+          link.href = merged.toDataURL("image/png");
+          link.download = String(annotDownloadName).replace(/\\.[a-z0-9]+$/i, "") + "-annotated.png";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          annotCanvas.setViewportTransform(previous);
+          annotCanvas.renderAll();
+          setMessage("已导出带标注的图片");
+        };
+        source.src = annotSourceURL;
+      };
+
+      document.querySelectorAll("[data-editor-tool]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const tool = button.dataset.editorTool;
+          setEditorTool(tool);
+          if (tool !== "pan" && tool !== "brush" && tool !== "eraser") addAnnotShape(tool);
+        });
+      });
+      document.getElementById("viewer-editor-undo")?.addEventListener("click", () => {
+        if (!annotCanvas || !annotUndoStack.length) return;
+        const state = annotUndoStack.pop();
+        annotCanvas.__restoring = true;
+        annotCanvas.loadFromJSON(state).then(() => {
+          annotCanvas.__restoring = false;
+          syncAnnotViewport();
+        });
+      });
+      document.getElementById("viewer-editor-clear")?.addEventListener("click", () => {
+        if (!annotCanvas) return;
+        pushAnnotUndo();
+        annotCanvas.remove(...annotCanvas.getObjects());
+        annotCanvas.renderAll();
+      });
+      document.getElementById("viewer-editor-save")?.addEventListener("click", exportAnnotatedImage);
+
       const desktopBatchGuidance = "勾选后批量操作；按 Shift 连续选择；导入无需选择";
       const mobileBatchGuidance = "勾选图片后使用底部栏批量操作；导入无需选择";
       const setMessage = (text) => { message.dataset.defaultGuidance = "false"; message.textContent = text; };
@@ -2885,21 +3204,26 @@ var PdfImageSaver = (() => {
         syncSelection();
         try { return await callback(); }
         catch (error) {
-          const detail = String(error?.message || "");
-          const connectionLost = !/[\u3400-\u9fff]/.test(detail)
-            || /Zotero 管理连接不可用|Zotero 图库连接尚未就绪|图库连接已过期/.test(detail);
-          if (connectionLost) {
+          if (describeCommandFailure(error).connectionLost) {
             managementAvailable = false;
             selected.clear();
             selectionAnchorID = null;
             syncResponsiveSelectionHints();
             setMessage("管理功能不可用，" + managementRecoveryHint);
           } else {
-            setMessage(detail);
+            setMessage(describeCommandFailure(error).detail);
           }
           return null;
         }
         finally { commandBusy = false; syncSelection(); }
+      };
+      // Shared so a download that fails talks to the reader in the same Chinese as every other
+      // management action instead of leaking a raw browser error like "Failed to fetch".
+      const describeCommandFailure = (error) => {
+        const detail = String(error?.message || "");
+        const connectionLost = !/[\u3400-\u9fff]/.test(detail)
+          || /Zotero 管理连接不可用|Zotero 图库连接尚未就绪|图库连接已过期/.test(detail);
+        return { detail, connectionLost };
       };
       // Page-local note helpers. The generated page cannot call plugin-scope functions, it must
       // avoid template literals because the whole document is built from one, and every backslash
@@ -3019,13 +3343,24 @@ var PdfImageSaver = (() => {
         viewer.hidden = false;
         document.body.style.overflow = "hidden";
         syncViewerSelection();
-        if (viewerImage.complete && viewerImage.naturalWidth) renderViewerZoom(true);
+        // Prefer the OpenSeadragon viewer when its library is present: it gives cursor-centred
+        // wheel zoom, drag panning and a bottom-left overview. Otherwise the plain image path stays
+        // in charge, which is also how a gallery page without the vendored scripts behaves.
+        if (viewerEngineAvailable()) {
+          viewerImage.hidden = true;
+          openViewerWithEngine(record);
+        } else {
+          viewerImage.hidden = false;
+          if (viewerImage.complete && viewerImage.naturalWidth) renderViewerZoom(true);
+        }
         if (opening) viewerClose.focus();
       };
       const closeViewer = (focusBatchActions = false) => {
         if (viewer.hidden) return;
         const returnFocus = viewerReturnFocus;
         viewer.hidden = true;
+        destroyViewerEngine();
+        viewerImage.hidden = false;
         viewerImage.removeAttribute("src");
         viewerStage.classList.remove("is-image-error");
         document.body.style.overflow = "";
@@ -3179,6 +3514,42 @@ var PdfImageSaver = (() => {
       mobileClearSelection.addEventListener("click", () => clearSelection.click());
       mobileShareSelected.addEventListener("click", () => shareSelected.click());
       mobileDeleteSelected.addEventListener("click", () => deleteSelected.click());
+      // A page opened from file:// cannot read its own sibling images: fetch and XHR are blocked
+      // and a file:// image taints any canvas it is drawn into. Chrome also ignores the download
+      // attribute there, so the raw href would navigate the whole gallery away. Asking the plugin
+      // for the bytes and handing them to a blob URL honours download and keeps the list in place.
+      const downloadViaBridgeBytes = async (link) => {
+        const imageID = link.dataset.downloadImage || String(visibleCards[viewerIndex]?.dataset.id || "");
+        if (!imageID) throw new Error("当前图片不可用，请刷新图库");
+        setMessage("正在获取图片数据…");
+        const result = await postCommand("readImageBytes", { image_id: imageID });
+        const binary = atob(String(result.base64 || ""));
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+        const blobURL = URL.createObjectURL(new Blob([bytes], { type: result.mimeType || "application/octet-stream" }));
+        try {
+          const anchor = document.createElement("a");
+          anchor.href = blobURL;
+          anchor.download = link.getAttribute("download") || "image";
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+        } finally {
+          setTimeout(() => URL.revokeObjectURL(blobURL), 4000);
+        }
+        setMessage("已下载原图；图库保持打开");
+      };
+      document.addEventListener("click", (event) => {
+        if (location.protocol !== "file:") return;
+        const downloadLink = event.target.closest?.("[data-download-image],#viewer-download");
+        if (!downloadLink || downloadLink.getAttribute("aria-disabled") === "true") return;
+        event.preventDefault();
+        event.stopPropagation();
+        void downloadViaBridgeBytes(downloadLink).catch((error) => {
+          const failure = describeCommandFailure(error);
+          setMessage(failure.connectionLost ? "管理功能不可用，" + managementRecoveryHint : failure.detail);
+        });
+      }, true);
       document.addEventListener("click", (event) => {
         const sourceLink = event.target.closest?.('a[href^="zotero://"]');
         if (sourceLink) { setMessage("已请求 Zotero 定位来源"); return; }
@@ -3571,7 +3942,24 @@ var PdfImageSaver = (() => {
       target.optional_helper = "unknown";
       target.warnings.push(`高级原图：${translateUserFacingErrorDetail(getErrorMessage(error))}`);
     }
+    try {
+      const runtime = await readBundledRuntimeState();
+      target.bundled_runtime = !runtime.available
+        ? "absent"
+        : runtime.ready
+          ? "ready"
+          : "pending-extract";
+    } catch (error) {
+      target.bundled_runtime = "unknown";
+    }
     return target.optional_helper;
+  }
+
+  function formatBundledRuntimeStatus(value) {
+    if (value === "ready") return "内嵌运行时已就绪";
+    if (value === "pending-extract") return "内嵌运行时待首次解包";
+    if (value === "absent") return "未随插件打包内嵌运行时";
+    return "内嵌运行时状态未知";
   }
 
   function formatDiagnosticsReport(report) {
@@ -3598,6 +3986,7 @@ var PdfImageSaver = (() => {
       "",
       "【高级原图提取（可选）】",
       `高级原图：可选；${formatOptionalHelperStatus(safeReport.optional_helper)}；Python 路径：${formatHelperPythonMode(safeReport.helper_python_mode)}`,
+      `矢量内嵌运行时：${formatBundledRuntimeStatus(safeReport.bundled_runtime)}`,
       `高级原图限制：最小面积 ${formatDiagnosticArea(safeReport.helper_min_area)}；本页最多 ${normalizeNonNegativeInteger(safeReport.helper_page_max, 0)} 张；全文最多 ${normalizeNonNegativeInteger(safeReport.helper_doc_max, 0)} 张；超时 ${normalizeNonNegativeInteger(safeReport.helper_timeout_s, 0)} 秒`,
     ];
     if (safeReport.pdf_attachment) {
@@ -4392,7 +4781,8 @@ var PdfImageSaver = (() => {
       showReaderToast(reader, `正在生成${formatPageToastToken(pageIndex)}的框选图片；确认后才会保存。`, "progress");
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
-      let preview = renderCanvasPreview({
+      let preview = await renderHighResolutionPreview({
+        reader,
         ...safeOptions,
         pageIndex,
         qualityKey,
@@ -4402,7 +4792,8 @@ var PdfImageSaver = (() => {
         scope: "clip",
         requestedCategory: safeOptions.imageCategory,
         onQualityChange(nextQuality) {
-          return renderCanvasPreview({
+          return renderHighResolutionPreview({
+            reader,
             ...safeOptions,
             pageIndex,
             qualityKey: nextQuality,
@@ -4435,6 +4826,7 @@ var PdfImageSaver = (() => {
         }
       }
       showReaderToast(reader, `正在保存${formatPageToastToken(pageIndex)}已确认的框选图片…`, "progress");
+      preview = await applyVectorCapture(preview, { attachment });
       await publishPreviewEntriesToSharedLibrary({ attachment, parentItem, entries: [preview] });
       showReaderToast(
         reader,
@@ -4493,7 +4885,8 @@ var PdfImageSaver = (() => {
       const attachment = getReaderPDFAttachment(reader);
       const parentItem = attachment.parentID ? Zotero.Items.get(attachment.parentID) : null;
       const pageRect = pageElement.getBoundingClientRect();
-      let preview = renderCanvasPreview({
+      let preview = await renderHighResolutionPreview({
+        reader,
         canvas,
         pageElement,
         pageIndex,
@@ -4519,7 +4912,8 @@ var PdfImageSaver = (() => {
         scope: "page",
         requestedCategory: safeOptions.imageCategory,
         onQualityChange(nextQuality) {
-          return renderCanvasPreview({
+          return renderHighResolutionPreview({
+            reader,
             canvas,
             pageElement,
             pageIndex,
@@ -4581,6 +4975,247 @@ var PdfImageSaver = (() => {
     }
   }
 
+  function finalizePreviewEntry({
+    outputCanvas,
+    dataURL,
+    targetWidth,
+    targetHeight,
+    sourceCanvasWidth,
+    sourceCanvasHeight,
+    crop,
+    qualityKey,
+    pageIndex,
+    pageLabel,
+    mode,
+    detector,
+    detectionArea,
+    preferredImageCategory,
+    pageRect,
+    selectionRect,
+    format,
+    captureSource,
+  }) {
+    const normalizedQualityKey = normalizeQualityKey(qualityKey);
+    const quality = QUALITY[normalizedQualityKey];
+    const bboxNormalized = crop.bboxNormalized;
+    const sourceRegion = buildSourceRegion(bboxNormalized);
+    const detectionAreaValue = detectionArea || round6(selectionRect.width * selectionRect.height / Math.max(1, pageRect.width * pageRect.height));
+    const palette = extractPaletteFromCanvas(outputCanvas);
+    const styleTags = deriveStyleTagsFromPalette(palette);
+    const preferredCategory = normalizeImageCategoryKey(preferredImageCategory);
+    const imageCategory = preferredCategory === "auto"
+      ? inferImageCategory({
+          width: targetWidth,
+          height: targetHeight,
+          styleTags,
+          palette,
+          detector: detector || "manual_selection",
+          detectionArea: detectionAreaValue,
+        })
+      : preferredCategory;
+    return {
+      id: `preview-p${pageIndex + 1}-${Date.now().toString(36)}`,
+      mode: mode || "reader_canvas_preview",
+      detector: detector || "manual_selection",
+      pageIndex,
+      pageNumber: pageIndex + 1,
+      pageLabel: pageLabel || null,
+      quality: normalizedQualityKey,
+      qualityEstimate: quality.estimate,
+      imageCategory,
+      styleTags,
+      palette,
+      dataURL,
+      byteCount: estimateDataURLBytes(dataURL),
+      renderedWidth: targetWidth,
+      renderedHeight: targetHeight,
+      sourceCanvasWidth,
+      sourceCanvasHeight,
+      sourceX: crop.sourceX,
+      sourceY: crop.sourceY,
+      sourceWidth: crop.sourceWidth,
+      sourceHeight: crop.sourceHeight,
+      bboxNormalized,
+      sourceRegion,
+      annotationKey: null,
+      detectionArea: detectionAreaValue,
+      openPDFURI: "",
+      format: format || "jpeg",
+      captureSource: captureSource || "reader_canvas",
+    };
+  }
+
+  // The reader keeps the page canvas on screen at whatever zoom it happens to be showing, which is
+  // usually well below print resolution — cropping it caps the saved image at roughly 145 DPI no
+  // matter what quality the user picked. Asking pdf.js to re-render just the selected region at a
+  // chosen resolution is the fix, and it is the same shape as Zotero's own renderArea: pick a
+  // scale, offset the viewport so the region lands at the canvas origin, render, done.
+  async function renderPDFRegionCanvas({ pdfPage, bboxNormalized, dpi, minScale = 0, ownerDocument }) {
+    const baseViewport = pdfPage.getViewport({ scale: 1 });
+    const regionLeft = bboxNormalized[0] * baseViewport.width;
+    const regionTop = bboxNormalized[1] * baseViewport.height;
+    const regionWidth = (bboxNormalized[2] - bboxNormalized[0]) * baseViewport.width;
+    const regionHeight = (bboxNormalized[3] - bboxNormalized[1]) * baseViewport.height;
+    if (!(baseViewport.width > 0) || !(baseViewport.height > 0)) return null;
+    if (!(regionWidth > 0) || !(regionHeight > 0)) return null;
+
+    // Never produce fewer pixels than the on-screen crop would have, so a heavily zoomed reader
+    // can never get worse results from the re-render path.
+    const wantedScale = Math.max(dpi / 72, minScale);
+    const pixelCapScale = Math.sqrt(MAX_CAPTURE_PIXELS / (regionWidth * regionHeight));
+    let scale = Math.min(wantedScale, pixelCapScale, MAX_CAPTURE_SCALE);
+    if (!(scale > 0)) return null;
+
+    // Floor, not round: the pixel ceiling above is computed on the unrounded region, so rounding
+    // up could push a whole-page capture a few thousand pixels over the budget and reject it.
+    const targetWidth = Math.max(1, Math.floor(regionWidth * scale));
+    const targetHeight = Math.max(1, Math.floor(regionHeight * scale));
+    if (targetWidth * targetHeight > MAX_CAPTURE_PIXELS) return null;
+
+    const offsetViewport = pdfPage.getViewport({
+      scale,
+      offsetX: -regionLeft * scale,
+      offsetY: -regionTop * scale,
+    });
+    const output = createCaptureCanvas(ownerDocument, targetWidth, targetHeight);
+    await pdfPage.render({ canvasContext: output.getContext("2d"), viewport: offsetViewport }).promise;
+    return { canvas: output, width: targetWidth, height: targetHeight, scale };
+  }
+
+  function createCaptureCanvas(ownerDocument, width, height) {
+    const factory = ownerDocument || Services?.wm?.getMostRecentWindow?.(null)?.document || null;
+    const doc = factory && typeof factory.createElement === "function" ? factory : null;
+    const canvas = doc
+      ? doc.createElement("canvas")
+      : (typeof document !== "undefined" && document.createElement ? document.createElement("canvas") : null);
+    if (!canvas) throw new Error("Capture failed: canvas missing.");
+    canvas.width = Math.max(1, Math.round(width));
+    canvas.height = Math.max(1, Math.round(height));
+    return canvas;
+  }
+
+  function encodeCaptureCanvas(canvas, { format, jpegQuality, maxBytes }) {
+    const preferred = normalizeCaptureFormat(format);
+    const budget = normalizePositiveInteger(maxBytes, 0) || MAX_STORED_IMAGE_BYTES;
+    const attempts = [];
+    if (preferred === "png") {
+      attempts.push(["png", 0], ["jpeg", 0.92], ["jpeg", 0.85], ["jpeg", 0.75]);
+    } else {
+      attempts.push(["jpeg", jpegQuality], ["jpeg", 0.85], ["jpeg", 0.72]);
+    }
+    let best = null;
+    for (const [formatKey, quality] of attempts) {
+      const dataURL = formatKey === "png"
+        ? canvas.toDataURL("image/png")
+        : canvas.toDataURL("image/jpeg", quality || 0.8);
+      const bytes = estimateDataURLBytes(dataURL);
+      best = { format: formatKey, dataURL, bytes };
+      if (bytes <= budget) return best;
+    }
+    // Still over budget: shrink the pixels rather than the fidelity of what is already stored.
+    const overshoot = best.bytes / budget;
+    if (overshoot > 1.05 && canvas.width > 64 && canvas.height > 64) {
+      const ratio = Math.min(1, Math.sqrt(1 / overshoot));
+      return encodeCaptureCanvas(
+        downscaleCaptureCanvas(canvas, ratio),
+        { format, jpegQuality, maxBytes: budget },
+      );
+    }
+    return best;
+  }
+
+  function downscaleCaptureCanvas(canvas, ratio) {
+    const width = Math.max(1, Math.round(canvas.width * ratio));
+    const height = Math.max(1, Math.round(canvas.height * ratio));
+    const next = createCaptureCanvas(canvas.ownerDocument, width, height);
+    const context = next.getContext("2d");
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(canvas, 0, 0, width, height);
+    return next;
+  }
+
+  function normalizeCaptureFormat(value) {
+    return normalizeMetadataText(value, null, 8)?.toLowerCase() === "png" ? "png" : "jpeg";
+  }
+
+  async function renderHighResolutionPreview({
+    reader,
+    canvas,
+    pageElement,
+    pageIndex,
+    qualityKey,
+    selectionRect,
+    pageLabel,
+    mode,
+    detector,
+    detectionArea,
+    imageCategory: preferredImageCategory,
+  }) {
+    const normalizedQualityKey = normalizeQualityKey(qualityKey);
+    const quality = QUALITY[normalizedQualityKey];
+    const canvasRect = canvas.getBoundingClientRect();
+    const pageRect = pageElement.getBoundingClientRect();
+    const crop = calculateCanvasCrop({
+      selectionRect,
+      pageRect,
+      canvasRect,
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+    });
+    const fallback = () => renderCanvasPreview({
+      canvas, pageElement, pageIndex, qualityKey, selectionRect, pageLabel, mode, detector, detectionArea,
+      imageCategory: preferredImageCategory,
+    });
+    try {
+      const context = await getPDFViewerContext(reader);
+      const pageView = getPageView(context, pageIndex);
+      const pdfPage = pageView?.pdfPage || await context?.app?.pdfDocument?.getPage?.(pageIndex + 1);
+      if (typeof pdfPage?.getViewport !== "function" || typeof pdfPage?.render !== "function") {
+        return fallback();
+      }
+      // The reader's own canvas tells us the resolution it would have given us; never go below it.
+      const baseViewport = pdfPage.getViewport({ scale: 1 });
+      const readerScale = baseViewport.width > 0 ? canvas.width / baseViewport.width : 0;
+      const rendered = await renderPDFRegionCanvas({
+        pdfPage,
+        bboxNormalized: crop.bboxNormalized,
+        dpi: quality.dpi,
+        minScale: readerScale,
+        ownerDocument: pageElement.ownerDocument || canvas.ownerDocument,
+      });
+      if (!rendered) return fallback();
+      const encoded = encodeCaptureCanvas(rendered.canvas, {
+        format: quality.format,
+        jpegQuality: quality.jpegQuality,
+        maxBytes: MAX_STORED_IMAGE_BYTES,
+      });
+      return finalizePreviewEntry({
+        outputCanvas: rendered.canvas,
+        dataURL: encoded.dataURL,
+        targetWidth: rendered.width,
+        targetHeight: rendered.height,
+        sourceCanvasWidth: rendered.width,
+        sourceCanvasHeight: rendered.height,
+        crop,
+        qualityKey: normalizedQualityKey,
+        pageIndex,
+        pageLabel,
+        mode: mode || "pdf_region_render",
+        detector,
+        detectionArea,
+        preferredImageCategory,
+        pageRect,
+        selectionRect,
+        format: encoded.format,
+        captureSource: "pdf_region_render",
+      });
+    } catch (error) {
+      safeLogError(error);
+      return fallback();
+    }
+  }
+
   function renderCanvasPreview({
     canvas,
     pageElement,
@@ -4624,51 +5259,31 @@ var PdfImageSaver = (() => {
       targetWidth,
       targetHeight,
     );
-    const dataURL = outputCanvas.toDataURL("image/jpeg", quality.jpegQuality);
-    const bboxNormalized = crop.bboxNormalized;
-    const sourceRegion = buildSourceRegion(bboxNormalized);
-    const detectionAreaValue = detectionArea || round6(selectionRect.width * selectionRect.height / Math.max(1, pageRect.width * pageRect.height));
-    const palette = extractPaletteFromCanvas(outputCanvas);
-    const styleTags = deriveStyleTagsFromPalette(palette);
-    const preferredCategory = normalizeImageCategoryKey(preferredImageCategory);
-    const imageCategory = preferredCategory === "auto"
-      ? inferImageCategory({
-          width: targetWidth,
-          height: targetHeight,
-          styleTags,
-          palette,
-          detector: detector || "manual_selection",
-          detectionArea: detectionAreaValue,
-        })
-      : preferredCategory;
-    return {
-      id: `preview-p${pageIndex + 1}-${Date.now().toString(36)}`,
-      mode: mode || "reader_canvas_preview",
-      detector: detector || "manual_selection",
-      pageIndex,
-      pageNumber: pageIndex + 1,
-      pageLabel: pageLabel || null,
-      quality: normalizedQualityKey,
-      qualityEstimate: quality.estimate,
-      imageCategory,
-      styleTags,
-      palette,
-      dataURL,
-      byteCount: estimateDataURLBytes(dataURL),
-      renderedWidth: targetWidth,
-      renderedHeight: targetHeight,
+    const encoded = encodeCaptureCanvas(outputCanvas, {
+      format: quality.format,
+      jpegQuality: quality.jpegQuality,
+      maxBytes: MAX_STORED_IMAGE_BYTES,
+    });
+    return finalizePreviewEntry({
+      outputCanvas,
+      dataURL: encoded.dataURL,
+      targetWidth,
+      targetHeight,
       sourceCanvasWidth: canvas.width,
       sourceCanvasHeight: canvas.height,
-      sourceX: crop.sourceX,
-      sourceY: crop.sourceY,
-      sourceWidth: crop.sourceWidth,
-      sourceHeight: crop.sourceHeight,
-      bboxNormalized,
-      sourceRegion,
-      annotationKey: null,
-      detectionArea: detectionAreaValue,
-      openPDFURI: "",
-    };
+      crop,
+      qualityKey: normalizedQualityKey,
+      pageIndex,
+      pageLabel,
+      mode,
+      detector,
+      detectionArea,
+      preferredImageCategory,
+      pageRect,
+      selectionRect,
+      format: encoded.format,
+      captureSource: "reader_canvas",
+    });
   }
 
   function calculateCanvasCrop({ selectionRect, pageRect, canvasRect, canvasWidth, canvasHeight }) {
@@ -6609,6 +7224,187 @@ var PdfImageSaver = (() => {
     };
   }
 
+  // A vector crop keeps the page's own drawing operations, so a plotted figure stays real geometry
+  // and scales losslessly in the gallery viewer instead of going soft when zoomed. It needs Python
+  // and PyMuPDF; when either is missing the caller keeps the raster capture and nothing is lost.
+  async function runHelperVectorExport({ attachment, pageIndex, bboxNormalized }) {
+    let outputDir = null;
+    try {
+      // Materialise the packaged interpreter before asking, otherwise getPythonCommands only sees
+      // interpreters that happen to be on PATH.
+      await ensureBundledPythonRuntime();
+      const pythonCommands = await getPythonCommands();
+      if (!pythonCommands.length) return null;
+      const pdfPath = await getAttachmentPath(attachment);
+      if (!pdfPath) return null;
+      const helperScriptPath = await ensureHelperScriptPath();
+      outputDir = await createTempDirectory();
+      const reportPath = PathUtils.join(outputDir, "report.json");
+      const regionToken = `${pageIndex}:${bboxNormalized.join(",")}`;
+      const args = [
+        helperScriptPath,
+        pdfPath,
+        "--out-dir",
+        outputDir,
+        "--report",
+        reportPath,
+        "--attachment-key",
+        attachment.key || "",
+        "--document-id",
+        String(attachment.id),
+        "--vector-region",
+        regionToken,
+      ];
+
+      for (const pythonCommand of pythonCommands) {
+        try {
+          await removeFileIfExists(reportPath);
+          const exitCode = await runProcess(pythonCommand, args);
+          if (!(await IOUtils.exists(reportPath))) {
+            throw new Error(`Helper failed: exit ${exitCode}, no report.`);
+          }
+          const report = await readJSONReport(reportPath);
+          if (report?.status !== "ok" || !report?.vector?.file_path) continue;
+          pythonCommandPromise = Promise.resolve(pythonCommand);
+          const bytes = normalizeDatabaseImageBytes(await IOUtils.read(report.vector.file_path));
+          if (!bytes || !bytes.length) return null;
+          const dataURL = `data:image/svg+xml;base64,${bytesToBase64(bytes)}`;
+          return {
+            format: "svg",
+            bytes,
+            dataURL,
+            byteCount: estimateDataURLBytes(dataURL),
+            width: Math.max(1, Math.round(Number(report.vector.width_pt) || 0)),
+            height: Math.max(1, Math.round(Number(report.vector.height_pt) || 0)),
+          };
+        } catch (error) {
+          safeLogError(error);
+        }
+      }
+      return null;
+    } catch (error) {
+      safeLogError(error);
+      return null;
+    } finally {
+      if (outputDir) {
+        try {
+          await removeDirectoryIfExists(outputDir);
+        } catch (error) {
+          safeLogError(error);
+        }
+      }
+    }
+  }
+
+  // Prefer the vector crop whenever it is not larger than the raster, which is what keeps vector
+  // figures tiny while a figure that is really an embedded bitmap keeps the leaner raster copy.
+  async function applyVectorCapture(preview, { attachment }) {
+    if (!preview || !attachment || !Array.isArray(preview.bboxNormalized)) return preview;
+    if (!getBoolPref("vectorCapture", true)) return preview;
+    const vector = await runHelperVectorExport({
+      attachment,
+      pageIndex: preview.pageIndex,
+      bboxNormalized: preview.bboxNormalized,
+    });
+    if (!vector || vector.byteCount > MAX_STORED_IMAGE_BYTES) return preview;
+    if (preview.byteCount && vector.byteCount > preview.byteCount) return preview;
+    return {
+      ...preview,
+      dataURL: vector.dataURL,
+      byteCount: vector.byteCount,
+      format: vector.format,
+      renderedWidth: vector.width,
+      renderedHeight: vector.height,
+      captureSource: "vector_region",
+    };
+  }
+
+  // The packaged XPI carries a Windows embeddable Python plus an unpacked PyMuPDF wheel, so vector
+  // export works on a machine that has nothing installed. Those files live inside a jar, which has
+  // no directory listing, so the build writes an explicit manifest next to them and the plugin
+  // copies every entry out on first use.
+  const BUNDLED_RUNTIME_MANIFEST_URL = "content/runtime/runtime-manifest.json";
+  let bundledRuntimePromise = null;
+
+  function getBundledRuntimeDirectory() {
+    return PathUtils.join(PathUtils.profileDir, ADDON_REF, "runtime");
+  }
+
+  async function readBundledRuntimeManifest() {
+    try {
+      const text = await Zotero.File.getContentsFromURLAsync(config.rootURI + BUNDLED_RUNTIME_MANIFEST_URL);
+      const parsed = JSON.parse(String(text || ""));
+      if (!parsed || typeof parsed !== "object") return null;
+      if (!Array.isArray(parsed.files) || !parsed.files.length) return null;
+      return parsed;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async function readBundledRuntimeState() {
+    const manifest = await readBundledRuntimeManifest();
+    if (!manifest?.version) return { available: false, ready: false, interpreter: null, version: null };
+    const directory = getBundledRuntimeDirectory();
+    const interpreter = PathUtils.join(directory, String(manifest.interpreter || "python/python.exe"));
+    let stamp = null;
+    try {
+      if (await IOUtils.exists(PathUtils.join(directory, "runtime-version.txt"))) {
+        stamp = String(await IOUtils.readUTF8(PathUtils.join(directory, "runtime-version.txt")) || "").trim();
+      }
+    } catch (error) {
+      stamp = null;
+    }
+    const ready = stamp === String(manifest.version) && (await IOUtils.exists(interpreter).catch(() => false));
+    return { available: true, ready, interpreter, version: String(manifest.version) };
+  }
+
+  // Cheap lookup: only reports an interpreter that is already on disk, so diagnostics never trigger
+  // a 68 MB copy as a side effect.
+  async function getBundledPythonCommand() {
+    const state = await readBundledRuntimeState();
+    if (!state.ready || !state.interpreter) return null;
+    return { command: state.interpreter, args: [] };
+  }
+
+  async function ensureBundledPythonRuntime() {
+    bundledRuntimePromise ??= (async () => {
+      const state = await readBundledRuntimeState();
+      if (state.ready) return state.interpreter;
+      if (!state.available) return null;
+      const manifest = await readBundledRuntimeManifest();
+      const directory = getBundledRuntimeDirectory();
+      await ensureDirectoryRecursively(directory);
+      for (const relativePath of manifest.files) {
+        const target = PathUtils.join(directory, relativePath);
+        await ensureDirectoryRecursively(PathUtils.parent(target));
+        const bytes = await readAddonBinary(relativePath);
+        if (!bytes) return null;
+        await IOUtils.write(target, bytes);
+      }
+      await IOUtils.writeUTF8(PathUtils.join(directory, "runtime-version.txt"), String(manifest.version));
+      return PathUtils.join(directory, String(manifest.interpreter || "python/python.exe"));
+    })().catch((error) => {
+      safeLogError(error);
+      return null;
+    });
+    return bundledRuntimePromise;
+  }
+
+  // Zotero's own binary reader only takes real paths, not the jar URL the add-on is served from,
+  // so go through its HTTP wrapper with an arraybuffer response type instead.
+  async function readAddonBinary(relativePath) {
+    try {
+      const response = await Zotero.HTTP.request("GET", config.rootURI + relativePath, { responseType: "arraybuffer" });
+      const payload = response?.response ?? response;
+      if (!payload) return null;
+      return new Uint8Array(payload);
+    } catch (error) {
+      safeLogError(error);
+      return null;
+    }
+  }
+
   async function ensureHelperScriptPath() {
     helperScriptPathPromise ??= (async () => {
       const helperDir = PathUtils.join(PathUtils.profileDir, ADDON_REF, "helper");
@@ -6628,8 +7424,10 @@ var PdfImageSaver = (() => {
 
   async function getPythonCommands() {
     const preferred = pythonCommandPromise ? await pythonCommandPromise : null;
+    // The bundled runtime wins: it is the only interpreter guaranteed to have PyMuPDF.
+    const bundled = await getBundledPythonCommand();
     const discovered = await findPythonCommands();
-    return dedupeCommands(preferred ? [preferred, ...discovered] : discovered);
+    return dedupeCommands([bundled, preferred, ...discovered].filter(Boolean));
   }
 
   async function findPythonCommands() {
@@ -8101,15 +8899,19 @@ var PdfImageSaver = (() => {
   }
 
   function getDefaultQualityKey() {
-    return normalizeQualityKey(getStringPref("defaultQuality", "medium"));
+    return PINNED_QUALITY_KEY;
   }
 
   function getDefaultImageCategoryKey() {
     return normalizeImageCategoryKey(getStringPref("defaultImageCategory", "auto"));
   }
 
+  // The tier is no longer user selectable: every capture is taken at the best available fidelity,
+  // vector when the region has vector content and a 600 DPI lossless raster otherwise. Already
+  // saved low/medium records still round-trip so old rows keep rendering their own estimate.
+  const PINNED_QUALITY_KEY = "high";
   function normalizeQualityKey(value) {
-    return Object.prototype.hasOwnProperty.call(QUALITY, value) ? value : "medium";
+    return Object.prototype.hasOwnProperty.call(QUALITY, value) ? value : PINNED_QUALITY_KEY;
   }
 
   function normalizeImageCategoryKey(value) {
@@ -8500,6 +9302,28 @@ var PdfImageSaver = (() => {
     return true;
   }
 
+  // A page opened from file:// cannot read its own sibling images — fetch and XHR are both blocked
+  // and a file:// image taints any canvas it is drawn into — so the bytes for a download have to
+  // come from here. Without this, clicking 下载原图 navigates the gallery away instead.
+  async function readSharedImageBytes(imageID) {
+    const safeImageID = normalizeMetadataText(imageID, null, 1000);
+    if (!safeImageID) return null;
+    const database = await getSharedDatabaseConnection();
+    const blobRow = await database.rowQueryAsync(
+      "SELECT image_blob FROM images WHERE image_id = ? AND deleted = 0 LIMIT 1",
+      [safeImageID],
+    );
+    const bytes = normalizeDatabaseImageBytes(
+      getDatabaseRowValue(blobRow, "image_blob")
+      ?? getDatabaseRowValue(blobRow, "imageBlob")
+      ?? blobRow,
+    );
+    if (!bytes?.length || bytes.length > GLOBAL_LIBRARY_MAX_IMAGE_BYTES) return null;
+    const fileType = getDatabaseImageFileType(bytes);
+    if (!fileType) return null;
+    return { bytes, fileType };
+  }
+
   async function ensureSharedLibrarySchema() {
     const database = await getSharedDatabaseConnection();
     await database.executeTransaction(async () => {
@@ -8584,7 +9408,7 @@ var PdfImageSaver = (() => {
   }
 
   function dataURLToBytes(dataURL) {
-    const match = String(dataURL || "").match(/^data:image\/(?:jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+)$/i);
+    const match = String(dataURL || "").match(/^data:image\/(?:jpeg|jpg|png|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)$/i);
     if (!match || typeof atob !== "function") {
       throw new Error("Storage failed: preview image bytes unavailable.");
     }
@@ -9314,6 +10138,19 @@ var PdfImageSaver = (() => {
         if (command === "updateImageNote") {
           const result = await updateSharedImageNote(parsed.imageID, parsed.userNote);
           return buildBridgeJSONResponse(200, { ok: true, registered: true, updated: result.updated, userNote: result.userNote });
+        }
+        if (command === "readImageBytes") {
+          const payload = await readSharedImageBytes(parsed.imageID);
+          if (!payload) {
+            return buildBridgeJSONResponse(404, { ok: false, registered: true, error: "Image not found" });
+          }
+          return buildBridgeJSONResponse(200, {
+            ok: true,
+            registered: true,
+            base64: bytesToBase64(payload.bytes),
+            mimeType: payload.fileType.mimeType,
+            byteCount: payload.bytes.length,
+          });
         }
         if (command === "deleteImages") {
           const result = await deleteSharedLibraryImages(parsed.imageIDs);
@@ -10451,13 +11288,6 @@ var PdfImageSaver = (() => {
         })),
       initialCategory,
     );
-    const qualityField = createPreviewReviewSelect(
-      doc,
-      "pdf-image-saver-review-quality",
-      "保存画质（实际写入数据库）",
-      Object.keys(QUALITY).map((key) => ({ value: key, label: getQualityLabelWithEstimate(key) })),
-      normalizeQualityKey(currentPreview?.quality),
-    );
     const roleOptions = getPreviewReviewRoleOptions(initialRole);
     const roleField = createPreviewReviewSelect(doc, "pdf-image-saver-review-role", "在 PPT 中的用途", roleOptions, "auto");
     const noteField = createPreviewReviewNoteField(
@@ -10466,7 +11296,7 @@ var PdfImageSaver = (() => {
       "自定义描述（可选）",
       currentPreview?.userNote,
     );
-    fields.append(qualityField.element, categoryField.element, roleField.element, noteField.element);
+    fields.append(categoryField.element, roleField.element, noteField.element);
     const fieldHelp = doc.createElement("p");
     fieldHelp.id = "pdf-image-saver-preview-review-field-help";
     fieldHelp.className = "pdf-image-saver-preview-review-field-help";
@@ -10485,7 +11315,7 @@ var PdfImageSaver = (() => {
     confirmButton.textContent = "确认并保存";
     confirmButton.title = isPage
       ? "使用当前类别、画质、PPT 用途和自定义描述保存整页图片"
-      : "使用当前类别、画质、PPT 用途和自定义描述保存图片";
+      : "使用当前类别、PPT 用途和自定义描述保存图片";
     buttons.append(cancelButton, confirmButton);
     panel.append(heading, instruction, image, metadata, suggestion, evidenceNode, fields, fieldHelp, buttons);
     backdrop.appendChild(panel);
@@ -10531,7 +11361,7 @@ var PdfImageSaver = (() => {
       };
       const onKeyDown = (event) => {
         if (event?.key === "Tab") {
-          const focusable = [qualityField.select, categoryField.select, roleField.select, noteField.textarea, cancelButton, confirmButton]
+          const focusable = [categoryField.select, roleField.select, noteField.textarea, cancelButton, confirmButton]
             .filter((control) => control && !control.disabled && !control.hidden);
           if (!focusable.length) {
             event.preventDefault?.();
@@ -10558,10 +11388,8 @@ var PdfImageSaver = (() => {
         event.stopPropagation?.();
         settle("cancel");
       };
-      qualityField.select.addEventListener?.("change", () => {
-        const nextPreview = safeOptions.onQualityChange?.(qualityField.select.value, currentPreview);
-        if (nextPreview) updatePreviewImage(nextPreview);
-      });
+      // The re-render path is async, so a quality switch has to settle before the preview is shown;
+      // without the await the dialog would paint a Promise instead of the new capture.
       categoryField.select.addEventListener?.("change", () => {
         const autoRole = getPreviewReviewAutoRole(currentPreview, categoryField.select.value);
         const autoOption = roleField.options.find((option) => option.value === "auto");
@@ -10587,7 +11415,7 @@ var PdfImageSaver = (() => {
       backdrop.__pdfImageSaverReviewResolve = () => settle("cancel");
       doc.addEventListener?.("keydown", onKeyDown, true);
       (doc.body || doc.documentElement).appendChild(backdrop);
-      qualityField.select.focus?.();
+      categoryField.select.focus?.();
     });
   }
 
@@ -11913,6 +12741,7 @@ var PdfImageSaver = (() => {
       normalizeDatabaseRowKeys,
       getDatabaseRowValue,
       getDatabaseImageFileType,
+      isSVGImageBytes,
       normalizeSHA256,
       computeSHA256Hex,
       bytesToBase64,
@@ -12004,6 +12833,9 @@ var PdfImageSaver = (() => {
       prepareSelectionOverlayHost,
       getReaderJobKey,
       renderCanvasPreview,
+      renderHighResolutionPreview,
+      renderPDFRegionCanvas,
+      encodeCaptureCanvas,
       extractPaletteFromCanvas,
       deriveStyleTagsFromPalette,
       normalizePalette,
