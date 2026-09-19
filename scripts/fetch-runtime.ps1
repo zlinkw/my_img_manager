@@ -103,7 +103,7 @@ try {
     files = @($files)
   }
   $manifestPath = Join-Path $runtimeRoot "runtime-manifest.json"
-  $manifest | ConvertTo-Json -Depth 4 | Set-Content -Path $manifestPath -Encoding UTF8
+  [IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
 
   $bytes = (Get-ChildItem -Path $pythonRoot -Recurse -File | Measure-Object -Property Length -Sum).Sum
   Write-Output ("runtime ready: " + $manifest.version + "; " + $files.Count + " files; " + [math]::Round($bytes / 1MB, 1) + " MB")

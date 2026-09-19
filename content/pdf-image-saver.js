@@ -1617,7 +1617,9 @@ var PdfImageSaver = (() => {
   }
 
   // The gallery page is opened from file://, where ES modules are blocked by CORS, so the viewer
-  // libraries ship as classic scripts and have to sit next to the generated HTML.
+  // libraries ship as classic scripts and have to sit next to the generated HTML. They are copied
+  // as text: that is the retrieval path already proven by the helper script, while a binary read of
+  // a packaged add-on URL silently yields nothing and leaves the page on the plain-image fallback.
   const LIBRARY_VIEW_VENDOR_FILES = [
     "content/vendor/openseadragon.min.js",
     "content/vendor/fabric.min.js",
@@ -1629,8 +1631,13 @@ var PdfImageSaver = (() => {
       await ensureDirectoryRecursively(vendorDirectory);
       for (const sourcePath of LIBRARY_VIEW_VENDOR_FILES) {
         const target = PathUtils.join(vendorDirectory, sourcePath.split("/").pop());
+        const text = await readAddonText(sourcePath);
+        if (text) {
+          await writeAddonTextFile(target, text);
+          continue;
+        }
         const bytes = await readAddonBinary(sourcePath);
-        if (!bytes) continue;
+        if (!bytes?.length) continue;
         await IOUtils.write(target, bytes);
       }
     } catch (error) {
@@ -7332,14 +7339,20 @@ var PdfImageSaver = (() => {
 
   async function readBundledRuntimeManifest() {
     try {
-      const text = await Zotero.File.getContentsFromURLAsync(config.rootURI + BUNDLED_RUNTIME_MANIFEST_URL);
-      const parsed = JSON.parse(String(text || ""));
+      const text = await readAddonText(BUNDLED_RUNTIME_MANIFEST_URL);
+      const parsed = JSON.parse(String(text || "").replace(/^\uFEFF/, ""));
       if (!parsed || typeof parsed !== "object") return null;
       if (!Array.isArray(parsed.files) || !parsed.files.length) return null;
       return parsed;
     } catch (error) {
       return null;
     }
+  }
+
+  function resolveBundledRuntimeSourcePath(relativePath) {
+    const normalized = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!normalized) return "";
+    return normalized.startsWith("content/runtime/") ? normalized : "content/runtime/" + normalized;
   }
 
   async function readBundledRuntimeState() {
@@ -7378,7 +7391,7 @@ var PdfImageSaver = (() => {
       for (const relativePath of manifest.files) {
         const target = PathUtils.join(directory, relativePath);
         await ensureDirectoryRecursively(PathUtils.parent(target));
-        const bytes = await readAddonBinary(relativePath);
+        const bytes = await readAddonBinary(resolveBundledRuntimeSourcePath(relativePath));
         if (!bytes) return null;
         await IOUtils.write(target, bytes);
       }
@@ -7391,18 +7404,78 @@ var PdfImageSaver = (() => {
     return bundledRuntimePromise;
   }
 
-  // Zotero's own binary reader only takes real paths, not the jar URL the add-on is served from,
-  // so go through its HTTP wrapper with an arraybuffer response type instead.
-  async function readAddonBinary(relativePath) {
+  function addonResourceURL(relativePath) {
+    return String(config.rootURI || "") + String(relativePath || "").replace(/^\/+/, "");
+  }
+
+  async function writeAddonTextFile(target, text) {
+    if (typeof IOUtils !== "undefined" && typeof IOUtils.writeUTF8 === "function") {
+      await IOUtils.writeUTF8(target, text);
+      return;
+    }
+    if (typeof Zotero !== "undefined" && typeof Zotero.File?.putContentsAsync === "function") {
+      await Zotero.File.putContentsAsync(target, text);
+      return;
+    }
+    throw new Error("Storage failed: text writer unavailable.");
+  }
+
+  async function readAddonText(relativePath) {
     try {
-      const response = await Zotero.HTTP.request("GET", config.rootURI + relativePath, { responseType: "arraybuffer" });
-      const payload = response?.response ?? response;
-      if (!payload) return null;
-      return new Uint8Array(payload);
+      if (typeof Zotero?.File?.getContentsFromURLAsync !== "function") return "";
+      const text = await Zotero.File.getContentsFromURLAsync(addonResourceURL(relativePath));
+      return typeof text === "string" && text.length ? text : "";
     } catch (error) {
       safeLogError(error);
-      return null;
+      return "";
     }
+  }
+
+  function latin1TextToBytes(text) {
+    if (typeof text !== "string" || !text.length) return null;
+    const bytes = new Uint8Array(text.length);
+    for (let index = 0; index < text.length; index += 1) {
+      const code = text.charCodeAt(index);
+      if (code > 255) return null;
+      bytes[index] = code;
+    }
+    return bytes;
+  }
+
+  // Packaged add-on files live behind a jar URL. Classic-script copies use the text reader that
+  // already works for the helper. Binary copies try Zotero's binary helper, then an arraybuffer GET,
+  // then a charset=x-user-defined text read so a 68 MB runtime can still be unpacked from the XPI.
+  async function readAddonBinary(relativePath) {
+    const url = addonResourceURL(relativePath);
+    if (typeof Zotero?.File?.getBinaryFromURLAsync === "function") {
+      try {
+        const payload = await Zotero.File.getBinaryFromURLAsync(url);
+        const bytes = normalizeDatabaseImageBytes(payload);
+        if (bytes?.length) return bytes;
+      } catch (error) {
+        safeLogError(error);
+      }
+    }
+    try {
+      const response = await Zotero.HTTP.request("GET", url, { responseType: "arraybuffer" });
+      const bytes = normalizeDatabaseImageBytes(response?.response ?? response);
+      if (bytes?.length) return bytes;
+    } catch (error) {
+      safeLogError(error);
+    }
+    try {
+      const response = await Zotero.HTTP.request("GET", url, {
+        responseType: "text",
+        headers: { Accept: "*/*" },
+        overrideMimeType: "text/plain; charset=x-user-defined",
+      });
+      const bytes = latin1TextToBytes(response?.response ?? response);
+      if (bytes?.length) return bytes;
+    } catch (error) {
+      safeLogError(error);
+    }
+    safeLogError(new Error("Addon binary read failed: " + relativePath));
+    return null;
   }
 
   async function ensureHelperScriptPath() {
@@ -12650,6 +12723,7 @@ var PdfImageSaver = (() => {
       "Storage failed: library browser unavailable.": "当前 Zotero 无法打开系统浏览器。",
       "Storage failed: image export runtime unavailable.": "当前环境无法读取图库原图。",
       "Storage failed: library HTML writer unavailable.": "当前环境无法生成图库页面。",
+      "Storage failed: text writer unavailable.": "当前环境无法写入图库脚本文件。",
       "Storage failed: package stream unavailable.": "当前环境无法读取图片包数据流。",
       "Storage failed: package stream invalid.": "图片包数据流无效。",
       "Storage failed: expanded image package exceeds file cap.": "图片包解压后超过大小上限。",
@@ -12742,6 +12816,10 @@ var PdfImageSaver = (() => {
       getDatabaseRowValue,
       getDatabaseImageFileType,
       isSVGImageBytes,
+      ensureLibraryViewVendor,
+      resolveBundledRuntimeSourcePath,
+      addonResourceURL,
+      LIBRARY_VIEW_VENDOR_FILES,
       normalizeSHA256,
       computeSHA256Hex,
       bytesToBase64,

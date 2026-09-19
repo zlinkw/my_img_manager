@@ -503,6 +503,25 @@ void (async () => {
   assert.equal(api.getDatabaseImageFileType(pngDataURLToBytes(pngDataURL(4, 4, [1, 2, 3])))?.extension, "png", "raster sniffing must keep working");
 }
 
+assert.equal(
+  api.addonResourceURL("content/vendor/openseadragon.min.js"),
+  "resource://pdf-image-saver/content/vendor/openseadragon.min.js",
+  "gallery vendor files must be read from the add-on root, not from a guessed disk path",
+);
+assert.equal(
+  api.resolveBundledRuntimeSourcePath("python/python.exe"),
+  "content/runtime/python/python.exe",
+  "the runtime manifest lists files relative to content/runtime, so copies must prefix that path",
+);
+assert.equal(
+  api.resolveBundledRuntimeSourcePath("content/runtime/python/python.exe"),
+  "content/runtime/python/python.exe",
+  "an already-prefixed runtime path must not be prefixed twice",
+);
+assert.equal(api.LIBRARY_VIEW_VENDOR_FILES.length, 2, "the generated gallery must copy both classic-script viewer libraries");
+assert.equal(api.LIBRARY_VIEW_VENDOR_FILES[0], "content/vendor/openseadragon.min.js", "OpenSeadragon must ship as a classic script");
+assert.equal(api.LIBRARY_VIEW_VENDOR_FILES[1], "content/vendor/fabric.min.js", "Fabric must ship as a classic script");
+
 function pngDataURLToBytes(dataURL) {
   return Buffer.from(String(dataURL).slice(String(dataURL).indexOf(",") + 1), "base64");
 }
@@ -662,6 +681,7 @@ assert.ok(
 // to Chinese; the few internal-only throws are listed with the reason they never reach a user.
 const INTERNAL_ONLY_THROWS = new Set([
   "Process ended with topic: 1", // shutdown bookkeeping, resolved by the caller, never displayed
+  "Addon binary read failed: 1", // logged while copying packaged files; the caller falls back
 ]);
 const thrownMessages = [...source.matchAll(/new Error\((?:`([^`]*)`|"([^"]*)")\)/g)]
   .map((match) => match[1] ?? match[2])
@@ -708,7 +728,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "u
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
 assert.equal(manifest.applications.zotero.strict_max_version, "11.*", "release supports the Zotero 10 and 11 profile-install range");
-assert.equal(manifest.version, "0.1.139", "release candidate increments the installed release");
+assert.equal(manifest.version, "0.1.140", "release candidate increments the installed release");
 const expectedUpdateUrl = "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json";
 assert.equal(manifest.applications.zotero.update_url, expectedUpdateUrl, "Zotero 10 requires update_url and it must point at the static empty feed");
 const updateFeed = JSON.parse(fs.readFileSync(path.join(root, "updates.json"), "utf8"));
@@ -725,6 +745,29 @@ for (const required of ["Zotero 10", "手动安装 XPI", "Windows", "外部 SQLi
 // Async checks run last and gate the success line, so a rejected assertion can never be reported
 // as a pass.
 async function verifyAsyncContracts() {
+  const written = new Map();
+  context.Zotero.File = {
+    async getContentsFromURLAsync(url) {
+      if (String(url).endsWith("openseadragon.min.js")) return "function OpenSeadragon(){}";
+      if (String(url).endsWith("fabric.min.js")) return "var fabric={};";
+      throw new Error("unexpected addon text url: " + url);
+    },
+    async putContentsAsync(target, text) {
+      written.set(String(target), String(text));
+    },
+    async createDirectoryIfMissingAsync() {},
+  };
+  context.IOUtils.makeDirectory = async () => {};
+  context.IOUtils.writeUTF8 = async (target, text) => {
+    written.set(String(target), String(text));
+  };
+  context.IOUtils.write = async () => {
+    throw new Error("vendor scripts must be copied as text, not as a binary fallback");
+  };
+  await api.ensureLibraryViewVendor("C:\\Temp\\gallery");
+  assert.equal(written.get("C:\\Temp\\gallery\\vendor\\openseadragon.min.js"), "function OpenSeadragon(){}", "OpenSeadragon must be copied next to the generated gallery");
+  assert.equal(written.get("C:\\Temp\\gallery\\vendor\\fabric.min.js"), "var fabric={};", "Fabric must be copied next to the generated gallery");
+
   const helperReport = { warnings: [] };
   await api.probeOptionalHelperAvailability(helperReport, async () => { throw new Error("Helper: Python n/a."); });
   assert.deepEqual(helperReport.warnings, ["高级原图：未找到 Python。"], "helper diagnostics must stay fully Chinese");

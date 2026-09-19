@@ -32,6 +32,8 @@ try {
     "content/preferences.js",
     "content/helper/pdf_image_extract.py",
     "content/icons/pdf-image-saver.svg",
+    "content/vendor/openseadragon.min.js",
+    "content/vendor/fabric.min.js",
     "defaults/preferences/prefs.js"
   )
 
