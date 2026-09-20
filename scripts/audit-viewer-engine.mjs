@@ -401,6 +401,7 @@ try {
   assert.equal(selectedExport.calls[0].command, "traceImage", "selected export must use the trace bridge");
   assert.equal(selectedExport.calls[0].imageID, opened.imageID, "selected export must use the displayed image");
   assert.equal(selectedExport.calls[0].selection.kind, "mask", "painted mask must reach the contour helper");
+  assert.equal(selectedExport.calls[0].selection.fillHoles, false, "painted holes must remain open by default");
   assert.ok(selectedExport.calls[0].selection.maskBase64.startsWith("iVBOR"), "selected mask must be PNG");
   assert.ok(selectedExport.fileName.endsWith("-selection-vector.svg") && selectedExport.pathOnly, "selected export must download path-only SVG");
 

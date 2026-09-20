@@ -14,7 +14,7 @@ var PdfImageSaver = (() => {
   const BRIDGE_STATUS_COMMANDS = ["status", "getStatus"];
   const BRIDGE_PROVENANCE_COMMANDS = ["openPdfByImageId", "selectParentItemByImageId", "selectPdfAttachmentByImageId"];
   const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "readImageBytes", "traceImage", "refreshLibrary", "updateImageNote"];
-  const GLOBAL_LIBRARY_VIEW_VERSION = "48";
+  const GLOBAL_LIBRARY_VIEW_VERSION = "49";
 
   const GLOBAL_LIBRARY_DIRECTORY_NAME = "paper-image-library-view";
   const GLOBAL_LIBRARY_HTML_NAME = "paper-image-library.html";
@@ -2452,7 +2452,8 @@ var PdfImageSaver = (() => {
     .viewer-editor button:hover { background:#2f373d; }
     .viewer-editor button.is-active { background:#185fa5; border-color:#378add; color:#ffffff; }
     .viewer-selection-size-label { display:inline-flex; align-items:center; gap:5px; color:#cbd3d8; font-size:12px; white-space:nowrap; }
-    .viewer-selection-size-label input { width:88px; accent-color:#378add; }
+    .viewer-selection-size-label input[type="range"] { width:88px; accent-color:#378add; }
+    .viewer-selection-size-label input[type="checkbox"] { width:14px; height:14px; margin:0; accent-color:#378add; }
     .viewer-selection-size-label output { min-width:46px; font-variant-numeric:tabular-nums; }
     .viewer-editor-sep { width:1px; height:18px; background:rgba(255,255,255,0.18); margin:0 2px; }
     .viewer-editor-help, .viewer-editor-status { color:#cbd3d8; font-size:12px; line-height:1.35; margin-left:4px; }
@@ -2568,7 +2569,7 @@ var PdfImageSaver = (() => {
   <div class="viewer" id="library-viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" aria-describedby="viewer-meta viewer-position" aria-keyshortcuts="Escape ArrowLeft ArrowRight = - 0 1" hidden>
     <div class="viewer-header"><div class="viewer-heading"><div class="viewer-title" id="viewer-title"></div><div class="viewer-meta" id="viewer-meta"></div><p class="viewer-note" id="viewer-note" hidden></p></div><div class="viewer-header-actions"><label class="viewer-selection" id="viewer-selection-label" title="将当前图片加入批量选择；当前共选择 0 张"><input id="viewer-select" type="checkbox" aria-label="将当前图片加入批量选择；当前共选择 0 张"><span>加入批量</span><output class="viewer-selection-count" id="viewer-selection-count" aria-live="polite" title="当前共选择 0 张图片">0</output></label><button type="button" id="viewer-close" aria-label="关闭大图查看并返回图片库列表" title="关闭大图查看并返回图片库列表；也可按 Esc">关闭</button></div></div>
     <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""><div class="viewer-osd" id="viewer-osd" hidden></div><img class="viewer-vector" id="viewer-vector" alt="" hidden><canvas class="viewer-annot" id="viewer-annot" hidden></canvas><canvas class="viewer-selection-mask" id="viewer-selection-mask" aria-hidden="true" hidden></canvas><svg class="viewer-selection-overlay" id="viewer-selection-overlay" aria-hidden="true" hidden><path id="viewer-selection-path"></path></svg><div class="viewer-selection-cursor" id="viewer-selection-cursor" aria-hidden="true" hidden></div><div class="viewer-navigator" id="viewer-navigator" hidden></div></div></div>
-    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注与选区工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" data-select-mode="rect" title="框住要提取的形状；可继续用选区画笔补充">矩形框选</button><button type="button" data-select-mode="brush" title="多次涂加形状选区；放大后可精细涂刷">选区画笔</button><button type="button" data-select-mode="erase" title="擦除选区中的杂乱部分；可反复修边">选区橡皮</button><label class="viewer-selection-size-label" for="viewer-selection-size">笔径 <input id="viewer-selection-size" type="range" min="1" max="64" value="8" aria-label="选区画笔和橡皮笔径，单位为原图像素"><output id="viewer-selection-size-value" for="viewer-selection-size">8 像素</output></label><button type="button" id="viewer-selection-clear" title="清除当前形状选区">清除选区</button><button type="button" id="viewer-selection-export" title="按涂刷轮廓重建形状 SVG；内部封闭空洞填充形状主色" disabled>导出选区 SVG</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-original" title="按图库记录的原始格式导出，不改变图像内容">导出原图</button><button type="button" id="viewer-editor-save" title="位图描摹为近似矢量路径；原生 SVG 保留原路径，均包含标注">导出近似矢量 SVG</button><output class="viewer-editor-status" id="viewer-editor-status" role="status" aria-live="polite"></output><span class="viewer-editor-help" id="viewer-editor-help">画笔反复补选 · 橡皮修边 · Ctrl+拖动平移</span></div>
+    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注与选区工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" data-select-mode="rect" title="框住要提取的形状；可继续用选区画笔补充">矩形框选</button><button type="button" data-select-mode="brush" title="多次涂加形状选区；放大后可精细涂刷">选区画笔</button><button type="button" data-select-mode="erase" title="擦除选区中的杂乱部分；可反复修边">选区橡皮</button><label class="viewer-selection-size-label" for="viewer-selection-size">笔径 <input id="viewer-selection-size" type="range" min="1" max="64" value="8" aria-label="选区画笔和橡皮笔径，单位为原图像素"><output id="viewer-selection-size-value" for="viewer-selection-size">8 像素</output></label><label class="viewer-selection-size-label" title="默认保留刻意擦出的透明孔洞；勾选后才自动填补封闭内孔"><input id="viewer-selection-fill-holes" type="checkbox">填补内孔</label><button type="button" id="viewer-selection-clear" title="清除当前形状选区">清除选区</button><button type="button" id="viewer-selection-export" title="按人工选区轮廓和原图颜色生成 SVG；默认保留内部孔洞" disabled>导出选区 SVG</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-original" title="按图库记录的原始格式导出，不改变图像内容">导出原图</button><button type="button" id="viewer-editor-save" title="位图描摹为近似矢量路径；原生 SVG 保留原路径，均包含标注">导出近似矢量 SVG</button><output class="viewer-editor-status" id="viewer-editor-status" role="status" aria-live="polite"></output><span class="viewer-editor-help" id="viewer-editor-help">画笔反复补选 · 橡皮修边 · Ctrl+拖动平移</span></div>
     <div class="viewer-footer"><div class="viewer-status"><span id="viewer-position" title="可按左右方向键切换图片"></span><div class="viewer-zoom" role="group" aria-label="图像缩放"><button type="button" id="viewer-zoom-out" aria-label="缩小图像" aria-keyshortcuts="-" title="缩小图像；也可按减号键">−</button><output id="viewer-zoom-value" aria-live="polite">适应窗口</output><button type="button" id="viewer-zoom-in" aria-label="放大图像" aria-keyshortcuts="=" title="放大图像；也可按加号键">＋</button><button type="button" id="viewer-zoom-actual" aria-label="按原始像素显示" aria-keyshortcuts="1" title="按原始像素显示；也可按数字 1">1:1</button><button type="button" id="viewer-zoom-fit" aria-label="完整显示当前图片" aria-keyshortcuts="0" title="完整显示当前图片；也可按数字 0">适应</button></div></div><div class="viewer-actions"><button type="button" id="viewer-prev" aria-label="查看上一张图片" aria-keyshortcuts="ArrowLeft" title="查看上一张图片；也可按方向键左">← 上一张</button><button type="button" id="viewer-next" aria-label="查看下一张图片" aria-keyshortcuts="ArrowRight" title="查看下一张图片；也可按方向键右">下一张 →</button><a id="viewer-download" href="" download title="下载当前完整原图">下载原图</a><a id="viewer-source" href="" title="定位当前图片的本机文献">定位原文</a></div></div>
   </div>
   ${vendorScriptHTML || vendorFallbackHTML}
@@ -2650,6 +2651,7 @@ var PdfImageSaver = (() => {
       const viewerSelectionCursor = document.getElementById("viewer-selection-cursor");
       const viewerSelectionSize = document.getElementById("viewer-selection-size");
       const viewerSelectionSizeValue = document.getElementById("viewer-selection-size-value");
+      const viewerSelectionFillHoles = document.getElementById("viewer-selection-fill-holes");
       const viewerSelectionExport = document.getElementById("viewer-selection-export");
       const viewerEditor = document.getElementById("viewer-editor");
       const viewerZoomOut = document.getElementById("viewer-zoom-out");
@@ -3338,7 +3340,8 @@ var PdfImageSaver = (() => {
           viewerSelectionMask.hidden = true;
           throw new Error("选区已擦空，请用选区画笔重新涂刷");
         }
-        const selection = { kind: "mask", maskBase64: viewerSelectionMask.toDataURL("image/png").split(",")[1] };
+        const selection = { kind: "mask", maskBase64: viewerSelectionMask.toDataURL("image/png").split(",")[1],
+          fillHoles: viewerSelectionFillHoles.checked };
         if (selection.maskBase64.length > 32 * 1024 * 1024) throw new Error("选区蒙版过大，请缩小图像范围后重试");
         const result = await postCommand("traceImage", {
           image_id: annotImageID, trace_selection: JSON.stringify(selection),
@@ -3367,7 +3370,7 @@ var PdfImageSaver = (() => {
         const status = document.getElementById("viewer-editor-status");
         status.dataset.error = "false";
         status.textContent = "已开始下载选区 SVG（" + result.width + " × " + result.height + "）";
-        setMessage("已按手动选区轮廓导出形状 SVG；封闭空洞填为周围主色");
+        setMessage(viewerSelectionFillHoles.checked ? "已导出选区 SVG；封闭内孔已填色" : "已导出选区 SVG；擦出的孔洞保持透明");
       };
 
       document.querySelectorAll("[data-editor-tool]").forEach((button) => {
@@ -10909,7 +10912,10 @@ var PdfImageSaver = (() => {
         || !/^[A-Za-z0-9+/]+={0,2}$/.test(maskBase64) || maskBase64.length % 4 !== 0) {
         throw new Error("Trace selection invalid.");
       }
-      return JSON.stringify({ kind, maskBase64 });
+      if (parsed.fillHoles !== undefined && typeof parsed.fillHoles !== "boolean") {
+        throw new Error("Trace selection invalid.");
+      }
+      return JSON.stringify({ kind, maskBase64, fillHoles: parsed.fillHoles === true });
     }
     const points = parsed?.points;
     if ((kind !== "rect" && kind !== "polygon") || !Array.isArray(points)

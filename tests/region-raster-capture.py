@@ -150,6 +150,12 @@ for kind, points, expected_size in (
             assert rendered.pixel(33, 33)[3] == 0, "freehand area outside outline must stay transparent"
 print("rectangle and hand-drawn selection trace only chosen pixels")
 
+paint_source = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 100, 100), False)
+paint_source.clear_with(255)
+paint_source.set_rect(pymupdf.IRect(20, 20, 52, 52), (38, 105, 180))
+paint_source.set_rect(pymupdf.IRect(20, 20, 32, 24), (215, 50, 35))
+paint_source_path = work / "paint-source.png"
+paint_source.save(paint_source_path)
 paint_mask = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 100, 100), True)
 paint_mask.set_rect(pymupdf.IRect(0, 0, 100, 100), (0, 0, 0, 0))
 paint_mask.set_rect(pymupdf.IRect(20, 20, 52, 52), (22, 119, 217, 255))
@@ -162,7 +168,7 @@ mask_file.write_text(json.dumps({"kind": "mask", "maskBase64":
 mask_report_file = work / "paint-mask-report.json"
 mask_result = subprocess.run(
     [str(trace_python if trace_python.exists() else sys.executable),
-     str(root / "content" / "helper" / "pdf_image_extract.py"), str(selected_path),
+     str(root / "content" / "helper" / "pdf_image_extract.py"), str(paint_source_path),
      "--out-dir", str(work), "--report", str(mask_report_file), "--trace-image",
      "--trace-selection-file", str(mask_file)],
     capture_output=True, text=True, encoding="utf-8",
@@ -171,16 +177,66 @@ assert mask_result.returncode == 0, mask_result.stderr or mask_result.stdout
 mask_report = json.loads(mask_report_file.read_text(encoding="utf-8"))
 assert mask_report["status"] == "ok", mask_report
 assert (mask_report["trace"]["width"], mask_report["trace"]["height"]) == (38, 32)
-assert mask_report["trace"]["path_count"] == 1
+assert 3 <= mask_report["trace"]["path_count"] < 100, "one contour plus a few color layers must stay compact"
 mask_svg = Path(mask_report["trace"]["file_path"]).read_text(encoding="utf-8")
-assert "<image" not in mask_svg and "#D73223" not in mask_svg
+assert "<image" not in mask_svg
 with pymupdf.open(mask_report["trace"]["file_path"]) as painted_vector:
     rendered = painted_vector[0].get_pixmap(alpha=True)
-    assert rendered.pixel(15, 15)[3] > 0, "the enclosed hole must fill with the shape color"
-    assert rendered.pixel(15, 15)[2] > rendered.pixel(15, 15)[0], "hole color must come from its painted surround"
+    assert rendered.pixel(15, 15)[3] == 0, "a deliberately unpainted hole must stay transparent"
+    assert rendered.pixel(6, 2)[0] > rendered.pixel(6, 2)[2], "selected red detail must retain its color"
+    assert rendered.pixel(2, 15)[2] > rendered.pixel(2, 15)[0], "selected blue shape must retain its color"
     assert rendered.pixel(35, 15)[3] == 0, "unpainted exterior must remain transparent"
     assert rendered.pixel(36, 12)[3] > 0, "later additive strokes must remain present"
-print("painted mask contour joins strokes, fills enclosed holes, and omits exterior")
+print("painted mask preserves color detail, intentional holes, and exterior transparency")
+
+filled_selection = json.loads(mask_file.read_text(encoding="utf-8"))
+filled_selection["fillHoles"] = True
+mask_file.write_text(json.dumps(filled_selection), encoding="utf-8")
+filled_report_file = work / "filled-mask-report.json"
+filled_result = subprocess.run(
+    [str(trace_python if trace_python.exists() else sys.executable),
+     str(root / "content" / "helper" / "pdf_image_extract.py"), str(paint_source_path),
+     "--out-dir", str(work), "--report", str(filled_report_file), "--trace-image",
+     "--trace-selection-file", str(mask_file)],
+    capture_output=True, text=True, encoding="utf-8",
+)
+assert filled_result.returncode == 0, filled_result.stderr or filled_result.stdout
+filled_report = json.loads(filled_report_file.read_text(encoding="utf-8"))
+assert filled_report["status"] == "ok", filled_report
+with pymupdf.open(filled_report["trace"]["file_path"]) as filled_vector:
+    rendered = filled_vector[0].get_pixmap(alpha=True)
+    assert rendered.pixel(15, 15)[3] > 0, "explicit hole fill must close the interior"
+    assert rendered.pixel(15, 15)[2] > rendered.pixel(15, 15)[0], "filled hole must use the surrounding dominant color"
+print("optional hole fill only applies when explicitly selected")
+
+transparent_source = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 64, 64), True)
+transparent_source.set_rect(pymupdf.IRect(0, 0, 64, 64), (0, 0, 0, 0))
+transparent_source.set_rect(pymupdf.IRect(20, 20, 40, 40), (38, 105, 180, 255))
+transparent_source_path = work / "transparent-source.png"
+transparent_source.save(transparent_source_path)
+wide_mask = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 64, 64), True)
+wide_mask.set_rect(pymupdf.IRect(0, 0, 64, 64), (0, 0, 0, 0))
+wide_mask.set_rect(pymupdf.IRect(10, 10, 50, 50), (22, 119, 217, 255))
+wide_mask_file = work / "wide-mask.json"
+wide_mask_file.write_text(json.dumps({"kind": "mask", "maskBase64":
+                                      base64.b64encode(wide_mask.tobytes("png")).decode("ascii")}),
+                          encoding="utf-8")
+wide_report_file = work / "wide-mask-report.json"
+wide_result = subprocess.run(
+    [str(trace_python if trace_python.exists() else sys.executable),
+     str(root / "content" / "helper" / "pdf_image_extract.py"), str(transparent_source_path),
+     "--out-dir", str(work), "--report", str(wide_report_file), "--trace-image",
+     "--trace-selection-file", str(wide_mask_file)],
+    capture_output=True, text=True, encoding="utf-8",
+)
+assert wide_result.returncode == 0, wide_result.stderr or wide_result.stdout
+wide_report = json.loads(wide_report_file.read_text(encoding="utf-8"))
+assert wide_report["status"] == "ok", wide_report
+with pymupdf.open(wide_report["trace"]["file_path"]) as wide_vector:
+    rendered = wide_vector[0].get_pixmap(alpha=True)
+    assert rendered.pixel(5, 5)[3] == 0, "selected transparent source pixels must not become black fill"
+    assert rendered.pixel(20, 20)[2] > rendered.pixel(20, 20)[0], "opaque source color must survive"
+print("transparent source surroundings do not become solid black")
 
 bitmap_vector_result = subprocess.run(
     [sys.executable, str(root / "content" / "helper" / "pdf_image_extract.py"),
