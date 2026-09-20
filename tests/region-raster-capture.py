@@ -115,6 +115,40 @@ with pymupdf.open(texture_report["trace"]["file_path"]) as texture_vector:
     assert rendered.samples[5 * rendered.stride + 5 * rendered.n] < 128
 print("textured trace avoids fragmented paths")
 
+selected = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 100, 100), False)
+selected.clear_with(255)
+selected.set_rect(pymupdf.IRect(20, 20, 52, 52), (38, 105, 180))
+selected.set_rect(pymupdf.IRect(66, 20, 90, 52), (215, 50, 35))
+selected_path = work / "manual-selection.png"
+selected.save(selected_path)
+for kind, points, expected_size in (
+    ("rect", [[0.18, 0.18], [0.54, 0.54]], (36, 36)),
+    ("polygon", [[0.18, 0.18], [0.54, 0.18], [0.18, 0.54]], (36, 36)),
+):
+    selection_file = work / f"{kind}-selection.json"
+    selection_file.write_text(json.dumps({"kind": kind, "points": points}), encoding="utf-8")
+    selection_report_file = work / f"{kind}-selection-report.json"
+    selection_result = subprocess.run(
+        [str(trace_python if trace_python.exists() else sys.executable),
+         str(root / "content" / "helper" / "pdf_image_extract.py"), str(selected_path),
+         "--out-dir", str(work), "--report", str(selection_report_file), "--trace-image",
+         "--trace-selection-file", str(selection_file)],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    assert selection_result.returncode == 0, selection_result.stderr or selection_result.stdout
+    selection_report = json.loads(selection_report_file.read_text(encoding="utf-8"))
+    assert (selection_report["trace"]["width"], selection_report["trace"]["height"]) == expected_size
+    selection_svg = Path(selection_report["trace"]["file_path"]).read_text(encoding="utf-8")
+    assert "<path" in selection_svg and "<image" not in selection_svg
+    assert "#D73223" not in selection_svg, "unselected red shape must not appear"
+    with pymupdf.open(selection_report["trace"]["file_path"]) as selection_vector:
+        rendered = selection_vector[0].get_pixmap(alpha=True)
+        assert rendered.pixel(10, 10)[3] > 0, "selected shape must be visible"
+        assert rendered.pixel(0, 0)[3] == 0, "selected pale background must become transparent"
+        if kind == "polygon":
+            assert rendered.pixel(33, 33)[3] == 0, "freehand area outside outline must stay transparent"
+print("rectangle and hand-drawn selection trace only chosen pixels")
+
 bitmap_vector_result = subprocess.run(
     [sys.executable, str(root / "content" / "helper" / "pdf_image_extract.py"),
      str(pdf_path), "--out-dir", str(work), "--report", str(work / "bitmap-vector-report.json"),

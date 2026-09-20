@@ -374,7 +374,7 @@ async function auditLibraryPage() {
     });
   }).length;
   var unknownButtons = buttons.filter(function (button) {
-    return !button.matches("#library-reset,#library-empty-reset,#library-filter-collapse,[data-view],[data-open-image],[data-edit-note],[data-note-save],[data-note-cancel],#viewer-close,#viewer-prev,#viewer-next,#viewer-zoom-out,#viewer-zoom-in,#viewer-zoom-actual,#viewer-zoom-fit,#select-visible,#clear-selection,#share-selected,#delete-selected,#refresh-library,#import-package,#mobile-clear-selection,#mobile-share-selected,#mobile-delete-selected,[data-editor-tool],#viewer-editor-undo,#viewer-editor-clear,#viewer-editor-original,#viewer-editor-save");
+    return !button.matches("#library-reset,#library-empty-reset,#library-filter-collapse,[data-view],[data-open-image],[data-edit-note],[data-note-save],[data-note-cancel],#viewer-close,#viewer-prev,#viewer-next,#viewer-zoom-out,#viewer-zoom-in,#viewer-zoom-actual,#viewer-zoom-fit,#select-visible,#clear-selection,#share-selected,#delete-selected,#refresh-library,#import-package,#mobile-clear-selection,#mobile-share-selected,#mobile-delete-selected,[data-editor-tool],[data-select-mode],#viewer-editor-undo,#viewer-editor-clear,#viewer-selection-clear,#viewer-selection-export,#viewer-editor-original,#viewer-editor-save");
   });
   var category = document.getElementById("library-category");
   var search = document.getElementById("library-search");

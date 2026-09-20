@@ -14,7 +14,7 @@ var PdfImageSaver = (() => {
   const BRIDGE_STATUS_COMMANDS = ["status", "getStatus"];
   const BRIDGE_PROVENANCE_COMMANDS = ["openPdfByImageId", "selectParentItemByImageId", "selectPdfAttachmentByImageId"];
   const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "readImageBytes", "traceImage", "refreshLibrary", "updateImageNote"];
-  const GLOBAL_LIBRARY_VIEW_VERSION = "46";
+  const GLOBAL_LIBRARY_VIEW_VERSION = "47";
 
   const GLOBAL_LIBRARY_DIRECTORY_NAME = "paper-image-library-view";
   const GLOBAL_LIBRARY_HTML_NAME = "paper-image-library.html";
@@ -2441,7 +2441,9 @@ var PdfImageSaver = (() => {
     .viewer-osd { position:absolute; inset:0; background:#11161a; z-index:1; }
     .viewer-vector { position:absolute; z-index:2; display:block; max-width:none; max-height:none; pointer-events:none; }
     .viewer-annot { position:absolute; inset:0; z-index:3; pointer-events:none; background:transparent; }
-    .viewer-navigator { position:absolute; left:12px; bottom:12px; z-index:4; width:150px; height:110px; }
+    .viewer-selection-overlay { position:absolute; z-index:4; overflow:visible; pointer-events:none; }
+    .viewer-selection-overlay path { fill:rgba(28,124,222,.18); stroke:#e22b83; stroke-width:2; stroke-dasharray:6 4; vector-effect:non-scaling-stroke; }
+    .viewer-navigator { position:absolute; left:12px; bottom:12px; z-index:5; width:150px; height:110px; }
 
     .viewer-editor { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:8px 14px; border-top:1px solid rgba(255,255,255,0.12); background:rgba(17,22,26,0.92); }
     .viewer-editor button { font:inherit; font-size:12px; color:#e4eaee; background:#252c31; border:1px solid rgba(255,255,255,0.16); border-radius:6px; padding:4px 10px; cursor:pointer; }
@@ -2560,8 +2562,8 @@ var PdfImageSaver = (() => {
   <div class="mobile-selection-bar" id="mobile-selection-bar" role="toolbar" aria-label="移动端批量操作" hidden><strong id="mobile-selection-summary" role="status" aria-live="polite">未选择图片</strong><button class="action" id="mobile-clear-selection" type="button">清空</button><button class="action primary" id="mobile-share-selected" type="button">分享 0 张</button><button class="action danger" id="mobile-delete-selected" type="button">删除 0 张</button></div>
   <div class="viewer" id="library-viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" aria-describedby="viewer-meta viewer-position" aria-keyshortcuts="Escape ArrowLeft ArrowRight = - 0 1" hidden>
     <div class="viewer-header"><div class="viewer-heading"><div class="viewer-title" id="viewer-title"></div><div class="viewer-meta" id="viewer-meta"></div><p class="viewer-note" id="viewer-note" hidden></p></div><div class="viewer-header-actions"><label class="viewer-selection" id="viewer-selection-label" title="将当前图片加入批量选择；当前共选择 0 张"><input id="viewer-select" type="checkbox" aria-label="将当前图片加入批量选择；当前共选择 0 张"><span>加入批量</span><output class="viewer-selection-count" id="viewer-selection-count" aria-live="polite" title="当前共选择 0 张图片">0</output></label><button type="button" id="viewer-close" aria-label="关闭大图查看并返回图片库列表" title="关闭大图查看并返回图片库列表；也可按 Esc">关闭</button></div></div>
-    <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""><div class="viewer-osd" id="viewer-osd" hidden></div><img class="viewer-vector" id="viewer-vector" alt="" hidden><canvas class="viewer-annot" id="viewer-annot" hidden></canvas><div class="viewer-navigator" id="viewer-navigator" hidden></div></div></div>
-    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><button type="button" id="viewer-editor-original" title="按图库记录的原始格式导出，不改变图像内容">导出原图</button><button type="button" id="viewer-editor-save" title="位图描摹为近似矢量路径；原生 SVG 保留原路径，均包含标注">导出近似矢量 SVG</button><output class="viewer-editor-status" id="viewer-editor-status" role="status" aria-live="polite"></output><span class="viewer-editor-help" id="viewer-editor-help">滚轮缩放 · Ctrl+拖动平移 · Esc退出工具 · Ctrl+Z撤销</span></div>
+    <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""><div class="viewer-osd" id="viewer-osd" hidden></div><img class="viewer-vector" id="viewer-vector" alt="" hidden><canvas class="viewer-annot" id="viewer-annot" hidden></canvas><svg class="viewer-selection-overlay" id="viewer-selection-overlay" aria-hidden="true" hidden><path id="viewer-selection-path"></path></svg><div class="viewer-navigator" id="viewer-navigator" hidden></div></div></div>
+    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注与选区工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" data-select-mode="rect" title="框住要提取的形状；可先放大再框选">矩形框选</button><button type="button" data-select-mode="polygon" title="沿形状边缘精细手绘；可先放大再绘制">手绘选区</button><button type="button" id="viewer-selection-clear" title="清除当前形状选区">清除选区</button><button type="button" id="viewer-selection-export" title="只描摹当前选区；手绘轮廓外透明，不附带文字标注" disabled>导出选区 SVG</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-original" title="按图库记录的原始格式导出，不改变图像内容">导出原图</button><button type="button" id="viewer-editor-save" title="位图描摹为近似矢量路径；原生 SVG 保留原路径，均包含标注">导出近似矢量 SVG</button><output class="viewer-editor-status" id="viewer-editor-status" role="status" aria-live="polite"></output><span class="viewer-editor-help" id="viewer-editor-help">放大后精细圈选 · Ctrl+拖动平移 · Esc退出工具</span></div>
     <div class="viewer-footer"><div class="viewer-status"><span id="viewer-position" title="可按左右方向键切换图片"></span><div class="viewer-zoom" role="group" aria-label="图像缩放"><button type="button" id="viewer-zoom-out" aria-label="缩小图像" aria-keyshortcuts="-" title="缩小图像；也可按减号键">−</button><output id="viewer-zoom-value" aria-live="polite">适应窗口</output><button type="button" id="viewer-zoom-in" aria-label="放大图像" aria-keyshortcuts="=" title="放大图像；也可按加号键">＋</button><button type="button" id="viewer-zoom-actual" aria-label="按原始像素显示" aria-keyshortcuts="1" title="按原始像素显示；也可按数字 1">1:1</button><button type="button" id="viewer-zoom-fit" aria-label="完整显示当前图片" aria-keyshortcuts="0" title="完整显示当前图片；也可按数字 0">适应</button></div></div><div class="viewer-actions"><button type="button" id="viewer-prev" aria-label="查看上一张图片" aria-keyshortcuts="ArrowLeft" title="查看上一张图片；也可按方向键左">← 上一张</button><button type="button" id="viewer-next" aria-label="查看下一张图片" aria-keyshortcuts="ArrowRight" title="查看下一张图片；也可按方向键右">下一张 →</button><a id="viewer-download" href="" download title="下载当前完整原图">下载原图</a><a id="viewer-source" href="" title="定位当前图片的本机文献">定位原文</a></div></div>
   </div>
   ${vendorScriptHTML || vendorFallbackHTML}
@@ -2637,6 +2639,9 @@ var PdfImageSaver = (() => {
       const viewerVector = document.getElementById("viewer-vector");
       const viewerNavigator = document.getElementById("viewer-navigator");
       const viewerAnnot = document.getElementById("viewer-annot");
+      const viewerSelectionOverlay = document.getElementById("viewer-selection-overlay");
+      const viewerSelectionPath = document.getElementById("viewer-selection-path");
+      const viewerSelectionExport = document.getElementById("viewer-selection-export");
       const viewerEditor = document.getElementById("viewer-editor");
       const viewerZoomOut = document.getElementById("viewer-zoom-out");
       const viewerZoomIn = document.getElementById("viewer-zoom-in");
@@ -2806,6 +2811,9 @@ var PdfImageSaver = (() => {
       let osdViewer = null;
       let annotCanvas = null;
       let activeEditorTool = "";
+      let selectionMode = "";
+      let traceSelection = null;
+      let selectionDraft = null;
       let modifierPan = false;
 
       let annotUndoStack = [];
@@ -2826,6 +2834,9 @@ var PdfImageSaver = (() => {
         }
         annotUndoStack = [];
         activeEditorTool = "";
+        selectionMode = "";
+        traceSelection = null;
+        selectionDraft = null;
         modifierPan = false;
 
         viewerOSD.hidden = true;
@@ -2834,6 +2845,12 @@ var PdfImageSaver = (() => {
         viewerNavigator.hidden = true;
         viewerNavigator.innerHTML = "";
         viewerAnnot.hidden = true;
+        viewerSelectionOverlay.setAttribute("hidden", "");
+        viewerSelectionExport.disabled = true;
+        document.querySelectorAll("[data-select-mode]").forEach((button) => {
+          button.classList.remove("is-active");
+          button.setAttribute("aria-pressed", "false");
+        });
         viewerEditor.hidden = true;
         viewerOSD.innerHTML = "";
       };
@@ -2858,6 +2875,10 @@ var PdfImageSaver = (() => {
           viewerVector.style.width = (corner.x - left) + "px";
           viewerVector.style.height = (corner.y - top) + "px";
         }
+        viewerSelectionOverlay.style.left = left + "px";
+        viewerSelectionOverlay.style.top = top + "px";
+        viewerSelectionOverlay.style.width = (corner.x - left) + "px";
+        viewerSelectionOverlay.style.height = (corner.y - top) + "px";
         // Keep the footer readout honest: OpenSeadragon owns the zoom now, so the percentage has
         // to come from its viewport rather than from the old image-width maths.
         const fitScale = Math.min(container.width / annotImageSize.width, container.height / annotImageSize.height);
@@ -2879,7 +2900,66 @@ var PdfImageSaver = (() => {
       };
       const pointerToImage = (event) => {
         const pointer = annotCanvas.getPointer(event.e || event);
-        return { x: pointer.x, y: pointer.y };
+        return { x: Math.min(annotImageSize.width, Math.max(0, pointer.x)),
+          y: Math.min(annotImageSize.height, Math.max(0, pointer.y)) };
+      };
+      const selectionPoints = (shape) => {
+        if (!shape) return [];
+        if (shape.kind !== "rect") return shape.points;
+        const [start, end] = shape.points;
+        return [start, { x: end.x, y: start.y }, end, { x: start.x, y: end.y }];
+      };
+      const renderTraceSelection = () => {
+        const shape = selectionDraft || traceSelection;
+        if (!shape || !annotImageSize.width || !annotImageSize.height) {
+          viewerSelectionOverlay.setAttribute("hidden", "");
+          viewerSelectionPath.removeAttribute("d");
+          return;
+        }
+        const points = selectionPoints(shape);
+        if (points.length < 2) return;
+        viewerSelectionOverlay.setAttribute("viewBox", "0 0 " + annotImageSize.width + " " + annotImageSize.height);
+        viewerSelectionPath.setAttribute("d", "M " + points.map((point) => point.x.toFixed(2) + " " + point.y.toFixed(2)).join(" L ") + (shape.kind === "rect" || !selectionDraft ? " Z" : ""));
+        viewerSelectionOverlay.removeAttribute("hidden");
+      };
+      const setSelectionMode = (mode) => {
+        selectionMode = mode === selectionMode ? "" : mode;
+        selectionDraft = null;
+        if (selectionMode) {
+          modifierPan = false;
+          setEditorTool("");
+        }
+        document.querySelectorAll("[data-select-mode]").forEach((button) => {
+          const active = button.dataset.selectMode === selectionMode;
+          button.classList.toggle("is-active", active);
+          button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+        renderTraceSelection();
+        syncEditorInput();
+      };
+      const finishTraceSelection = () => {
+        const draft = selectionDraft;
+        selectionDraft = null;
+        if (!draft) return;
+        const points = selectionPoints(draft);
+        const xs = points.map((point) => point.x);
+        const ys = points.map((point) => point.y);
+        const width = Math.max(...xs) - Math.min(...xs);
+        const height = Math.max(...ys) - Math.min(...ys);
+        const area = draft.kind === "polygon"
+          ? Math.abs(draft.points.reduce((sum, point, index) => {
+            const next = draft.points[(index + 1) % draft.points.length];
+            return sum + point.x * next.y - next.x * point.y;
+          }, 0)) / 2
+          : width * height;
+        if (width >= 4 && height >= 4 && area >= 16 && draft.points.length <= 20000) {
+          traceSelection = draft;
+          viewerSelectionExport.disabled = false;
+          document.getElementById("viewer-editor-status").textContent = "已选中区域；可导出选区 SVG";
+        } else {
+          document.getElementById("viewer-editor-status").textContent = "选区太小或轨迹过长，请放大后重新绘制";
+        }
+        setSelectionMode("");
       };
       const setAnnotPointerCapture = (capture) => {
         if (!annotCanvas) return;
@@ -2913,6 +2993,14 @@ var PdfImageSaver = (() => {
         annotCanvas.freeDrawingBrush.color = ANNOT_COLORS.brush;
         annotCanvas.freeDrawingBrush.width = 4;
         annotCanvas.on("mouse:down", (event) => {
+          if (selectionMode && !modifierPan) {
+            const point = pointerToImage(event);
+            selectionDraft = { kind: selectionMode, points: [point, point] };
+            traceSelection = null;
+            viewerSelectionExport.disabled = true;
+            renderTraceSelection();
+            return;
+          }
           if (!activeEditorTool) return;
           if (activeEditorTool === "brush") {
             pushAnnotUndo();
@@ -2944,6 +3032,29 @@ var PdfImageSaver = (() => {
             return;
           }
         });
+        annotCanvas.on("mouse:move", (event) => {
+          if (!selectionDraft) return;
+          const coalesced = event.e?.getCoalescedEvents?.() || [];
+          for (const nativeEvent of coalesced.length ? coalesced : [event.e]) {
+            const point = pointerToImage({ e: nativeEvent });
+            if (selectionDraft.kind === "rect") {
+              selectionDraft.points[1] = point;
+            } else {
+              const previous = selectionDraft.points[selectionDraft.points.length - 1];
+              if (selectionDraft.points.length < 20000 && Math.hypot(point.x - previous.x, point.y - previous.y) >= 0.25) {
+                selectionDraft.points.push(point);
+              }
+            }
+          }
+          renderTraceSelection();
+        });
+        annotCanvas.on("mouse:up", (event) => {
+          if (!selectionDraft) return;
+          const point = pointerToImage(event);
+          if (selectionDraft.kind === "rect") selectionDraft.points[1] = point;
+          else selectionDraft.points.push(point);
+          finishTraceSelection();
+        });
         if (!annotCanvas.__wheelForwardBound) {
           [annotCanvas.upperCanvasEl, annotCanvas.wrapperEl].filter(Boolean).forEach((element) => {
             element.addEventListener("wheel", forwardWheelToOSD, { passive: false });
@@ -2956,13 +3067,22 @@ var PdfImageSaver = (() => {
 
       const syncEditorInput = () => {
         if (!annotCanvas) return;
-        const capture = Boolean(activeEditorTool) && !modifierPan;
+        const capture = Boolean(activeEditorTool || selectionMode) && !modifierPan;
         annotCanvas.isDrawingMode = capture && activeEditorTool === "brush";
         setAnnotPointerCapture(capture);
         if (osdViewer) osdViewer.gestureSettingsMouse.dragToPan = !capture;
       };
       const setEditorTool = (tool) => {
         activeEditorTool = tool === activeEditorTool ? "" : tool;
+        if (activeEditorTool && selectionMode) {
+          selectionMode = "";
+          selectionDraft = null;
+          document.querySelectorAll("[data-select-mode]").forEach((button) => {
+            button.classList.remove("is-active");
+            button.setAttribute("aria-pressed", "false");
+          });
+          renderTraceSelection();
+        }
         if (!annotCanvas) return;
         const drawing = activeEditorTool === "brush";
         if (drawing) {
@@ -3118,8 +3238,67 @@ var PdfImageSaver = (() => {
         setMessage(approximate ? "已导出近似矢量 SVG；路径由像素描摹，细节可能变化" : "已导出原生矢量 SVG 标注图");
       };
 
+      const exportTraceSelection = async () => {
+        if (!traceSelection || !annotImageID || !annotImageSize.width || !annotImageSize.height) return;
+        const selection = { kind: traceSelection.kind,
+          points: traceSelection.points.map((point) => [
+            Number((point.x / annotImageSize.width).toFixed(7)),
+            Number((point.y / annotImageSize.height).toFixed(7)),
+          ]) };
+        const result = await postCommand("traceImage", {
+          image_id: annotImageID, trace_selection: JSON.stringify(selection),
+        });
+        const bytes = Uint8Array.from(window.atob(String(result.base64 || "")), (character) => character.charCodeAt(0));
+        const svg = new TextDecoder().decode(bytes);
+        const rootStart = svg.indexOf("<svg");
+        const rootEnd = svg.indexOf(">", rootStart);
+        const closeStart = svg.lastIndexOf("</svg>");
+        if (rootStart < 0 || rootEnd < 0 || closeStart <= rootEnd || !svg.includes("<path")) {
+          throw new Error("选区矢量结果无效，未导出文件");
+        }
+        const root = new DOMParser().parseFromString(svg.slice(rootStart, rootEnd + 1) + "</svg>", "image/svg+xml");
+        if (root.documentElement.localName !== "svg" || root.querySelector("parsererror")
+          || !(Number(result.width) > 0 && Number(result.height) > 0)) {
+          throw new Error("选区矢量结果无效，未导出文件");
+        }
+        const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = String(annotDownloadName).replace(/\\.[a-z0-9]+$/i, "") + "-selection-vector.svg";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+        const status = document.getElementById("viewer-editor-status");
+        status.dataset.error = "false";
+        status.textContent = "已开始下载选区 SVG（" + result.width + " × " + result.height + "）";
+        setMessage("已导出手动选区的近似矢量 SVG；选区外透明");
+      };
+
       document.querySelectorAll("[data-editor-tool]").forEach((button) => {
         button.addEventListener("click", () => setEditorTool(button.dataset.editorTool));
+      });
+      document.querySelectorAll("[data-select-mode]").forEach((button) => {
+        button.addEventListener("click", () => setSelectionMode(button.dataset.selectMode));
+      });
+      document.getElementById("viewer-selection-clear")?.addEventListener("click", () => {
+        traceSelection = null;
+        selectionDraft = null;
+        viewerSelectionExport.disabled = true;
+        setSelectionMode("");
+        document.getElementById("viewer-editor-status").textContent = "已清除形状选区";
+      });
+      viewerSelectionExport.addEventListener("click", () => {
+        const status = document.getElementById("viewer-editor-status");
+        status.dataset.error = "false";
+        status.textContent = "正在描摹选区…";
+        void exportTraceSelection().catch((error) => {
+          const failure = describeCommandFailure(error);
+          const detail = failure.connectionLost ? "管理功能不可用，" + managementRecoveryHint : failure.detail;
+          status.dataset.error = "true";
+          status.textContent = detail;
+          setMessage(detail);
+        });
       });
 
       document.getElementById("viewer-editor-undo")?.addEventListener("click", () => {
@@ -3364,6 +3543,7 @@ var PdfImageSaver = (() => {
             "Bridge token invalid": "图库连接已过期，请从 Zotero 重新打开图库",
             "Image not found": "所选图片已不存在",
             "Trace unavailable": "近似矢量重建失败，请保留原图或稍后重试",
+            "Trace selection invalid": "选区无效，请重新框选或手绘后导出",
             "Requested Zotero URI invalid": "该图片的本机文献定位信息无效",
           };
           throw new Error(errorLabels[result?.error] || "图库操作失败，请查看 Zotero 错误控制台");
@@ -3793,7 +3973,8 @@ var PdfImageSaver = (() => {
         const typing = event.target && (event.target.isContentEditable || /^(input|textarea|select)$/i.test(event.target.tagName || ""));
         if (event.key === "Escape") {
           event.preventDefault();
-          if (activeEditorTool) setEditorTool("");
+          if (selectionMode) setSelectionMode("");
+          else if (activeEditorTool) setEditorTool("");
           else closeViewer();
           return;
         }
@@ -9809,7 +9990,7 @@ var PdfImageSaver = (() => {
     return { bytes, fileType };
   }
 
-  async function traceSharedImageBytes(imageID) {
+  async function traceSharedImageBytes(imageID, selectionJSON = "") {
     const original = await readSharedImageBytes(imageID);
     if (!original) return null;
     await ensureBundledPythonRuntime();
@@ -9821,10 +10002,13 @@ var PdfImageSaver = (() => {
       const inputPath = PathUtils.join(outputDir, `original.${original.fileType.extension}`);
       const reportPath = PathUtils.join(outputDir, "trace-report.json");
       await IOUtils.write(inputPath, original.bytes);
+      const selectionPath = selectionJSON ? PathUtils.join(outputDir, "trace-selection.json") : "";
+      if (selectionPath) await IOUtils.writeUTF8(selectionPath, selectionJSON);
       for (const command of commands) {
         try {
           await removeFileIfExists(reportPath);
-          await runProcess(command, [helperPath, inputPath, "--out-dir", outputDir, "--report", reportPath, "--trace-image"]);
+          await runProcess(command, [helperPath, inputPath, "--out-dir", outputDir, "--report", reportPath,
+            "--trace-image", ...(selectionPath ? ["--trace-selection-file", selectionPath] : [])]);
           if (!(await IOUtils.exists(reportPath))) continue;
           const report = await readJSONReport(reportPath);
           if (report.status !== "ok" || !report.trace?.file_path) continue;
@@ -10606,7 +10790,26 @@ var PdfImageSaver = (() => {
       imageIDs: normalizeBridgeImageIDs(fields.image_ids),
       pdfAttachmentKey: normalizeItemKey(fields.pdf_attachment_key, ""),
       userNote: normalizeUserNote(fields.user_note),
+      traceSelection: typeof fields.trace_selection === "string" ? fields.trace_selection : "",
     };
+  }
+
+  function normalizeTraceSelection(value) {
+    if (!value) return "";
+    if (value.length > 600000) throw new Error("Trace selection invalid.");
+    let parsed;
+    try { parsed = JSON.parse(value); } catch (_error) { throw new Error("Trace selection invalid."); }
+    const kind = parsed?.kind;
+    const points = parsed?.points;
+    if ((kind !== "rect" && kind !== "polygon") || !Array.isArray(points)
+      || points.length < (kind === "rect" ? 2 : 3) || points.length > 20000
+      || (kind === "rect" && points.length !== 2)
+      || points.some((point) => !Array.isArray(point) || point.length !== 2
+        || point.some((coordinate) => typeof coordinate !== "number" || !Number.isFinite(coordinate)
+          || coordinate < 0 || coordinate > 1))) {
+      throw new Error("Trace selection invalid.");
+    }
+    return JSON.stringify({ kind, points });
   }
 
   async function getSharedImageTrace(imageID) {
@@ -10677,7 +10880,8 @@ var PdfImageSaver = (() => {
         }
         if (command === "traceImage") {
           try {
-            const traced = await traceSharedImageBytes(parsed.imageID);
+            const selectionJSON = normalizeTraceSelection(parsed.traceSelection);
+            const traced = await traceSharedImageBytes(parsed.imageID, selectionJSON);
             if (!traced) return buildBridgeJSONResponse(404, { ok: false, registered: true, error: "Image not found" });
             return buildBridgeJSONResponse(200, { ok: true, registered: true,
               base64: bytesToBase64(traced.bytes), mimeType: "image/svg+xml",
@@ -10685,6 +10889,10 @@ var PdfImageSaver = (() => {
               pathCount: traced.pathCount, approximate: true });
           } catch (error) {
             safeLogError(error);
+            if (String(error?.message || "").includes("Trace selection invalid")) {
+              return buildBridgeJSONResponse(400,
+                { ok: false, registered: true, error: "Trace selection invalid" });
+            }
             return buildBridgeJSONResponse(500,
               { ok: false, registered: true, error: "Trace unavailable" });
           }
@@ -13222,6 +13430,7 @@ var PdfImageSaver = (() => {
       "Helper failed: no report.": "高级原图提取没有返回结果。",
       "Helper failed: vector capture unavailable.": "无法从原 PDF 提取纯矢量图，未保存图片。",
       "Helper failed: trace unavailable.": "近似矢量重建失败，请保留原图或稍后重试。",
+      "Trace selection invalid.": "选区无效，请重新框选或手绘后导出。",
       "Byte cap: vector image exceeds file cap.": "矢量图超过单张图片的 25 MB 上限，未保存。",
       "Unknown err.": "未知错误。",
     };

@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-- 版本 `0.1.156`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.156`：近似 SVG 先归并邻近色块，再描摹多边形轮廓，减少碎路径和打开耗时；导出仍无体积上限。
-- 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "46"`。
+- 版本 `0.1.157`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.157`：图库查看器支持矩形与精细手绘选区，按选区原像素描摹路径 SVG；手绘边界外透明，整图导出保持独立。
+- 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "47"`。
 - 闸门：`npm.cmd run check`。
 
 ## 已关闭事项

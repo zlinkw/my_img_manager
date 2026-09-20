@@ -61,6 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--vector-region", default="")
     parser.add_argument("--raster-region", default="")
     parser.add_argument("--trace-image", action="store_true")
+    parser.add_argument("--trace-selection-file", type=Path)
     return parser.parse_args()
 
 
@@ -438,12 +439,22 @@ def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> d
         return {"schema_version": SCHEMA_VERSION, "status": "failed", "trace": None,
                 "warnings": ["Image dimensions are too small to trace."], "elapsed_ms": elapsed_ms(started)}
 
-    # Quantize neighboring pixels into coherent regions before tracing their polygon outlines.
-    # Without this, antialiasing and photo texture become hundreds of thousands of tiny paths,
-    # which makes the exported SVG slow to open. The export is temporary and has no byte cap.
+    if args.trace_selection_file:
+        image_bytes, width, height = prepare_trace_selection(
+            fitz, image_bytes, args.trace_selection_file.read_text(encoding="utf-8"), width, height,
+        )
+        image_format = "png"
+
+    # Full images need coherent color regions to avoid hundreds of thousands of tiny paths.
+    # A manually isolated shape can afford the finer polygon settings without that page-wide
+    # rendering cost, and should retain its small corners and silhouette details.
+    trace_options = ({"filter_speckle": 0, "color_precision": 8, "layer_difference": 1,
+                      "path_precision": 5} if args.trace_selection_file else
+                     {"filter_speckle": 1, "color_precision": 8, "layer_difference": 6,
+                      "path_precision": 4})
     svg = vtracer.convert_raw_image_to_svg(
         image_bytes, img_format=image_format, colormode="color", mode="polygon",
-        filter_speckle=1, color_precision=8, layer_difference=6, path_precision=4,
+        **trace_options,
     )
     payload = svg.encode("utf-8")
     path_count = len(re.findall(r"<path\b", svg))
@@ -459,6 +470,94 @@ def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> d
                       "height": height, "byte_count": len(payload), "path_count": path_count,
                       "approximate": True, "quality": "shape", "sha256": digest},
             "warnings": [], "elapsed_ms": elapsed_ms(started)}
+
+
+def prepare_trace_selection(fitz: Any, image_bytes: bytes, selection_json: str,
+                            width: int, height: int) -> tuple[bytes, int, int]:
+    """Crop selected source pixels and keep pixels outside a freehand outline transparent."""
+    selection = json.loads(selection_json)
+    kind = selection.get("kind") if isinstance(selection, dict) else None
+    points = selection.get("points") if isinstance(selection, dict) else None
+    if kind not in ("rect", "polygon") or not isinstance(points, list) or not 2 <= len(points) <= 20000:
+        raise ValueError("Trace selection invalid.")
+    if kind == "rect" and len(points) != 2 or kind == "polygon" and len(points) < 3:
+        raise ValueError("Trace selection invalid.")
+    normalized = []
+    for point in points:
+        if (not isinstance(point, list) or len(point) != 2
+                or any(isinstance(value, bool) or not isinstance(value, (int, float))
+                       or not 0 <= value <= 1 for value in point)):
+            raise ValueError("Trace selection invalid.")
+        normalized.append((point[0] * width, point[1] * height))
+    if kind == "rect":
+        (x0, y0), (x1, y1) = normalized
+        normalized = [(min(x0, x1), min(y0, y1)), (max(x0, x1), min(y0, y1)),
+                      (max(x0, x1), max(y0, y1)), (min(x0, x1), max(y0, y1))]
+    import math
+    left = max(0, math.floor(min(point[0] for point in normalized)))
+    top = max(0, math.floor(min(point[1] for point in normalized)))
+    right = min(width, math.ceil(max(point[0] for point in normalized)))
+    bottom = min(height, math.ceil(max(point[1] for point in normalized)))
+    crop_width, crop_height = right - left, bottom - top
+    if crop_width < 4 or crop_height < 4:
+        raise ValueError("Trace selection too small.")
+    if kind == "polygon":
+        area = abs(sum(normalized[index][0] * normalized[(index + 1) % len(normalized)][1]
+                       - normalized[(index + 1) % len(normalized)][0] * normalized[index][1]
+                       for index in range(len(normalized)))) / 2
+        if area < 16:
+            raise ValueError("Trace selection too small.")
+    source = fitz.Pixmap(image_bytes)
+    if source.colorspace != fitz.csRGB:
+        source = fitz.Pixmap(fitz.csRGB, source)
+    samples = source.samples
+    channels = source.n
+    rgba = bytearray(crop_width * crop_height * 4)
+    pale_edge_pixels = 0
+    edge_pixels = 0
+    row_intersections = None
+    if kind == "polygon":
+        row_intersections = [[] for _ in range(crop_height)]
+        for index, (ax, ay) in enumerate(normalized):
+            bx, by = normalized[(index + 1) % len(normalized)]
+            if ay == by:
+                continue
+            first_row = max(top, math.ceil(min(ay, by) - 0.5))
+            last_row = min(bottom, math.ceil(max(ay, by) - 0.5))
+            for y in range(first_row, last_row):
+                scan_y = y + 0.5
+                row_intersections[y - top].append(ax + (scan_y - ay) * (bx - ax) / (by - ay))
+    for row in range(crop_height):
+        y = top + row
+        if kind == "rect":
+            spans = [(left, right)]
+        else:
+            intersections = row_intersections[row]
+            intersections.sort()
+            spans = [(max(left, math.ceil(intersections[index] - 0.5)),
+                      min(right, math.ceil(intersections[index + 1] - 0.5)))
+                     for index in range(0, len(intersections) - 1, 2)]
+        for start, end in spans:
+            for x in range(start, end):
+                source_offset = (y * width + x) * channels
+                target_offset = (row * crop_width + x - left) * 4
+                rgba[target_offset:target_offset + 3] = samples[source_offset:source_offset + 3]
+                rgba[target_offset + 3] = samples[source_offset + 3] if source.alpha else 255
+                if x == start or x == end - 1 or row == 0 or row == crop_height - 1:
+                    edge_pixels += 1
+                    red, green, blue = samples[source_offset:source_offset + 3]
+                    if min(red, green, blue) >= 230 and max(red, green, blue) - min(red, green, blue) <= 18:
+                        pale_edge_pixels += 1
+    # Paper figures commonly sit on near-white backgrounds. When that color dominates the
+    # selected boundary, make matching interior pixels transparent too (including circle holes).
+    # A tight outline around a colored icon will not meet this condition.
+    if edge_pixels and pale_edge_pixels / edge_pixels >= 0.6:
+        for offset in range(0, len(rgba), 4):
+            red, green, blue, alpha = rgba[offset:offset + 4]
+            if alpha and min(red, green, blue) >= 230 and max(red, green, blue) - min(red, green, blue) <= 18:
+                rgba[offset + 3] = 0
+    selected = fitz.Pixmap(fitz.csRGB, crop_width, crop_height, bytes(rgba), True)
+    return selected.tobytes("png"), crop_width, crop_height
 
 
 def resolve_page_indexes(doc: Any, requested_page: int | None) -> list[int]:
