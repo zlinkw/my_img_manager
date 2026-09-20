@@ -22,6 +22,8 @@ MAX_TOTAL_BYTES = 150 * 1024 * 1024
 # A crop smaller than roughly a tenth of an inch is not a figure, and exporting it as vector
 # would only produce noise.
 MIN_VECTOR_EDGE = 8
+MAX_RASTER_BYTES = 1536 * 1024
+MAX_RASTER_PIXELS = 16 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -57,6 +59,7 @@ def parse_args() -> argparse.Namespace:
     # Vector crop mode: "<page_index>:<nx0>,<ny0>,<nx1>,<ny1>" with the bbox normalized against
     # the page as displayed (top-left origin), which is exactly how the plugin stores a selection.
     parser.add_argument("--vector-region", default="")
+    parser.add_argument("--raster-region", default="")
     return parser.parse_args()
 
 
@@ -90,7 +93,12 @@ def main() -> int:
         return 20
 
     try:
-        report = export_region_vector(fitz, args, started) if args.vector_region else extract_images(fitz, args, started)
+        if args.vector_region:
+            report = export_region_vector(fitz, args, started)
+        elif args.raster_region:
+            report = export_region_raster(fitz, args, started)
+        else:
+            report = extract_images(fitz, args, started)
         write_report(args.report, report)
         return 0 if report["status"] == "ok" else 10
     except Exception as exc:
@@ -321,6 +329,55 @@ def export_region_vector(fitz: Any, args: argparse.Namespace, started: float) ->
             "warnings": [],
             "elapsed_ms": elapsed_ms(started),
         }
+    finally:
+        doc.close()
+
+
+def export_region_raster(fitz: Any, args: argparse.Namespace, started: float) -> dict[str, Any]:
+    """Render a bitmap-only PDF region at print resolution within the raster byte budget."""
+    page_index, bbox = parse_vector_region(args.raster_region)
+    pdf_path = args.pdf.resolve()
+    if not pdf_path.exists():
+        raise FileNotFoundError(f"PDF not found: {pdf_path}")
+
+    doc = fitz.open(pdf_path)
+    try:
+        if page_index < 0 or page_index >= len(doc):
+            raise ValueError(f"Page index out of range: {page_index}")
+        page = doc[page_index]
+        clip = region_rect(page, bbox)
+        if clip.width < MIN_VECTOR_EDGE or clip.height < MIN_VECTOR_EDGE:
+            return {"schema_version": SCHEMA_VERSION, "status": "too_small", "raster": None,
+                    "warnings": ["Region too small for raster export."], "elapsed_ms": elapsed_ms(started)}
+
+        scale = min(600 / 72, (MAX_RASTER_PIXELS / (clip.width * clip.height)) ** 0.5)
+        for _ in range(16):
+            pixmap = page.get_pixmap(matrix=fitz.Matrix(scale, scale), clip=clip, alpha=False)
+            payload = pixmap.tobytes("png")
+            if len(payload) <= MAX_RASTER_BYTES:
+                digest = hashlib.sha256(payload).hexdigest()
+                output_path = args.out_dir / f"raster-p{page_index + 1:04d}-{digest[:10]}.png"
+                output_path.write_bytes(payload)
+                return {
+                    "schema_version": SCHEMA_VERSION,
+                    "status": "ok",
+                    "raster": {
+                        "format": "png",
+                        "file_path": str(output_path),
+                        "page_index": page_index,
+                        "width": pixmap.width,
+                        "height": pixmap.height,
+                        "byte_count": len(payload),
+                        "sha256": digest,
+                    },
+                    "warnings": [],
+                    "elapsed_ms": elapsed_ms(started),
+                }
+            scale *= min(0.85, (MAX_RASTER_BYTES / len(payload)) ** 0.5)
+            if scale < 1:
+                break
+        return {"schema_version": SCHEMA_VERSION, "status": "too_large", "raster": None,
+                "warnings": ["Region exceeds raster byte budget."], "elapsed_ms": elapsed_ms(started)}
     finally:
         doc.close()
 

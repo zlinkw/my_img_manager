@@ -3,8 +3,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const zlib = require("node:zlib");
+const { execFileSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
+if (process.platform === "win32") {
+  execFileSync(path.join(root, "content", "runtime", "python", "python.exe"),
+    ["-X", "utf8", path.join(__dirname, "region-raster-capture.py")], { cwd: root, stdio: "inherit" });
+}
 const source = fs.readFileSync(path.join(root, "content", "pdf-image-saver.js"), "utf8");
 const context = {
   console,
@@ -515,6 +520,13 @@ void (async () => {
   assert.equal(api.shouldPreferVectorCapture({ hasVectorContent: true, byteCount: 2 * 1024 * 1024 }), true, "real PDF geometry must remain SVG even when larger than the raster preview");
   assert.equal(api.shouldPreferVectorCapture({ hasVectorContent: false, byteCount: 1000 }), false, "pure embedded bitmaps must stay raster");
   assert.equal(api.shouldPreferVectorCapture({ hasVectorContent: true, byteCount: 26 * 1024 * 1024 }), false, "oversized SVG must respect the vector byte cap");
+  const lowResolutionPreview = { renderedWidth: 1166, renderedHeight: 592 };
+  assert.equal(api.shouldPreferRasterCapture({ format: "png", width: 2559, height: 1300, byteCount: 1064258 }, lowResolutionPreview), true,
+    "a helper crop with more source detail must replace the reader-canvas fallback");
+  assert.equal(api.shouldPreferRasterCapture({ format: "png", width: 1000, height: 500, byteCount: 300000 }, lowResolutionPreview), false,
+    "a helper crop must not lower saved resolution");
+  assert.equal(api.shouldPreferRasterCapture({ format: "png", width: 2559, height: 1300, byteCount: 2 * 1024 * 1024 }, lowResolutionPreview), false,
+    "raster crops must respect the shared storage byte budget");
 }
 
 assert.equal(
@@ -532,6 +544,21 @@ assert.equal(
   "content/runtime/python/python.exe",
   "an already-prefixed runtime path must not be prefixed twice",
 );
+{
+  const bytes = Uint8Array.from([60, 115, 118, 103, 62]);
+  context.Cc = { "@mozilla.org/binaryinputstream;1": { createInstance() {
+    let offset = 0;
+    return { setInputStream() {}, available() { return bytes.length - offset; },
+      readByteArray(count) { const chunk = Array.from(bytes.slice(offset, offset + count)); offset += count; return chunk; },
+      close() {} };
+  } } };
+  context.Ci = { nsIBinaryInputStream: {} };
+  const zipReader = { getEntry() { return { realSize: bytes.length }; }, getInputStream() { return {}; } };
+  assert.equal(Buffer.from(api.readZipEntryBytes(zipReader, "content/runtime/runtime-manifest.json")).toString("utf8"), "<svg>",
+    "the Zotero 10 binary stream API must read archive bytes without losing data");
+  delete context.Cc;
+  delete context.Ci;
+}
 assert.equal(api.LIBRARY_VIEW_VENDOR_FILES.length, 2, "the generated gallery must copy both classic-script viewer libraries");
 assert.equal(api.LIBRARY_VIEW_VENDOR_FILES[0], "content/vendor/openseadragon.min.js", "OpenSeadragon must ship as a classic script");
 assert.equal(api.LIBRARY_VIEW_VENDOR_FILES[1], "content/vendor/fabric.min.js", "Fabric must ship as a classic script");
@@ -767,7 +794,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "u
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
 assert.equal(manifest.applications.zotero.strict_max_version, "11.*", "release supports the Zotero 10 and 11 profile-install range");
-assert.equal(manifest.version, "0.1.145", "release candidate increments the installed release");
+assert.equal(manifest.version, "0.1.146", "release candidate increments the installed release");
 
 const expectedUpdateUrl = "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json";
 assert.equal(manifest.applications.zotero.update_url, expectedUpdateUrl, "Zotero 10 requires update_url and it must point at the static empty feed");

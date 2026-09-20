@@ -351,7 +351,14 @@ async function auditMultiPage() {
 }
 
 async function auditLibraryPage() {
-  var wait = function () { return new Promise(function (resolve) { setTimeout(resolve, 0); }); };
+  var wait = async function (predicate) {
+    if (!predicate) { await new Promise(function (resolve) { setTimeout(resolve, 0); }); return; }
+    var deadline = Date.now() + 2000;
+    while (!predicate()) {
+      if (Date.now() >= deadline) throw new Error("gallery image state did not settle");
+      await new Promise(function (resolve) { setTimeout(resolve, 20); });
+    }
+  };
   var cards = Array.from(document.querySelectorAll(".library-card"));
   var imageNodes = Array.from(document.querySelectorAll(".library-card img"));
   imageNodes.forEach(function (img) { img.loading = "eager"; });

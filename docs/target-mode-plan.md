@@ -4,8 +4,8 @@
 
 ## 当前状态
 
-- 版本 `0.1.145`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.145`：已有文字可编辑；SVG 导出传递正确图片 ID；查看器显示原图格式与导出状态。
+- 版本 `0.1.146`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.146`：纯位图 PDF 选区从原 PDF 生成更高清的 PNG；修复内置运行时读取。
 - 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "45"`。
 - 闸门：`npm.cmd run check`。
 

@@ -4990,9 +4990,10 @@ var PdfImageSaver = (() => {
       showReaderToast(reader, `正在保存${formatPageToastToken(pageIndex)}已确认的框选图片…`, "progress");
       preview = await applyVectorCapture(preview, { attachment });
       await publishPreviewEntriesToSharedLibrary({ attachment, parentItem, entries: [preview] });
+      const savedFormat = preview.format === "svg" ? "SVG 矢量" : preview.format === "png" ? "PNG 位图" : "JPEG 位图";
       showReaderToast(
         reader,
-        `已保存${formatPageToastToken(pageIndex)}的框选图片：画质 ${getQualityLabelWithEstimate(preview.quality)}；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。已写入外部 SQLite 图片库。`,
+        `已保存${formatPageToastToken(pageIndex)}的框选图片：${savedFormat}；${preview.renderedWidth} × ${preview.renderedHeight}；画质 ${getQualityLabelWithEstimate(preview.quality)}；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。已写入外部 SQLite 图片库。`,
         "success",
       );
       rememberPreviewIndexSave(attachment, [preview], indexKey);
@@ -7389,7 +7390,7 @@ var PdfImageSaver = (() => {
   // A vector crop keeps the page's own drawing operations, so a plotted figure stays real geometry
   // and scales losslessly in the gallery viewer instead of going soft when zoomed. It needs Python
   // and PyMuPDF; when either is missing the caller keeps the raster capture and nothing is lost.
-  async function runHelperVectorExport({ attachment, pageIndex, bboxNormalized }) {
+  async function runHelperRegionExport({ attachment, pageIndex, bboxNormalized, mode = "vector" }) {
     let outputDir = null;
     try {
       // Materialise the packaged interpreter before asking, otherwise getPythonCommands only sees
@@ -7414,7 +7415,7 @@ var PdfImageSaver = (() => {
         attachment.key || "",
         "--document-id",
         String(attachment.id),
-        "--vector-region",
+        mode === "raster" ? "--raster-region" : "--vector-region",
         regionToken,
       ];
 
@@ -7426,19 +7427,21 @@ var PdfImageSaver = (() => {
             throw new Error(`Helper failed: exit ${exitCode}, no report.`);
           }
           const report = await readJSONReport(reportPath);
-          if (report?.status !== "ok" || !report?.vector?.file_path) continue;
+          const capture = mode === "raster" ? report?.raster : report?.vector;
+          if (report?.status !== "ok" || !capture?.file_path) continue;
           pythonCommandPromise = Promise.resolve(pythonCommand);
-          const bytes = normalizeDatabaseImageBytes(await IOUtils.read(report.vector.file_path));
+          const bytes = normalizeDatabaseImageBytes(await IOUtils.read(capture.file_path));
           if (!bytes || !bytes.length) return null;
-          const dataURL = `data:image/svg+xml;base64,${bytesToBase64(bytes)}`;
+          const format = mode === "raster" ? "png" : "svg";
+          const dataURL = `data:image/${format === "svg" ? "svg+xml" : "png"};base64,${bytesToBase64(bytes)}`;
           return {
-            format: "svg",
+            format,
             bytes,
             dataURL,
             byteCount: estimateDataURLBytes(dataURL),
-            hasVectorContent: report.vector.has_vector_content === true,
-            width: Math.max(1, Math.round(Number(report.vector.width_pt) || 0)),
-            height: Math.max(1, Math.round(Number(report.vector.height_pt) || 0)),
+            hasVectorContent: capture.has_vector_content === true,
+            width: Math.max(1, Math.round(Number(capture.width || capture.width_pt) || 0)),
+            height: Math.max(1, Math.round(Number(capture.height || capture.height_pt) || 0)),
           };
         } catch (error) {
           safeLogError(error);
@@ -7464,23 +7467,41 @@ var PdfImageSaver = (() => {
   function shouldPreferVectorCapture(vector) {
     return Boolean(vector?.hasVectorContent && vector.byteCount > 0 && vector.byteCount <= MAX_VECTOR_IMAGE_BYTES);
   }
+  function shouldPreferRasterCapture(raster, preview) {
+    return Boolean(raster?.format === "png" && raster.byteCount > 0 && raster.byteCount <= MAX_STORED_IMAGE_BYTES
+      && raster.width >= preview.renderedWidth && raster.height >= preview.renderedHeight
+      && (raster.width > preview.renderedWidth || raster.height > preview.renderedHeight));
+  }
   async function applyVectorCapture(preview, { attachment }) {
     if (!preview || !attachment || !Array.isArray(preview.bboxNormalized)) return preview;
     if (!getBoolPref("vectorCapture", true)) return preview;
-    const vector = await runHelperVectorExport({
+    const region = {
       attachment,
       pageIndex: preview.pageIndex,
       bboxNormalized: preview.bboxNormalized,
-    });
-    if (!shouldPreferVectorCapture(vector)) return preview;
+    };
+    const vector = await runHelperRegionExport(region);
+    if (shouldPreferVectorCapture(vector)) {
+      return {
+        ...preview,
+        dataURL: vector.dataURL,
+        byteCount: vector.byteCount,
+        format: vector.format,
+        renderedWidth: vector.width,
+        renderedHeight: vector.height,
+        captureSource: "vector_region",
+      };
+    }
+    const raster = await runHelperRegionExport({ ...region, mode: "raster" });
+    if (!shouldPreferRasterCapture(raster, preview)) return preview;
     return {
       ...preview,
-      dataURL: vector.dataURL,
-      byteCount: vector.byteCount,
-      format: vector.format,
-      renderedWidth: vector.width,
-      renderedHeight: vector.height,
-      captureSource: "vector_region",
+      dataURL: raster.dataURL,
+      byteCount: raster.byteCount,
+      format: raster.format,
+      renderedWidth: raster.width,
+      renderedHeight: raster.height,
+      captureSource: "pdf_region_raster",
     };
   }
 
@@ -7652,8 +7673,8 @@ var PdfImageSaver = (() => {
         const available = binary.available();
         if (!available) break;
         const take = Math.min(available, remaining, 1024 * 1024);
-        const chunk = new Uint8Array(take);
-        binary.readArrayBuffer(take, chunk.buffer);
+        const chunk = Uint8Array.from(binary.readByteArray(take));
+        if (chunk.length !== take) throw new Error("Addon archive entry truncated: " + entry);
         chunks.push(chunk);
         remaining -= take;
       }
@@ -13098,9 +13119,11 @@ var PdfImageSaver = (() => {
       getDatabaseImageFileType,
       isSVGImageBytes,
       shouldPreferVectorCapture,
+      shouldPreferRasterCapture,
       ensureLibraryViewVendor,
       loadLibraryViewVendorScripts,
       resolveBundledRuntimeSourcePath,
+      readZipEntryBytes,
       addonResourceURL,
       fileURLToLocalPath,
       LIBRARY_VIEW_VENDOR_FILES,
