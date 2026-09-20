@@ -24,8 +24,6 @@ MAX_TOTAL_BYTES = 150 * 1024 * 1024
 MIN_VECTOR_EDGE = 8
 MAX_RASTER_BYTES = 1536 * 1024
 MAX_RASTER_PIXELS = 16 * 1024 * 1024
-MAX_TRACE_IMAGE_BYTES = 25 * 1024 * 1024
-MAX_TRACE_PIXELS = 16 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -400,9 +398,9 @@ def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> d
     import vtracer  # type: ignore
 
     image_bytes = args.pdf.read_bytes()
-    if not image_bytes or len(image_bytes) > MAX_TRACE_IMAGE_BYTES:
-        return {"schema_version": SCHEMA_VERSION, "status": "too_large", "trace": None,
-                "warnings": ["Source image exceeds tracing input limit."], "elapsed_ms": elapsed_ms(started)}
+    if not image_bytes:
+        return {"schema_version": SCHEMA_VERSION, "status": "failed", "trace": None,
+                "warnings": ["Source image is empty."], "elapsed_ms": elapsed_ms(started)}
 
     if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
         image_format = "png"
@@ -436,31 +434,21 @@ def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> d
         if image_format == "gif":
             image_bytes = pixmap.tobytes("png")
             image_format = "png"
-    if width < 16 or height < 16 or width * height > MAX_TRACE_PIXELS:
-        return {"schema_version": SCHEMA_VERSION, "status": "too_large", "trace": None,
-                "warnings": ["Image dimensions exceed tracing limit."], "elapsed_ms": elapsed_ms(started)}
+    if width < 16 or height < 16:
+        return {"schema_version": SCHEMA_VERSION, "status": "failed", "trace": None,
+                "warnings": ["Image dimensions are too small to trace."], "elapsed_ms": elapsed_ms(started)}
 
-    # Preserve small labels, dots and outlines first. Noisy images can produce an oversized SVG;
-    # retry once with the previous compact settings rather than dropping the export altogether.
-    for quality, speckle, colors, layers, precision in (
-        ("fine", 1, 8, 6, 4),
-        ("compact", 8, 6, 16, 3),
-    ):
-        svg = vtracer.convert_raw_image_to_svg(
-            image_bytes, img_format=image_format, colormode="color", mode="spline",
-            filter_speckle=speckle, color_precision=colors,
-            layer_difference=layers, path_precision=precision,
-        )
-        payload = svg.encode("utf-8")
-        path_count = len(re.findall(r"<path\b", svg))
-        if not path_count or re.search(r"<(?:[\w.-]+:)?image\b", svg, re.IGNORECASE):
-            return {"schema_version": SCHEMA_VERSION, "status": "failed", "trace": None,
-                    "warnings": ["Tracing did not produce path-only SVG."], "elapsed_ms": elapsed_ms(started)}
-        if len(payload) <= MAX_TRACE_IMAGE_BYTES:
-            break
-    else:
-        return {"schema_version": SCHEMA_VERSION, "status": "too_large", "trace": None,
-                "warnings": ["Traced SVG exceeds output limit."], "elapsed_ms": elapsed_ms(started)}
+    # Keep every detected patch and use polygon boundaries to preserve fine shape geometry.
+    # The approximate export is temporary; its size does not affect stored original images.
+    svg = vtracer.convert_raw_image_to_svg(
+        image_bytes, img_format=image_format, colormode="color", mode="polygon",
+        filter_speckle=0, color_precision=8, layer_difference=1, path_precision=5,
+    )
+    payload = svg.encode("utf-8")
+    path_count = len(re.findall(r"<path\b", svg))
+    if not path_count or re.search(r"<(?:[\w.-]+:)?image\b", svg, re.IGNORECASE):
+        return {"schema_version": SCHEMA_VERSION, "status": "failed", "trace": None,
+                "warnings": ["Tracing did not produce path-only SVG."], "elapsed_ms": elapsed_ms(started)}
 
     digest = hashlib.sha256(payload).hexdigest()
     output_path = args.out_dir / f"approximate-vector-{digest[:10]}.svg"
@@ -468,7 +456,7 @@ def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> d
     return {"schema_version": SCHEMA_VERSION, "status": "ok",
             "trace": {"format": "svg", "file_path": str(output_path), "width": width,
                       "height": height, "byte_count": len(payload), "path_count": path_count,
-                      "approximate": True, "quality": quality, "sha256": digest},
+                      "approximate": True, "quality": "shape", "sha256": digest},
             "warnings": [], "elapsed_ms": elapsed_ms(started)}
 
 

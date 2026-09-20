@@ -4,8 +4,8 @@
 
 ## 当前状态
 
-- 版本 `0.1.154`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.154`：近似 SVG 优先精细描摹，超过文件上限时回退紧凑参数，保留小标记并控制体积。
+- 版本 `0.1.155`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.155`：近似 SVG 使用无输出体积上限的多边形描摹，优先保留形状和小区域。
 - 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "46"`。
 - 闸门：`npm.cmd run check`。
 

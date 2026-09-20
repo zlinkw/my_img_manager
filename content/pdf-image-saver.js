@@ -3074,25 +3074,35 @@ var PdfImageSaver = (() => {
           return sourceRoot;
         };
         let sourceRoot = parseVectorRoot(source);
+        let sourceMarkup = "";
         let approximate = false;
         if (!sourceRoot) {
           status.textContent = "正在描摹原图为近似矢量…";
           const traced = await postCommand("traceImage", { image_id: imageID });
-          sourceRoot = parseVectorRoot("data:image/svg+xml;base64," + traced.base64);
-          if (!sourceRoot) throw new Error("近似矢量结果无效，未导出文件");
-          if (!sourceRoot.hasAttribute("viewBox")) {
-            const pathWidth = Number(sourceRoot.getAttribute("width")) || Number(traced.width);
-            const pathHeight = Number(sourceRoot.getAttribute("height")) || Number(traced.height);
-            if (!(pathWidth > 0 && pathHeight > 0)) throw new Error("近似矢量尺寸无效，未导出文件");
-            sourceRoot.setAttribute("viewBox", "0 0 " + pathWidth + " " + pathHeight);
-          }
+          const binary = window.atob(String(traced.base64 || ""));
+          const traceBytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+          const traceText = new TextDecoder().decode(traceBytes);
+          const rootStart = traceText.indexOf("<svg");
+          const rootEnd = traceText.indexOf(">", rootStart);
+          const closeStart = traceText.lastIndexOf("</svg>");
+          if (rootStart < 0 || rootEnd < 0 || closeStart <= rootEnd) throw new Error("近似矢量结果无效，未导出文件");
+          // The bridge returns only VTracer-generated paths. Parse its small root tag, not the
+          // hundreds of thousands of paths that a full-detail export may contain.
+          const rootDocument = new DOMParser().parseFromString(traceText.slice(rootStart, rootEnd + 1) + "</svg>", "image/svg+xml");
+          const traceRoot = rootDocument.documentElement;
+          if (traceRoot.localName !== "svg" || rootDocument.querySelector("parsererror")) throw new Error("近似矢量结果无效，未导出文件");
+          const pathWidth = Number(traceRoot.getAttribute("width")) || Number(traced.width);
+          const pathHeight = Number(traceRoot.getAttribute("height")) || Number(traced.height);
+          if (!(pathWidth > 0 && pathHeight > 0)) throw new Error("近似矢量尺寸无效，未导出文件");
+          sourceMarkup = '<svg xmlns="http://www.w3.org/2000/svg" x="0" y="0" width="' + width + '" height="' + height + '" viewBox="0 0 ' + pathWidth + ' ' + pathHeight + '">' + traceText.slice(rootEnd + 1, closeStart) + '</svg>';
           approximate = true;
+        } else {
+          sourceRoot.setAttribute("x", "0");
+          sourceRoot.setAttribute("y", "0");
+          sourceRoot.setAttribute("width", String(width));
+          sourceRoot.setAttribute("height", String(height));
+          sourceMarkup = new XMLSerializer().serializeToString(sourceRoot);
         }
-        sourceRoot.setAttribute("x", "0");
-        sourceRoot.setAttribute("y", "0");
-        sourceRoot.setAttribute("width", String(width));
-        sourceRoot.setAttribute("height", String(height));
-        const sourceMarkup = new XMLSerializer().serializeToString(sourceRoot);
         const body = annotations.slice(annotations.indexOf(">", annotations.indexOf("<svg")) + 1, annotations.lastIndexOf("</svg>"));
         const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '">' + sourceMarkup + body + '</svg>';
         const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
@@ -3354,7 +3364,6 @@ var PdfImageSaver = (() => {
             "Bridge token invalid": "图库连接已过期，请从 Zotero 重新打开图库",
             "Image not found": "所选图片已不存在",
             "Trace unavailable": "近似矢量重建失败，请保留原图或稍后重试",
-            "Trace too large": "近似矢量图超过 25 MB 上限，未导出",
             "Requested Zotero URI invalid": "该图片的本机文献定位信息无效",
           };
           throw new Error(errorLabels[result?.error] || "图库操作失败，请查看 Zotero 错误控制台");
@@ -9818,10 +9827,9 @@ var PdfImageSaver = (() => {
           await runProcess(command, [helperPath, inputPath, "--out-dir", outputDir, "--report", reportPath, "--trace-image"]);
           if (!(await IOUtils.exists(reportPath))) continue;
           const report = await readJSONReport(reportPath);
-          if (report.status === "too_large") throw new Error("Byte cap: traced SVG exceeds file cap.");
           if (report.status !== "ok" || !report.trace?.file_path) continue;
           const bytes = normalizeDatabaseImageBytes(await IOUtils.read(report.trace.file_path));
-          if (!bytes?.length || bytes.length > MAX_VECTOR_IMAGE_BYTES || !isSVGImageBytes(bytes)) {
+          if (!bytes?.length || !isSVGImageBytes(bytes)) {
             throw new Error("Helper failed: trace unavailable.");
           }
           const markup = new TextDecoder().decode(bytes);
@@ -9830,7 +9838,6 @@ var PdfImageSaver = (() => {
           }
           return { bytes, width: report.trace.width, height: report.trace.height, pathCount: report.trace.path_count };
         } catch (error) {
-          if (String(error).includes("Byte cap: traced SVG")) throw error;
           safeLogError(error);
         }
       }
@@ -10678,9 +10685,8 @@ var PdfImageSaver = (() => {
               pathCount: traced.pathCount, approximate: true });
           } catch (error) {
             safeLogError(error);
-            const tooLarge = String(error).includes("Byte cap: traced SVG");
-            return buildBridgeJSONResponse(tooLarge ? 413 : 500,
-              { ok: false, registered: true, error: tooLarge ? "Trace too large" : "Trace unavailable" });
+            return buildBridgeJSONResponse(500,
+              { ok: false, registered: true, error: "Trace unavailable" });
           }
         }
         if (command === "deleteImages") {
@@ -13217,7 +13223,6 @@ var PdfImageSaver = (() => {
       "Helper failed: vector capture unavailable.": "无法从原 PDF 提取纯矢量图，未保存图片。",
       "Helper failed: trace unavailable.": "近似矢量重建失败，请保留原图或稍后重试。",
       "Byte cap: vector image exceeds file cap.": "矢量图超过单张图片的 25 MB 上限，未保存。",
-      "Byte cap: traced SVG exceeds file cap.": "近似矢量图超过 25 MB 上限，未导出。",
       "Unknown err.": "未知错误。",
     };
     if (known[text]) {
