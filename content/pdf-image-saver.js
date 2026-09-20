@@ -987,7 +987,7 @@ var PdfImageSaver = (() => {
       if (toolbarMode !== "idle") {
         return;
       }
-      qualityControl.setTitle(`保存画质：${getQualityLabelWithEstimate(qualityKey)}。单击选择。`);
+      qualityControl.setTitle(`预览清晰度：${QUALITY[qualityKey].label}。SVG 保存结果不受此项影响。`);
       categoryControl.setTitle(`图片类别：${getImageCategoryLabel(categoryKey)}。单击选择。`);
       button.title = `${buildToolbarActionTooltip("框选保存当前页图片", qualityKey)}；类别：${getChineseImageCategoryLabel(categoryKey)}`;
       paperButton.title = "在全部图片库查看当前论文图片；直接读取外部数据库原图";
@@ -1404,7 +1404,7 @@ var PdfImageSaver = (() => {
     const clipQualityOrder = [defaultQualityKey, ...Object.keys(QUALITY).filter((key) => key !== defaultQualityKey)];
     for (const key of clipQualityOrder) {
       actions.push({
-        label: `框选保存${key === defaultQualityKey ? "（当前默认）" : ""}；${QUALITY[key].label}画质；${formatQualityEstimateShort(key)}；初始类别：${getImageCategoryLabel(defaultCategoryKey)}`,
+        label: `框选保存${key === defaultQualityKey ? "（当前默认）" : ""}；预览${QUALITY[key].label}；只保存纯矢量 SVG；初始类别：${getImageCategoryLabel(defaultCategoryKey)}`,
         onCommand() {
           return startReaderClipMenuWorkflow(reader, key, getContextPageIndex(params), {
             imageCategory: defaultCategoryKey,
@@ -1414,7 +1414,7 @@ var PdfImageSaver = (() => {
     }
 
     actions.push({
-      label: `整页图片并确认；${defaultQuality.label}画质；${formatQualityEstimateShort(defaultQualityKey)}；初始类别：${getImageCategoryLabel(defaultCategoryKey)}`,
+      label: `整页图片并确认；预览${defaultQuality.label}；只保存纯矢量 SVG；初始类别：${getImageCategoryLabel(defaultCategoryKey)}`,
       onCommand() {
         return startReaderPageMenuWorkflow(reader, {
           qualityKey: defaultQualityKey,
@@ -3047,9 +3047,42 @@ var PdfImageSaver = (() => {
         const source = imageURL.startsWith("data:")
           ? imageURL
           : await postCommand("readImageBytes", { image_id: imageID }).then((result) => "data:" + result.mimeType + ";base64," + result.base64);
-        const safeSource = String(source).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
+        const status = document.getElementById("viewer-editor-status");
+        const [sourceHeader, encodedSource] = String(source).split(",", 2);
+        let sourceRoot = null;
+        try {
+          if (sourceHeader.toLowerCase().startsWith("data:image/svg+xml") && sourceHeader.toLowerCase().includes(";base64") && encodedSource) {
+            const sourceBytes = Uint8Array.from(window.atob(encodedSource), (character) => character.charCodeAt(0));
+            const sourceDocument = new DOMParser().parseFromString(new TextDecoder().decode(sourceBytes), "image/svg+xml");
+            sourceRoot = sourceDocument.documentElement;
+            if (sourceRoot.localName !== "svg" || sourceDocument.doctype || sourceDocument.querySelector("parsererror, image, foreignObject, script, style, iframe, object, filter, feImage")) sourceRoot = null;
+            if (sourceRoot) {
+              for (const element of [sourceRoot, ...sourceRoot.querySelectorAll("*")]) {
+                if (["image", "foreignObject", "script", "style", "iframe", "object", "filter", "feImage"].includes(element.localName)) sourceRoot = null;
+                for (const attribute of element.attributes) {
+                  const name = attribute.name.toLowerCase();
+                  const value = attribute.value.trim().toLowerCase();
+                  if (name.startsWith("on") || (name.endsWith("href") && value && !value.startsWith("#")) || value.includes("javascript:") || value.includes("data:image/") || (value.includes("url(") && !value.includes("url(#"))) sourceRoot = null;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          sourceRoot = null;
+        }
+        if (!sourceRoot) {
+          status.dataset.error = "true";
+          status.textContent = "原图含位图或不是有效的纯矢量 SVG，无法导出";
+          setMessage("原图含位图或不是有效的纯矢量 SVG，未导出文件");
+          return;
+        }
+        sourceRoot.setAttribute("x", "0");
+        sourceRoot.setAttribute("y", "0");
+        sourceRoot.setAttribute("width", String(width));
+        sourceRoot.setAttribute("height", String(height));
+        const sourceMarkup = new XMLSerializer().serializeToString(sourceRoot);
         const body = annotations.slice(annotations.indexOf(">", annotations.indexOf("<svg")) + 1, annotations.lastIndexOf("</svg>"));
-        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '"><image x="0" y="0" width="' + width + '" height="' + height + '" href="' + safeSource + '"/>' + body + '</svg>';
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '">' + sourceMarkup + body + '</svg>';
         const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
         const link = document.createElement("a");
         link.href = url;
@@ -3058,10 +3091,9 @@ var PdfImageSaver = (() => {
         link.click();
         link.remove();
         window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-        const status = document.getElementById("viewer-editor-status");
         status.dataset.error = "false";
         status.textContent = "已开始下载 SVG";
-        setMessage("已导出 SVG 标注图；位图原图仍保留原有像素");
+        setMessage("已导出纯矢量 SVG 标注图");
       };
 
       document.querySelectorAll("[data-editor-tool]").forEach((button) => {
@@ -3439,10 +3471,10 @@ var PdfImageSaver = (() => {
         viewerImage.alt = record.title + "，第 " + record.pageNumber + " 页";
         viewerTitle.textContent = record.title;
         const isVectorSource = String(record.imageURL).toLowerCase().startsWith("data:image/svg+xml") || String(record.imageURL).toLowerCase().split("?")[0].split("#")[0].endsWith(".svg") || String(record.downloadName).toLowerCase().endsWith(".svg");
-        viewerMeta.textContent = [record.categoryLabel, record.year || "年份未知", "原文第 " + record.pageNumber + " 页", record.dimensions, formatSize(record.imageBytes), isVectorSource ? "SVG 矢量原图" : "位图原图", record.sourceLabel].filter(Boolean).join(" · ");
+        viewerMeta.textContent = [record.categoryLabel, record.year || "年份未知", "原文第 " + record.pageNumber + " 页", record.dimensions, formatSize(record.imageBytes), isVectorSource ? "SVG 文件（导出前验证）" : "位图原图", record.sourceLabel].filter(Boolean).join(" · ");
         const editorStatus = document.getElementById("viewer-editor-status");
         editorStatus.dataset.error = "false";
-        editorStatus.textContent = isVectorSource ? "" : "原图是位图；导出后标注为矢量";
+        editorStatus.textContent = isVectorSource ? "" : "原图是位图；无法导出纯矢量 SVG";
         viewerNote.textContent = record.userNote ? "描述：" + record.userNote : "";
         viewerNote.hidden = !record.userNote;
         viewerPosition.textContent = "第 " + (viewerIndex + 1) + " 张，共 " + visibleCards.length + " 张";
@@ -4990,10 +5022,9 @@ var PdfImageSaver = (() => {
       showReaderToast(reader, `正在保存${formatPageToastToken(pageIndex)}已确认的框选图片…`, "progress");
       preview = await applyVectorCapture(preview, { attachment });
       await publishPreviewEntriesToSharedLibrary({ attachment, parentItem, entries: [preview] });
-      const savedFormat = preview.format === "svg" ? "SVG 矢量" : preview.format === "png" ? "PNG 位图" : "JPEG 位图";
       showReaderToast(
         reader,
-        `已保存${formatPageToastToken(pageIndex)}的框选图片：${savedFormat}；${preview.renderedWidth} × ${preview.renderedHeight}；画质 ${getQualityLabelWithEstimate(preview.quality)}；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。已写入外部 SQLite 图片库。`,
+        `已保存${formatPageToastToken(pageIndex)}的纯矢量 SVG；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。已写入外部 SQLite 图片库。`,
         "success",
       );
       rememberPreviewIndexSave(attachment, [preview], indexKey);
@@ -5125,9 +5156,10 @@ var PdfImageSaver = (() => {
         safeLogError(error);
       }
       showReaderToast(reader, `正在保存${formatPageToastToken(pageIndex)}已确认的整页图片…`, "progress");
+      preview = await applyVectorCapture(preview, { attachment });
       await publishPreviewEntriesToSharedLibrary({ attachment, parentItem, entries: [preview] });
       rememberPreviewIndexSave(attachment, [preview], indexKey);
-      showReaderToast(reader, `已保存${formatPageToastToken(pageIndex)}整页图片：画质 ${getQualityLabelWithEstimate(preview.quality)}；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。已写入外部 SQLite 图片库。`, "success");
+      showReaderToast(reader, `已保存${formatPageToastToken(pageIndex)}整页纯矢量 SVG；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。已写入外部 SQLite 图片库。`, "success");
     } catch (error) {
       logError(error);
       showReaderToast(reader, formatUserFacingError(error), "error");
@@ -7392,6 +7424,7 @@ var PdfImageSaver = (() => {
   // and PyMuPDF; when either is missing the caller keeps the raster capture and nothing is lost.
   async function runHelperRegionExport({ attachment, pageIndex, bboxNormalized, mode = "vector" }) {
     let outputDir = null;
+    let lastFailure = null;
     const diagnostic = { at: new Date().toISOString(), mode, stage: "start", events: [] };
     const mark = (stage, details = {}) => {
       diagnostic.stage = stage;
@@ -7440,7 +7473,11 @@ var PdfImageSaver = (() => {
           const report = await readJSONReport(reportPath);
           const capture = mode === "raster" ? report?.raster : report?.vector;
           mark("report", { status: report?.status || "missing", error: report?.error || "", capture: Boolean(capture?.file_path) });
-          if (report?.status !== "ok" || !capture?.file_path) continue;
+          if (report?.status !== "ok" || !capture?.file_path) {
+            lastFailure = { status: report?.status || "failed" };
+            if (lastFailure.status === "bitmap_only" || lastFailure.status === "mixed_raster") return lastFailure;
+            continue;
+          }
           pythonCommandPromise = Promise.resolve(pythonCommand);
           const bytes = normalizeDatabaseImageBytes(await IOUtils.read(capture.file_path));
           mark("capture-bytes", { count: bytes?.length || 0 });
@@ -7448,11 +7485,13 @@ var PdfImageSaver = (() => {
           const format = mode === "raster" ? "png" : "svg";
           const dataURL = `data:image/${format === "svg" ? "svg+xml" : "png"};base64,${bytesToBase64(bytes)}`;
           return {
+            status: "ok",
             format,
             bytes,
             dataURL,
             byteCount: estimateDataURLBytes(dataURL),
             hasVectorContent: capture.has_vector_content === true,
+            hasRasterContent: capture.has_raster_content !== false,
             width: Math.max(1, Math.round(Number(capture.width || capture.width_pt) || 0)),
             height: Math.max(1, Math.round(Number(capture.height || capture.height_pt) || 0)),
           };
@@ -7461,7 +7500,7 @@ var PdfImageSaver = (() => {
           safeLogError(error);
         }
       }
-      return null;
+      return lastFailure;
     } catch (error) {
       mark("region-error", { error: String(error) });
       safeLogError(error);
@@ -7484,19 +7523,15 @@ var PdfImageSaver = (() => {
     }
   }
 
-  // Keep PDF geometry as SVG even when the SVG costs more than its raster preview. A region
-  // containing only embedded bitmap data stays raster, and the per-image byte limit still applies.
+  // A new capture must contain only native SVG geometry and remain within the per-image byte cap.
   function shouldPreferVectorCapture(vector) {
-    return Boolean(vector?.hasVectorContent && vector.byteCount > 0 && vector.byteCount <= MAX_VECTOR_IMAGE_BYTES);
-  }
-  function shouldPreferRasterCapture(raster, preview) {
-    return Boolean(raster?.format === "png" && raster.byteCount > 0 && raster.byteCount <= MAX_STORED_IMAGE_BYTES
-      && raster.width >= preview.renderedWidth && raster.height >= preview.renderedHeight
-      && (raster.width > preview.renderedWidth || raster.height > preview.renderedHeight));
+    return Boolean(vector?.format === "svg" && vector.hasVectorContent && vector.hasRasterContent === false
+      && vector.byteCount > 0 && vector.byteCount <= MAX_VECTOR_IMAGE_BYTES);
   }
   async function applyVectorCapture(preview, { attachment }) {
-    if (!preview || !attachment || !Array.isArray(preview.bboxNormalized)) return preview;
-    if (!getBoolPref("vectorCapture", true)) return preview;
+    if (!preview || !attachment || !Array.isArray(preview.bboxNormalized)) {
+      throw new Error("Capture failed: vector region unavailable.");
+    }
     const region = {
       attachment,
       pageIndex: preview.pageIndex,
@@ -7514,17 +7549,10 @@ var PdfImageSaver = (() => {
         captureSource: "vector_region",
       };
     }
-    const raster = await runHelperRegionExport({ ...region, mode: "raster" });
-    if (!shouldPreferRasterCapture(raster, preview)) return preview;
-    return {
-      ...preview,
-      dataURL: raster.dataURL,
-      byteCount: raster.byteCount,
-      format: raster.format,
-      renderedWidth: raster.width,
-      renderedHeight: raster.height,
-      captureSource: "pdf_region_raster",
-    };
+    if (vector?.status === "bitmap_only") throw new Error("Capture failed: bitmap-only PDF region.");
+    if (vector?.status === "mixed_raster") throw new Error("Capture failed: PDF region contains bitmap.");
+    if (vector?.byteCount > MAX_VECTOR_IMAGE_BYTES) throw new Error("Byte cap: vector image exceeds file cap.");
+    throw new Error("Helper failed: vector capture unavailable.");
   }
 
   // The packaged XPI carries a Windows embeddable Python plus an unpacked PyMuPDF wheel, so vector
@@ -11650,9 +11678,7 @@ var PdfImageSaver = (() => {
     const instruction = doc.createElement("p");
     instruction.className = "pdf-image-saver-preview-review-instruction";
     instruction.id = "pdf-image-saver-preview-review-instruction";
-    instruction.textContent = isPage
-      ? "检查整页图像、分类、画质和描述；确认后才会写入数据库。"
-      : "检查图片范围、分类、画质和描述；确认后才会写入数据库。";
+    instruction.textContent = "检查范围、分类和描述；只保存纯矢量 SVG，含位图时停止保存。";
     let currentPreview = preview;
     const image = doc.createElement("img");
     image.className = "pdf-image-saver-preview-review-image";
@@ -11665,7 +11691,7 @@ var PdfImageSaver = (() => {
       `第 ${normalizePageNumber(currentPreview?.pageNumber, 1)} 页`,
       formatPreviewDetectorLabel(currentPreview?.detector),
       `${normalizePositiveInteger(currentPreview?.renderedWidth, 0)} × ${normalizePositiveInteger(currentPreview?.renderedHeight, 0)} 像素`,
-      `保存画质：${getQualityLabelWithEstimate(currentPreview?.quality)}`,
+      `预览清晰度：${QUALITY[normalizeQualityKey(currentPreview?.quality)].label}`,
       formatBytes(currentPreview?.byteCount),
     ].join(" · ");
     const evidence = normalizeOptionsObject(safeOptions.evidence);
@@ -11765,7 +11791,7 @@ var PdfImageSaver = (() => {
           `第 ${normalizePageNumber(currentPreview.pageNumber, 1)} 页`,
           formatPreviewDetectorLabel(currentPreview.detector),
           `${normalizePositiveInteger(currentPreview.renderedWidth, 0)} × ${normalizePositiveInteger(currentPreview.renderedHeight, 0)} 像素`,
-          `保存画质：${getQualityLabelWithEstimate(currentPreview.quality)}`,
+          `预览清晰度：${QUALITY[normalizeQualityKey(currentPreview.quality)].label}`,
           formatBytes(currentPreview.byteCount),
         ].join(" · ");
       };
@@ -12390,7 +12416,7 @@ var PdfImageSaver = (() => {
 
   function buildToolbarActionTooltip(action, qualityKey) {
     const actionText = normalizeMetadataText(action, "保存图片预览", 90);
-    return `${actionText}；清晰度：${getQualityLabelWithEstimate(qualityKey)}`;
+    return `${actionText}；预览清晰度：${QUALITY[normalizeQualityKey(qualityKey)].label}；只保存纯矢量 SVG`;
   }
 
   function normalizePreviewText(value, fallback, maxLength = 120) {
@@ -13054,6 +13080,9 @@ var PdfImageSaver = (() => {
       "Capture failed: not a PDF.": "当前标签页不是 PDF。",
       "Capture failed: geometry n/a.": "无法获取页面位置。",
       "Capture failed: selection outside.": "框选区域不在页面内。",
+      "Capture failed: vector region unavailable.": "当前选区缺少 PDF 页码或边界，无法提取矢量内容。",
+      "Capture failed: bitmap-only PDF region.": "该选区在原 PDF 中只有位图，没有可保存的矢量内容。",
+      "Capture failed: PDF region contains bitmap.": "该选区在原 PDF 中含有位图，无法保存为纯矢量图。",
       "Storage failed: index import failed.": "无法写入 Zotero 图片预览附件。",
       "Storage failed: preview attachment missing.": "找不到图片预览附件。",
       "Storage failed: preview open unavailable.": "当前 Zotero 无法打开图片预览。",
@@ -13092,6 +13121,8 @@ var PdfImageSaver = (() => {
       "Helper failed: runtime path invalid.": "插件内置的 Python 路径无效。",
       "Helper failed: PDF path n/a.": "找不到该文献的 PDF 文件。",
       "Helper failed: no report.": "高级原图提取没有返回结果。",
+      "Helper failed: vector capture unavailable.": "无法从原 PDF 提取纯矢量图，未保存图片。",
+      "Byte cap: vector image exceeds file cap.": "矢量图超过单张图片的 25 MB 上限，未保存。",
       "Unknown err.": "未知错误。",
     };
     if (known[text]) {
@@ -13155,7 +13186,6 @@ var PdfImageSaver = (() => {
       getDatabaseImageFileType,
       isSVGImageBytes,
       shouldPreferVectorCapture,
-      shouldPreferRasterCapture,
       ensureLibraryViewVendor,
       loadLibraryViewVendorScripts,
       resolveBundledRuntimeSourcePath,

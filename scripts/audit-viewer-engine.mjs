@@ -149,7 +149,7 @@ try {
   assert.equal(opened.osdVisible, true, "opening a record must show the OpenSeadragon stage");
   assert.equal(opened.annotVisible, true, "opening a record must show the annotation layer");
   assert.equal(opened.vectorVisible, true, "SVG sources must display through the browser's vector image element");
-  assert.ok(opened.formatLabel.includes("SVG 矢量原图"), "the viewer must identify an SVG original");
+  assert.ok(opened.formatLabel.includes("SVG 文件（导出前验证）"), "the viewer must avoid claiming that every SVG source is pure vector");
   assert.equal(opened.editorVisible, true, "opening a record must show the annotation toolbar");
   assert.equal(opened.plainImageHidden, true, "the engine replaces the plain image instead of stacking on it");
   assert.equal(opened.navigatorPresent, true, "the viewer must show a bird's-eye overview map");
@@ -278,9 +278,19 @@ try {
       if (loaded) context.drawImage(preview, 0, 0, 16, 16);
       const sourceAlpha = loaded ? context.getImageData(1, 1, 1, 1).data[3] : 0;
       URL.revokeObjectURL(previewURL);
-      return { fileName, pathCount: xml.querySelectorAll("path").length, textCount: xml.querySelectorAll("text").length,
-        embeddedVector: svg.includes("data:image/svg+xml"), parseError: !!xml.querySelector("parsererror"), loaded, sourceAlpha, bridgeRead, bridgeImageID,
-        textValue: xml.querySelector("text")?.textContent || "" };
+      const annotationTexts = [...xml.querySelectorAll("text")].filter((node) => {
+        let ancestor = node.parentElement;
+        while (ancestor && ancestor !== xml.documentElement) {
+          if (ancestor.localName === "svg") return false;
+          ancestor = ancestor.parentElement;
+        }
+        return true;
+      });
+      return { fileName, pathCount: xml.querySelectorAll("path").length, textCount: annotationTexts.length,
+        inlinedVector: xml.querySelectorAll("svg").length >= 2 && xml.querySelectorAll("rect").length > 0,
+        embeddedBitmap: !!xml.querySelector("image") || svg.includes("data:image/png"),
+        parseError: !!xml.querySelector("parsererror"), loaded, sourceAlpha, bridgeRead, bridgeImageID,
+        textValue: annotationTexts[0]?.textContent || "" };
     } finally {
       URL.createObjectURL = originalCreate;
       HTMLAnchorElement.prototype.click = originalClick;
@@ -291,11 +301,25 @@ try {
   assert.ok(exported.pathCount > 0, "a brush stroke must stay a vector path in the SVG export");
   assert.equal(exported.textCount, 1, "clicking existing text must edit it instead of creating a duplicate");
   assert.ok(exported.textValue.includes("可编辑文字"), "existing text must accept keyboard edits");
-  assert.equal(exported.embeddedVector, true, "SVG export must retain its vector source");
-  assert.equal(exported.bridgeRead, true, "file-backed SVG export must embed bytes supplied by the Zotero bridge");
+  assert.equal(exported.inlinedVector, true, "SVG export must inline the source geometry");
+  assert.equal(exported.embeddedBitmap, false, "SVG export must contain no bitmap image element");
+  assert.equal(exported.bridgeRead, true, "file-backed SVG export must read bytes supplied by the Zotero bridge");
   assert.equal(exported.bridgeImageID, opened.imageID, "SVG export must pass the selected image ID to the Zotero bridge");
   const exportStatus = await evaluate(`document.getElementById("viewer-editor-status").textContent`);
   assert.equal(exportStatus, "已开始下载 SVG", "the viewer must report export completion where the user can see it");
+
+  const rasterStatus = await evaluate(`(async () => {
+    window.fetch = async () => ({ ok: true, json: async () => ({ ok: true, mimeType: "image/png", base64: "iVBORw0KGgo=" }) });
+    document.getElementById("viewer-editor-save").click();
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      if (document.getElementById("viewer-editor-status").dataset.error === "true") break;
+    }
+    return { text: document.getElementById("viewer-editor-status").textContent,
+      error: document.getElementById("viewer-editor-status").dataset.error };
+  })()`);
+  assert.equal(rasterStatus.error, "true", "bitmap source must be blocked from SVG export");
+  assert.ok(rasterStatus.text.includes("无法导出"), "bitmap export refusal must explain the reason in Chinese");
 
   const failureStatus = await evaluate(`(async () => {
     window.fetch = async () => ({ ok: false, status: 404, json: async () => ({ ok: false, error: "Image not found" }) });

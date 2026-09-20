@@ -4,8 +4,8 @@
 
 ## 当前状态
 
-- 版本 `0.1.150`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.150`：修正 Gecko 对内置 Python 运行时相对路径的拼接，恢复原 PDF 选区补取。
+- 版本 `0.1.151`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.151`：新框选仅保存纯矢量 SVG；含位图时停止保存，标注导出内联矢量原图。
 - 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "45"`。
 - 闸门：`npm.cmd run check`。
 

@@ -2123,7 +2123,7 @@ try {
   const prefillReviewState = await evaluate(client, `(() => {
     const preview={...window.__readerReviewPreview,imageCategory:'table',detector:'manual_selection'};window.__prefillReviewPromise=PdfImageSaver.__test__.showPreviewReviewDialog(document,preview,{scope:'clip',requestedCategory:'table',suggested:'heatmap',initialCategory:'table'});const dialog=document.getElementById('pdf-image-saver-preview-review-dialog');return {category:document.getElementById('pdf-image-saver-review-category')?.value||'',suggestion:dialog?.querySelector('.pdf-image-saver-preview-review-suggestion')?.textContent||'',detector:dialog?.querySelector('.pdf-image-saver-preview-review-meta')?.textContent||''};
   })()`);
-  assert.deepEqual(prefillReviewState, { category: "table", suggestion: "设置预填：科研表格；识别建议：热图／矩阵图。", detector: "第 1 页 · 手动框选 · 960 × 640 像素 · 保存画质：高（约 0.5–4 MB/张） · 180 KB" }, "review dialog must explain why a concrete setting and visual inference differ without mislabeling the capture source");
+  assert.deepEqual(prefillReviewState, { category: "table", suggestion: "设置预填：科研表格；识别建议：热图／矩阵图。", detector: "第 1 页 · 手动框选 · 960 × 640 像素 · 预览清晰度：高 · 180 KB" }, "review dialog must explain why a concrete setting and visual inference differ without mislabeling the capture source");
   if (screenshotDirectory) {
     const prefillScreenshot = await captureFixedViewportScreenshot(client);
     fs.writeFileSync(path.join(screenshotDirectory, "reader-review-prefill.png"), Buffer.from(prefillScreenshot.data, "base64"));

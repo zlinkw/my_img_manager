@@ -34,7 +34,7 @@ This file is the modification contract for PDF Image Saver. Read it before chang
 - Saved image bytes remain bounded by the selected quality and fixed per-image limits.
 - `image_blob` has no format column; the format is sniffed from the bytes. Vector crops are stored as SVG, which must be recognised alongside the raster magic numbers.
 - Capture must re-render the selected region from pdf.js at the tier's DPI instead of cropping the reader's on-screen canvas. The reader canvas is typically about 145 DPI, so cropping it cannot produce a sharp figure; the re-render must also never yield fewer pixels than the canvas already had.
-- Vector export (`set_cropbox` + `select` + SVG) is preferred for PDF regions containing vector drawing or text, up to 25 MB per image. Regions containing only embedded bitmaps keep the raster result. Raster captures retain their 1.5 MB budget.
+- New manual clips and whole-page captures are saved only when the selected PDF region produces SVG geometry without embedded bitmap images, up to 25 MB per image. Bitmap-only and mixed regions are rejected with a clear reason; no PNG fallback is saved. Historical raster records remain readable.
 - Saved metadata must preserve source provenance: PDF attachment key, page number, bbox/source region, duplicate keys, annotation key when available, and `zotero://open-pdf` source link.
 
 ## UI Contract

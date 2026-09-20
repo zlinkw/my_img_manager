@@ -517,16 +517,18 @@ void (async () => {
   assert.ok(!api.isSVGImageBytes(Buffer.from("not an image at all", "utf8")), "plain text must not be treated as svg");
   assert.ok(!api.isSVGImageBytes(null), "a missing blob must not be treated as svg");
   assert.equal(api.getDatabaseImageFileType(pngDataURLToBytes(pngDataURL(4, 4, [1, 2, 3])))?.extension, "png", "raster sniffing must keep working");
-  assert.equal(api.shouldPreferVectorCapture({ hasVectorContent: true, byteCount: 2 * 1024 * 1024 }), true, "real PDF geometry must remain SVG even when larger than the raster preview");
-  assert.equal(api.shouldPreferVectorCapture({ hasVectorContent: false, byteCount: 1000 }), false, "pure embedded bitmaps must stay raster");
-  assert.equal(api.shouldPreferVectorCapture({ hasVectorContent: true, byteCount: 26 * 1024 * 1024 }), false, "oversized SVG must respect the vector byte cap");
-  const lowResolutionPreview = { renderedWidth: 1166, renderedHeight: 592 };
-  assert.equal(api.shouldPreferRasterCapture({ format: "png", width: 2559, height: 1300, byteCount: 1064258 }, lowResolutionPreview), true,
-    "a helper crop with more source detail must replace the reader-canvas fallback");
-  assert.equal(api.shouldPreferRasterCapture({ format: "png", width: 1000, height: 500, byteCount: 300000 }, lowResolutionPreview), false,
-    "a helper crop must not lower saved resolution");
-  assert.equal(api.shouldPreferRasterCapture({ format: "png", width: 2559, height: 1300, byteCount: 2 * 1024 * 1024 }, lowResolutionPreview), false,
-    "raster crops must respect the shared storage byte budget");
+  assert.equal(api.shouldPreferVectorCapture({ format: "svg", hasVectorContent: true, hasRasterContent: false, byteCount: 2 * 1024 * 1024 }), true,
+    "native PDF geometry without bitmaps must be saved as SVG");
+  assert.equal(api.shouldPreferVectorCapture({ format: "svg", hasVectorContent: false, hasRasterContent: true, byteCount: 1000 }), false,
+    "a bitmap-only PDF region cannot be saved as vector");
+  assert.equal(api.shouldPreferVectorCapture({ format: "svg", hasVectorContent: true, hasRasterContent: true, byteCount: 1000 }), false,
+    "mixed raster and vector SVG must not be described as pure vector");
+  assert.equal(api.shouldPreferVectorCapture({ format: "svg", hasVectorContent: true, byteCount: 1000 }), false,
+    "an older helper without a bitmap audit must not pass the pure vector gate");
+  assert.equal(api.shouldPreferVectorCapture({ format: "png", hasVectorContent: true, hasRasterContent: false, byteCount: 1000 }), false,
+    "a PNG cannot pass the SVG-only save gate");
+  assert.equal(api.shouldPreferVectorCapture({ format: "svg", hasVectorContent: true, hasRasterContent: false, byteCount: 26 * 1024 * 1024 }), false,
+    "oversized SVG must respect the vector byte cap");
 }
 
 assert.equal(
@@ -794,7 +796,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "u
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
 assert.equal(manifest.applications.zotero.strict_max_version, "11.*", "release supports the Zotero 10 and 11 profile-install range");
-assert.equal(manifest.version, "0.1.150", "release candidate increments the installed release");
+assert.equal(manifest.version, "0.1.151", "release candidate increments the installed release");
 
 const expectedUpdateUrl = "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json";
 assert.equal(manifest.applications.zotero.update_url, expectedUpdateUrl, "Zotero 10 requires update_url and it must point at the static empty feed");

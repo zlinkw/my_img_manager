@@ -250,13 +250,7 @@ def region_rect(page: Any, bbox: list[float]):
 
 
 def export_region_vector(fitz: Any, args: argparse.Namespace, started: float) -> dict[str, Any]:
-    """Export one selected region as a vector SVG.
-
-    Setting the cropbox and then keeping only that page leaves the page's own drawing operations
-    untouched, so a plotted figure stays real vector geometry instead of being re-encoded, while a
-    figure that is really an embedded bitmap keeps its native pixels. Text becomes paths so the
-    result does not depend on which fonts the reader has.
-    """
+    """Export a selected region only when its SVG contains native vector geometry."""
     page_index, bbox = parse_vector_region(args.vector_region)
     pdf_path = args.pdf.resolve()
     if not pdf_path.exists():
@@ -301,6 +295,19 @@ def export_region_vector(fitz: Any, args: argparse.Namespace, started: float) ->
                 "elapsed_ms": elapsed_ms(started),
             }
 
+        # An SVG wrapper around an embedded PDF bitmap still has fixed source pixels.
+        # Never present that file, or a mixed bitmap/vector crop, as a pure vector image.
+        has_raster_content = bool(re.search(r"<(?:[\w.-]+:)?image\b", svg, re.IGNORECASE))
+        if not has_vector_content or has_raster_content:
+            status = "mixed_raster" if has_vector_content else "bitmap_only"
+            return {
+                "schema_version": SCHEMA_VERSION,
+                "status": status,
+                "vector": None,
+                "warnings": ["Selected PDF region does not contain pure vector content."],
+                "elapsed_ms": elapsed_ms(started),
+            }
+
         digest = hashlib.sha256(payload).hexdigest()
         file_name = f"vector-p{page_index + 1:04d}-{digest[:10]}.svg"
         output_path = args.out_dir / file_name
@@ -324,6 +331,7 @@ def export_region_vector(fitz: Any, args: argparse.Namespace, started: float) ->
                 "height_pt": round(crop.height, 3),
                 "byte_count": len(payload),
                 "has_vector_content": has_vector_content,
+                "has_raster_content": has_raster_content,
                 "sha256": digest,
             },
             "warnings": [],
