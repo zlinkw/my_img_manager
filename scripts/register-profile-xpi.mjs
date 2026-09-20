@@ -22,7 +22,7 @@ for (const file of [extensionsPath, startupPath]) {
 
 const extensionsData = JSON.parse(fs.readFileSync(extensionsPath, "utf8"));
 extensionsData.addons = (extensionsData.addons || []).filter((addon) => addon.id !== addonID);
-const fileURI = `file:///${xpi.replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/")}!/`;
+const fileURI = `jar:file:///${xpi.replace(/\\/g, "/").split("/").map(encodeURIComponent).join("/")}!/`;
 const now = Date.now();
 extensionsData.addons.push({
   id: addonID,

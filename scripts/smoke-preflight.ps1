@@ -5,7 +5,7 @@ $expectedRuntime = "Zotero 10.x"
 $expectedStrictMaxVersion = "11.*"
 
 function Invoke-Status {
-  $jsonText = & powershell -ExecutionPolicy Bypass -File $statusScript
+  $jsonText = & pwsh.exe -ExecutionPolicy Bypass -NoProfile -File $statusScript
   if ($LASTEXITCODE -ne 0) {
     throw "runtime-status.ps1 failed with exit code $LASTEXITCODE"
   }

@@ -273,6 +273,13 @@ def export_region_vector(fitz: Any, args: argparse.Namespace, started: float) ->
                 "elapsed_ms": elapsed_ms(started),
             }
 
+        has_vector_content = any(
+            fitz.Rect(drawing["rect"]).intersects(crop)
+            for drawing in page.get_drawings()
+        ) or any(
+            block[6] == 0 and fitz.Rect(block[:4]).intersects(crop)
+            for block in page.get_text("blocks")
+        )
         page.set_cropbox(crop)
         doc.select([page_index])
         svg = doc[0].get_svg_image(text_as_path=True)
@@ -308,6 +315,7 @@ def export_region_vector(fitz: Any, args: argparse.Namespace, started: float) ->
                 "width_pt": round(crop.width, 3),
                 "height_pt": round(crop.height, 3),
                 "byte_count": len(payload),
+                "has_vector_content": has_vector_content,
                 "sha256": digest,
             },
             "warnings": [],

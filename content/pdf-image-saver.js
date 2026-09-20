@@ -14,7 +14,8 @@ var PdfImageSaver = (() => {
   const BRIDGE_STATUS_COMMANDS = ["status", "getStatus"];
   const BRIDGE_PROVENANCE_COMMANDS = ["openPdfByImageId", "selectParentItemByImageId", "selectPdfAttachmentByImageId"];
   const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "readImageBytes", "refreshLibrary", "updateImageNote"];
-  const GLOBAL_LIBRARY_VIEW_VERSION = "40";
+  const GLOBAL_LIBRARY_VIEW_VERSION = "44";
+
   const GLOBAL_LIBRARY_DIRECTORY_NAME = "paper-image-library-view";
   const GLOBAL_LIBRARY_HTML_NAME = "paper-image-library.html";
   const GLOBAL_LIBRARY_MAX_IMAGE_BYTES = 25 * 1024 * 1024;
@@ -62,6 +63,7 @@ var PdfImageSaver = (() => {
   // A vector figure stays tiny, but a figure that is really an embedded bitmap gets its bytes
   // carried inside the exported vector. This keeps one saved image from swallowing the library.
   const MAX_STORED_IMAGE_BYTES = 1536 * 1024;
+  const MAX_VECTOR_IMAGE_BYTES = 25 * 1024 * 1024;
   const QUALITY = {
     low: { label: "低", dpi: 96, maxWidth: 240, format: "jpeg", jpegQuality: 0.62, estimate: "约 30–120 KB/张" },
     medium: { label: "中", dpi: 150, maxWidth: 480, format: "jpeg", jpegQuality: 0.78, estimate: "约 120–450 KB/张" },
@@ -1616,34 +1618,46 @@ var PdfImageSaver = (() => {
     }
   }
 
-  // The gallery page is opened from file://, where ES modules are blocked by CORS, so the viewer
-  // libraries ship as classic scripts and have to sit next to the generated HTML. They are copied
-  // as text: that is the retrieval path already proven by the helper script, while a binary read of
-  // a packaged add-on URL silently yields nothing and leaves the page on the plain-image fallback.
+  // The gallery page is opened from file://. External vendor scripts next to that page are
+  // unreliable on a packaged XPI, so the viewer libraries are inlined into the generated HTML.
   const LIBRARY_VIEW_VENDOR_FILES = [
     "content/vendor/openseadragon.min.js",
     "content/vendor/fabric.min.js",
   ];
 
+  async function loadLibraryViewVendorScripts() {
+    const scripts = [];
+    for (const sourcePath of LIBRARY_VIEW_VENDOR_FILES) {
+      const text = await readAddonText(sourcePath);
+      if (!text) continue;
+      scripts.push(text.replace(/<\/script/gi, "<\\/script"));
+    }
+    return scripts;
+  }
+
   async function ensureLibraryViewVendor(outputDirectory) {
     try {
       const vendorDirectory = PathUtils.join(outputDirectory, "vendor");
       await ensureDirectoryRecursively(vendorDirectory);
-      for (const sourcePath of LIBRARY_VIEW_VENDOR_FILES) {
-        const target = PathUtils.join(vendorDirectory, sourcePath.split("/").pop());
-        const text = await readAddonText(sourcePath);
-        if (text) {
-          await writeAddonTextFile(target, text);
-          continue;
+      const zipReader = openAddonZipReader();
+      try {
+        for (const sourcePath of LIBRARY_VIEW_VENDOR_FILES) {
+          const target = PathUtils.join(vendorDirectory, sourcePath.split("/").pop());
+          const bytes = zipReader
+            ? readZipEntryBytes(zipReader, sourcePath)
+            : await readAddonBinary(sourcePath);
+          if (!bytes?.length) continue;
+          await IOUtils.write(target, bytes);
         }
-        const bytes = await readAddonBinary(sourcePath);
-        if (!bytes?.length) continue;
-        await IOUtils.write(target, bytes);
+      } finally {
+        closeAddonZipReader(zipReader);
       }
     } catch (error) {
       safeLogError(error);
     }
   }
+
+
 
   async function prepareGlobalImageLibraryView(options = {}) {
     const safeOptions = normalizeOptionsObject(options);
@@ -1727,7 +1741,9 @@ var PdfImageSaver = (() => {
       skippedCount,
       bridgeURL: BRIDGE_URL,
       bridgeToken: isBridgeEndpointRegistered() ? bridgeToken : "",
+      vendorScripts: await loadLibraryViewVendorScripts(),
     });
+
     if (typeof Zotero.File?.putContentsAsync !== "function") {
       throw new Error("Storage failed: library HTML writer unavailable.");
     }
@@ -2190,8 +2206,15 @@ var PdfImageSaver = (() => {
     return single.length > 60 ? `${single.slice(0, 59)}…` : single;
   }
 
-  function buildGlobalImageLibraryHTML({ records = [], skippedCount = 0, generatedAt = null, bridgeURL = "", bridgeToken: pageBridgeToken = "", initialPdfAttachmentKey = "" } = {}) {
+  function buildGlobalImageLibraryHTML({ records = [], skippedCount = 0, generatedAt = null, bridgeURL = "", bridgeToken: pageBridgeToken = "", initialPdfAttachmentKey = "", vendorScripts = [] } = {}) {
+    const vendorScriptHTML = (Array.isArray(vendorScripts) ? vendorScripts : [])
+      .map((script) => "<script>" + script + "</script>")
+      .join("\n  ");
+    const vendorFallbackHTML = vendorScriptHTML
+      ? ""
+      : "<script src=\"vendor/openseadragon.min.js\"></script>\n  <script src=\"vendor/fabric.min.js\"></script>";
     const list = (Array.isArray(records) ? records : [])
+
       .map((record) => normalizeGlobalImageLibraryRecord(record, record?.imageURL, record?.imageBytes))
       .map((record, index) => ({ ...record, downloadName: buildGlobalImageDownloadName(record, index) }));
     const createdAt = generatedAt || new Date().toISOString();
@@ -2413,16 +2436,22 @@ var PdfImageSaver = (() => {
     #viewer-close { flex:0 0 auto; min-width:54px; white-space:nowrap; }
     #viewer-close::before { content:"×"; margin-right:5px; font-size:15px; line-height:1; }
     #viewer-close.is-finish { border-color:#2563EB; background:#2563EB; }
-    .viewer-stage { min-height:0; padding:0 14px; overflow:auto; overscroll-behavior:contain; }
+    .viewer-stage { min-height:0; padding:0 14px; overflow:hidden; overscroll-behavior:contain; }
     .viewer-canvas { display:flex; align-items:center; justify-content:center; min-width:100%; min-height:100%; position:relative; }
-    .viewer-osd { position:absolute; inset:0; background:#11161a; }
-    .viewer-annot { position:absolute; inset:0; pointer-events:auto; }
+    .viewer-osd { position:absolute; inset:0; background:#11161a; z-index:1; }
+    .viewer-vector { position:absolute; z-index:2; display:block; max-width:none; max-height:none; pointer-events:none; }
+    .viewer-annot { position:absolute; inset:0; z-index:3; pointer-events:none; background:transparent; }
+    .viewer-navigator { position:absolute; left:12px; bottom:12px; z-index:4; width:150px; height:110px; }
+
     .viewer-editor { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:8px 14px; border-top:1px solid rgba(255,255,255,0.12); background:rgba(17,22,26,0.92); }
     .viewer-editor button { font:inherit; font-size:12px; color:#e4eaee; background:#252c31; border:1px solid rgba(255,255,255,0.16); border-radius:6px; padding:4px 10px; cursor:pointer; }
     .viewer-editor button:hover { background:#2f373d; }
     .viewer-editor button.is-active { background:#185fa5; border-color:#378add; color:#ffffff; }
     .viewer-editor-sep { width:1px; height:18px; background:rgba(255,255,255,0.18); margin:0 2px; }
+    .viewer-editor-help { color:#cbd3d8; font-size:12px; line-height:1.35; margin-left:4px; }
+
     .viewer-stage img { display:block; flex:0 0 auto; max-width:none; max-height:none; object-fit:contain; background:#fff; }
+    .viewer-stage img[hidden] { display:none; }
     .viewer-stage.is-image-error::after { content:"原图加载失败；请刷新图库或重新从 Zotero 打开。"; position:sticky; top:14px; display:block; width:fit-content; max-width:100%; margin:auto; padding:8px 11px; border:1px solid #F87171; border-radius:var(--radius-sm); background:#7F1D1D; color:#FFF; font-size:13px; line-height:1.35; }
     .viewer-status { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
     .viewer-zoom { display:inline-flex; align-items:center; min-height:var(--control-height); overflow:hidden; border:1px solid #94A3B8; border-radius:var(--radius-sm); background:#111827; }
@@ -2530,12 +2559,13 @@ var PdfImageSaver = (() => {
   <div class="mobile-selection-bar" id="mobile-selection-bar" role="toolbar" aria-label="移动端批量操作" hidden><strong id="mobile-selection-summary" role="status" aria-live="polite">未选择图片</strong><button class="action" id="mobile-clear-selection" type="button">清空</button><button class="action primary" id="mobile-share-selected" type="button">分享 0 张</button><button class="action danger" id="mobile-delete-selected" type="button">删除 0 张</button></div>
   <div class="viewer" id="library-viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" aria-describedby="viewer-meta viewer-position" aria-keyshortcuts="Escape ArrowLeft ArrowRight = - 0 1" hidden>
     <div class="viewer-header"><div class="viewer-heading"><div class="viewer-title" id="viewer-title"></div><div class="viewer-meta" id="viewer-meta"></div><p class="viewer-note" id="viewer-note" hidden></p></div><div class="viewer-header-actions"><label class="viewer-selection" id="viewer-selection-label" title="将当前图片加入批量选择；当前共选择 0 张"><input id="viewer-select" type="checkbox" aria-label="将当前图片加入批量选择；当前共选择 0 张"><span>加入批量</span><output class="viewer-selection-count" id="viewer-selection-count" aria-live="polite" title="当前共选择 0 张图片">0</output></label><button type="button" id="viewer-close" aria-label="关闭大图查看并返回图片库列表" title="关闭大图查看并返回图片库列表；也可按 Esc">关闭</button></div></div>
-    <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""><div class="viewer-osd" id="viewer-osd" hidden></div><canvas class="viewer-annot" id="viewer-annot" hidden></canvas></div></div>
-    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注工具"><button type="button" data-editor-tool="pan" title="拖动查看；也可直接用鼠标拖动图像">移动</button><button type="button" data-editor-tool="brush" title="自由笔刷涂画">笔刷</button><button type="button" data-editor-tool="line" title="绘制直线">直线</button><button type="button" data-editor-tool="rect" title="绘制矩形">矩形</button><button type="button" data-editor-tool="text" title="添加文字">文字</button><button type="button" data-editor-tool="eraser" title="擦除已画的标注">橡皮</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><button type="button" id="viewer-editor-save" title="把原图与标注合并导出为 PNG">导出标注</button></div>
+    <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""><div class="viewer-osd" id="viewer-osd" hidden></div><img class="viewer-vector" id="viewer-vector" alt="" hidden><canvas class="viewer-annot" id="viewer-annot" hidden></canvas><div class="viewer-navigator" id="viewer-navigator" hidden></div></div></div>
+    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><button type="button" id="viewer-editor-save" title="导出原图和矢量标注为 SVG">导出 SVG</button><span class="viewer-editor-help" id="viewer-editor-help">滚轮缩放 · Ctrl+拖动平移 · Esc退出工具 · Ctrl+Z撤销</span></div>
     <div class="viewer-footer"><div class="viewer-status"><span id="viewer-position" title="可按左右方向键切换图片"></span><div class="viewer-zoom" role="group" aria-label="图像缩放"><button type="button" id="viewer-zoom-out" aria-label="缩小图像" aria-keyshortcuts="-" title="缩小图像；也可按减号键">−</button><output id="viewer-zoom-value" aria-live="polite">适应窗口</output><button type="button" id="viewer-zoom-in" aria-label="放大图像" aria-keyshortcuts="=" title="放大图像；也可按加号键">＋</button><button type="button" id="viewer-zoom-actual" aria-label="按原始像素显示" aria-keyshortcuts="1" title="按原始像素显示；也可按数字 1">1:1</button><button type="button" id="viewer-zoom-fit" aria-label="完整显示当前图片" aria-keyshortcuts="0" title="完整显示当前图片；也可按数字 0">适应</button></div></div><div class="viewer-actions"><button type="button" id="viewer-prev" aria-label="查看上一张图片" aria-keyshortcuts="ArrowLeft" title="查看上一张图片；也可按方向键左">← 上一张</button><button type="button" id="viewer-next" aria-label="查看下一张图片" aria-keyshortcuts="ArrowRight" title="查看下一张图片；也可按方向键右">下一张 →</button><a id="viewer-download" href="" download title="下载当前完整原图">下载原图</a><a id="viewer-source" href="" title="定位当前图片的本机文献">定位原文</a></div></div>
   </div>
-  <script src="vendor/openseadragon.min.js"></script>
-  <script src="vendor/fabric.min.js"></script>
+  ${vendorScriptHTML || vendorFallbackHTML}
+
+
   <script data-paper-image-library-version="${GLOBAL_LIBRARY_VIEW_VERSION}">
     (() => {
       const records = ${serializedLibraryData};
@@ -2603,6 +2633,8 @@ var PdfImageSaver = (() => {
       const viewerSelectionCount = document.getElementById("viewer-selection-count");
       const viewerClose = document.getElementById("viewer-close");
       const viewerOSD = document.getElementById("viewer-osd");
+      const viewerVector = document.getElementById("viewer-vector");
+      const viewerNavigator = document.getElementById("viewer-navigator");
       const viewerAnnot = document.getElementById("viewer-annot");
       const viewerEditor = document.getElementById("viewer-editor");
       const viewerZoomOut = document.getElementById("viewer-zoom-out");
@@ -2772,12 +2804,15 @@ var PdfImageSaver = (() => {
       const viewerEngineAvailable = () => typeof window.OpenSeadragon !== "undefined" && typeof window.fabric !== "undefined";
       let osdViewer = null;
       let annotCanvas = null;
-      let activeEditorTool = "pan";
+      let activeEditorTool = "";
+      let modifierPan = false;
+
       let annotUndoStack = [];
       let annotSourceURL = "";
+      let annotImageID = "";
       let annotDownloadName = "image";
       let annotImageSize = { width: 0, height: 0 };
-      const ANNOT_COLORS = { brush: "#e24b4a", line: "#185fa5", rect: "#0f6e56", text: "#2c2c2a" };
+      const ANNOT_COLORS = { brush: "#e24b4a", text: "#2c2c2a" };
 
       const destroyViewerEngine = () => {
         if (osdViewer) {
@@ -2789,7 +2824,14 @@ var PdfImageSaver = (() => {
           annotCanvas = null;
         }
         annotUndoStack = [];
+        activeEditorTool = "";
+        modifierPan = false;
+
         viewerOSD.hidden = true;
+        viewerVector.hidden = true;
+        viewerVector.removeAttribute("src");
+        viewerNavigator.hidden = true;
+        viewerNavigator.innerHTML = "";
         viewerAnnot.hidden = true;
         viewerEditor.hidden = true;
         viewerOSD.innerHTML = "";
@@ -2799,16 +2841,22 @@ var PdfImageSaver = (() => {
         if (!osdViewer || !annotCanvas || !annotImageSize.width) return;
         const container = viewerOSD.getBoundingClientRect();
         if (!container.width || !container.height) return;
-        const viewport = osdViewer.viewport;
-        const zoom = viewport.getZoom(true);
-        const center = viewport.getCenter(true);
-        const displayedWidth = zoom * container.width;
-        const scale = displayedWidth / annotImageSize.width;
-        const left = container.width / 2 - center.x * displayedWidth;
-        const top = container.height / 2 - center.y * displayedWidth * (annotImageSize.height / annotImageSize.width);
-        annotCanvas.setDimensions({ width: Math.round(container.width), height: Math.round(container.height) });
+        const item = osdViewer.world.getItemAt(0);
+        if (!item) return;
+        const origin = osdViewer.viewport.pixelFromPoint(item.imageToViewportCoordinates(0, 0), true);
+        const corner = osdViewer.viewport.pixelFromPoint(item.imageToViewportCoordinates(annotImageSize.width, annotImageSize.height), true);
+        const scale = (corner.x - origin.x) / annotImageSize.width;
+        const left = origin.x;
+        const top = origin.y;
+        annotCanvas.setDimensions({ width: container.width, height: container.height });
         annotCanvas.setViewportTransform([scale, 0, 0, scale, left, top]);
         annotCanvas.renderAll();
+        if (!viewerVector.hidden) {
+          viewerVector.style.left = left + "px";
+          viewerVector.style.top = top + "px";
+          viewerVector.style.width = (corner.x - left) + "px";
+          viewerVector.style.height = (corner.y - top) + "px";
+        }
         // Keep the footer readout honest: OpenSeadragon owns the zoom now, so the percentage has
         // to come from its viewport rather than from the old image-width maths.
         const fitScale = Math.min(container.width / annotImageSize.width, container.height / annotImageSize.height);
@@ -2828,71 +2876,103 @@ var PdfImageSaver = (() => {
         annotUndoStack.push(JSON.stringify(annotCanvas.toJSON()));
         if (annotUndoStack.length > 30) annotUndoStack.shift();
       };
+      const pointerToImage = (event) => {
+        const pointer = annotCanvas.getPointer(event.e || event);
+        return { x: pointer.x, y: pointer.y };
+      };
+      const setAnnotPointerCapture = (capture) => {
+        if (!annotCanvas) return;
+        const upper = annotCanvas.upperCanvasEl;
+        const wrapper = annotCanvas.wrapperEl;
+        if (wrapper) wrapper.style.pointerEvents = capture ? "auto" : "none";
+        if (upper) upper.style.pointerEvents = capture ? "auto" : "none";
+        if (annotCanvas.lowerCanvasEl) annotCanvas.lowerCanvasEl.style.pointerEvents = "none";
+        annotCanvas.skipTargetFind = !capture;
+        annotCanvas.selection = false;
+      };
+      const forwardWheelToOSD = (event) => {
+        if (!osdViewer || !event.deltaY) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const rect = viewerOSD.getBoundingClientRect();
+        const pixel = new window.OpenSeadragon.Point(event.clientX - rect.left, event.clientY - rect.top);
+        const refPoint = osdViewer.viewport.pointFromPixel(pixel, true);
+        const factor = event.deltaY < 0 ? osdViewer.zoomPerScroll : 1 / osdViewer.zoomPerScroll;
+        osdViewer.viewport.zoomBy(factor, refPoint);
+        osdViewer.viewport.applyConstraints();
+      };
 
       const ensureAnnotCanvas = () => {
         if (annotCanvas) return annotCanvas;
         annotCanvas = new window.fabric.Canvas(viewerAnnot, {
           preserveObjectStacking: true,
-          selection: true,
+          selection: false,
         });
+        annotCanvas.freeDrawingBrush = new window.fabric.PencilBrush(annotCanvas);
         annotCanvas.freeDrawingBrush.color = ANNOT_COLORS.brush;
         annotCanvas.freeDrawingBrush.width = 4;
-        annotCanvas.on("object:added", () => { if (!annotCanvas.__restoring) pushAnnotUndo(); });
+        annotCanvas.on("mouse:down", (event) => {
+          if (!activeEditorTool) return;
+          if (activeEditorTool === "brush") {
+            pushAnnotUndo();
+            return;
+          }
+          const point = pointerToImage(event);
+          if (activeEditorTool === "eraser") {
+            if (!event?.target) return;
+            pushAnnotUndo();
+            annotCanvas.remove(event.target);
+            annotCanvas.renderAll();
+            return;
+          }
+          if (activeEditorTool === "text") {
+            pushAnnotUndo();
+            const object = new window.fabric.IText("说明", {
+              left: point.x, top: point.y, fontSize: 28, fill: ANNOT_COLORS.text,
+            });
+            annotCanvas.add(object);
+            annotCanvas.setActiveObject(object);
+            object.enterEditing();
+            object.selectAll();
+            annotCanvas.renderAll();
+            return;
+          }
+        });
+        if (!annotCanvas.__wheelForwardBound) {
+          [annotCanvas.upperCanvasEl, annotCanvas.wrapperEl].filter(Boolean).forEach((element) => {
+            element.addEventListener("wheel", forwardWheelToOSD, { passive: false });
+          });
+          annotCanvas.__wheelForwardBound = true;
+        }
+        setAnnotPointerCapture(false);
         return annotCanvas;
       };
 
-      const setEditorTool = (tool) => {
-        activeEditorTool = tool;
+      const syncEditorInput = () => {
         if (!annotCanvas) return;
-        annotCanvas.isDrawingMode = tool === "brush";
-        if (tool === "eraser") {
-          annotCanvas.isDrawingMode = true;
-          const eraser = new window.fabric.EraserBrush(annotCanvas);
-          eraser.width = 20;
-          annotCanvas.freeDrawingBrush = eraser;
-        } else if (annotCanvas.freeDrawingBrush && annotCanvas.freeDrawingBrush.type === "EraserBrush") {
+        const capture = Boolean(activeEditorTool) && !modifierPan;
+        annotCanvas.isDrawingMode = capture && activeEditorTool === "brush";
+        setAnnotPointerCapture(capture);
+        if (osdViewer) osdViewer.gestureSettingsMouse.dragToPan = !capture;
+      };
+      const setEditorTool = (tool) => {
+        activeEditorTool = tool === activeEditorTool ? "" : tool;
+        if (!annotCanvas) return;
+        const drawing = activeEditorTool === "brush";
+        if (drawing) {
           annotCanvas.freeDrawingBrush = new window.fabric.PencilBrush(annotCanvas);
           annotCanvas.freeDrawingBrush.color = ANNOT_COLORS.brush;
           annotCanvas.freeDrawingBrush.width = 4;
         }
-        annotCanvas.defaultCursor = tool === "pan" ? "default" : "crosshair";
-        // Panning with the image is OpenSeadragon's job, so it only runs while no drawing tool is
-        // armed; otherwise a drag would both pan and draw.
-        if (osdViewer) osdViewer.setMouseNavEnabled(tool === "pan");
-        annotCanvas.skipTargetFind = tool === "pan";
+        annotCanvas.defaultCursor = !activeEditorTool ? "default" : activeEditorTool === "eraser" ? "pointer" : "crosshair";
+        if (osdViewer) osdViewer.setMouseNavEnabled(true);
+        syncEditorInput();
+
         document.querySelectorAll("[data-editor-tool]").forEach((button) => {
-          const active = button.dataset.editorTool === tool;
+          const active = button.dataset.editorTool === activeEditorTool;
           button.classList.toggle("is-active", active);
           button.setAttribute("aria-pressed", active ? "true" : "false");
         });
-      };
-
-      const addAnnotShape = (tool) => {
-        if (!annotCanvas) return;
-        const center = annotCanvas.getCenterPoint();
-        const matrix = annotCanvas.viewportTransform;
-        const scale = matrix[0] || 1;
-        const point = new window.fabric.Point((center.left - matrix[4]) / scale, (center.top - matrix[5]) / scale);
-        let object = null;
-        if (tool === "line") {
-          object = new window.fabric.Line([point.x - 60, point.y, point.x + 60, point.y], {
-            stroke: ANNOT_COLORS.line, strokeWidth: 3, strokeUniform: true,
-          });
-        } else if (tool === "rect") {
-          object = new window.fabric.Rect({
-            left: point.x - 60, top: point.y - 40, width: 120, height: 80,
-            fill: "rgba(15,110,86,0.12)", stroke: ANNOT_COLORS.rect, strokeWidth: 3, strokeUniform: true,
-          });
-        } else if (tool === "text") {
-          object = new window.fabric.IText("说明", {
-            left: point.x - 30, top: point.y - 14, fontSize: 28, fill: ANNOT_COLORS.text,
-          });
-        }
-        if (object) {
-          annotCanvas.add(object);
-          annotCanvas.setActiveObject(object);
-          annotCanvas.renderAll();
-        }
       };
 
       const openViewerWithEngine = (record) => {
@@ -2903,71 +2983,82 @@ var PdfImageSaver = (() => {
           viewerImage.hidden = true;
           viewerOSD.hidden = false;
           viewerAnnot.hidden = false;
+          viewerNavigator.hidden = false;
           viewerEditor.hidden = false;
           annotSourceURL = record.imageURL;
+          annotImageID = record.imageID;
           annotDownloadName = record.downloadName || record.id || "image";
+          if (record.imageURL.startsWith("data:image/svg+xml") || /\.svg(?:[?#]|$)/i.test(record.imageURL)) {
+            viewerVector.src = record.imageURL;
+            viewerVector.hidden = false;
+          }
           osdViewer = window.OpenSeadragon({
             element: viewerOSD,
             tileSources: { type: "image", url: record.imageURL },
             showNavigationControl: false,
             showNavigator: true,
+            navigatorElement: viewerNavigator,
             navigatorPosition: "BOTTOM_LEFT",
             navigatorAutoFade: false,
             navigatorBackground: "#ffffff",
-            gestureSettingsMouse: { scrollToZoom: true, clickToZoom: false, dblClickToZoom: false },
+            gestureSettingsMouse: { scrollToZoom: true, clickToZoom: false, dblClickToZoom: false, dragToPan: true },
             zoomPerScroll: 1.4,
             animationTime: 0.4,
             visibilityRatio: 0.2,
             minZoomLevel: 0.2,
             maxZoomLevel: 40,
+            drawer: "canvas",
+            crossOriginPolicy: false,
           });
           osdViewer.addHandler("open", () => {
             ensureAnnotCanvas();
             syncAnnotViewport();
-            setEditorTool(activeEditorTool);
+            setEditorTool("");
           });
           osdViewer.addHandler("viewport-change", syncAnnotViewport);
+          osdViewer.addHandler("animation", syncAnnotViewport);
           osdViewer.addHandler("resize", syncAnnotViewport);
         };
         image.onerror = () => { destroyViewerEngine(); viewerImage.hidden = false; };
         image.src = record.imageURL;
       };
 
-      const exportAnnotatedImage = () => {
+      const exportAnnotatedImage = async () => {
         if (!annotCanvas || !annotSourceURL) return;
+        const imageID = annotImageID;
+        const imageURL = annotSourceURL;
+        const width = annotImageSize.width;
+        const height = annotImageSize.height;
         const previous = annotCanvas.viewportTransform.slice();
-        annotCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-        annotCanvas.renderAll();
-        const source = new window.Image();
-        source.onload = () => {
-          const merged = document.createElement("canvas");
-          merged.width = annotImageSize.width;
-          merged.height = annotImageSize.height;
-          const context = merged.getContext("2d");
-          context.fillStyle = "#ffffff";
-          context.fillRect(0, 0, merged.width, merged.height);
-          context.drawImage(source, 0, 0);
-          context.drawImage(annotCanvas.getElement(), 0, 0, annotImageSize.width, annotImageSize.height);
-          const link = document.createElement("a");
-          link.href = merged.toDataURL("image/png");
-          link.download = String(annotDownloadName).replace(/\\.[a-z0-9]+$/i, "") + "-annotated.png";
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
+        let annotations;
+        try {
+          annotCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+          annotations = annotCanvas.toSVG({ viewBox: { x: 0, y: 0, width, height }, width, height });
+        } finally {
           annotCanvas.setViewportTransform(previous);
           annotCanvas.renderAll();
-          setMessage("已导出带标注的图片");
-        };
-        source.src = annotSourceURL;
+        }
+        const source = imageURL.startsWith("data:")
+          ? imageURL
+          : await postCommand("readImageBytes", { image_id: imageID }).then((result) => "data:" + result.mimeType + ";base64," + result.base64);
+        const safeSource = String(source).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
+        const body = annotations.slice(annotations.indexOf(">", annotations.indexOf("<svg")) + 1, annotations.lastIndexOf("</svg>"));
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '"><image x="0" y="0" width="' + width + '" height="' + height + '" href="' + safeSource + '"/>' + body + '</svg>';
+        const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = String(annotDownloadName).replace(/\\.[a-z0-9]+$/i, "") + "-annotated.svg";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+        setMessage("已导出 SVG 标注图；位图原图仍保留原有像素");
       };
 
       document.querySelectorAll("[data-editor-tool]").forEach((button) => {
-        button.addEventListener("click", () => {
-          const tool = button.dataset.editorTool;
-          setEditorTool(tool);
-          if (tool !== "pan" && tool !== "brush" && tool !== "eraser") addAnnotShape(tool);
-        });
+        button.addEventListener("click", () => setEditorTool(button.dataset.editorTool));
       });
+
       document.getElementById("viewer-editor-undo")?.addEventListener("click", () => {
         if (!annotCanvas || !annotUndoStack.length) return;
         const state = annotUndoStack.pop();
@@ -2983,7 +3074,12 @@ var PdfImageSaver = (() => {
         annotCanvas.remove(...annotCanvas.getObjects());
         annotCanvas.renderAll();
       });
-      document.getElementById("viewer-editor-save")?.addEventListener("click", exportAnnotatedImage);
+      document.getElementById("viewer-editor-save")?.addEventListener("click", () => {
+        void exportAnnotatedImage().catch((error) => {
+          const failure = describeCommandFailure(error);
+          setMessage(failure.connectionLost ? "管理功能不可用，" + managementRecoveryHint : failure.detail);
+        });
+      });
 
       const desktopBatchGuidance = "勾选后批量操作；按 Shift 连续选择；导入无需选择";
       const mobileBatchGuidance = "勾选图片后使用底部栏批量操作；导入无需选择";
@@ -3603,7 +3699,36 @@ var PdfImageSaver = (() => {
       viewer.addEventListener("click", (event) => { if (event.target === viewer || event.target === viewerStage || event.target === viewerCanvas) closeViewer(); });
       document.addEventListener("keydown", (event) => {
         if (viewer.hidden) return;
-        if (event.key === "Escape") { event.preventDefault(); closeViewer(); return; }
+        if (event.ctrlKey && !modifierPan) {
+          modifierPan = true;
+          syncEditorInput();
+        }
+        const typing = event.target && (event.target.isContentEditable || /^(input|textarea|select)$/i.test(event.target.tagName || ""));
+        if (event.key === "Escape") {
+          event.preventDefault();
+          if (activeEditorTool) setEditorTool("");
+          else closeViewer();
+          return;
+        }
+        if (!event.ctrlKey && !event.metaKey && !event.altKey && !typing) {
+          const toolKey = { b: "brush", t: "text", e: "eraser" }[String(event.key || "").toLowerCase()];
+          if (toolKey) { event.preventDefault(); setEditorTool(toolKey); return; }
+        }
+        if ((event.ctrlKey || event.metaKey) && String(event.key || "").toLowerCase() === "z") {
+          event.preventDefault();
+          document.getElementById("viewer-editor-undo")?.click();
+          return;
+        }
+        if ((event.key === "Delete" || event.key === "Backspace") && annotCanvas && !typing) {
+          const active = annotCanvas.getActiveObject();
+          if (active) {
+            event.preventDefault();
+            pushAnnotUndo();
+            annotCanvas.remove(active);
+            annotCanvas.renderAll();
+          }
+          return;
+        }
         if (event.key === "ArrowLeft") { event.preventDefault(); showRecord(viewerIndex - 1); return; }
         if (event.key === "ArrowRight") { event.preventDefault(); showRecord(viewerIndex + 1); return; }
         if (event.key === "+" || event.key === "=" || event.key === "Add") { event.preventDefault(); stepViewerZoom(1); return; }
@@ -3618,6 +3743,17 @@ var PdfImageSaver = (() => {
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
       });
+      document.addEventListener("keyup", (event) => {
+        if (!viewer.hidden && modifierPan && !event.ctrlKey) {
+          modifierPan = false;
+          syncEditorInput();
+        }
+      });
+      window.addEventListener("blur", () => {
+        modifierPan = false;
+        if (!viewer.hidden) syncEditorInput();
+      });
+
       if (!managementAvailable) {
         refreshLibrary.disabled = true;
         importPackage.disabled = true;
@@ -7281,6 +7417,7 @@ var PdfImageSaver = (() => {
             bytes,
             dataURL,
             byteCount: estimateDataURLBytes(dataURL),
+            hasVectorContent: report.vector.has_vector_content === true,
             width: Math.max(1, Math.round(Number(report.vector.width_pt) || 0)),
             height: Math.max(1, Math.round(Number(report.vector.height_pt) || 0)),
           };
@@ -7303,8 +7440,11 @@ var PdfImageSaver = (() => {
     }
   }
 
-  // Prefer the vector crop whenever it is not larger than the raster, which is what keeps vector
-  // figures tiny while a figure that is really an embedded bitmap keeps the leaner raster copy.
+  // Keep PDF geometry as SVG even when the SVG costs more than its raster preview. A region
+  // containing only embedded bitmap data stays raster, and the per-image byte limit still applies.
+  function shouldPreferVectorCapture(vector) {
+    return Boolean(vector?.hasVectorContent && vector.byteCount > 0 && vector.byteCount <= MAX_VECTOR_IMAGE_BYTES);
+  }
   async function applyVectorCapture(preview, { attachment }) {
     if (!preview || !attachment || !Array.isArray(preview.bboxNormalized)) return preview;
     if (!getBoolPref("vectorCapture", true)) return preview;
@@ -7313,8 +7453,7 @@ var PdfImageSaver = (() => {
       pageIndex: preview.pageIndex,
       bboxNormalized: preview.bboxNormalized,
     });
-    if (!vector || vector.byteCount > MAX_STORED_IMAGE_BYTES) return preview;
-    if (preview.byteCount && vector.byteCount > preview.byteCount) return preview;
+    if (!shouldPreferVectorCapture(vector)) return preview;
     return {
       ...preview,
       dataURL: vector.dataURL,
@@ -7388,12 +7527,20 @@ var PdfImageSaver = (() => {
       const manifest = await readBundledRuntimeManifest();
       const directory = getBundledRuntimeDirectory();
       await ensureDirectoryRecursively(directory);
-      for (const relativePath of manifest.files) {
-        const target = PathUtils.join(directory, relativePath);
-        await ensureDirectoryRecursively(PathUtils.parent(target));
-        const bytes = await readAddonBinary(resolveBundledRuntimeSourcePath(relativePath));
-        if (!bytes) return null;
-        await IOUtils.write(target, bytes);
+      const zipReader = openAddonZipReader();
+      try {
+        for (const relativePath of manifest.files) {
+          const sourcePath = resolveBundledRuntimeSourcePath(relativePath);
+          const target = PathUtils.join(directory, relativePath);
+          await ensureDirectoryRecursively(PathUtils.parent(target));
+          const bytes = zipReader
+            ? readZipEntryBytes(zipReader, sourcePath)
+            : await readAddonBinary(sourcePath);
+          if (!bytes) return null;
+          await IOUtils.write(target, bytes);
+        }
+      } finally {
+        closeAddonZipReader(zipReader);
       }
       await IOUtils.writeUTF8(PathUtils.join(directory, "runtime-version.txt"), String(manifest.version));
       return PathUtils.join(directory, String(manifest.interpreter || "python/python.exe"));
@@ -7408,6 +7555,105 @@ var PdfImageSaver = (() => {
     return String(config.rootURI || "") + String(relativePath || "").replace(/^\/+/, "");
   }
 
+  function getAddonInstallPath() {
+    const candidates = [
+      config?.installPath,
+      config?.rootURI,
+    ];
+    for (const candidate of candidates) {
+      const path = fileURLToLocalPath(candidate);
+      if (path && /\.xpi$/i.test(path)) return path;
+      if (path) return path;
+    }
+    try {
+      const fallback = PathUtils.join(PathUtils.profileDir, "extensions", "pdf-image-saver@zlk.local.xpi");
+      return fallback;
+    } catch (_error) {
+      return "";
+    }
+  }
+
+
+  function fileURLToLocalPath(value) {
+    let text = String(value || "").trim();
+    if (!text) return "";
+    text = text.replace(/^jar:/i, "");
+    const bang = text.indexOf("!/");
+    if (bang >= 0) text = text.slice(0, bang);
+    if (/^[a-zA-Z]:[\\/]/.test(text) || text.startsWith("\\\\")) return text.replace(/\//g, "\\");
+    if (!/^file:/i.test(text)) return "";
+    try {
+      if (typeof Zotero?.File?.getFileFromURL === "function") {
+        const file = Zotero.File.getFileFromURL(text);
+        const path = file?.path || file?.persistentDescriptor || "";
+        if (path) return String(path);
+      }
+    } catch (_error) {}
+    let body = text.replace(/^file:\/+/i, "");
+    try { body = decodeURIComponent(body); } catch (_error) {}
+    if (/^[a-zA-Z]:/.test(body)) return body.replace(/\//g, "\\");
+    if (/^[a-zA-Z]%3A/i.test(body)) {
+      try { return decodeURIComponent(body).replace(/\//g, "\\"); } catch (_error) {}
+    }
+    return body.replace(/\//g, "\\");
+  }
+
+  function openAddonZipReader() {
+    try {
+      const installPath = getAddonInstallPath();
+      if (!/\.xpi$/i.test(installPath)) return null;
+      const classes = (typeof Cc !== "undefined" && Cc) || Components.classes;
+      const interfaces = (typeof Ci !== "undefined" && Ci) || Components.interfaces;
+      if (!classes || !interfaces) return null;
+      const zipReader = classes["@mozilla.org/libjar/zip-reader;1"].createInstance(interfaces.nsIZipReader);
+      zipReader.open(Zotero.File.pathToFile(installPath));
+      return zipReader;
+    } catch (error) {
+      safeLogError(error);
+      return null;
+    }
+
+  }
+
+  function closeAddonZipReader(zipReader) {
+    if (!zipReader) return;
+    try { zipReader.close(); } catch (_error) {}
+  }
+
+  function readZipEntryBytes(zipReader, relativePath) {
+    try {
+      const entry = String(relativePath || "").replace(/^\/+/, "");
+      const size = Number(zipReader.getEntry(entry)?.realSize || zipReader.getEntry(entry)?.size || 0);
+      const stream = zipReader.getInputStream(entry);
+      const binary = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
+      binary.setInputStream(stream);
+      const chunks = [];
+      let remaining = size > 0 ? size : Number.MAX_SAFE_INTEGER;
+      while (remaining > 0) {
+        const available = binary.available();
+        if (!available) break;
+        const take = Math.min(available, remaining, 1024 * 1024);
+        const chunk = new Uint8Array(take);
+        binary.readArrayBuffer(take, chunk.buffer);
+        chunks.push(chunk);
+        remaining -= take;
+      }
+      try { binary.close(); } catch (_error) {}
+      const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const bytes = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.length;
+      }
+      return bytes.length ? bytes : null;
+    } catch (error) {
+      safeLogError(error);
+      return null;
+    }
+  }
+
+
   async function writeAddonTextFile(target, text) {
     if (typeof IOUtils !== "undefined" && typeof IOUtils.writeUTF8 === "function") {
       await IOUtils.writeUTF8(target, text);
@@ -7421,6 +7667,15 @@ var PdfImageSaver = (() => {
   }
 
   async function readAddonText(relativePath) {
+    const zipReader = openAddonZipReader();
+    if (zipReader) {
+      try {
+        const bytes = readZipEntryBytes(zipReader, relativePath);
+        if (bytes?.length) return new TextDecoder("utf-8").decode(bytes);
+      } finally {
+        closeAddonZipReader(zipReader);
+      }
+    }
     try {
       if (typeof Zotero?.File?.getContentsFromURLAsync !== "function") return "";
       const text = await Zotero.File.getContentsFromURLAsync(addonResourceURL(relativePath));
@@ -7442,10 +7697,16 @@ var PdfImageSaver = (() => {
     return bytes;
   }
 
-  // Packaged add-on files live behind a jar URL. Classic-script copies use the text reader that
-  // already works for the helper. Binary copies try Zotero's binary helper, then an arraybuffer GET,
-  // then a charset=x-user-defined text read so a 68 MB runtime can still be unpacked from the XPI.
   async function readAddonBinary(relativePath) {
+    const zipReader = openAddonZipReader();
+    if (zipReader) {
+      try {
+        const zipped = readZipEntryBytes(zipReader, relativePath);
+        if (zipped?.length) return zipped;
+      } finally {
+        closeAddonZipReader(zipReader);
+      }
+    }
     const url = addonResourceURL(relativePath);
     if (typeof Zotero?.File?.getBinaryFromURLAsync === "function") {
       try {
@@ -7477,6 +7738,7 @@ var PdfImageSaver = (() => {
     safeLogError(new Error("Addon binary read failed: " + relativePath));
     return null;
   }
+
 
   async function ensureHelperScriptPath() {
     helperScriptPathPromise ??= (async () => {
@@ -12816,9 +13078,12 @@ var PdfImageSaver = (() => {
       getDatabaseRowValue,
       getDatabaseImageFileType,
       isSVGImageBytes,
+      shouldPreferVectorCapture,
       ensureLibraryViewVendor,
+      loadLibraryViewVendorScripts,
       resolveBundledRuntimeSourcePath,
       addonResourceURL,
+      fileURLToLocalPath,
       LIBRARY_VIEW_VENDOR_FILES,
       normalizeSHA256,
       computeSHA256Hex,

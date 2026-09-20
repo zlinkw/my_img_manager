@@ -59,7 +59,7 @@ function Install-ProfileXPI {
   param([string]$ProfilePath)
 
   $xpiPath = Assert-CurrentXpiPath -Root $root -Action "npm.cmd run build"
-  & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "check-xpi.ps1") -XpiPath $xpiPath | Out-Null
+  & pwsh.exe -ExecutionPolicy Bypass -NoProfile -File (Join-Path $PSScriptRoot "check-xpi.ps1") -XpiPath $xpiPath | Out-Null
   if ($LASTEXITCODE -ne 0) {
     throw "XPI payload check failed; refusing to install into a Zotero profile: $xpiPath"
   }

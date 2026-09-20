@@ -58,6 +58,9 @@ try {
   }
 
   $blockedPrefixes = @("work/", "outputs/", "tests/", ".git/", "scripts/")
+  if ($entries -contains "content/vendor/vendor-bundle.json") {
+    throw "XPI includes an unused generated vendor bundle"
+  }
   foreach ($entry in $entries) {
     foreach ($prefix in $blockedPrefixes) {
       if ($entry.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {

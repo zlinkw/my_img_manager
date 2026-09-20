@@ -39,7 +39,7 @@ try {
     }
   } | ConvertTo-Json -Depth 4
   [IO.File]::WriteAllText((Join-Path $profilePath "xulstore.json"), $offscreenStore, [Text.UTF8Encoding]::new($false))
-  & powershell -ExecutionPolicy Bypass -File (Join-Path $root "scripts\smoke-one-close.ps1") -ProfilePath $profilePath -StartupDelaySeconds $StartupDelaySeconds -ExitTimeoutSeconds $ExitTimeoutSeconds
+  & pwsh.exe -ExecutionPolicy Bypass -NoProfile -File (Join-Path $root "scripts\smoke-one-close.ps1") -ProfilePath $profilePath -StartupDelaySeconds $StartupDelaySeconds -ExitTimeoutSeconds $ExitTimeoutSeconds
   if ($LASTEXITCODE -ne 0) { throw "isolated close smoke failed with exit code $LASTEXITCODE" }
 }
 finally {

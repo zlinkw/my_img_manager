@@ -4,7 +4,7 @@ $buildScript = Join-Path $root "scripts\build.ps1"
 
 Set-Location $root
 
-$buildOutput = @(& powershell -ExecutionPolicy Bypass -File $buildScript 2>&1)
+$buildOutput = @(& pwsh.exe -ExecutionPolicy Bypass -NoProfile -File $buildScript 2>&1)
 if ($LASTEXITCODE -ne 0) {
   throw "build.ps1 failed with exit code $LASTEXITCODE"
 }

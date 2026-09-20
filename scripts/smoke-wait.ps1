@@ -10,7 +10,7 @@ $deadline = (Get-Date).AddSeconds([Math]::Max(1, $TimeoutSeconds))
 $lastOutput = ""
 
 do {
-  $output = & powershell -ExecutionPolicy Bypass -File $preflight 2>&1
+  $output = & pwsh.exe -ExecutionPolicy Bypass -NoProfile -File $preflight 2>&1
   $exitCode = $LASTEXITCODE
   $lastOutput = ($output | Out-String).Trim()
   if ($exitCode -eq 0) {

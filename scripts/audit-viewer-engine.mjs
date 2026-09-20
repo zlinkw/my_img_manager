@@ -27,6 +27,14 @@ await runProcess(process.execPath, [path.join(root, "tests", "current-release.te
   env: { ...process.env, PDF_IMAGE_SAVER_BROWSER_LIBRARY_FIXTURE: fixture },
 });
 assert.ok(fs.existsSync(fixture), "gallery fixture must be generated");
+const fixtureHTML = fs.readFileSync(fixture, "utf8");
+const sourceMatch = fixtureHTML.match(/data:image\/svg\+xml;base64,([A-Za-z0-9+/=]+)/);
+assert.ok(sourceMatch, "fixture needs an SVG source for the real file path audit");
+const sourceBase64 = sourceMatch[1];
+const imageDirectory = path.join(tempRoot, "images");
+fs.mkdirSync(imageDirectory, { recursive: true });
+fs.writeFileSync(path.join(imageDirectory, "viewer-source.svg"), Buffer.from(sourceBase64, "base64"));
+fs.writeFileSync(fixture, fixtureHTML.replaceAll(sourceMatch[0], "images/viewer-source.svg"), "utf8");
 
 const vendorDirectory = path.join(tempRoot, "vendor");
 fs.mkdirSync(vendorDirectory, { recursive: true });
@@ -116,30 +124,33 @@ try {
     document.querySelector(".library-card:not([hidden]) [data-open-image]").click();
     await new Promise(function (resolve) { setTimeout(resolve, 2500); });
     const osd = document.getElementById("viewer-osd");
-    const navigator = osd.querySelector(".navigator");
+    const navigator = document.querySelector("#viewer-navigator .navigator") || document.getElementById("viewer-navigator");
     const rect = navigator ? navigator.getBoundingClientRect() : null;
     return {
       protocol: location.protocol,
       osdVisible: !osd.hidden,
       annotVisible: !document.getElementById("viewer-annot").hidden,
+      vectorVisible: !document.getElementById("viewer-vector").hidden,
       editorVisible: !document.getElementById("viewer-editor").hidden,
       plainImageHidden: document.getElementById("viewer-image").hidden,
-      navigatorPresent: !!navigator,
+      navigatorPresent: !!navigator && navigator.childElementCount > 0 && !document.getElementById("viewer-navigator").hidden,
       navigatorLeft: rect ? Math.round(rect.left) : -1,
       navigatorFromBottom: rect ? Math.round(window.innerHeight - rect.bottom) : -1,
       toolCount: document.querySelectorAll("[data-editor-tool]").length,
+      vectorWidth: document.getElementById("viewer-vector").getBoundingClientRect().width,
       initialZoom: document.getElementById("viewer-zoom-value").textContent,
     };
   })()`);
   assert.equal(opened.protocol, "file:", "this audit only means anything on a file:// gallery");
   assert.equal(opened.osdVisible, true, "opening a record must show the OpenSeadragon stage");
   assert.equal(opened.annotVisible, true, "opening a record must show the annotation layer");
+  assert.equal(opened.vectorVisible, true, "SVG sources must display through the browser's vector image element");
   assert.equal(opened.editorVisible, true, "opening a record must show the annotation toolbar");
   assert.equal(opened.plainImageHidden, true, "the engine replaces the plain image instead of stacking on it");
   assert.equal(opened.navigatorPresent, true, "the viewer must show a bird's-eye overview map");
   assert.ok(opened.navigatorLeft <= 40, "the overview map must sit on the left edge");
   assert.ok(opened.navigatorFromBottom <= 200, "the overview map must sit near the bottom edge");
-  assert.equal(opened.toolCount, 6, "the annotation toolbar must expose the six documented tools");
+  assert.equal(opened.toolCount, 3, "the annotation toolbar must expose brush, eraser and text");
   assert.equal(opened.initialZoom, "适应窗口", "the viewer must open with the whole image visible");
 
   // Wheel events must land on OpenSeadragon's own canvas: dispatching on the wrapper would never
@@ -153,10 +164,12 @@ try {
       canvas.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -120, clientX: Math.round(rect.left + rect.width / 2), clientY: Math.round(rect.top + rect.height / 2) }));
       await new Promise(function (resolve) { setTimeout(resolve, 260); });
     }
-    return { before: before, after: document.getElementById("viewer-zoom-value").textContent };
+    return { before: before, after: document.getElementById("viewer-zoom-value").textContent,
+      vectorWidth: document.getElementById("viewer-vector").getBoundingClientRect().width };
   })()`);
   assert.notEqual(wheel.after, wheel.before, "the mouse wheel must zoom the image");
   assert.ok(/%$/.test(wheel.after), "the zoom readout must report a real percentage");
+  assert.ok(wheel.vectorWidth > opened.vectorWidth, "native SVG must scale with the image viewport");
 
   const buttons = await evaluate(`(async () => {
     document.getElementById("viewer-zoom-actual").click();
@@ -178,6 +191,90 @@ try {
   assert.equal(brush.active, true, "the brush tool must arm itself visibly");
   assert.equal(brush.pressed, "true", "the brush tool must expose its state to assistive tech");
 
+  const wheelArmed = await evaluate(`(async () => {
+    const osd = document.getElementById("viewer-osd");
+    const overlay = document.querySelector(".upper-canvas") || osd.querySelector("canvas") || osd;
+    const rect = osd.getBoundingClientRect();
+    const before = document.getElementById("viewer-zoom-value").textContent;
+    for (let i = 0; i < 3; i += 1) {
+      overlay.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -120, clientX: Math.round(rect.left + rect.width / 2), clientY: Math.round(rect.top + rect.height / 2) }));
+      await new Promise(function (resolve) { setTimeout(resolve, 260); });
+    }
+    return { before: before, after: document.getElementById("viewer-zoom-value").textContent };
+  })()`);
+  assert.notEqual(wheelArmed.after, wheelArmed.before, "the mouse wheel must still zoom while a drawing tool is armed");
+
+  const beforePan = await evaluate(`(() => {
+    const rect = document.getElementById("viewer-vector").getBoundingClientRect();
+    return { left: rect.left, top: rect.top, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })()`);
+  await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Control", code: "ControlLeft", windowsVirtualKeyCode: 17, modifiers: 2 });
+  await send("Input.dispatchMouseEvent", { type: "mousePressed", x: beforePan.x, y: beforePan.y, button: "left", clickCount: 1, modifiers: 2 });
+  await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: beforePan.x + 65, y: beforePan.y + 35, button: "left", buttons: 1, modifiers: 2 });
+  await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: beforePan.x + 65, y: beforePan.y + 35, button: "left", clickCount: 1, modifiers: 2 });
+  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Control", code: "ControlLeft", windowsVirtualKeyCode: 17 });
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  const afterPan = await evaluate(`(() => {
+    const rect = document.getElementById("viewer-vector").getBoundingClientRect();
+    return { left: rect.left, top: rect.top };
+  })()`);
+  assert.ok(Math.abs(afterPan.left - beforePan.left) > 5 || Math.abs(afterPan.top - beforePan.top) > 5,
+    "Ctrl+drag must pan the SVG image while a drawing tool is armed");
+
+  const strokePoint = await evaluate(`(() => {
+    const rect = document.getElementById("viewer-vector").getBoundingClientRect();
+    return { x: Math.round(rect.left + rect.width * 0.4), y: Math.round(rect.top + rect.height * 0.4) };
+  })()`);
+  await send("Input.dispatchMouseEvent", { type: "mousePressed", x: strokePoint.x, y: strokePoint.y, button: "left", clickCount: 1 });
+  await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: strokePoint.x + 35, y: strokePoint.y + 20, button: "left", buttons: 1 });
+  await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: strokePoint.x + 35, y: strokePoint.y + 20, button: "left", clickCount: 1 });
+  const exported = await evaluate(`(async () => {
+    const originalCreate = URL.createObjectURL;
+    const originalClick = HTMLAnchorElement.prototype.click;
+    const originalFetch = window.fetch;
+    let blob = null;
+    let fileName = "";
+    let bridgeRead = false;
+    URL.createObjectURL = function (value) { blob = value; return "blob:viewer-audit"; };
+    HTMLAnchorElement.prototype.click = function () { fileName = this.download; };
+    window.fetch = async function (_url, options) {
+      bridgeRead = options.body.get("command") === "readImageBytes";
+      return { ok: true, json: async () => ({ ok: true, mimeType: "image/svg+xml", base64: ${JSON.stringify(sourceBase64)} }) };
+    };
+    try {
+      document.getElementById("viewer-editor-save").click();
+      for (let attempt = 0; attempt < 20 && !blob; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+      const svg = blob ? await blob.text() : "";
+      const xml = new DOMParser().parseFromString(svg, "image/svg+xml");
+      const previewURL = originalCreate(blob);
+      const preview = new Image();
+      const loaded = await new Promise((resolve) => {
+        preview.onload = () => resolve(preview.naturalWidth > 0 && preview.naturalHeight > 0);
+        preview.onerror = () => resolve(false);
+        preview.src = previewURL;
+      });
+      const sample = document.createElement("canvas");
+      sample.width = sample.height = 16;
+      const context = sample.getContext("2d");
+      if (loaded) context.drawImage(preview, 0, 0, 16, 16);
+      const sourceAlpha = loaded ? context.getImageData(1, 1, 1, 1).data[3] : 0;
+      URL.revokeObjectURL(previewURL);
+      return { fileName, pathCount: xml.querySelectorAll("path").length,
+        embeddedVector: svg.includes("data:image/svg+xml"), parseError: !!xml.querySelector("parsererror"), loaded, sourceAlpha, bridgeRead };
+    } finally {
+      URL.createObjectURL = originalCreate;
+      HTMLAnchorElement.prototype.click = originalClick;
+      window.fetch = originalFetch;
+    }
+  })()`);
+  assert.ok(exported.fileName.endsWith("-annotated.svg"), "annotated export must download SVG");
+  assert.ok(exported.pathCount > 0, "a brush stroke must stay a vector path in the SVG export");
+  assert.equal(exported.embeddedVector, true, "SVG export must retain its vector source");
+  assert.equal(exported.bridgeRead, true, "file-backed SVG export must embed bytes supplied by the Zotero bridge");
+  assert.equal(exported.parseError, false, "SVG export must be well formed");
+  assert.equal(exported.loaded, true, "exported SVG must render as an image");
+  assert.ok(exported.sourceAlpha > 0, "exported SVG must visibly include the original image");
+
   const closed = await evaluate(`(async () => {
     document.getElementById("viewer-close").click();
     await new Promise(function (resolve) { setTimeout(resolve, 400); });
@@ -186,7 +283,7 @@ try {
   assert.equal(closed.viewerHidden, true, "closing the viewer must still return to the gallery");
   assert.equal(closed.osdHidden, true, "closing the viewer must tear the engine down");
 
-  console.log("viewer engine audit ok: wheel zoom, bottom-left overview, 6 annotation tools, teardown on close");
+  console.log("viewer engine audit ok: wheel zoom, bottom-left overview, 3 annotation tools, teardown on close");
 } finally {
   try { client?.close(); } catch (_error) { /* ignore */ }
   browser.kill();

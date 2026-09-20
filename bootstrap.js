@@ -1,15 +1,20 @@
 var PdfImageSaver;
 var PathUtils;
 var IOUtils;
+var Cc;
+var Ci;
 
 function loadRuntimeModules() {
   const zoteroGlobal = Components.utils.getGlobalForObject(Zotero);
   PathUtils = zoteroGlobal.PathUtils;
   IOUtils = zoteroGlobal.IOUtils;
+  Cc = zoteroGlobal.Cc || Components.classes;
+  Ci = zoteroGlobal.Ci || Components.interfaces;
   if (!PathUtils || !IOUtils) {
     throw new Error("Zotero runtime file APIs unavailable");
   }
 }
+
 
 function log(message) {
   Zotero.debug("PDF 图片保存：" + message);

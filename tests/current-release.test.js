@@ -274,8 +274,19 @@ const fixture = api.buildGlobalImageLibraryHTML({
   bridgeURL: "http://127.0.0.1:23119/pdf-image-saver/bridge",
   bridgeToken: "token",
 });
+const inlinedViewerHTML = api.buildGlobalImageLibraryHTML({
+  records: libraryRecords,
+  generatedAt: "2026-07-19T02:00:00.000Z",
+  vendorScripts: ["function OpenSeadragon(){}", "var fabric={};"],
+});
+assert.ok(inlinedViewerHTML.includes("<script>function OpenSeadragon(){}</script>"), "gallery HTML must inline OpenSeadragon instead of depending on a missing vendor file");
+assert.ok(inlinedViewerHTML.includes("<script>var fabric={};</script>"), "gallery HTML must inline Fabric instead of depending on a missing vendor file");
+assert.ok(!inlinedViewerHTML.includes('src="vendor/openseadragon.min.js"'), "inlined gallery HTML must not fall back to an external OpenSeadragon src");
+assert.ok(fixture.includes('src="vendor/openseadragon.min.js"'), "the unaudited fallback page still references classic vendor scripts");
+
+
 for (const text of [
-  'data-paper-image-library-version="40"',
+  'data-paper-image-library-version="44"',
   "刷新图库",
   "导入分享包",
   "分享所选",
@@ -501,6 +512,9 @@ void (async () => {
   assert.ok(!api.isSVGImageBytes(Buffer.from("not an image at all", "utf8")), "plain text must not be treated as svg");
   assert.ok(!api.isSVGImageBytes(null), "a missing blob must not be treated as svg");
   assert.equal(api.getDatabaseImageFileType(pngDataURLToBytes(pngDataURL(4, 4, [1, 2, 3])))?.extension, "png", "raster sniffing must keep working");
+  assert.equal(api.shouldPreferVectorCapture({ hasVectorContent: true, byteCount: 2 * 1024 * 1024 }), true, "real PDF geometry must remain SVG even when larger than the raster preview");
+  assert.equal(api.shouldPreferVectorCapture({ hasVectorContent: false, byteCount: 1000 }), false, "pure embedded bitmaps must stay raster");
+  assert.equal(api.shouldPreferVectorCapture({ hasVectorContent: true, byteCount: 26 * 1024 * 1024 }), false, "oversized SVG must respect the vector byte cap");
 }
 
 assert.equal(
@@ -521,6 +535,31 @@ assert.equal(
 assert.equal(api.LIBRARY_VIEW_VENDOR_FILES.length, 2, "the generated gallery must copy both classic-script viewer libraries");
 assert.equal(api.LIBRARY_VIEW_VENDOR_FILES[0], "content/vendor/openseadragon.min.js", "OpenSeadragon must ship as a classic script");
 assert.equal(api.LIBRARY_VIEW_VENDOR_FILES[1], "content/vendor/fabric.min.js", "Fabric must ship as a classic script");
+assert.ok(source.includes('drawer: "canvas"'), "OpenSeadragon must use the canvas drawer on file:// galleries");
+assert.ok(!source.includes('data-editor-tool="pan"'), "Ctrl+drag must pan without a separate pan tool");
+assert.ok(!source.includes('data-editor-tool="line"') && !source.includes('data-editor-tool="rect"'), "only brush, eraser and text tools may remain");
+assert.ok(source.includes('id="viewer-vector"'), "SVG originals must use a native image layer for vector display");
+assert.ok(source.includes('Ctrl+拖动平移'), "viewer must explain modifier-assisted panning");
+assert.ok(!source.includes("EraserBrush"), "Fabric 6 has no EraserBrush; eraser must click-delete objects");
+assert.ok(source.includes("viewer-editor-help"), "the annotation toolbar must show usage text");
+assert.ok(source.includes('b: "brush"'), "annotation tools must have keyboard shortcuts");
+assert.ok(source.includes("forwardWheelToOSD"), "armed annotation tools must still forward wheel zoom to OpenSeadragon");
+
+
+
+assert.equal(
+  api.fileURLToLocalPath("jar:file:///C:/Users/ZLK/AppData/Roaming/Zotero/Zotero/Profiles/aalpald9.default/extensions/pdf-image-saver@zlk.local.xpi!/"),
+  "C:\\Users\\ZLK\\AppData\\Roaming\\Zotero\\Zotero\\Profiles\\aalpald9.default\\extensions\\pdf-image-saver@zlk.local.xpi",
+  "a jar:file XPI URI must resolve to the local xpi path",
+);
+assert.equal(
+  api.fileURLToLocalPath("file:///C%3A/Users/ZLK/AppData/Roaming/Zotero/Zotero/Profiles/aalpald9.default/extensions/pdf-image-saver%40zlk.local.xpi!/"),
+  "C:\\Users\\ZLK\\AppData\\Roaming\\Zotero\\Zotero\\Profiles\\aalpald9.default\\extensions\\pdf-image-saver@zlk.local.xpi",
+  "a broken file:// xpi! URI must still resolve to the local xpi path",
+);
+assert.ok(source.includes("nsIZipReader"), "packaged vendor and runtime files must be copied from the XPI zip");
+assert.ok(fs.readFileSync(path.join(root, "scripts", "register-profile-xpi.mjs"), "utf8").includes("jar:file:///"), "profile XPI registration must record a jar:file rootURI");
+
 
 function pngDataURLToBytes(dataURL) {
   return Buffer.from(String(dataURL).slice(String(dataURL).indexOf(",") + 1), "base64");
@@ -728,7 +767,8 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "u
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
 assert.equal(manifest.applications.zotero.strict_max_version, "11.*", "release supports the Zotero 10 and 11 profile-install range");
-assert.equal(manifest.version, "0.1.140", "release candidate increments the installed release");
+assert.equal(manifest.version, "0.1.144", "release candidate increments the installed release");
+
 const expectedUpdateUrl = "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json";
 assert.equal(manifest.applications.zotero.update_url, expectedUpdateUrl, "Zotero 10 requires update_url and it must point at the static empty feed");
 const updateFeed = JSON.parse(fs.readFileSync(path.join(root, "updates.json"), "utf8"));
@@ -745,28 +785,22 @@ for (const required of ["Zotero 10", "手动安装 XPI", "Windows", "外部 SQLi
 // Async checks run last and gate the success line, so a rejected assertion can never be reported
 // as a pass.
 async function verifyAsyncContracts() {
-  const written = new Map();
   context.Zotero.File = {
     async getContentsFromURLAsync(url) {
       if (String(url).endsWith("openseadragon.min.js")) return "function OpenSeadragon(){}";
       if (String(url).endsWith("fabric.min.js")) return "var fabric={};";
       throw new Error("unexpected addon text url: " + url);
     },
-    async putContentsAsync(target, text) {
-      written.set(String(target), String(text));
+    async getBinaryFromURLAsync(url) {
+      if (String(url).endsWith("openseadragon.min.js")) return new TextEncoder().encode("function OpenSeadragon(){}");
+      if (String(url).endsWith("fabric.min.js")) return new TextEncoder().encode("var fabric={};");
+      throw new Error("unexpected addon binary url: " + url);
     },
-    async createDirectoryIfMissingAsync() {},
   };
-  context.IOUtils.makeDirectory = async () => {};
-  context.IOUtils.writeUTF8 = async (target, text) => {
-    written.set(String(target), String(text));
-  };
-  context.IOUtils.write = async () => {
-    throw new Error("vendor scripts must be copied as text, not as a binary fallback");
-  };
-  await api.ensureLibraryViewVendor("C:\\Temp\\gallery");
-  assert.equal(written.get("C:\\Temp\\gallery\\vendor\\openseadragon.min.js"), "function OpenSeadragon(){}", "OpenSeadragon must be copied next to the generated gallery");
-  assert.equal(written.get("C:\\Temp\\gallery\\vendor\\fabric.min.js"), "var fabric={};", "Fabric must be copied next to the generated gallery");
+  const loaded = await api.loadLibraryViewVendorScripts();
+  assert.equal(loaded.length, 2, "both viewer libraries must load as text from the add-on");
+  assert.equal(loaded[0], "function OpenSeadragon(){}", "OpenSeadragon must load as gallery inline source");
+  assert.equal(loaded[1], "var fabric={};", "Fabric must load as gallery inline source");
 
   const helperReport = { warnings: [] };
   await api.probeOptionalHelperAvailability(helperReport, async () => { throw new Error("Helper: Python n/a."); });

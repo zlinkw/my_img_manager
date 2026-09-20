@@ -28,7 +28,7 @@ function Invoke-Native {
   }
 }
 
-Invoke-Native "powershell" @("-ExecutionPolicy", "Bypass", "-File", ".\scripts\check.ps1")
+Invoke-Native "pwsh.exe" @("-ExecutionPolicy", "Bypass", "-NoProfile", "-File", ".\scripts\check.ps1")
 
 New-Item -ItemType Directory -Force -Path $buildDir, $outputDir | Out-Null
 
@@ -54,6 +54,7 @@ try {
   $archive = [IO.Compression.ZipArchive]::new($zipStream, [IO.Compression.ZipArchiveMode]::Create, $false)
   try {
     Get-ChildItem -LiteralPath $buildDir -Recurse -File |
+      Where-Object { $_.FullName.Substring($buildDirPrefix.Length).Replace("\", "/") -ne "content/vendor/vendor-bundle.json" } |
       Sort-Object FullName |
       ForEach-Object {
         $entryName = $_.FullName.Substring($buildDirPrefix.Length).Replace("\", "/")
@@ -92,6 +93,6 @@ finally {
 }
 $hash | Set-Content -Encoding ASCII -LiteralPath "$xpiPath.sha256"
 
-Invoke-Native "powershell" @("-ExecutionPolicy", "Bypass", "-File", ".\scripts\check-xpi.ps1", "-XpiPath", $xpiPath)
+Invoke-Native "pwsh.exe" @("-ExecutionPolicy", "Bypass", "-NoProfile", "-File", ".\scripts\check-xpi.ps1", "-XpiPath", $xpiPath)
 
 Write-Host "built $xpiPath"
