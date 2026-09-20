@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-- 版本 `0.1.144`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.144`：标注仅保留笔刷、橡皮和文字；滚轮缩放、Ctrl 加拖动平移；SVG 原图与标注同步显示并导出 SVG。
-- 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "44"`。
+- 版本 `0.1.145`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.145`：已有文字可编辑；SVG 导出传递正确图片 ID；查看器显示原图格式与导出状态。
+- 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "45"`。
 - 闸门：`npm.cmd run check`。
 
 ## 已关闭事项

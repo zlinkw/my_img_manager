@@ -14,7 +14,7 @@ var PdfImageSaver = (() => {
   const BRIDGE_STATUS_COMMANDS = ["status", "getStatus"];
   const BRIDGE_PROVENANCE_COMMANDS = ["openPdfByImageId", "selectParentItemByImageId", "selectPdfAttachmentByImageId"];
   const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "readImageBytes", "refreshLibrary", "updateImageNote"];
-  const GLOBAL_LIBRARY_VIEW_VERSION = "44";
+  const GLOBAL_LIBRARY_VIEW_VERSION = "45";
 
   const GLOBAL_LIBRARY_DIRECTORY_NAME = "paper-image-library-view";
   const GLOBAL_LIBRARY_HTML_NAME = "paper-image-library.html";
@@ -2448,7 +2448,8 @@ var PdfImageSaver = (() => {
     .viewer-editor button:hover { background:#2f373d; }
     .viewer-editor button.is-active { background:#185fa5; border-color:#378add; color:#ffffff; }
     .viewer-editor-sep { width:1px; height:18px; background:rgba(255,255,255,0.18); margin:0 2px; }
-    .viewer-editor-help { color:#cbd3d8; font-size:12px; line-height:1.35; margin-left:4px; }
+    .viewer-editor-help, .viewer-editor-status { color:#cbd3d8; font-size:12px; line-height:1.35; margin-left:4px; }
+    .viewer-editor-status[data-error="true"] { color:#ffb4a9; }
 
     .viewer-stage img { display:block; flex:0 0 auto; max-width:none; max-height:none; object-fit:contain; background:#fff; }
     .viewer-stage img[hidden] { display:none; }
@@ -2560,7 +2561,7 @@ var PdfImageSaver = (() => {
   <div class="viewer" id="library-viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" aria-describedby="viewer-meta viewer-position" aria-keyshortcuts="Escape ArrowLeft ArrowRight = - 0 1" hidden>
     <div class="viewer-header"><div class="viewer-heading"><div class="viewer-title" id="viewer-title"></div><div class="viewer-meta" id="viewer-meta"></div><p class="viewer-note" id="viewer-note" hidden></p></div><div class="viewer-header-actions"><label class="viewer-selection" id="viewer-selection-label" title="将当前图片加入批量选择；当前共选择 0 张"><input id="viewer-select" type="checkbox" aria-label="将当前图片加入批量选择；当前共选择 0 张"><span>加入批量</span><output class="viewer-selection-count" id="viewer-selection-count" aria-live="polite" title="当前共选择 0 张图片">0</output></label><button type="button" id="viewer-close" aria-label="关闭大图查看并返回图片库列表" title="关闭大图查看并返回图片库列表；也可按 Esc">关闭</button></div></div>
     <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""><div class="viewer-osd" id="viewer-osd" hidden></div><img class="viewer-vector" id="viewer-vector" alt="" hidden><canvas class="viewer-annot" id="viewer-annot" hidden></canvas><div class="viewer-navigator" id="viewer-navigator" hidden></div></div></div>
-    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><button type="button" id="viewer-editor-save" title="导出原图和矢量标注为 SVG">导出 SVG</button><span class="viewer-editor-help" id="viewer-editor-help">滚轮缩放 · Ctrl+拖动平移 · Esc退出工具 · Ctrl+Z撤销</span></div>
+    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><button type="button" id="viewer-editor-save" title="导出原图和矢量标注为 SVG">导出 SVG</button><output class="viewer-editor-status" id="viewer-editor-status" role="status" aria-live="polite"></output><span class="viewer-editor-help" id="viewer-editor-help">滚轮缩放 · Ctrl+拖动平移 · Esc退出工具 · Ctrl+Z撤销</span></div>
     <div class="viewer-footer"><div class="viewer-status"><span id="viewer-position" title="可按左右方向键切换图片"></span><div class="viewer-zoom" role="group" aria-label="图像缩放"><button type="button" id="viewer-zoom-out" aria-label="缩小图像" aria-keyshortcuts="-" title="缩小图像；也可按减号键">−</button><output id="viewer-zoom-value" aria-live="polite">适应窗口</output><button type="button" id="viewer-zoom-in" aria-label="放大图像" aria-keyshortcuts="=" title="放大图像；也可按加号键">＋</button><button type="button" id="viewer-zoom-actual" aria-label="按原始像素显示" aria-keyshortcuts="1" title="按原始像素显示；也可按数字 1">1:1</button><button type="button" id="viewer-zoom-fit" aria-label="完整显示当前图片" aria-keyshortcuts="0" title="完整显示当前图片；也可按数字 0">适应</button></div></div><div class="viewer-actions"><button type="button" id="viewer-prev" aria-label="查看上一张图片" aria-keyshortcuts="ArrowLeft" title="查看上一张图片；也可按方向键左">← 上一张</button><button type="button" id="viewer-next" aria-label="查看下一张图片" aria-keyshortcuts="ArrowRight" title="查看下一张图片；也可按方向键右">下一张 →</button><a id="viewer-download" href="" download title="下载当前完整原图">下载原图</a><a id="viewer-source" href="" title="定位当前图片的本机文献">定位原文</a></div></div>
   </div>
   ${vendorScriptHTML || vendorFallbackHTML}
@@ -2926,6 +2927,11 @@ var PdfImageSaver = (() => {
             return;
           }
           if (activeEditorTool === "text") {
+            if (event.target instanceof window.fabric.IText) {
+              annotCanvas.setActiveObject(event.target);
+              event.target.enterEditing();
+              return;
+            }
             pushAnnotUndo();
             const object = new window.fabric.IText("说明", {
               left: point.x, top: point.y, fontSize: 28, fill: ANNOT_COLORS.text,
@@ -2986,7 +2992,7 @@ var PdfImageSaver = (() => {
           viewerNavigator.hidden = false;
           viewerEditor.hidden = false;
           annotSourceURL = record.imageURL;
-          annotImageID = record.imageID;
+          annotImageID = record.id;
           annotDownloadName = record.downloadName || record.id || "image";
           if (record.imageURL.startsWith("data:image/svg+xml") || /\.svg(?:[?#]|$)/i.test(record.imageURL)) {
             viewerVector.src = record.imageURL;
@@ -3052,6 +3058,9 @@ var PdfImageSaver = (() => {
         link.click();
         link.remove();
         window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+        const status = document.getElementById("viewer-editor-status");
+        status.dataset.error = "false";
+        status.textContent = "已开始下载 SVG";
         setMessage("已导出 SVG 标注图；位图原图仍保留原有像素");
       };
 
@@ -3075,9 +3084,15 @@ var PdfImageSaver = (() => {
         annotCanvas.renderAll();
       });
       document.getElementById("viewer-editor-save")?.addEventListener("click", () => {
+        const status = document.getElementById("viewer-editor-status");
+        status.dataset.error = "false";
+        status.textContent = "正在生成 SVG…";
         void exportAnnotatedImage().catch((error) => {
           const failure = describeCommandFailure(error);
-          setMessage(failure.connectionLost ? "管理功能不可用，" + managementRecoveryHint : failure.detail);
+          const detail = failure.connectionLost ? "管理功能不可用，" + managementRecoveryHint : failure.detail;
+          status.dataset.error = "true";
+          status.textContent = detail;
+          setMessage(detail);
         });
       });
 
@@ -3423,7 +3438,11 @@ var PdfImageSaver = (() => {
         viewerImage.src = record.imageURL;
         viewerImage.alt = record.title + "，第 " + record.pageNumber + " 页";
         viewerTitle.textContent = record.title;
-        viewerMeta.textContent = [record.categoryLabel, record.year || "年份未知", "原文第 " + record.pageNumber + " 页", record.dimensions, formatSize(record.imageBytes), record.sourceLabel].filter(Boolean).join(" · ");
+        const isVectorSource = String(record.imageURL).toLowerCase().startsWith("data:image/svg+xml") || String(record.imageURL).toLowerCase().split("?")[0].split("#")[0].endsWith(".svg") || String(record.downloadName).toLowerCase().endsWith(".svg");
+        viewerMeta.textContent = [record.categoryLabel, record.year || "年份未知", "原文第 " + record.pageNumber + " 页", record.dimensions, formatSize(record.imageBytes), isVectorSource ? "SVG 矢量原图" : "位图原图", record.sourceLabel].filter(Boolean).join(" · ");
+        const editorStatus = document.getElementById("viewer-editor-status");
+        editorStatus.dataset.error = "false";
+        editorStatus.textContent = isVectorSource ? "" : "原图是位图；导出后标注为矢量";
         viewerNote.textContent = record.userNote ? "描述：" + record.userNote : "";
         viewerNote.hidden = !record.userNote;
         viewerPosition.textContent = "第 " + (viewerIndex + 1) + " 张，共 " + visibleCards.length + " 张";

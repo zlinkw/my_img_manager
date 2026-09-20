@@ -83,6 +83,7 @@ try {
   const target = targets.find((entry) => entry.type === "page" && entry.webSocketDebuggerUrl);
   client = new WebSocket(target.webSocketDebuggerUrl);
   const pending = new Map();
+  const downloadEvents = [];
   let nextID = 1;
   await new Promise((resolve, reject) => {
     client.addEventListener("open", resolve, { once: true });
@@ -90,6 +91,7 @@ try {
   });
   client.addEventListener("message", (event) => {
     const message = JSON.parse(String(event.data));
+    if (message.method === "Browser.downloadWillBegin") downloadEvents.push(message.params);
     if (!message.id) return;
     const request = pending.get(message.id);
     if (!request) return;
@@ -128,6 +130,8 @@ try {
     const rect = navigator ? navigator.getBoundingClientRect() : null;
     return {
       protocol: location.protocol,
+      imageID: document.querySelector(".library-card:not([hidden])").dataset.id,
+      formatLabel: document.getElementById("viewer-meta").textContent,
       osdVisible: !osd.hidden,
       annotVisible: !document.getElementById("viewer-annot").hidden,
       vectorVisible: !document.getElementById("viewer-vector").hidden,
@@ -145,6 +149,7 @@ try {
   assert.equal(opened.osdVisible, true, "opening a record must show the OpenSeadragon stage");
   assert.equal(opened.annotVisible, true, "opening a record must show the annotation layer");
   assert.equal(opened.vectorVisible, true, "SVG sources must display through the browser's vector image element");
+  assert.ok(opened.formatLabel.includes("SVG 矢量原图"), "the viewer must identify an SVG original");
   assert.equal(opened.editorVisible, true, "opening a record must show the annotation toolbar");
   assert.equal(opened.plainImageHidden, true, "the engine replaces the plain image instead of stacking on it");
   assert.equal(opened.navigatorPresent, true, "the viewer must show a bird's-eye overview map");
@@ -228,6 +233,18 @@ try {
   await send("Input.dispatchMouseEvent", { type: "mousePressed", x: strokePoint.x, y: strokePoint.y, button: "left", clickCount: 1 });
   await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: strokePoint.x + 35, y: strokePoint.y + 20, button: "left", buttons: 1 });
   await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: strokePoint.x + 35, y: strokePoint.y + 20, button: "left", clickCount: 1 });
+  const textPoint = await evaluate(`(() => {
+    document.querySelector('[data-editor-tool="text"]').click();
+    const rect = document.getElementById("viewer-vector").getBoundingClientRect();
+    return { x: Math.round(rect.left + rect.width * 0.6), y: Math.round(rect.top + rect.height * 0.6) };
+  })()`);
+  for (let count = 0; count < 2; count += 1) {
+    await send("Input.dispatchMouseEvent", { type: "mousePressed", x: textPoint.x, y: textPoint.y, button: "left", clickCount: 1 });
+    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: textPoint.x, y: textPoint.y, button: "left", clickCount: 1 });
+  }
+  await send("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 2 });
+  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 2 });
+  await send("Input.insertText", { text: "可编辑文字" });
   const exported = await evaluate(`(async () => {
     const originalCreate = URL.createObjectURL;
     const originalClick = HTMLAnchorElement.prototype.click;
@@ -235,10 +252,12 @@ try {
     let blob = null;
     let fileName = "";
     let bridgeRead = false;
+    let bridgeImageID = "";
     URL.createObjectURL = function (value) { blob = value; return "blob:viewer-audit"; };
     HTMLAnchorElement.prototype.click = function () { fileName = this.download; };
     window.fetch = async function (_url, options) {
       bridgeRead = options.body.get("command") === "readImageBytes";
+      bridgeImageID = options.body.get("image_id");
       return { ok: true, json: async () => ({ ok: true, mimeType: "image/svg+xml", base64: ${JSON.stringify(sourceBase64)} }) };
     };
     try {
@@ -259,8 +278,9 @@ try {
       if (loaded) context.drawImage(preview, 0, 0, 16, 16);
       const sourceAlpha = loaded ? context.getImageData(1, 1, 1, 1).data[3] : 0;
       URL.revokeObjectURL(previewURL);
-      return { fileName, pathCount: xml.querySelectorAll("path").length,
-        embeddedVector: svg.includes("data:image/svg+xml"), parseError: !!xml.querySelector("parsererror"), loaded, sourceAlpha, bridgeRead };
+      return { fileName, pathCount: xml.querySelectorAll("path").length, textCount: xml.querySelectorAll("text").length,
+        embeddedVector: svg.includes("data:image/svg+xml"), parseError: !!xml.querySelector("parsererror"), loaded, sourceAlpha, bridgeRead, bridgeImageID,
+        textValue: xml.querySelector("text")?.textContent || "" };
     } finally {
       URL.createObjectURL = originalCreate;
       HTMLAnchorElement.prototype.click = originalClick;
@@ -269,11 +289,41 @@ try {
   })()`);
   assert.ok(exported.fileName.endsWith("-annotated.svg"), "annotated export must download SVG");
   assert.ok(exported.pathCount > 0, "a brush stroke must stay a vector path in the SVG export");
+  assert.equal(exported.textCount, 1, "clicking existing text must edit it instead of creating a duplicate");
+  assert.ok(exported.textValue.includes("可编辑文字"), "existing text must accept keyboard edits");
   assert.equal(exported.embeddedVector, true, "SVG export must retain its vector source");
   assert.equal(exported.bridgeRead, true, "file-backed SVG export must embed bytes supplied by the Zotero bridge");
+  assert.equal(exported.bridgeImageID, opened.imageID, "SVG export must pass the selected image ID to the Zotero bridge");
+  const exportStatus = await evaluate(`document.getElementById("viewer-editor-status").textContent`);
+  assert.equal(exportStatus, "已开始下载 SVG", "the viewer must report export completion where the user can see it");
+
+  const failureStatus = await evaluate(`(async () => {
+    window.fetch = async () => ({ ok: false, status: 404, json: async () => ({ ok: false, error: "Image not found" }) });
+    document.getElementById("viewer-editor-save").click();
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      if (document.getElementById("viewer-editor-status").dataset.error === "true") break;
+    }
+    return { text: document.getElementById("viewer-editor-status").textContent,
+      error: document.getElementById("viewer-editor-status").dataset.error };
+  })()`);
+  assert.equal(failureStatus.error, "true", "the viewer must display an export error");
+  assert.ok(failureStatus.text.includes("所选图片已不存在"), "the viewer must explain a missing image in Chinese");
   assert.equal(exported.parseError, false, "SVG export must be well formed");
   assert.equal(exported.loaded, true, "exported SVG must render as an image");
   assert.ok(exported.sourceAlpha > 0, "exported SVG must visibly include the original image");
+
+  await send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: tempRoot, eventsEnabled: true });
+  await evaluate(`(() => {
+    window.fetch = async () => ({ ok: true, json: async () => ({ ok: true, mimeType: "image/svg+xml", base64: ${JSON.stringify(sourceBase64)} }) });
+  })()`);
+  const savePoint = await evaluate(`(() => {
+    const rect = document.getElementById("viewer-editor-save").getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })()`);
+  await send("Input.dispatchMouseEvent", { type: "mousePressed", x: savePoint.x, y: savePoint.y, button: "left", clickCount: 1 });
+  await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: savePoint.x, y: savePoint.y, button: "left", clickCount: 1 });
+  await waitFor(() => downloadEvents.length ? downloadEvents[0] : null, 3000);
 
   const closed = await evaluate(`(async () => {
     document.getElementById("viewer-close").click();

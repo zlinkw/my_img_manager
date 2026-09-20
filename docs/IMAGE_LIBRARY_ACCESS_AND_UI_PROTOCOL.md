@@ -6,7 +6,7 @@
 
 - 唯一图片库是 `%LOCALAPPDATA%\ZLK\paper-image-library\paper_images.sqlite`。
 - `images.image_blob` 是图库、下载、高清查看和 PPT 插图共同使用的原图字节；不得另建缩略图库、预览数据库或图片 HTTP 接口。
-- Zotero 插件是完整图库界面的唯一实现方。界面由 `buildGlobalImageLibraryHTML()` 生成，当前 `GLOBAL_LIBRARY_VIEW_VERSION` 为 `44`。
+- Zotero 插件是完整图库界面的唯一实现方。界面由 `buildGlobalImageLibraryHTML()` 生成，当前 `GLOBAL_LIBRARY_VIEW_VERSION` 为 `45`。
 - **PPT 插件必须复用 Zotero 生成的完整图库界面。** PPT 不得另写一套完整图库的卡片、表格、筛选、排序、高清查看、批量选择、分享、导入或删除界面，也不得把生成页的 HTML、CSS 或 JavaScript 复制进 PPT 仓库形成分叉版本。
 - PPT 可保留任务窗格内服务于“快速搜索、取色、插入当前图片”的轻量选择器；它不是完整图库，不得替代或复制本文件定义的完整图库管理界面。
 
@@ -68,7 +68,7 @@ Windows 上的生成路径由 `Path.GetTempPath()` 或等价系统 API取得，�
 - 自定义描述：采集确认窗口可填写；图库卡片内可就地编辑并写回 SQLite；表格视图有独立 `描述` 列。上限 300 字，保留换行。
 - 高清查看器：适应窗口、1:1、缩放、滚动、上一张、下一张、下载原图和定位原文；有关联描述时在标题下单独成行显示。
 - 高清查看器使用页内浮层，绝不打开新的浏览器标签页；关闭控件显示 `×` 并声明返回图片库列表，关闭后焦点回到打开它的元素。
-- 高清查看器由 OpenSeadragon 提供滚轮居中缩放、Ctrl 加拖动平移和左下角鸟瞰图。Fabric 仅提供笔刷、橡皮和文字标注，使用与图像相同的坐标变换。快捷键 B/E/T，Esc 退出工具，Ctrl+Z 撤销。SVG 原图通过浏览器原生图像层显示；导出标注时从图库桥接读取原图字节，生成自包含 SVG。生成图库页时把 UMD 脚本内联进 HTML。缺失时回退为纯图片查看。
+- 高清查看器由 OpenSeadragon 提供滚轮居中缩放、Ctrl 加拖动平移和左下角鸟瞰图。Fabric 仅提供笔刷、橡皮和文字标注，使用与图像相同的坐标变换；再次点击已有文字可直接编辑。快捷键 B/E/T，Esc 退出工具，Ctrl+Z 撤销。查看器标明原图是 SVG 还是位图，并直接显示导出状态或错误。SVG 原图通过浏览器原生图像层显示；导出标注时从图库桥接读取原图字节，生成自包含 SVG。生成图库页时把 UMD 脚本内联进 HTML。缺失时回退为纯图片查看。
 
 - 框选保存不再提供清晰度挡位：统一为矢量优先、否则 600 DPI 无损 PNG。
 - 以 `file://` 打开图库时，浏览器会忽略 `download` 属性，直接跟随 `href` 会把整个图库页导航走。页面必须在捕获阶段拦截 `[data-download-image]` 与 `#viewer-download`，改由 `readImageBytes` 取回字节并以 Blob URL 触发下载；失败时只显示中文提示，绝不导航离开。
