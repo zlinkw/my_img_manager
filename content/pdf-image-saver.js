@@ -7536,9 +7536,8 @@ var PdfImageSaver = (() => {
 
   async function readBundledRuntimeState() {
     const manifest = await readBundledRuntimeManifest();
-    if (!manifest?.version) return { available: false, ready: false, interpreter: null, version: null };
     const directory = getBundledRuntimeDirectory();
-    const interpreter = PathUtils.join(directory, String(manifest.interpreter || "python/python.exe"));
+    const interpreter = PathUtils.join(directory, String(manifest?.interpreter || "python/python.exe"));
     let stamp = null;
     try {
       if (await IOUtils.exists(PathUtils.join(directory, "runtime-version.txt"))) {
@@ -7547,8 +7546,9 @@ var PdfImageSaver = (() => {
     } catch (error) {
       stamp = null;
     }
-    const ready = stamp === String(manifest.version) && (await IOUtils.exists(interpreter).catch(() => false));
-    return { available: true, ready, interpreter, version: String(manifest.version) };
+    const ready = Boolean(stamp && (!manifest?.version || stamp === String(manifest.version))
+      && (await IOUtils.exists(interpreter).catch(() => false)));
+    return { available: Boolean(manifest?.version || ready), ready, interpreter, version: manifest?.version || stamp };
   }
 
   // Cheap lookup: only reports an interpreter that is already on disk, so diagnostics never trigger
@@ -7785,6 +7785,10 @@ var PdfImageSaver = (() => {
       const helperDir = PathUtils.join(PathUtils.profileDir, ADDON_REF, "helper");
       await Zotero.File.createDirectoryIfMissingAsync(helperDir);
       const helperPath = PathUtils.join(helperDir, "pdf_image_extract.py");
+      if (await IOUtils.exists(helperPath)) {
+        const installed = await IOUtils.readUTF8(helperPath);
+        if (installed.includes(HELPER_SCHEMA_VERSION)) return helperPath;
+      }
       const helperScript = await Zotero.File.getContentsFromURLAsync(
         config.rootURI + "content/helper/pdf_image_extract.py",
       );
@@ -7801,6 +7805,7 @@ var PdfImageSaver = (() => {
     const preferred = pythonCommandPromise ? await pythonCommandPromise : null;
     // The bundled runtime wins: it is the only interpreter guaranteed to have PyMuPDF.
     const bundled = await getBundledPythonCommand();
+    if (bundled) return [bundled];
     const discovered = await findPythonCommands();
     return dedupeCommands([bundled, preferred, ...discovered].filter(Boolean));
   }
@@ -13124,6 +13129,9 @@ var PdfImageSaver = (() => {
       loadLibraryViewVendorScripts,
       resolveBundledRuntimeSourcePath,
       readZipEntryBytes,
+      readBundledRuntimeState,
+      getPythonCommands,
+      ensureHelperScriptPath,
       addonResourceURL,
       fileURLToLocalPath,
       LIBRARY_VIEW_VENDOR_FILES,

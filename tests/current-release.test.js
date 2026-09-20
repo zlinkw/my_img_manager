@@ -794,7 +794,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "u
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
 assert.equal(manifest.applications.zotero.strict_max_version, "11.*", "release supports the Zotero 10 and 11 profile-install range");
-assert.equal(manifest.version, "0.1.147", "release candidate increments the installed release");
+assert.equal(manifest.version, "0.1.148", "release candidate increments the installed release");
 
 const expectedUpdateUrl = "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json";
 assert.equal(manifest.applications.zotero.update_url, expectedUpdateUrl, "Zotero 10 requires update_url and it must point at the static empty feed");
@@ -812,6 +812,21 @@ for (const required of ["Zotero 10", "手动安装 XPI", "Windows", "外部 SQLi
 // Async checks run last and gate the success line, so a rejected assertion can never be reported
 // as a pass.
 async function verifyAsyncContracts() {
+  const originalExists = context.IOUtils.exists;
+  const originalReadUTF8 = context.IOUtils.readUTF8;
+  context.PathUtils.profileDir = "C:\\ZoteroProfile";
+  context.IOUtils.exists = async (value) => /runtime-version\.txt$|python\.exe$|pdf_image_extract\.py$/.test(value);
+  context.IOUtils.readUTF8 = async (value) => value.endsWith("runtime-version.txt")
+    ? "python3.13.15-pymupdf1.28.2" : "zotero-pdf-image-saver/v1";
+  context.Zotero.File = { async createDirectoryIfMissingAsync() {} };
+  const runtime = await api.readBundledRuntimeState();
+  assert.equal(runtime.ready, true, "an installer-staged runtime must be usable even when archive manifest reading fails");
+  const commands = await api.getPythonCommands();
+  assert.equal(commands.length, 1, "a staged Python must bypass unrelated interpreter discovery");
+  assert.ok(commands[0].command.endsWith("python.exe"), "the staged interpreter must be selected");
+  assert.ok((await api.ensureHelperScriptPath()).endsWith("pdf_image_extract.py"), "the staged helper script must work without archive reads");
+  context.IOUtils.exists = originalExists;
+  context.IOUtils.readUTF8 = originalReadUTF8;
   context.Zotero.File = {
     async getContentsFromURLAsync(url) {
       if (String(url).endsWith("openseadragon.min.js")) return "function OpenSeadragon(){}";

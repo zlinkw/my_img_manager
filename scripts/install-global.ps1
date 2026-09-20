@@ -84,6 +84,7 @@ function Install-ProfileXPI {
     throw "Profile XPI registration failed with exit code $LASTEXITCODE for $($profile.Name)"
   }
   Install-BundledRuntime -ProfilePath $ProfilePath
+  Install-HelperScript -ProfilePath $ProfilePath
   Write-Host "installed xpi $profileXPIPath <- $xpiPath"
   return $true
 }
@@ -127,6 +128,20 @@ function Install-BundledRuntime {
   if ($LASTEXITCODE -ne 0) { throw "Bundled PyMuPDF runtime verification failed: $interpreterPath" }
   [IO.File]::WriteAllText($stampPath, [string]$runtimeManifest.version, [Text.UTF8Encoding]::new($false))
   Write-Host "bundled runtime installed: $interpreterPath"
+}
+
+function Install-HelperScript {
+  param([string]$ProfilePath)
+
+  $source = Join-Path $root "content\helper\pdf_image_extract.py"
+  $target = Join-Path $ProfilePath "pdf-image-saver\helper\pdf_image_extract.py"
+  if (!(Test-Path -LiteralPath $source -PathType Leaf)) { throw "Bundled PDF helper missing: $source" }
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
+  Copy-Item -LiteralPath $source -Destination $target -Force
+  if ((Get-FileHash -Algorithm SHA256 -LiteralPath $source).Hash -ne (Get-FileHash -Algorithm SHA256 -LiteralPath $target).Hash) {
+    throw "Bundled PDF helper verification failed: $target"
+  }
+  Write-Host "bundled helper installed: $target"
 }
 
 if (!(Test-Path -LiteralPath $profileRoot)) {

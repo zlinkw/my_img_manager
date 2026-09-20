@@ -4,8 +4,8 @@
 
 ## 当前状态
 
-- 版本 `0.1.147`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.147`：安装 XPI 时预先部署内置 Python 与 PyMuPDF，确保高清选区助手可运行。
+- 版本 `0.1.148`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.148`：内置运行时和辅助脚本均从安装目录读取，避免回退至无 PyMuPDF 的系统 Python。
 - 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "45"`。
 - 闸门：`npm.cmd run check`。
 
