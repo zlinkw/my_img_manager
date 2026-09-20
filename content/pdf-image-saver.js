@@ -7392,16 +7392,26 @@ var PdfImageSaver = (() => {
   // and PyMuPDF; when either is missing the caller keeps the raster capture and nothing is lost.
   async function runHelperRegionExport({ attachment, pageIndex, bboxNormalized, mode = "vector" }) {
     let outputDir = null;
+    const diagnostic = { at: new Date().toISOString(), mode, stage: "start", events: [] };
+    const mark = (stage, details = {}) => {
+      diagnostic.stage = stage;
+      diagnostic.events.push({ stage, ...details });
+    };
     try {
       // Materialise the packaged interpreter before asking, otherwise getPythonCommands only sees
       // interpreters that happen to be on PATH.
       await ensureBundledPythonRuntime();
+      mark("runtime-ready");
       const pythonCommands = await getPythonCommands();
+      mark("commands", { count: pythonCommands.length });
       if (!pythonCommands.length) return null;
       const pdfPath = await getAttachmentPath(attachment);
+      mark("pdf-path", { available: Boolean(pdfPath) });
       if (!pdfPath) return null;
       const helperScriptPath = await ensureHelperScriptPath();
+      mark("helper-path");
       outputDir = await createTempDirectory();
+      mark("temp-directory");
       const reportPath = PathUtils.join(outputDir, "report.json");
       const regionToken = `${pageIndex}:${bboxNormalized.join(",")}`;
       const args = [
@@ -7423,14 +7433,17 @@ var PdfImageSaver = (() => {
         try {
           await removeFileIfExists(reportPath);
           const exitCode = await runProcess(pythonCommand, args);
+          mark("process-exit", { exitCode });
           if (!(await IOUtils.exists(reportPath))) {
             throw new Error(`Helper failed: exit ${exitCode}, no report.`);
           }
           const report = await readJSONReport(reportPath);
           const capture = mode === "raster" ? report?.raster : report?.vector;
+          mark("report", { status: report?.status || "missing", error: report?.error || "", capture: Boolean(capture?.file_path) });
           if (report?.status !== "ok" || !capture?.file_path) continue;
           pythonCommandPromise = Promise.resolve(pythonCommand);
           const bytes = normalizeDatabaseImageBytes(await IOUtils.read(capture.file_path));
+          mark("capture-bytes", { count: bytes?.length || 0 });
           if (!bytes || !bytes.length) return null;
           const format = mode === "raster" ? "png" : "svg";
           const dataURL = `data:image/${format === "svg" ? "svg+xml" : "png"};base64,${bytesToBase64(bytes)}`;
@@ -7444,14 +7457,23 @@ var PdfImageSaver = (() => {
             height: Math.max(1, Math.round(Number(capture.height || capture.height_pt) || 0)),
           };
         } catch (error) {
+          mark("command-error", { error: String(error) });
           safeLogError(error);
         }
       }
       return null;
     } catch (error) {
+      mark("region-error", { error: String(error) });
       safeLogError(error);
       return null;
     } finally {
+      try {
+        const diagnosticPath = PathUtils.join(PathUtils.profileDir, ADDON_REF, "last-region-capture.json");
+        await Zotero.File.createDirectoryIfMissingAsync(PathUtils.join(PathUtils.profileDir, ADDON_REF));
+        await IOUtils.writeUTF8(diagnosticPath, JSON.stringify(diagnostic));
+      } catch (error) {
+        safeLogError(error);
+      }
       if (outputDir) {
         try {
           await removeDirectoryIfExists(outputDir);

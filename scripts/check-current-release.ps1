@@ -20,7 +20,7 @@ $package = Get-Content -Raw -Encoding UTF8 -LiteralPath ".\package.json" | Conve
 if ($package.version -ne $manifest.version) { throw "package.json version must match manifest.json" }
 if ($manifest.applications.zotero.id -ne "pdf-image-saver@zlk.local") { throw "Unexpected plugin id" }
 if ($manifest.applications.zotero.strict_max_version -ne "11.*") { throw "strict_max_version must be 11.*" }
-if ($manifest.version -ne "0.1.148") { throw "Release candidate version must be 0.1.148" }
+if ($manifest.version -ne "0.1.149") { throw "Release candidate version must be 0.1.149" }
 
 $source = Get-Content -Raw -Encoding UTF8 -LiteralPath ".\content\pdf-image-saver.js"
 foreach ($forbidden in @("pdf-image-saver-auto-button", "saveAutoDetectedPageImagePreviews", "imageCoordinatesToCandidates")) {
