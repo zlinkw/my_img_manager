@@ -438,11 +438,12 @@ def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> d
         return {"schema_version": SCHEMA_VERSION, "status": "failed", "trace": None,
                 "warnings": ["Image dimensions are too small to trace."], "elapsed_ms": elapsed_ms(started)}
 
-    # Keep every detected patch and use polygon boundaries to preserve fine shape geometry.
-    # The approximate export is temporary; its size does not affect stored original images.
+    # Quantize neighboring pixels into coherent regions before tracing their polygon outlines.
+    # Without this, antialiasing and photo texture become hundreds of thousands of tiny paths,
+    # which makes the exported SVG slow to open. The export is temporary and has no byte cap.
     svg = vtracer.convert_raw_image_to_svg(
         image_bytes, img_format=image_format, colormode="color", mode="polygon",
-        filter_speckle=0, color_precision=8, layer_difference=1, path_precision=5,
+        filter_speckle=1, color_precision=8, layer_difference=6, path_precision=4,
     )
     payload = svg.encode("utf-8")
     path_count = len(re.findall(r"<path\b", svg))

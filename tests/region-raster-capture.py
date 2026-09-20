@@ -69,8 +69,8 @@ print("bitmap trace produces path-only SVG")
 
 detail = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 100, 100), False)
 detail.clear_with(255)
-for y in range(48, 50):
-    for x in range(48, 50):
+for y in range(48, 51):
+    for x in range(48, 51):
         detail.set_pixel(x, y, (0, 0, 0))
 detail_path = work / "small-detail.png"
 detail.save(detail_path)
@@ -87,6 +87,33 @@ with pymupdf.open(detail_report["trace"]["file_path"]) as detail_vector:
     rendered = detail_vector[0].get_pixmap(alpha=False)
     assert rendered.samples[48 * rendered.stride + 48 * rendered.n] < 128
 print("shape trace retains small marks")
+
+# A textured bitmap used to explode into one path per tiny color patch.
+texture = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 96, 96), False)
+texture.clear_with(255)
+for y in range(16, 80):
+    for x in range(16, 80):
+        texture.set_pixel(x, y, ((x * 37 + y * 19) % 256,
+                                 (x * 11 + y * 43) % 256,
+                                 (x * 29 + y * 7) % 256))
+for y in range(4, 7):
+    for x in range(4, 7):
+        texture.set_pixel(x, y, (0, 0, 0))
+texture_path = work / "textured-detail.png"
+texture.save(texture_path)
+texture_result = subprocess.run(
+    [str(trace_python if trace_python.exists() else sys.executable),
+     str(root / "content" / "helper" / "pdf_image_extract.py"), str(texture_path),
+     "--out-dir", str(work), "--report", str(work / "texture-report.json"), "--trace-image"],
+    capture_output=True, text=True, encoding="utf-8",
+)
+assert texture_result.returncode == 0, texture_result.stderr or texture_result.stdout
+texture_report = json.loads((work / "texture-report.json").read_text(encoding="utf-8"))
+assert texture_report["trace"]["path_count"] < 2000, texture_report
+with pymupdf.open(texture_report["trace"]["file_path"]) as texture_vector:
+    rendered = texture_vector[0].get_pixmap(alpha=False)
+    assert rendered.samples[5 * rendered.stride + 5 * rendered.n] < 128
+print("textured trace avoids fragmented paths")
 
 bitmap_vector_result = subprocess.run(
     [sys.executable, str(root / "content" / "helper" / "pdf_image_extract.py"),
