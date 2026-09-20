@@ -443,6 +443,65 @@ try {
     return { width: box.width, left: box.left };
   })()`);
   assert.ok(overlayAfterZoom.width > overlayBeforeZoom.width, "painted selection must scale with the image");
+  const directExport = await evaluate(`(async () => {
+    const originalCreate = URL.createObjectURL;
+    const originalClick = HTMLAnchorElement.prototype.click;
+    const originalFetch = window.fetch;
+    const mask = document.getElementById("viewer-selection-mask");
+    const maskPixels = mask.getContext("2d").getImageData(0, 0, mask.width, mask.height).data;
+    let left = mask.width, top = mask.height, right = 0, bottom = 0;
+    for (let y = 0; y < mask.height; y += 1) for (let x = 0; x < mask.width; x += 1) {
+      if (maskPixels[(y * mask.width + x) * 4 + 3] < 128) continue;
+      left = Math.min(left, x); top = Math.min(top, y);
+      right = Math.max(right, x + 1); bottom = Math.max(bottom, y + 1);
+    }
+    const source = document.createElement("canvas");
+    source.width = mask.width; source.height = mask.height;
+    const sourceContext = source.getContext("2d");
+    sourceContext.fillStyle = "#2766aa";
+    sourceContext.fillRect(0, 0, source.width, source.height);
+    sourceContext.fillStyle = "#e05533";
+    sourceContext.fillRect(source.width * .48, source.height * .48, source.width * .04, source.height * .04);
+    const sourceBase64 = source.toDataURL("image/png").split(",")[1];
+    const created = [];
+    let fileName = "";
+    const calls = [];
+    URL.createObjectURL = function (value) { created.push(value); return originalCreate.call(URL, value); };
+    HTMLAnchorElement.prototype.click = function () { fileName = this.download; };
+    window.fetch = async function (_url, options) {
+      calls.push(options.body.get("command"));
+      return { ok: true, json: async () => ({ ok: true, mimeType: "image/png", base64: sourceBase64 }) };
+    };
+    try {
+      document.getElementById("viewer-selection-raster-export").click();
+      for (let attempt = 0; attempt < 100 && !fileName; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+      const blob = created.at(-1);
+      const bitmap = blob ? await createImageBitmap(blob) : null;
+      const output = document.createElement("canvas");
+      output.width = bitmap?.width || 1; output.height = bitmap?.height || 1;
+      const context = output.getContext("2d");
+      if (bitmap) context.drawImage(bitmap, 0, 0);
+      const alphaAt = (x,y) => context.getImageData(Math.floor(mask.width * x) - left,
+        Math.floor(mask.height * y) - top, 1, 1).data[3];
+      const detail = context.getImageData(Math.floor(mask.width * .5) - left,
+        Math.floor(mask.height * .5) - top, 1, 1).data;
+      return { fileName, calls, mimeType: blob?.type, width: output.width, height: output.height,
+        expectedWidth: right - left, expectedHeight: bottom - top,
+        pngSignature: blob ? [...new Uint8Array(await blob.slice(0, 8).arrayBuffer())] : [],
+        erasedAlpha: alphaAt(.43,.43), detail: [...detail], status: document.getElementById("viewer-editor-status").textContent };
+    } finally {
+      URL.createObjectURL = originalCreate;
+      HTMLAnchorElement.prototype.click = originalClick;
+      window.fetch = originalFetch;
+    }
+  })()`);
+  assert.equal(directExport.calls.join(","), "readImageBytes", "direct selection export must read original bytes without tracing");
+  assert.ok(directExport.fileName.endsWith("-selection-original.png") && directExport.mimeType === "image/png", "direct selection must download PNG");
+  assert.deepEqual(directExport.pngSignature, [137, 80, 78, 71, 13, 10, 26, 10], "direct export must contain actual PNG bytes");
+  assert.equal(directExport.width, directExport.expectedWidth, "PNG width must crop to selected source pixels");
+  assert.equal(directExport.height, directExport.expectedHeight, "PNG height must crop to selected source pixels");
+  assert.equal(directExport.erasedAlpha, 0, "fine eraser hole must stay transparent in direct PNG");
+  assert.ok(directExport.detail[0] > directExport.detail[2] && directExport.detail[3] === 255, "source color detail must survive direct PNG export");
   await evaluate(`document.getElementById("viewer-selection-clear").click()`);
   assert.equal(await evaluate(`document.getElementById("viewer-selection-export").disabled`), true, "clearing selection must disable its export");
 

@@ -291,7 +291,7 @@ assert.ok(fixture.includes('src="vendor/openseadragon.min.js"'), "the unaudited 
 
 
 for (const text of [
-  'data-paper-image-library-version="49"',
+  'data-paper-image-library-version="50"',
   "刷新图库",
   "导入分享包",
   "分享所选",
@@ -310,6 +310,7 @@ for (const text of [
   'data-select-mode="erase"',
   'id="viewer-selection-size"',
   'id="viewer-selection-fill-holes"',
+  'id="viewer-selection-raster-export"',
   'id="viewer-selection-export"',
   "已下载原图；图库保持打开",
 ]) assert.ok(fixture.includes(text), `gallery must contain ${text}`);
@@ -812,7 +813,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "u
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
 assert.equal(manifest.applications.zotero.strict_max_version, "11.*", "release supports the Zotero 10 and 11 profile-install range");
-assert.equal(manifest.version, "0.1.159", "release candidate increments the installed release");
+assert.equal(manifest.version, "0.1.160", "release candidate increments the installed release");
 
 const expectedUpdateUrl = "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json";
 assert.equal(manifest.applications.zotero.update_url, expectedUpdateUrl, "Zotero 10 requires update_url and it must point at the static empty feed");

@@ -14,7 +14,7 @@ var PdfImageSaver = (() => {
   const BRIDGE_STATUS_COMMANDS = ["status", "getStatus"];
   const BRIDGE_PROVENANCE_COMMANDS = ["openPdfByImageId", "selectParentItemByImageId", "selectPdfAttachmentByImageId"];
   const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "readImageBytes", "traceImage", "refreshLibrary", "updateImageNote"];
-  const GLOBAL_LIBRARY_VIEW_VERSION = "49";
+  const GLOBAL_LIBRARY_VIEW_VERSION = "50";
 
   const GLOBAL_LIBRARY_DIRECTORY_NAME = "paper-image-library-view";
   const GLOBAL_LIBRARY_HTML_NAME = "paper-image-library.html";
@@ -2569,7 +2569,7 @@ var PdfImageSaver = (() => {
   <div class="viewer" id="library-viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" aria-describedby="viewer-meta viewer-position" aria-keyshortcuts="Escape ArrowLeft ArrowRight = - 0 1" hidden>
     <div class="viewer-header"><div class="viewer-heading"><div class="viewer-title" id="viewer-title"></div><div class="viewer-meta" id="viewer-meta"></div><p class="viewer-note" id="viewer-note" hidden></p></div><div class="viewer-header-actions"><label class="viewer-selection" id="viewer-selection-label" title="将当前图片加入批量选择；当前共选择 0 张"><input id="viewer-select" type="checkbox" aria-label="将当前图片加入批量选择；当前共选择 0 张"><span>加入批量</span><output class="viewer-selection-count" id="viewer-selection-count" aria-live="polite" title="当前共选择 0 张图片">0</output></label><button type="button" id="viewer-close" aria-label="关闭大图查看并返回图片库列表" title="关闭大图查看并返回图片库列表；也可按 Esc">关闭</button></div></div>
     <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""><div class="viewer-osd" id="viewer-osd" hidden></div><img class="viewer-vector" id="viewer-vector" alt="" hidden><canvas class="viewer-annot" id="viewer-annot" hidden></canvas><canvas class="viewer-selection-mask" id="viewer-selection-mask" aria-hidden="true" hidden></canvas><svg class="viewer-selection-overlay" id="viewer-selection-overlay" aria-hidden="true" hidden><path id="viewer-selection-path"></path></svg><div class="viewer-selection-cursor" id="viewer-selection-cursor" aria-hidden="true" hidden></div><div class="viewer-navigator" id="viewer-navigator" hidden></div></div></div>
-    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注与选区工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" data-select-mode="rect" title="框住要提取的形状；可继续用选区画笔补充">矩形框选</button><button type="button" data-select-mode="brush" title="多次涂加形状选区；放大后可精细涂刷">选区画笔</button><button type="button" data-select-mode="erase" title="擦除选区中的杂乱部分；可反复修边">选区橡皮</button><label class="viewer-selection-size-label" for="viewer-selection-size">笔径 <input id="viewer-selection-size" type="range" min="1" max="64" value="8" aria-label="选区画笔和橡皮笔径，单位为原图像素"><output id="viewer-selection-size-value" for="viewer-selection-size">8 像素</output></label><label class="viewer-selection-size-label" title="默认保留刻意擦出的透明孔洞；勾选后才自动填补封闭内孔"><input id="viewer-selection-fill-holes" type="checkbox">填补内孔</label><button type="button" id="viewer-selection-clear" title="清除当前形状选区">清除选区</button><button type="button" id="viewer-selection-export" title="按人工选区轮廓和原图颜色生成 SVG；默认保留内部孔洞" disabled>导出选区 SVG</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-original" title="按图库记录的原始格式导出，不改变图像内容">导出原图</button><button type="button" id="viewer-editor-save" title="位图描摹为近似矢量路径；原生 SVG 保留原路径，均包含标注">导出近似矢量 SVG</button><output class="viewer-editor-status" id="viewer-editor-status" role="status" aria-live="polite"></output><span class="viewer-editor-help" id="viewer-editor-help">画笔反复补选 · 橡皮修边 · Ctrl+拖动平移</span></div>
+    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注与选区工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" data-select-mode="rect" title="框住要提取的形状；可继续用选区画笔补充">矩形框选</button><button type="button" data-select-mode="brush" title="多次涂加形状选区；放大后可精细涂刷">选区画笔</button><button type="button" data-select-mode="erase" title="擦除选区中的杂乱部分；可反复修边">选区橡皮</button><label class="viewer-selection-size-label" for="viewer-selection-size">笔径 <input id="viewer-selection-size" type="range" min="1" max="64" value="8" aria-label="选区画笔和橡皮笔径，单位为原图像素"><output id="viewer-selection-size-value" for="viewer-selection-size">8 像素</output></label><label class="viewer-selection-size-label" title="默认保留刻意擦出的透明孔洞；勾选后才自动填补封闭内孔"><input id="viewer-selection-fill-holes" type="checkbox">填补内孔</label><button type="button" id="viewer-selection-clear" title="清除当前形状选区">清除选区</button><button type="button" id="viewer-selection-raster-export" title="保留原图像素、颜色和透明孔洞；不会自动变成矢量" disabled>导出选区原图 PNG</button><button type="button" id="viewer-selection-export" title="按人工选区轮廓和原图颜色近似描摹路径；默认保留内部孔洞" disabled>导出选区近似 SVG</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-original" title="按图库记录的原始格式导出，不改变图像内容">导出原图</button><button type="button" id="viewer-editor-save" title="位图描摹为近似矢量路径；原生 SVG 保留原路径，均包含标注">导出近似矢量 SVG</button><output class="viewer-editor-status" id="viewer-editor-status" role="status" aria-live="polite"></output><span class="viewer-editor-help" id="viewer-editor-help">画笔反复补选 · 橡皮修边 · Ctrl+拖动平移</span></div>
     <div class="viewer-footer"><div class="viewer-status"><span id="viewer-position" title="可按左右方向键切换图片"></span><div class="viewer-zoom" role="group" aria-label="图像缩放"><button type="button" id="viewer-zoom-out" aria-label="缩小图像" aria-keyshortcuts="-" title="缩小图像；也可按减号键">−</button><output id="viewer-zoom-value" aria-live="polite">适应窗口</output><button type="button" id="viewer-zoom-in" aria-label="放大图像" aria-keyshortcuts="=" title="放大图像；也可按加号键">＋</button><button type="button" id="viewer-zoom-actual" aria-label="按原始像素显示" aria-keyshortcuts="1" title="按原始像素显示；也可按数字 1">1:1</button><button type="button" id="viewer-zoom-fit" aria-label="完整显示当前图片" aria-keyshortcuts="0" title="完整显示当前图片；也可按数字 0">适应</button></div></div><div class="viewer-actions"><button type="button" id="viewer-prev" aria-label="查看上一张图片" aria-keyshortcuts="ArrowLeft" title="查看上一张图片；也可按方向键左">← 上一张</button><button type="button" id="viewer-next" aria-label="查看下一张图片" aria-keyshortcuts="ArrowRight" title="查看下一张图片；也可按方向键右">下一张 →</button><a id="viewer-download" href="" download title="下载当前完整原图">下载原图</a><a id="viewer-source" href="" title="定位当前图片的本机文献">定位原文</a></div></div>
   </div>
   ${vendorScriptHTML || vendorFallbackHTML}
@@ -2652,6 +2652,7 @@ var PdfImageSaver = (() => {
       const viewerSelectionSize = document.getElementById("viewer-selection-size");
       const viewerSelectionSizeValue = document.getElementById("viewer-selection-size-value");
       const viewerSelectionFillHoles = document.getElementById("viewer-selection-fill-holes");
+      const viewerSelectionRasterExport = document.getElementById("viewer-selection-raster-export");
       const viewerSelectionExport = document.getElementById("viewer-selection-export");
       const viewerEditor = document.getElementById("viewer-editor");
       const viewerZoomOut = document.getElementById("viewer-zoom-out");
@@ -2866,6 +2867,7 @@ var PdfImageSaver = (() => {
         viewerSelectionCursor.hidden = true;
         viewerSelectionOverlay.setAttribute("hidden", "");
         viewerSelectionExport.disabled = true;
+        viewerSelectionRasterExport.disabled = true;
         document.querySelectorAll("[data-select-mode]").forEach((button) => {
           button.classList.remove("is-active");
           button.setAttribute("aria-pressed", "false");
@@ -3011,6 +3013,7 @@ var PdfImageSaver = (() => {
         renderTraceSelection();
         viewerSelectionMask.hidden = !selectionPainted;
         viewerSelectionExport.disabled = !selectionPainted;
+        viewerSelectionRasterExport.disabled = !selectionPainted;
         document.getElementById("viewer-editor-status").textContent = selectionPainted
           ? "选区可继续涂加或擦除；导出时按轮廓生成 SVG" : "选区太小，请重试";
       };
@@ -3035,6 +3038,7 @@ var PdfImageSaver = (() => {
         if (selectionMode === "brush") selectionPainted = true;
         viewerSelectionMask.hidden = !selectionPainted;
         viewerSelectionExport.disabled = !selectionPainted;
+        viewerSelectionRasterExport.disabled = !selectionPainted;
       };
       const setAnnotPointerCapture = (capture) => {
         if (!annotCanvas) return;
@@ -3327,19 +3331,77 @@ var PdfImageSaver = (() => {
         setMessage(approximate ? "已导出近似矢量 SVG；路径由像素描摹，细节可能变化" : "已导出原生矢量 SVG 标注图");
       };
 
-      const exportTraceSelection = async () => {
-        if (!selectionPainted || !annotImageID || !annotImageSize.width || !annotImageSize.height) return;
+      const selectedPixelBounds = () => {
         const pixels = selectionContext().getImageData(0, 0, viewerSelectionMask.width, viewerSelectionMask.height).data;
-        let occupied = false;
-        for (let offset = 3; offset < pixels.length; offset += 4) {
-          if (pixels[offset] > 0) { occupied = true; break; }
+        let left = viewerSelectionMask.width;
+        let top = viewerSelectionMask.height;
+        let right = 0;
+        let bottom = 0;
+        for (let y = 0; y < viewerSelectionMask.height; y += 1) {
+          for (let x = 0; x < viewerSelectionMask.width; x += 1) {
+            if (pixels[(y * viewerSelectionMask.width + x) * 4 + 3] < 128) continue;
+            if (x < left) left = x;
+            if (y < top) top = y;
+            if (x + 1 > right) right = x + 1;
+            if (y + 1 > bottom) bottom = y + 1;
+          }
         }
-        if (!occupied) {
+        if (right <= left || bottom <= top) {
           selectionPainted = false;
           viewerSelectionExport.disabled = true;
+          viewerSelectionRasterExport.disabled = true;
           viewerSelectionMask.hidden = true;
           throw new Error("选区已擦空，请用选区画笔重新涂刷");
         }
+        return { left, top, right, bottom };
+      };
+      const exportRasterSelection = async () => {
+        if (!selectionPainted || !annotImageID || !annotImageSize.width || !annotImageSize.height) return;
+        const bounds = selectedPixelBounds();
+        const imageID = annotImageID;
+        const imageName = annotDownloadName;
+        const imageWidth = annotImageSize.width;
+        const imageHeight = annotImageSize.height;
+        const maskCopy = document.createElement("canvas");
+        maskCopy.width = imageWidth;
+        maskCopy.height = imageHeight;
+        maskCopy.getContext("2d").drawImage(viewerSelectionMask, 0, 0);
+        const result = await postCommand("readImageBytes", { image_id: imageID });
+        const bytes = Uint8Array.from(window.atob(String(result.base64 || "")), (character) => character.charCodeAt(0));
+        const sourceURL = URL.createObjectURL(new Blob([bytes], { type: result.mimeType || "application/octet-stream" }));
+        let png;
+        try {
+          const source = new Image();
+          source.src = sourceURL;
+          await source.decode();
+          const canvas = document.createElement("canvas");
+          canvas.width = bounds.right - bounds.left;
+          canvas.height = bounds.bottom - bounds.top;
+          const context = canvas.getContext("2d");
+          context.drawImage(source, -bounds.left, -bounds.top, imageWidth, imageHeight);
+          context.globalCompositeOperation = "destination-in";
+          context.drawImage(maskCopy, -bounds.left, -bounds.top);
+          png = await new Promise((resolve, reject) => canvas.toBlob(
+            (blob) => blob ? resolve(blob) : reject(new Error("无法生成选区 PNG，请重试")), "image/png"));
+        } finally {
+          URL.revokeObjectURL(sourceURL);
+        }
+        const url = URL.createObjectURL(png);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = String(imageName).replace(/\\.[a-z0-9]+$/i, "") + "-selection-original.png";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+        const status = document.getElementById("viewer-editor-status");
+        status.dataset.error = "false";
+        status.textContent = "已开始下载选区原图 PNG（" + (bounds.right - bounds.left) + " × " + (bounds.bottom - bounds.top) + "）";
+        setMessage("已按原图像素导出透明选区 PNG；放大不会增加原图细节");
+      };
+      const exportTraceSelection = async () => {
+        if (!selectionPainted || !annotImageID || !annotImageSize.width || !annotImageSize.height) return;
+        selectedPixelBounds();
         const selection = { kind: "mask", maskBase64: viewerSelectionMask.toDataURL("image/png").split(",")[1],
           fillHoles: viewerSelectionFillHoles.checked };
         if (selection.maskBase64.length > 32 * 1024 * 1024) throw new Error("选区蒙版过大，请缩小图像范围后重试");
@@ -3391,6 +3453,7 @@ var PdfImageSaver = (() => {
         selectionContext().clearRect(0, 0, viewerSelectionMask.width, viewerSelectionMask.height);
         viewerSelectionMask.hidden = true;
         viewerSelectionExport.disabled = true;
+        viewerSelectionRasterExport.disabled = true;
         setSelectionMode("");
         document.getElementById("viewer-editor-status").textContent = "已清除形状选区";
       });
@@ -3399,6 +3462,18 @@ var PdfImageSaver = (() => {
         status.dataset.error = "false";
         status.textContent = "正在描摹选区…";
         void exportTraceSelection().catch((error) => {
+          const failure = describeCommandFailure(error);
+          const detail = failure.connectionLost ? "管理功能不可用，" + managementRecoveryHint : failure.detail;
+          status.dataset.error = "true";
+          status.textContent = detail;
+          setMessage(detail);
+        });
+      });
+      viewerSelectionRasterExport.addEventListener("click", () => {
+        const status = document.getElementById("viewer-editor-status");
+        status.dataset.error = "false";
+        status.textContent = "正在导出选区原图…";
+        void exportRasterSelection().catch((error) => {
           const failure = describeCommandFailure(error);
           const detail = failure.connectionLost ? "管理功能不可用，" + managementRecoveryHint : failure.detail;
           status.dataset.error = "true";

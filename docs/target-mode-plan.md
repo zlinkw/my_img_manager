@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-- 版本 `0.1.159`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.159`：手动选区默认保留透明孔洞，路径裁剪保持涂刷轮廓，内部颜色从原图描摹；可选填补封闭内孔。
-- 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "49"`。
+- 版本 `0.1.160`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.160`：手动选区可直接导出透明 PNG，保留原始像素、颜色与擦出的孔洞；近似 SVG 导出继续保留。
+- 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "50"`。
 - 闸门：`npm.cmd run check`。
 
 ## 已关闭事项
