@@ -440,16 +440,25 @@ def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> d
         return {"schema_version": SCHEMA_VERSION, "status": "too_large", "trace": None,
                 "warnings": ["Image dimensions exceed tracing limit."], "elapsed_ms": elapsed_ms(started)}
 
-    svg = vtracer.convert_raw_image_to_svg(
-        image_bytes, img_format=image_format, colormode="color", mode="spline",
-        filter_speckle=8, color_precision=6, layer_difference=16, path_precision=3,
-    )
-    payload = svg.encode("utf-8")
-    path_count = len(re.findall(r"<path\b", svg))
-    if not path_count or re.search(r"<(?:[\w.-]+:)?image\b", svg, re.IGNORECASE):
-        return {"schema_version": SCHEMA_VERSION, "status": "failed", "trace": None,
-                "warnings": ["Tracing did not produce path-only SVG."], "elapsed_ms": elapsed_ms(started)}
-    if len(payload) > MAX_TRACE_IMAGE_BYTES:
+    # Preserve small labels, dots and outlines first. Noisy images can produce an oversized SVG;
+    # retry once with the previous compact settings rather than dropping the export altogether.
+    for quality, speckle, colors, layers, precision in (
+        ("fine", 1, 8, 6, 4),
+        ("compact", 8, 6, 16, 3),
+    ):
+        svg = vtracer.convert_raw_image_to_svg(
+            image_bytes, img_format=image_format, colormode="color", mode="spline",
+            filter_speckle=speckle, color_precision=colors,
+            layer_difference=layers, path_precision=precision,
+        )
+        payload = svg.encode("utf-8")
+        path_count = len(re.findall(r"<path\b", svg))
+        if not path_count or re.search(r"<(?:[\w.-]+:)?image\b", svg, re.IGNORECASE):
+            return {"schema_version": SCHEMA_VERSION, "status": "failed", "trace": None,
+                    "warnings": ["Tracing did not produce path-only SVG."], "elapsed_ms": elapsed_ms(started)}
+        if len(payload) <= MAX_TRACE_IMAGE_BYTES:
+            break
+    else:
         return {"schema_version": SCHEMA_VERSION, "status": "too_large", "trace": None,
                 "warnings": ["Traced SVG exceeds output limit."], "elapsed_ms": elapsed_ms(started)}
 
@@ -459,7 +468,7 @@ def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> d
     return {"schema_version": SCHEMA_VERSION, "status": "ok",
             "trace": {"format": "svg", "file_path": str(output_path), "width": width,
                       "height": height, "byte_count": len(payload), "path_count": path_count,
-                      "approximate": True, "sha256": digest},
+                      "approximate": True, "quality": quality, "sha256": digest},
             "warnings": [], "elapsed_ms": elapsed_ms(started)}
 
 

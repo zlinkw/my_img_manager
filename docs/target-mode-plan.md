@@ -4,8 +4,8 @@
 
 ## 当前状态
 
-- 版本 `0.1.153`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.153`：近似 SVG 的路径视窗按原图真实像素设置，避免含 DPI 信息的 PNG 被截掉右侧和下方。
+- 版本 `0.1.154`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.154`：近似 SVG 优先精细描摹，超过文件上限时回退紧凑参数，保留小标记并控制体积。
 - 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "46"`。
 - 闸门：`npm.cmd run check`。
 

@@ -67,6 +67,27 @@ trace_svg = Path(trace_report["trace"]["file_path"]).read_text(encoding="utf-8")
 assert "<path" in trace_svg and "<image" not in trace_svg and "data:image" not in trace_svg
 print("bitmap trace produces path-only SVG")
 
+detail = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 100, 100), False)
+detail.clear_with(255)
+for y in range(48, 51):
+    for x in range(48, 51):
+        detail.set_pixel(x, y, (0, 0, 0))
+detail_path = work / "small-detail.png"
+detail.save(detail_path)
+detail_result = subprocess.run(
+    [str(trace_python if trace_python.exists() else sys.executable),
+     str(root / "content" / "helper" / "pdf_image_extract.py"), str(detail_path),
+     "--out-dir", str(work), "--report", str(work / "detail-report.json"), "--trace-image"],
+    capture_output=True, text=True, encoding="utf-8",
+)
+assert detail_result.returncode == 0, detail_result.stderr or detail_result.stdout
+detail_report = json.loads((work / "detail-report.json").read_text(encoding="utf-8"))
+assert detail_report["trace"]["quality"] == "fine", detail_report
+with pymupdf.open(detail_report["trace"]["file_path"]) as detail_vector:
+    rendered = detail_vector[0].get_pixmap(alpha=False)
+    assert rendered.samples[49 * rendered.stride + 49 * rendered.n] < 128
+print("fine trace retains small marks")
+
 bitmap_vector_result = subprocess.run(
     [sys.executable, str(root / "content" / "helper" / "pdf_image_extract.py"),
      str(pdf_path), "--out-dir", str(work), "--report", str(work / "bitmap-vector-report.json"),
