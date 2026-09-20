@@ -794,7 +794,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "u
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
 assert.equal(manifest.applications.zotero.strict_max_version, "11.*", "release supports the Zotero 10 and 11 profile-install range");
-assert.equal(manifest.version, "0.1.149", "release candidate increments the installed release");
+assert.equal(manifest.version, "0.1.150", "release candidate increments the installed release");
 
 const expectedUpdateUrl = "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json";
 assert.equal(manifest.applications.zotero.update_url, expectedUpdateUrl, "Zotero 10 requires update_url and it must point at the static empty feed");
@@ -814,7 +814,12 @@ for (const required of ["Zotero 10", "手动安装 XPI", "Windows", "外部 SQLi
 async function verifyAsyncContracts() {
   const originalExists = context.IOUtils.exists;
   const originalReadUTF8 = context.IOUtils.readUTF8;
+  const originalJoin = context.PathUtils.join;
   context.PathUtils.profileDir = "C:\\ZoteroProfile";
+  context.PathUtils.join = (...parts) => {
+    if (parts.slice(1).some((part) => /[\\/]/.test(part))) throw new Error("NS_ERROR_FILE_UNRECOGNIZED_PATH");
+    return originalJoin(...parts);
+  };
   context.IOUtils.exists = async (value) => /runtime-version\.txt$|python\.exe$|pdf_image_extract\.py$/.test(value);
   context.IOUtils.readUTF8 = async (value) => value.endsWith("runtime-version.txt")
     ? "python3.13.15-pymupdf1.28.2" : "zotero-pdf-image-saver/v1";
@@ -827,6 +832,7 @@ async function verifyAsyncContracts() {
   assert.ok((await api.ensureHelperScriptPath()).endsWith("pdf_image_extract.py"), "the staged helper script must work without archive reads");
   context.IOUtils.exists = originalExists;
   context.IOUtils.readUTF8 = originalReadUTF8;
+  context.PathUtils.join = originalJoin;
   context.Zotero.File = {
     async getContentsFromURLAsync(url) {
       if (String(url).endsWith("openseadragon.min.js")) return "function OpenSeadragon(){}";

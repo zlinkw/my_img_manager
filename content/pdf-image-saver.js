@@ -7556,10 +7556,18 @@ var PdfImageSaver = (() => {
     return normalized.startsWith("content/runtime/") ? normalized : "content/runtime/" + normalized;
   }
 
+  function joinBundledRuntimePath(directory, relativePath) {
+    const segments = String(relativePath || "").replace(/\\/g, "/").split("/");
+    if (!segments.length || segments.some((segment) => !segment || segment === "." || segment === "..")) {
+      throw new Error("Helper failed: runtime path invalid.");
+    }
+    return PathUtils.join(directory, ...segments);
+  }
+
   async function readBundledRuntimeState() {
     const manifest = await readBundledRuntimeManifest();
     const directory = getBundledRuntimeDirectory();
-    const interpreter = PathUtils.join(directory, String(manifest?.interpreter || "python/python.exe"));
+    const interpreter = joinBundledRuntimePath(directory, manifest?.interpreter || "python/python.exe");
     let stamp = null;
     try {
       if (await IOUtils.exists(PathUtils.join(directory, "runtime-version.txt"))) {
@@ -7593,7 +7601,7 @@ var PdfImageSaver = (() => {
       try {
         for (const relativePath of manifest.files) {
           const sourcePath = resolveBundledRuntimeSourcePath(relativePath);
-          const target = PathUtils.join(directory, relativePath);
+          const target = joinBundledRuntimePath(directory, relativePath);
           await ensureDirectoryRecursively(PathUtils.parent(target));
           const bytes = zipReader
             ? readZipEntryBytes(zipReader, sourcePath)
@@ -7605,7 +7613,7 @@ var PdfImageSaver = (() => {
         closeAddonZipReader(zipReader);
       }
       await IOUtils.writeUTF8(PathUtils.join(directory, "runtime-version.txt"), String(manifest.version));
-      return PathUtils.join(directory, String(manifest.interpreter || "python/python.exe"));
+      return joinBundledRuntimePath(directory, manifest.interpreter || "python/python.exe");
     })().catch((error) => {
       safeLogError(error);
       return null;
@@ -13081,6 +13089,7 @@ var PdfImageSaver = (() => {
       "Helper: Python n/a.": "未找到 Python。",
       "Helper: PyMuPDF n/a.": "未安装 PyMuPDF。",
       "Helper failed: script missing.": "插件内置的原图提取脚本缺失或版本不匹配。",
+      "Helper failed: runtime path invalid.": "插件内置的 Python 路径无效。",
       "Helper failed: PDF path n/a.": "找不到该文献的 PDF 文件。",
       "Helper failed: no report.": "高级原图提取没有返回结果。",
       "Unknown err.": "未知错误。",

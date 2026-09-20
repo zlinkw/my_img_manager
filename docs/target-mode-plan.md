@@ -4,8 +4,8 @@
 
 ## 当前状态
 
-- 版本 `0.1.149`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.149`：记录原 PDF 选区补取的最后一次执行阶段，供实机故障定位。
+- 版本 `0.1.150`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.150`：修正 Gecko 对内置 Python 运行时相对路径的拼接，恢复原 PDF 选区补取。
 - 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "45"`。
 - 闸门：`npm.cmd run check`。
 
