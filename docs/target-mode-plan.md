@@ -4,8 +4,8 @@
 
 ## 当前状态
 
-- 版本 `0.1.146`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.146`：纯位图 PDF 选区从原 PDF 生成更高清的 PNG；修复内置运行时读取。
+- 版本 `0.1.147`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.147`：安装 XPI 时预先部署内置 Python 与 PyMuPDF，确保高清选区助手可运行。
 - 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "45"`。
 - 闸门：`npm.cmd run check`。
 

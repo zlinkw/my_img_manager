@@ -74,6 +74,7 @@ Windows 上的生成路径由 `Path.GetTempPath()` 或等价系统 API取得，�
 - 以 `file://` 打开图库时，浏览器会忽略 `download` 属性，直接跟随 `href` 会把整个图库页导航走。页面必须在捕获阶段拦截 `[data-download-image]` 与 `#viewer-download`，改由 `readImageBytes` 取回字节并以 Blob URL 触发下载；失败时只显示中文提示，绝不导航离开。
 - 框选保存按 DPI 重新渲染，而不是裁剪阅读器屏幕上的 canvas：阅读器 canvas 通常只有约 145 DPI。低/中/高分别对应 96/150/600 DPI，高挡使用 PNG 无损编码；像素上限 16 MP，栅格字节上限 1.5 MB。阅读器重渲染失效或所得图像像素不足时，内置 PyMuPDF 从原 PDF 重新渲染纯位图选区，仅在像素更多且字节未超限时替换预览结果。
 - 若 PDF 选区含绘图或文字，PyMuPDF 用 `set_cropbox` + `select` 导出真正 SVG；纯嵌入位图选区不能恢复为矢量，保留 PNG。保存提示明确标明实际格式和尺寸。
+- `install:xpi` 在 Zotero 退出后将包内 Python 与 PyMuPDF 文件部署到配置目录，并用运行时版本标记和导入探针验证；这样框选助手无需系统 Python。
 - 原图临时文件加载失败时，卡片、表格和高清查看器显示中文恢复提示；不生成备用图像。
 - 图库和表格同步多选、Shift 连选、全选当前结果、清空选择。
 - 批量分享 `.pislib`、导入 `.pislib`、批量软删除。

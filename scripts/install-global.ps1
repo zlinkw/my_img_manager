@@ -83,8 +83,50 @@ function Install-ProfileXPI {
   if ($LASTEXITCODE -ne 0) {
     throw "Profile XPI registration failed with exit code $LASTEXITCODE for $($profile.Name)"
   }
+  Install-BundledRuntime -ProfilePath $ProfilePath
   Write-Host "installed xpi $profileXPIPath <- $xpiPath"
   return $true
+}
+
+function Install-BundledRuntime {
+  param([string]$ProfilePath)
+
+  $sourceRoot = Join-Path $root "content\runtime"
+  $manifestPath = Join-Path $sourceRoot "runtime-manifest.json"
+  $runtimeManifest = Get-Content -Encoding UTF8 -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+  $targetRoot = Join-Path $ProfilePath "pdf-image-saver\runtime"
+  $stampPath = Join-Path $targetRoot "runtime-version.txt"
+  $interpreterPath = Join-Path $targetRoot ([string]$runtimeManifest.interpreter)
+  $stamp = if (Test-Path -LiteralPath $stampPath -PathType Leaf) { (Get-Content -Encoding UTF8 -Raw -LiteralPath $stampPath).Trim() } else { "" }
+  if ($stamp -eq [string]$runtimeManifest.version -and (Test-Path -LiteralPath $interpreterPath -PathType Leaf)) {
+    Write-Host "bundled runtime ready: $interpreterPath"
+    return
+  }
+
+  $canonicalSourceRoot = [IO.Path]::GetFullPath($sourceRoot).TrimEnd("\") + "\"
+  $canonicalTargetRoot = [IO.Path]::GetFullPath($targetRoot).TrimEnd("\") + "\"
+  $copies = foreach ($relative in @($runtimeManifest.files)) {
+    $name = [string]$relative
+    if (!$name -or [IO.Path]::IsPathRooted($name) -or $name -match '(^|[\\/])\.\.([\\/]|$)') {
+      throw "Invalid bundled runtime path: $name"
+    }
+    $source = [IO.Path]::GetFullPath((Join-Path $sourceRoot $name))
+    $target = [IO.Path]::GetFullPath((Join-Path $targetRoot $name))
+    if (!$source.StartsWith($canonicalSourceRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        !$target.StartsWith($canonicalTargetRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        !(Test-Path -LiteralPath $source -PathType Leaf)) {
+      throw "Bundled runtime payload missing or outside expected directory: $name"
+    }
+    [pscustomobject]@{ source = $source; target = $target }
+  }
+  foreach ($copy in $copies) {
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $copy.target) | Out-Null
+    Copy-Item -LiteralPath $copy.source -Destination $copy.target -Force
+  }
+  & $interpreterPath -X utf8 -c "import pymupdf; print(pymupdf.VersionBind)" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Bundled PyMuPDF runtime verification failed: $interpreterPath" }
+  [IO.File]::WriteAllText($stampPath, [string]$runtimeManifest.version, [Text.UTF8Encoding]::new($false))
+  Write-Host "bundled runtime installed: $interpreterPath"
 }
 
 if (!(Test-Path -LiteralPath $profileRoot)) {
