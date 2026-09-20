@@ -47,15 +47,22 @@ assert Path(payload["file_path"]).read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
 print("bitmap region raster capture ok")
 
 trace_python = root / "content" / "runtime" / "python" / "python.exe"
+trace_input = work / "bitmap-96dpi.png"
+trace_pixmap = pymupdf.Pixmap(payload["file_path"])
+trace_pixmap.set_dpi(96, 96)
+trace_pixmap.save(trace_input)
+with pymupdf.open(trace_input) as image_document:
+    assert image_document[0].rect.width < trace_pixmap.width
 trace_result = subprocess.run(
     [str(trace_python if trace_python.exists() else sys.executable),
-     str(root / "content" / "helper" / "pdf_image_extract.py"), payload["file_path"],
+     str(root / "content" / "helper" / "pdf_image_extract.py"), str(trace_input),
      "--out-dir", str(work), "--report", str(work / "trace-report.json"), "--trace-image"],
     capture_output=True, text=True, encoding="utf-8",
 )
 assert trace_result.returncode == 0, trace_result.stderr or trace_result.stdout
 trace_report = json.loads((work / "trace-report.json").read_text(encoding="utf-8"))
 assert trace_report["status"] == "ok" and trace_report["trace"]["approximate"] is True, trace_report
+assert (trace_report["trace"]["width"], trace_report["trace"]["height"]) == (payload["width"], payload["height"]), trace_report
 trace_svg = Path(trace_report["trace"]["file_path"]).read_text(encoding="utf-8")
 assert "<path" in trace_svg and "<image" not in trace_svg and "data:image" not in trace_svg
 print("bitmap trace produces path-only SVG")

@@ -3080,7 +3080,12 @@ var PdfImageSaver = (() => {
           const traced = await postCommand("traceImage", { image_id: imageID });
           sourceRoot = parseVectorRoot("data:image/svg+xml;base64," + traced.base64);
           if (!sourceRoot) throw new Error("近似矢量结果无效，未导出文件");
-          if (!sourceRoot.hasAttribute("viewBox")) sourceRoot.setAttribute("viewBox", "0 0 " + traced.width + " " + traced.height);
+          if (!sourceRoot.hasAttribute("viewBox")) {
+            const pathWidth = Number(sourceRoot.getAttribute("width")) || Number(traced.width);
+            const pathHeight = Number(sourceRoot.getAttribute("height")) || Number(traced.height);
+            if (!(pathWidth > 0 && pathHeight > 0)) throw new Error("近似矢量尺寸无效，未导出文件");
+            sourceRoot.setAttribute("viewBox", "0 0 " + pathWidth + " " + pathHeight);
+          }
           approximate = true;
         }
         sourceRoot.setAttribute("x", "0");

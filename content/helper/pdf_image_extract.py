@@ -418,19 +418,27 @@ def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> d
         return {"schema_version": SCHEMA_VERSION, "status": "unsupported", "trace": None,
                 "warnings": ["Image type cannot be traced."], "elapsed_ms": elapsed_ms(started)}
 
-    document = fitz.open(stream=image_bytes, filetype=image_format)
-    try:
-        width = round(document[0].rect.width)
-        height = round(document[0].rect.height)
-        if width < 16 or height < 16 or width * height > MAX_TRACE_PIXELS:
-            return {"schema_version": SCHEMA_VERSION, "status": "too_large", "trace": None,
-                    "warnings": ["Image dimensions exceed tracing limit."], "elapsed_ms": elapsed_ms(started)}
-        if image_format in ("svg", "gif"):
+    if image_format == "svg":
+        document = fitz.open(stream=image_bytes, filetype="svg")
+        try:
             # VTracer accepts raster bytes. Rendering here is a transient input, not the export.
-            image_bytes = document[0].get_pixmap(alpha=False).tobytes("png")
+            pixmap = document[0].get_pixmap(alpha=False)
+            width, height = pixmap.width, pixmap.height
+            image_bytes = pixmap.tobytes("png")
             image_format = "png"
-    finally:
-        document.close()
+        finally:
+            document.close()
+    else:
+        # A raster document's page rectangle is measured in PDF points and may use the image's
+        # embedded DPI. The trace paths use actual source pixels, so the viewBox must use those.
+        pixmap = fitz.Pixmap(image_bytes)
+        width, height = pixmap.width, pixmap.height
+        if image_format == "gif":
+            image_bytes = pixmap.tobytes("png")
+            image_format = "png"
+    if width < 16 or height < 16 or width * height > MAX_TRACE_PIXELS:
+        return {"schema_version": SCHEMA_VERSION, "status": "too_large", "trace": None,
+                "warnings": ["Image dimensions exceed tracing limit."], "elapsed_ms": elapsed_ms(started)}
 
     svg = vtracer.convert_raw_image_to_svg(
         image_bytes, img_format=image_format, colormode="color", mode="spline",

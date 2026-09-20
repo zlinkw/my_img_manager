@@ -31,6 +31,11 @@ const fixtureHTML = fs.readFileSync(fixture, "utf8");
 const sourceMatch = fixtureHTML.match(/data:image\/svg\+xml;base64,([A-Za-z0-9+/=]+)/);
 assert.ok(sourceMatch, "fixture needs an SVG source for the real file path audit");
 const sourceBase64 = sourceMatch[1];
+const traceSource = Buffer.from(sourceBase64, "base64").toString("utf8").replace(/\sviewBox="[^"]*"/, "");
+const traceSourceBase64 = Buffer.from(traceSource, "utf8").toString("base64");
+const traceWidth = Number(traceSource.match(/<svg[^>]*\bwidth="([0-9.]+)"/)?.[1]);
+const traceHeight = Number(traceSource.match(/<svg[^>]*\bheight="([0-9.]+)"/)?.[1]);
+assert.ok(traceWidth > 0 && traceHeight > 0 && !traceSource.includes("viewBox="), "trace fixture must carry pixel dimensions without a viewBox");
 const imageDirectory = path.join(tempRoot, "images");
 fs.mkdirSync(imageDirectory, { recursive: true });
 fs.writeFileSync(path.join(imageDirectory, "viewer-source.svg"), Buffer.from(sourceBase64, "base64"));
@@ -321,7 +326,7 @@ try {
       const command = options.body.get("command");
       commands.push({ command, imageID: options.body.get("image_id") });
       const result = command === "traceImage"
-        ? { ok: true, mimeType: "image/svg+xml", base64: ${JSON.stringify(sourceBase64)}, width: 320, height: 160, approximate: true }
+        ? { ok: true, mimeType: "image/svg+xml", base64: ${JSON.stringify(traceSourceBase64)}, width: ${Math.round(traceWidth * 0.75)}, height: ${Math.round(traceHeight * 0.75)}, approximate: true }
         : { ok: true, mimeType: "image/png", base64: "iVBORw0KGgo=" };
       return { ok: true, json: async () => result };
     };
@@ -331,6 +336,7 @@ try {
       const svg = blob ? await blob.text() : "";
       const xml = new DOMParser().parseFromString(svg, "image/svg+xml");
       return { fileName, commands, pathCount: xml.querySelectorAll("path").length,
+        sourceViewBox: xml.querySelector("svg svg")?.getAttribute("viewBox"),
         embeddedBitmap: !!xml.querySelector("image"), parseError: !!xml.querySelector("parsererror"),
         status: document.getElementById("viewer-editor-status").textContent };
     } finally {
@@ -343,6 +349,7 @@ try {
   assert.equal(rasterExport.commands.map((call) => call.command).join(","), "readImageBytes,traceImage", "bitmap export must request a trace only after reading the original");
   assert.ok(rasterExport.commands.every((call) => call.imageID === opened.imageID), "both bridge calls must select the displayed image");
   assert.ok(rasterExport.pathCount > 0 && !rasterExport.embeddedBitmap && !rasterExport.parseError, "approximate SVG must contain paths without embedded pixels");
+  assert.equal(rasterExport.sourceViewBox, `0 0 ${traceWidth} ${traceHeight}`, "trace path coordinates must use the SVG's true pixel dimensions");
   assert.equal(rasterExport.status, "已开始下载近似矢量 SVG", "the viewer must identify the approximate export");
 
   const originalExport = await evaluate(`(async () => {
