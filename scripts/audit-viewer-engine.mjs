@@ -306,20 +306,74 @@ try {
   assert.equal(exported.bridgeRead, true, "file-backed SVG export must read bytes supplied by the Zotero bridge");
   assert.equal(exported.bridgeImageID, opened.imageID, "SVG export must pass the selected image ID to the Zotero bridge");
   const exportStatus = await evaluate(`document.getElementById("viewer-editor-status").textContent`);
-  assert.equal(exportStatus, "已开始下载 SVG", "the viewer must report export completion where the user can see it");
+  assert.equal(exportStatus, "已开始下载原生矢量 SVG", "the viewer must report export completion where the user can see it");
 
-  const rasterStatus = await evaluate(`(async () => {
-    window.fetch = async () => ({ ok: true, json: async () => ({ ok: true, mimeType: "image/png", base64: "iVBORw0KGgo=" }) });
-    document.getElementById("viewer-editor-save").click();
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      if (document.getElementById("viewer-editor-status").dataset.error === "true") break;
+  const rasterExport = await evaluate(`(async () => {
+    const originalCreate = URL.createObjectURL;
+    const originalClick = HTMLAnchorElement.prototype.click;
+    const originalFetch = window.fetch;
+    let blob = null;
+    let fileName = "";
+    const commands = [];
+    URL.createObjectURL = function (value) { blob = value; return "blob:viewer-raster-audit"; };
+    HTMLAnchorElement.prototype.click = function () { fileName = this.download; };
+    window.fetch = async function (_url, options) {
+      const command = options.body.get("command");
+      commands.push({ command, imageID: options.body.get("image_id") });
+      const result = command === "traceImage"
+        ? { ok: true, mimeType: "image/svg+xml", base64: ${JSON.stringify(sourceBase64)}, width: 320, height: 160, approximate: true }
+        : { ok: true, mimeType: "image/png", base64: "iVBORw0KGgo=" };
+      return { ok: true, json: async () => result };
+    };
+    try {
+      document.getElementById("viewer-editor-save").click();
+      for (let attempt = 0; attempt < 40 && !blob; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+      const svg = blob ? await blob.text() : "";
+      const xml = new DOMParser().parseFromString(svg, "image/svg+xml");
+      return { fileName, commands, pathCount: xml.querySelectorAll("path").length,
+        embeddedBitmap: !!xml.querySelector("image"), parseError: !!xml.querySelector("parsererror"),
+        status: document.getElementById("viewer-editor-status").textContent };
+    } finally {
+      URL.createObjectURL = originalCreate;
+      HTMLAnchorElement.prototype.click = originalClick;
+      window.fetch = originalFetch;
     }
-    return { text: document.getElementById("viewer-editor-status").textContent,
-      error: document.getElementById("viewer-editor-status").dataset.error };
   })()`);
-  assert.equal(rasterStatus.error, "true", "bitmap source must be blocked from SVG export");
-  assert.ok(rasterStatus.text.includes("无法导出"), "bitmap export refusal must explain the reason in Chinese");
+  assert.ok(rasterExport.fileName.endsWith("-approx-vector.svg"), "bitmap export must download an approximate SVG");
+  assert.equal(rasterExport.commands.map((call) => call.command).join(","), "readImageBytes,traceImage", "bitmap export must request a trace only after reading the original");
+  assert.ok(rasterExport.commands.every((call) => call.imageID === opened.imageID), "both bridge calls must select the displayed image");
+  assert.ok(rasterExport.pathCount > 0 && !rasterExport.embeddedBitmap && !rasterExport.parseError, "approximate SVG must contain paths without embedded pixels");
+  assert.equal(rasterExport.status, "已开始下载近似矢量 SVG", "the viewer must identify the approximate export");
+
+  const originalExport = await evaluate(`(async () => {
+    const originalCreate = URL.createObjectURL;
+    const originalClick = HTMLAnchorElement.prototype.click;
+    const originalFetch = window.fetch;
+    let blob = null;
+    let fileName = "";
+    const commands = [];
+    URL.createObjectURL = function (value) { blob = value; return "blob:viewer-original-audit"; };
+    HTMLAnchorElement.prototype.click = function () { fileName = this.download; };
+    window.fetch = async function (_url, options) {
+      commands.push(options.body.get("command"));
+      return { ok: true, json: async () => ({ ok: true, mimeType: "image/png", base64: "iVBORw0KGgo=" }) };
+    };
+    try {
+      document.getElementById("viewer-editor-original").click();
+      for (let attempt = 0; attempt < 40 && !blob; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+      const bytes = blob ? [...new Uint8Array(await blob.arrayBuffer())] : [];
+      return { fileName, originalName: document.getElementById("viewer-download").getAttribute("download"), commands, bytes,
+        status: document.getElementById("viewer-editor-status").textContent };
+    } finally {
+      URL.createObjectURL = originalCreate;
+      HTMLAnchorElement.prototype.click = originalClick;
+      window.fetch = originalFetch;
+    }
+  })()`);
+  assert.equal(originalExport.commands.join(","), "readImageBytes", "original export must not trace the bitmap");
+  assert.deepEqual(originalExport.bytes.slice(0, 8), [137,80,78,71,13,10,26,10], "original export must keep PNG bytes");
+  assert.equal(originalExport.fileName, originalExport.originalName, "original export must retain the recorded filename");
+  assert.equal(originalExport.status, "已开始下载原图", "original export status must be visible");
 
   const failureStatus = await evaluate(`(async () => {
     window.fetch = async () => ({ ok: false, status: 404, json: async () => ({ ok: false, error: "Image not found" }) });

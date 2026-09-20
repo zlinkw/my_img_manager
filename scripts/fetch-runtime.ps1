@@ -6,7 +6,8 @@
 # directory is gitignored and rebuilt on demand.
 param(
   [string]$PythonVersion = "3.13.15",
-  [string]$PyMuPDFVersion = "1.28.2"
+  [string]$PyMuPDFVersion = "1.28.2",
+  [string]$VTracerVersion = "0.6.15"
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,13 +17,20 @@ $runtimeRoot = Join-Path $root "content\runtime"
 
 # Packaging calls this first every time, so an unchanged runtime must be a no-op rather than a
 # fresh 30 MB download.
-$expectedVersion = "python$PythonVersion-pymupdf$PyMuPDFVersion"
+$baseVersion = "python$PythonVersion-pymupdf$PyMuPDFVersion"
+$expectedVersion = "$baseVersion-vtracer$VTracerVersion"
 $existingManifest = Join-Path $runtimeRoot "runtime-manifest.json"
 if ((Test-Path $existingManifest) -and (Test-Path (Join-Path $runtimeRoot "python\python.exe"))) {
   try {
     $current = Get-Content -Path $existingManifest -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($current.version -eq $expectedVersion) {
       Write-Output ("runtime already staged: " + $expectedVersion)
+      Write-Output "runtime staged"
+      exit 0
+    }
+    if ($current.version -eq $baseVersion) {
+      & pwsh.exe -ExecutionPolicy Bypass -NoProfile -File (Join-Path $root "scripts\stage-vtracer.ps1") -VTracerVersion $VTracerVersion
+      if ($LASTEXITCODE -ne 0) { throw "VTracer staging failed" }
       Write-Output "runtime staged"
       exit 0
     }
@@ -98,7 +106,7 @@ try {
     $_.FullName.Substring($runtimeRoot.Length + 1).Replace("\", "/")
   }
   $manifest = @{
-    version = "python$PythonVersion-pymupdf$PyMuPDFVersion"
+    version = $baseVersion
     interpreter = "python/python.exe"
     files = @($files)
   }
@@ -107,6 +115,8 @@ try {
 
   $bytes = (Get-ChildItem -Path $pythonRoot -Recurse -File | Measure-Object -Property Length -Sum).Sum
   Write-Output ("runtime ready: " + $manifest.version + "; " + $files.Count + " files; " + [math]::Round($bytes / 1MB, 1) + " MB")
+  & pwsh.exe -ExecutionPolicy Bypass -NoProfile -File (Join-Path $root "scripts\stage-vtracer.ps1") -VTracerVersion $VTracerVersion
+  if ($LASTEXITCODE -ne 0) { throw "VTracer staging failed" }
   Write-Output "runtime staged"
 } finally {
   Remove-Item -Recurse -Force $staging -ErrorAction SilentlyContinue

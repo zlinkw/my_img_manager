@@ -46,6 +46,20 @@ assert 0 < payload["byte_count"] <= 1536 * 1024, payload
 assert Path(payload["file_path"]).read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
 print("bitmap region raster capture ok")
 
+trace_python = root / "content" / "runtime" / "python" / "python.exe"
+trace_result = subprocess.run(
+    [str(trace_python if trace_python.exists() else sys.executable),
+     str(root / "content" / "helper" / "pdf_image_extract.py"), payload["file_path"],
+     "--out-dir", str(work), "--report", str(work / "trace-report.json"), "--trace-image"],
+    capture_output=True, text=True, encoding="utf-8",
+)
+assert trace_result.returncode == 0, trace_result.stderr or trace_result.stdout
+trace_report = json.loads((work / "trace-report.json").read_text(encoding="utf-8"))
+assert trace_report["status"] == "ok" and trace_report["trace"]["approximate"] is True, trace_report
+trace_svg = Path(trace_report["trace"]["file_path"]).read_text(encoding="utf-8")
+assert "<path" in trace_svg and "<image" not in trace_svg and "data:image" not in trace_svg
+print("bitmap trace produces path-only SVG")
+
 bitmap_vector_result = subprocess.run(
     [sys.executable, str(root / "content" / "helper" / "pdf_image_extract.py"),
      str(pdf_path), "--out-dir", str(work), "--report", str(work / "bitmap-vector-report.json"),

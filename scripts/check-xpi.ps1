@@ -83,6 +83,11 @@ try {
     if ($entry.Length -eq 0) {
       continue
     }
+    # Native wheels may contain compiler build paths as inert debug strings. Inspect source and
+    # metadata as text; decoding executables as UTF-8 yields false machine-path matches.
+    if ($isRuntime -and $entry.FullName -notmatch '\.(?:py|pth|json|txt|cfg|ini|dist-info/METADATA|dist-info/RECORD)$') {
+      continue
+    }
     $stream = $entry.Open()
     try {
       $reader = [System.IO.StreamReader]::new($stream, [System.Text.Encoding]::UTF8, $true)

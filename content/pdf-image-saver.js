@@ -13,8 +13,8 @@ var PdfImageSaver = (() => {
   const BRIDGE_URL = `http://127.0.0.1:23119${BRIDGE_ENDPOINT}`;
   const BRIDGE_STATUS_COMMANDS = ["status", "getStatus"];
   const BRIDGE_PROVENANCE_COMMANDS = ["openPdfByImageId", "selectParentItemByImageId", "selectPdfAttachmentByImageId"];
-  const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "readImageBytes", "refreshLibrary", "updateImageNote"];
-  const GLOBAL_LIBRARY_VIEW_VERSION = "45";
+  const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "readImageBytes", "traceImage", "refreshLibrary", "updateImageNote"];
+  const GLOBAL_LIBRARY_VIEW_VERSION = "46";
 
   const GLOBAL_LIBRARY_DIRECTORY_NAME = "paper-image-library-view";
   const GLOBAL_LIBRARY_HTML_NAME = "paper-image-library.html";
@@ -987,7 +987,7 @@ var PdfImageSaver = (() => {
       if (toolbarMode !== "idle") {
         return;
       }
-      qualityControl.setTitle(`预览清晰度：${QUALITY[qualityKey].label}。SVG 保存结果不受此项影响。`);
+      qualityControl.setTitle(`位图保存清晰度：${getQualityLabelWithEstimate(qualityKey)}。原生 SVG 不受此项影响。`);
       categoryControl.setTitle(`图片类别：${getImageCategoryLabel(categoryKey)}。单击选择。`);
       button.title = `${buildToolbarActionTooltip("框选保存当前页图片", qualityKey)}；类别：${getChineseImageCategoryLabel(categoryKey)}`;
       paperButton.title = "在全部图片库查看当前论文图片；直接读取外部数据库原图";
@@ -1404,7 +1404,7 @@ var PdfImageSaver = (() => {
     const clipQualityOrder = [defaultQualityKey, ...Object.keys(QUALITY).filter((key) => key !== defaultQualityKey)];
     for (const key of clipQualityOrder) {
       actions.push({
-        label: `框选保存${key === defaultQualityKey ? "（当前默认）" : ""}；预览${QUALITY[key].label}；只保存纯矢量 SVG；初始类别：${getImageCategoryLabel(defaultCategoryKey)}`,
+        label: `框选保存${key === defaultQualityKey ? "（当前默认）" : ""}；${QUALITY[key].label}画质；原生 SVG 或位图原图；初始类别：${getImageCategoryLabel(defaultCategoryKey)}`,
         onCommand() {
           return startReaderClipMenuWorkflow(reader, key, getContextPageIndex(params), {
             imageCategory: defaultCategoryKey,
@@ -1414,7 +1414,7 @@ var PdfImageSaver = (() => {
     }
 
     actions.push({
-      label: `整页图片并确认；预览${defaultQuality.label}；只保存纯矢量 SVG；初始类别：${getImageCategoryLabel(defaultCategoryKey)}`,
+      label: `整页图片并确认；${defaultQuality.label}画质；原生 SVG 或位图原图；初始类别：${getImageCategoryLabel(defaultCategoryKey)}`,
       onCommand() {
         return startReaderPageMenuWorkflow(reader, {
           qualityKey: defaultQualityKey,
@@ -2561,7 +2561,7 @@ var PdfImageSaver = (() => {
   <div class="viewer" id="library-viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" aria-describedby="viewer-meta viewer-position" aria-keyshortcuts="Escape ArrowLeft ArrowRight = - 0 1" hidden>
     <div class="viewer-header"><div class="viewer-heading"><div class="viewer-title" id="viewer-title"></div><div class="viewer-meta" id="viewer-meta"></div><p class="viewer-note" id="viewer-note" hidden></p></div><div class="viewer-header-actions"><label class="viewer-selection" id="viewer-selection-label" title="将当前图片加入批量选择；当前共选择 0 张"><input id="viewer-select" type="checkbox" aria-label="将当前图片加入批量选择；当前共选择 0 张"><span>加入批量</span><output class="viewer-selection-count" id="viewer-selection-count" aria-live="polite" title="当前共选择 0 张图片">0</output></label><button type="button" id="viewer-close" aria-label="关闭大图查看并返回图片库列表" title="关闭大图查看并返回图片库列表；也可按 Esc">关闭</button></div></div>
     <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""><div class="viewer-osd" id="viewer-osd" hidden></div><img class="viewer-vector" id="viewer-vector" alt="" hidden><canvas class="viewer-annot" id="viewer-annot" hidden></canvas><div class="viewer-navigator" id="viewer-navigator" hidden></div></div></div>
-    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><button type="button" id="viewer-editor-save" title="导出原图和矢量标注为 SVG">导出 SVG</button><output class="viewer-editor-status" id="viewer-editor-status" role="status" aria-live="polite"></output><span class="viewer-editor-help" id="viewer-editor-help">滚轮缩放 · Ctrl+拖动平移 · Esc退出工具 · Ctrl+Z撤销</span></div>
+    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><button type="button" id="viewer-editor-original" title="按图库记录的原始格式导出，不改变图像内容">导出原图</button><button type="button" id="viewer-editor-save" title="位图描摹为近似矢量路径；原生 SVG 保留原路径，均包含标注">导出近似矢量 SVG</button><output class="viewer-editor-status" id="viewer-editor-status" role="status" aria-live="polite"></output><span class="viewer-editor-help" id="viewer-editor-help">滚轮缩放 · Ctrl+拖动平移 · Esc退出工具 · Ctrl+Z撤销</span></div>
     <div class="viewer-footer"><div class="viewer-status"><span id="viewer-position" title="可按左右方向键切换图片"></span><div class="viewer-zoom" role="group" aria-label="图像缩放"><button type="button" id="viewer-zoom-out" aria-label="缩小图像" aria-keyshortcuts="-" title="缩小图像；也可按减号键">−</button><output id="viewer-zoom-value" aria-live="polite">适应窗口</output><button type="button" id="viewer-zoom-in" aria-label="放大图像" aria-keyshortcuts="=" title="放大图像；也可按加号键">＋</button><button type="button" id="viewer-zoom-actual" aria-label="按原始像素显示" aria-keyshortcuts="1" title="按原始像素显示；也可按数字 1">1:1</button><button type="button" id="viewer-zoom-fit" aria-label="完整显示当前图片" aria-keyshortcuts="0" title="完整显示当前图片；也可按数字 0">适应</button></div></div><div class="viewer-actions"><button type="button" id="viewer-prev" aria-label="查看上一张图片" aria-keyshortcuts="ArrowLeft" title="查看上一张图片；也可按方向键左">← 上一张</button><button type="button" id="viewer-next" aria-label="查看下一张图片" aria-keyshortcuts="ArrowRight" title="查看下一张图片；也可按方向键右">下一张 →</button><a id="viewer-download" href="" download title="下载当前完整原图">下载原图</a><a id="viewer-source" href="" title="定位当前图片的本机文献">定位原文</a></div></div>
   </div>
   ${vendorScriptHTML || vendorFallbackHTML}
@@ -3048,33 +3048,40 @@ var PdfImageSaver = (() => {
           ? imageURL
           : await postCommand("readImageBytes", { image_id: imageID }).then((result) => "data:" + result.mimeType + ";base64," + result.base64);
         const status = document.getElementById("viewer-editor-status");
-        const [sourceHeader, encodedSource] = String(source).split(",", 2);
-        let sourceRoot = null;
-        try {
-          if (sourceHeader.toLowerCase().startsWith("data:image/svg+xml") && sourceHeader.toLowerCase().includes(";base64") && encodedSource) {
-            const sourceBytes = Uint8Array.from(window.atob(encodedSource), (character) => character.charCodeAt(0));
-            const sourceDocument = new DOMParser().parseFromString(new TextDecoder().decode(sourceBytes), "image/svg+xml");
-            sourceRoot = sourceDocument.documentElement;
-            if (sourceRoot.localName !== "svg" || sourceDocument.doctype || sourceDocument.querySelector("parsererror, image, foreignObject, script, style, iframe, object, filter, feImage")) sourceRoot = null;
-            if (sourceRoot) {
-              for (const element of [sourceRoot, ...sourceRoot.querySelectorAll("*")]) {
-                if (["image", "foreignObject", "script", "style", "iframe", "object", "filter", "feImage"].includes(element.localName)) sourceRoot = null;
-                for (const attribute of element.attributes) {
-                  const name = attribute.name.toLowerCase();
-                  const value = attribute.value.trim().toLowerCase();
-                  if (name.startsWith("on") || (name.endsWith("href") && value && !value.startsWith("#")) || value.includes("javascript:") || value.includes("data:image/") || (value.includes("url(") && !value.includes("url(#"))) sourceRoot = null;
+        const parseVectorRoot = (dataURL) => {
+          const [sourceHeader, encodedSource] = String(dataURL).split(",", 2);
+          let sourceRoot = null;
+          try {
+            if (sourceHeader.toLowerCase().startsWith("data:image/svg+xml") && sourceHeader.toLowerCase().includes(";base64") && encodedSource) {
+              const sourceBytes = Uint8Array.from(window.atob(encodedSource), (character) => character.charCodeAt(0));
+              const sourceDocument = new DOMParser().parseFromString(new TextDecoder().decode(sourceBytes), "image/svg+xml");
+              sourceRoot = sourceDocument.documentElement;
+              if (sourceRoot.localName !== "svg" || sourceDocument.doctype || sourceDocument.querySelector("parsererror, image, foreignObject, script, style, iframe, object, filter, feImage")) sourceRoot = null;
+              if (sourceRoot) {
+                for (const element of [sourceRoot, ...sourceRoot.querySelectorAll("*")]) {
+                  if (["image", "foreignObject", "script", "style", "iframe", "object", "filter", "feImage"].includes(element.localName)) sourceRoot = null;
+                  for (const attribute of element.attributes) {
+                    const name = attribute.name.toLowerCase();
+                    const value = attribute.value.trim().toLowerCase();
+                    if (name.startsWith("on") || (name.endsWith("href") && value && !value.startsWith("#")) || value.includes("javascript:") || value.includes("data:image/") || (value.includes("url(") && !value.includes("url(#"))) sourceRoot = null;
+                  }
                 }
               }
             }
+          } catch (error) {
+            sourceRoot = null;
           }
-        } catch (error) {
-          sourceRoot = null;
-        }
+          return sourceRoot;
+        };
+        let sourceRoot = parseVectorRoot(source);
+        let approximate = false;
         if (!sourceRoot) {
-          status.dataset.error = "true";
-          status.textContent = "原图含位图或不是有效的纯矢量 SVG，无法导出";
-          setMessage("原图含位图或不是有效的纯矢量 SVG，未导出文件");
-          return;
+          status.textContent = "正在描摹原图为近似矢量…";
+          const traced = await postCommand("traceImage", { image_id: imageID });
+          sourceRoot = parseVectorRoot("data:image/svg+xml;base64," + traced.base64);
+          if (!sourceRoot) throw new Error("近似矢量结果无效，未导出文件");
+          if (!sourceRoot.hasAttribute("viewBox")) sourceRoot.setAttribute("viewBox", "0 0 " + traced.width + " " + traced.height);
+          approximate = true;
         }
         sourceRoot.setAttribute("x", "0");
         sourceRoot.setAttribute("y", "0");
@@ -3086,14 +3093,14 @@ var PdfImageSaver = (() => {
         const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
         const link = document.createElement("a");
         link.href = url;
-        link.download = String(annotDownloadName).replace(/\\.[a-z0-9]+$/i, "") + "-annotated.svg";
+        link.download = String(annotDownloadName).replace(/\\.[a-z0-9]+$/i, "") + (approximate ? "-approx-vector.svg" : "-annotated.svg");
         document.body.appendChild(link);
         link.click();
         link.remove();
         window.setTimeout(() => URL.revokeObjectURL(url), 60000);
         status.dataset.error = "false";
-        status.textContent = "已开始下载 SVG";
-        setMessage("已导出纯矢量 SVG 标注图");
+        status.textContent = approximate ? "已开始下载近似矢量 SVG" : "已开始下载原生矢量 SVG";
+        setMessage(approximate ? "已导出近似矢量 SVG；路径由像素描摹，细节可能变化" : "已导出原生矢量 SVG 标注图");
       };
 
       document.querySelectorAll("[data-editor-tool]").forEach((button) => {
@@ -3118,7 +3125,7 @@ var PdfImageSaver = (() => {
       document.getElementById("viewer-editor-save")?.addEventListener("click", () => {
         const status = document.getElementById("viewer-editor-status");
         status.dataset.error = "false";
-        status.textContent = "正在生成 SVG…";
+        status.textContent = "正在生成矢量 SVG…";
         void exportAnnotatedImage().catch((error) => {
           const failure = describeCommandFailure(error);
           const detail = failure.connectionLost ? "管理功能不可用，" + managementRecoveryHint : failure.detail;
@@ -3341,6 +3348,8 @@ var PdfImageSaver = (() => {
             "Bridge command invalid": "图库操作命令无效",
             "Bridge token invalid": "图库连接已过期，请从 Zotero 重新打开图库",
             "Image not found": "所选图片已不存在",
+            "Trace unavailable": "近似矢量重建失败，请保留原图或稍后重试",
+            "Trace too large": "近似矢量图超过 25 MB 上限，未导出",
             "Requested Zotero URI invalid": "该图片的本机文献定位信息无效",
           };
           throw new Error(errorLabels[result?.error] || "图库操作失败，请查看 Zotero 错误控制台");
@@ -3474,7 +3483,7 @@ var PdfImageSaver = (() => {
         viewerMeta.textContent = [record.categoryLabel, record.year || "年份未知", "原文第 " + record.pageNumber + " 页", record.dimensions, formatSize(record.imageBytes), isVectorSource ? "SVG 文件（导出前验证）" : "位图原图", record.sourceLabel].filter(Boolean).join(" · ");
         const editorStatus = document.getElementById("viewer-editor-status");
         editorStatus.dataset.error = "false";
-        editorStatus.textContent = isVectorSource ? "" : "原图是位图；无法导出纯矢量 SVG";
+        editorStatus.textContent = isVectorSource ? "" : "原图是位图；近似矢量会描摹像素";
         viewerNote.textContent = record.userNote ? "描述：" + record.userNote : "";
         viewerNote.hidden = !record.userNote;
         viewerPosition.textContent = "第 " + (viewerIndex + 1) + " 张，共 " + visibleCards.length + " 张";
@@ -3693,6 +3702,19 @@ var PdfImageSaver = (() => {
         }
         setMessage("已下载原图；图库保持打开");
       };
+      document.getElementById("viewer-editor-original")?.addEventListener("click", () => {
+        const status = document.getElementById("viewer-editor-status");
+        status.dataset.error = "false";
+        status.textContent = "正在导出原图…";
+        void downloadViaBridgeBytes(viewerDownload).then(() => {
+          status.textContent = "已开始下载原图";
+        }).catch((error) => {
+          const failure = describeCommandFailure(error);
+          status.dataset.error = "true";
+          status.textContent = failure.connectionLost ? "管理功能不可用，" + managementRecoveryHint : failure.detail;
+          setMessage(status.textContent);
+        });
+      });
       document.addEventListener("click", (event) => {
         if (location.protocol !== "file:") return;
         const downloadLink = event.target.closest?.("[data-download-image],#viewer-download");
@@ -5022,9 +5044,10 @@ var PdfImageSaver = (() => {
       showReaderToast(reader, `正在保存${formatPageToastToken(pageIndex)}已确认的框选图片…`, "progress");
       preview = await applyVectorCapture(preview, { attachment });
       await publishPreviewEntriesToSharedLibrary({ attachment, parentItem, entries: [preview] });
+      const savedFormat = preview.format === "svg" ? "原生 SVG 矢量" : preview.format === "png" ? "PNG 原图" : "JPEG 原图";
       showReaderToast(
         reader,
-        `已保存${formatPageToastToken(pageIndex)}的纯矢量 SVG；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。已写入外部 SQLite 图片库。`,
+        `已保存${formatPageToastToken(pageIndex)}的${savedFormat}；${preview.renderedWidth} × ${preview.renderedHeight}；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。图库可分别导出原图和近似矢量 SVG。`,
         "success",
       );
       rememberPreviewIndexSave(attachment, [preview], indexKey);
@@ -5159,7 +5182,7 @@ var PdfImageSaver = (() => {
       preview = await applyVectorCapture(preview, { attachment });
       await publishPreviewEntriesToSharedLibrary({ attachment, parentItem, entries: [preview] });
       rememberPreviewIndexSave(attachment, [preview], indexKey);
-      showReaderToast(reader, `已保存${formatPageToastToken(pageIndex)}整页纯矢量 SVG；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。已写入外部 SQLite 图片库。`, "success");
+      showReaderToast(reader, `已保存${formatPageToastToken(pageIndex)}整页${preview.format === "svg" ? "原生 SVG 矢量" : "位图原图"}；类别 ${getChineseImageCategoryLabel(preview.imageCategory)}；${formatBytes(preview.byteCount)}${formatSavedUserNoteSuffix(preview.userNote)}。`, "success");
     } catch (error) {
       logError(error);
       showReaderToast(reader, formatUserFacingError(error), "error");
@@ -7528,10 +7551,13 @@ var PdfImageSaver = (() => {
     return Boolean(vector?.format === "svg" && vector.hasVectorContent && vector.hasRasterContent === false
       && vector.byteCount > 0 && vector.byteCount <= MAX_VECTOR_IMAGE_BYTES);
   }
+  function shouldPreferRasterCapture(raster, preview) {
+    return Boolean(raster?.format === "png" && raster.byteCount > 0 && raster.byteCount <= MAX_STORED_IMAGE_BYTES
+      && raster.width >= preview.renderedWidth && raster.height >= preview.renderedHeight
+      && (raster.width > preview.renderedWidth || raster.height > preview.renderedHeight));
+  }
   async function applyVectorCapture(preview, { attachment }) {
-    if (!preview || !attachment || !Array.isArray(preview.bboxNormalized)) {
-      throw new Error("Capture failed: vector region unavailable.");
-    }
+    if (!preview || !attachment || !Array.isArray(preview.bboxNormalized)) return preview;
     const region = {
       attachment,
       pageIndex: preview.pageIndex,
@@ -7549,10 +7575,17 @@ var PdfImageSaver = (() => {
         captureSource: "vector_region",
       };
     }
-    if (vector?.status === "bitmap_only") throw new Error("Capture failed: bitmap-only PDF region.");
-    if (vector?.status === "mixed_raster") throw new Error("Capture failed: PDF region contains bitmap.");
-    if (vector?.byteCount > MAX_VECTOR_IMAGE_BYTES) throw new Error("Byte cap: vector image exceeds file cap.");
-    throw new Error("Helper failed: vector capture unavailable.");
+    const raster = await runHelperRegionExport({ ...region, mode: "raster" });
+    if (!shouldPreferRasterCapture(raster, preview)) return preview;
+    return {
+      ...preview,
+      dataURL: raster.dataURL,
+      byteCount: raster.byteCount,
+      format: raster.format,
+      renderedWidth: raster.width,
+      renderedHeight: raster.height,
+      captureSource: "pdf_region_raster",
+    };
   }
 
   // The packaged XPI carries a Windows embeddable Python plus an unpacked PyMuPDF wheel, so vector
@@ -7845,12 +7878,12 @@ var PdfImageSaver = (() => {
       const helperPath = PathUtils.join(helperDir, "pdf_image_extract.py");
       if (await IOUtils.exists(helperPath)) {
         const installed = await IOUtils.readUTF8(helperPath);
-        if (installed.includes(HELPER_SCHEMA_VERSION)) return helperPath;
+        if (installed.includes(HELPER_SCHEMA_VERSION) && installed.includes("--trace-image")) return helperPath;
       }
       const helperScript = await Zotero.File.getContentsFromURLAsync(
         config.rootURI + "content/helper/pdf_image_extract.py",
       );
-      if (typeof helperScript !== "string" || !helperScript.includes(HELPER_SCHEMA_VERSION)) {
+      if (typeof helperScript !== "string" || !helperScript.includes(HELPER_SCHEMA_VERSION) || !helperScript.includes("--trace-image")) {
         throw new Error("Helper failed: script missing.");
       }
       await Zotero.File.putContentsAsync(helperPath, helperScript);
@@ -9762,6 +9795,46 @@ var PdfImageSaver = (() => {
     return { bytes, fileType };
   }
 
+  async function traceSharedImageBytes(imageID) {
+    const original = await readSharedImageBytes(imageID);
+    if (!original) return null;
+    await ensureBundledPythonRuntime();
+    const commands = await getPythonCommands();
+    if (!commands.length) throw new Error("Helper failed: trace unavailable.");
+    const helperPath = await ensureHelperScriptPath();
+    const outputDir = await createTempDirectory();
+    try {
+      const inputPath = PathUtils.join(outputDir, `original.${original.fileType.extension}`);
+      const reportPath = PathUtils.join(outputDir, "trace-report.json");
+      await IOUtils.write(inputPath, original.bytes);
+      for (const command of commands) {
+        try {
+          await removeFileIfExists(reportPath);
+          await runProcess(command, [helperPath, inputPath, "--out-dir", outputDir, "--report", reportPath, "--trace-image"]);
+          if (!(await IOUtils.exists(reportPath))) continue;
+          const report = await readJSONReport(reportPath);
+          if (report.status === "too_large") throw new Error("Byte cap: traced SVG exceeds file cap.");
+          if (report.status !== "ok" || !report.trace?.file_path) continue;
+          const bytes = normalizeDatabaseImageBytes(await IOUtils.read(report.trace.file_path));
+          if (!bytes?.length || bytes.length > MAX_VECTOR_IMAGE_BYTES || !isSVGImageBytes(bytes)) {
+            throw new Error("Helper failed: trace unavailable.");
+          }
+          const markup = new TextDecoder().decode(bytes);
+          if (/<(?:[\w.-]+:)?image\b/i.test(markup) || !/<path\b/i.test(markup)) {
+            throw new Error("Helper failed: trace unavailable.");
+          }
+          return { bytes, width: report.trace.width, height: report.trace.height, pathCount: report.trace.path_count };
+        } catch (error) {
+          if (String(error).includes("Byte cap: traced SVG")) throw error;
+          safeLogError(error);
+        }
+      }
+      throw new Error("Helper failed: trace unavailable.");
+    } finally {
+      await removeDirectoryIfExists(outputDir);
+    }
+  }
+
   async function ensureSharedLibrarySchema() {
     const database = await getSharedDatabaseConnection();
     await database.executeTransaction(async () => {
@@ -10589,6 +10662,21 @@ var PdfImageSaver = (() => {
             mimeType: payload.fileType.mimeType,
             byteCount: payload.bytes.length,
           });
+        }
+        if (command === "traceImage") {
+          try {
+            const traced = await traceSharedImageBytes(parsed.imageID);
+            if (!traced) return buildBridgeJSONResponse(404, { ok: false, registered: true, error: "Image not found" });
+            return buildBridgeJSONResponse(200, { ok: true, registered: true,
+              base64: bytesToBase64(traced.bytes), mimeType: "image/svg+xml",
+              byteCount: traced.bytes.length, width: traced.width, height: traced.height,
+              pathCount: traced.pathCount, approximate: true });
+          } catch (error) {
+            safeLogError(error);
+            const tooLarge = String(error).includes("Byte cap: traced SVG");
+            return buildBridgeJSONResponse(tooLarge ? 413 : 500,
+              { ok: false, registered: true, error: tooLarge ? "Trace too large" : "Trace unavailable" });
+          }
         }
         if (command === "deleteImages") {
           const result = await deleteSharedLibraryImages(parsed.imageIDs);
@@ -11678,7 +11766,7 @@ var PdfImageSaver = (() => {
     const instruction = doc.createElement("p");
     instruction.className = "pdf-image-saver-preview-review-instruction";
     instruction.id = "pdf-image-saver-preview-review-instruction";
-    instruction.textContent = "检查范围、分类和描述；只保存纯矢量 SVG，含位图时停止保存。";
+    instruction.textContent = "检查范围、分类和描述；含位图时保存原图，图库可另行导出近似矢量 SVG。";
     let currentPreview = preview;
     const image = doc.createElement("img");
     image.className = "pdf-image-saver-preview-review-image";
@@ -13122,7 +13210,9 @@ var PdfImageSaver = (() => {
       "Helper failed: PDF path n/a.": "找不到该文献的 PDF 文件。",
       "Helper failed: no report.": "高级原图提取没有返回结果。",
       "Helper failed: vector capture unavailable.": "无法从原 PDF 提取纯矢量图，未保存图片。",
+      "Helper failed: trace unavailable.": "近似矢量重建失败，请保留原图或稍后重试。",
       "Byte cap: vector image exceeds file cap.": "矢量图超过单张图片的 25 MB 上限，未保存。",
+      "Byte cap: traced SVG exceeds file cap.": "近似矢量图超过 25 MB 上限，未导出。",
       "Unknown err.": "未知错误。",
     };
     if (known[text]) {
@@ -13186,6 +13276,7 @@ var PdfImageSaver = (() => {
       getDatabaseImageFileType,
       isSVGImageBytes,
       shouldPreferVectorCapture,
+      shouldPreferRasterCapture,
       ensureLibraryViewVendor,
       loadLibraryViewVendorScripts,
       resolveBundledRuntimeSourcePath,

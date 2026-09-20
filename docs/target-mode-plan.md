@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-- 版本 `0.1.151`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.151`：新框选仅保存纯矢量 SVG；含位图时停止保存，标注导出内联矢量原图。
-- 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "45"`。
+- 版本 `0.1.152`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.152`：优先保存原生 SVG；位图保存原图，查看器可分别导出原图或按需描摹的近似矢量 SVG。
+- 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "46"`。
 - 闸门：`npm.cmd run check`。
 
 ## 已关闭事项

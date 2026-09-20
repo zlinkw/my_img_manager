@@ -124,8 +124,8 @@ function Install-BundledRuntime {
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $copy.target) | Out-Null
     Copy-Item -LiteralPath $copy.source -Destination $copy.target -Force
   }
-  & $interpreterPath -X utf8 -c "import pymupdf; print(pymupdf.VersionBind)" | Out-Null
-  if ($LASTEXITCODE -ne 0) { throw "Bundled PyMuPDF runtime verification failed: $interpreterPath" }
+  & $interpreterPath -X utf8 -c "import pymupdf, vtracer; print(pymupdf.VersionBind, vtracer.__file__)" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Bundled PDF/vector runtime verification failed: $interpreterPath" }
   [IO.File]::WriteAllText($stampPath, [string]$runtimeManifest.version, [Text.UTF8Encoding]::new($false))
   Write-Host "bundled runtime installed: $interpreterPath"
 }

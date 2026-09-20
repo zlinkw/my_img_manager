@@ -291,7 +291,7 @@ assert.ok(fixture.includes('src="vendor/openseadragon.min.js"'), "the unaudited 
 
 
 for (const text of [
-  'data-paper-image-library-version="45"',
+  'data-paper-image-library-version="46"',
   "刷新图库",
   "导入分享包",
   "分享所选",
@@ -302,6 +302,9 @@ for (const text of [
   // so the page has to intercept those clicks and pull the bytes back through the plugin.
   'location.protocol !== "file:"',
   "readImageBytes",
+  "traceImage",
+  'id="viewer-editor-original"',
+  'id="viewer-editor-save"',
   "已下载原图；图库保持打开",
 ]) assert.ok(fixture.includes(text), `gallery must contain ${text}`);
 
@@ -529,6 +532,13 @@ void (async () => {
     "a PNG cannot pass the SVG-only save gate");
   assert.equal(api.shouldPreferVectorCapture({ format: "svg", hasVectorContent: true, hasRasterContent: false, byteCount: 26 * 1024 * 1024 }), false,
     "oversized SVG must respect the vector byte cap");
+  const lowResolutionPreview = { renderedWidth: 1166, renderedHeight: 592 };
+  assert.equal(api.shouldPreferRasterCapture({ format: "png", width: 2559, height: 1300, byteCount: 1064258 }, lowResolutionPreview), true,
+    "a higher resolution source crop must replace the preview for bitmap-only PDF regions");
+  assert.equal(api.shouldPreferRasterCapture({ format: "png", width: 1000, height: 500, byteCount: 300000 }, lowResolutionPreview), false,
+    "a source crop must not lower saved resolution");
+  assert.equal(api.shouldPreferRasterCapture({ format: "png", width: 2559, height: 1300, byteCount: 2 * 1024 * 1024 }, lowResolutionPreview), false,
+    "raster crops must respect the original-image storage byte budget");
 }
 
 assert.equal(
@@ -796,7 +806,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "u
 const packageJSON = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 assert.equal(packageJSON.version, manifest.version, "package and XPI versions agree");
 assert.equal(manifest.applications.zotero.strict_max_version, "11.*", "release supports the Zotero 10 and 11 profile-install range");
-assert.equal(manifest.version, "0.1.151", "release candidate increments the installed release");
+assert.equal(manifest.version, "0.1.152", "release candidate increments the installed release");
 
 const expectedUpdateUrl = "https://raw.githubusercontent.com/zlinkw/my_img_manager/master/updates.json";
 assert.equal(manifest.applications.zotero.update_url, expectedUpdateUrl, "Zotero 10 requires update_url and it must point at the static empty feed");
@@ -824,7 +834,7 @@ async function verifyAsyncContracts() {
   };
   context.IOUtils.exists = async (value) => /runtime-version\.txt$|python\.exe$|pdf_image_extract\.py$/.test(value);
   context.IOUtils.readUTF8 = async (value) => value.endsWith("runtime-version.txt")
-    ? "python3.13.15-pymupdf1.28.2" : "zotero-pdf-image-saver/v1";
+    ? "python3.13.15-pymupdf1.28.2-vtracer0.6.15" : "zotero-pdf-image-saver/v1 --trace-image";
   context.Zotero.File = { async createDirectoryIfMissingAsync() {} };
   const runtime = await api.readBundledRuntimeState();
   assert.equal(runtime.ready, true, "an installer-staged runtime must be usable even when archive manifest reading fails");

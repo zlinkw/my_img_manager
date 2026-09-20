@@ -24,6 +24,8 @@ MAX_TOTAL_BYTES = 150 * 1024 * 1024
 MIN_VECTOR_EDGE = 8
 MAX_RASTER_BYTES = 1536 * 1024
 MAX_RASTER_PIXELS = 16 * 1024 * 1024
+MAX_TRACE_IMAGE_BYTES = 25 * 1024 * 1024
+MAX_TRACE_PIXELS = 16 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -60,6 +62,7 @@ def parse_args() -> argparse.Namespace:
     # the page as displayed (top-left origin), which is exactly how the plugin stores a selection.
     parser.add_argument("--vector-region", default="")
     parser.add_argument("--raster-region", default="")
+    parser.add_argument("--trace-image", action="store_true")
     return parser.parse_args()
 
 
@@ -93,7 +96,9 @@ def main() -> int:
         return 20
 
     try:
-        if args.vector_region:
+        if args.trace_image:
+            report = trace_image_as_svg(fitz, args, started)
+        elif args.vector_region:
             report = export_region_vector(fitz, args, started)
         elif args.raster_region:
             report = export_region_raster(fitz, args, started)
@@ -388,6 +393,66 @@ def export_region_raster(fitz: Any, args: argparse.Namespace, started: float) ->
                 "warnings": ["Region exceeds raster byte budget."], "elapsed_ms": elapsed_ms(started)}
     finally:
         doc.close()
+
+
+def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> dict[str, Any]:
+    """Approximate a stored original with editable SVG paths; never embed its pixels."""
+    import vtracer  # type: ignore
+
+    image_bytes = args.pdf.read_bytes()
+    if not image_bytes or len(image_bytes) > MAX_TRACE_IMAGE_BYTES:
+        return {"schema_version": SCHEMA_VERSION, "status": "too_large", "trace": None,
+                "warnings": ["Source image exceeds tracing input limit."], "elapsed_ms": elapsed_ms(started)}
+
+    if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        image_format = "png"
+    elif image_bytes.startswith(b"\xff\xd8\xff"):
+        image_format = "jpg"
+    elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+        image_format = "webp"
+    elif image_bytes.startswith((b"GIF87a", b"GIF89a")):
+        image_format = "gif"
+    elif image_bytes.lstrip().startswith((b"<svg", b"<?xml")):
+        image_format = "svg"
+    else:
+        return {"schema_version": SCHEMA_VERSION, "status": "unsupported", "trace": None,
+                "warnings": ["Image type cannot be traced."], "elapsed_ms": elapsed_ms(started)}
+
+    document = fitz.open(stream=image_bytes, filetype=image_format)
+    try:
+        width = round(document[0].rect.width)
+        height = round(document[0].rect.height)
+        if width < 16 or height < 16 or width * height > MAX_TRACE_PIXELS:
+            return {"schema_version": SCHEMA_VERSION, "status": "too_large", "trace": None,
+                    "warnings": ["Image dimensions exceed tracing limit."], "elapsed_ms": elapsed_ms(started)}
+        if image_format in ("svg", "gif"):
+            # VTracer accepts raster bytes. Rendering here is a transient input, not the export.
+            image_bytes = document[0].get_pixmap(alpha=False).tobytes("png")
+            image_format = "png"
+    finally:
+        document.close()
+
+    svg = vtracer.convert_raw_image_to_svg(
+        image_bytes, img_format=image_format, colormode="color", mode="spline",
+        filter_speckle=8, color_precision=6, layer_difference=16, path_precision=3,
+    )
+    payload = svg.encode("utf-8")
+    path_count = len(re.findall(r"<path\b", svg))
+    if not path_count or re.search(r"<(?:[\w.-]+:)?image\b", svg, re.IGNORECASE):
+        return {"schema_version": SCHEMA_VERSION, "status": "failed", "trace": None,
+                "warnings": ["Tracing did not produce path-only SVG."], "elapsed_ms": elapsed_ms(started)}
+    if len(payload) > MAX_TRACE_IMAGE_BYTES:
+        return {"schema_version": SCHEMA_VERSION, "status": "too_large", "trace": None,
+                "warnings": ["Traced SVG exceeds output limit."], "elapsed_ms": elapsed_ms(started)}
+
+    digest = hashlib.sha256(payload).hexdigest()
+    output_path = args.out_dir / f"approximate-vector-{digest[:10]}.svg"
+    output_path.write_bytes(payload)
+    return {"schema_version": SCHEMA_VERSION, "status": "ok",
+            "trace": {"format": "svg", "file_path": str(output_path), "width": width,
+                      "height": height, "byte_count": len(payload), "path_count": path_count,
+                      "approximate": True, "sha256": digest},
+            "warnings": [], "elapsed_ms": elapsed_ms(started)}
 
 
 def resolve_page_indexes(doc: Any, requested_page: int | None) -> list[int]:
