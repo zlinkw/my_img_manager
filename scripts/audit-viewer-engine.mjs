@@ -364,11 +364,11 @@ try {
   await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: selectPoint.x1, y: selectPoint.y1, button: "left", buttons: 1 });
   await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: selectPoint.x1, y: selectPoint.y1, button: "left", clickCount: 1 });
   const rectangle = await evaluate(`({ enabled: !document.getElementById("viewer-selection-export").disabled,
-    visible: !document.getElementById("viewer-selection-overlay").hasAttribute("hidden"),
-    path: document.getElementById("viewer-selection-path").getAttribute("d") })`);
+    visible: !document.getElementById("viewer-selection-mask").hidden,
+    previewHidden: document.getElementById("viewer-selection-overlay").hasAttribute("hidden") })`);
   assert.equal(rectangle.enabled, true, "rectangle selection must enable selected SVG export");
   assert.equal(rectangle.visible, true, "selected region must remain visible after drawing");
-  assert.ok(rectangle.path.includes(" Z"), "rectangle preview must be closed");
+  assert.equal(rectangle.previewHidden, true, "rectangle draft must disappear after painting the mask");
 
   const selectedExport = await evaluate(`(async () => {
     const originalCreate = URL.createObjectURL;
@@ -400,44 +400,48 @@ try {
   assert.equal(selectedExport.calls.length, 1, "selected export must request one trace");
   assert.equal(selectedExport.calls[0].command, "traceImage", "selected export must use the trace bridge");
   assert.equal(selectedExport.calls[0].imageID, opened.imageID, "selected export must use the displayed image");
-  assert.equal(selectedExport.calls[0].selection.kind, "rect", "rectangle bounds must reach the helper");
-  assert.ok(selectedExport.calls[0].selection.points.flat().every((coordinate) => coordinate >= 0 && coordinate <= 1), "selected coordinates must be normalized");
-  assert.ok(Math.abs(selectedExport.calls[0].selection.points[0][0] - 0.28) < 0.04
-    && Math.abs(selectedExport.calls[0].selection.points[1][0] - 0.58) < 0.04,
-  "rectangle coordinates must stay aligned with the displayed image");
+  assert.equal(selectedExport.calls[0].selection.kind, "mask", "painted mask must reach the contour helper");
+  assert.ok(selectedExport.calls[0].selection.maskBase64.startsWith("iVBOR"), "selected mask must be PNG");
   assert.ok(selectedExport.fileName.endsWith("-selection-vector.svg") && selectedExport.pathOnly, "selected export must download path-only SVG");
 
-  const lasso = await evaluate(`(async () => {
-    document.querySelector('[data-select-mode="polygon"]').click();
-    const rect = document.getElementById("viewer-vector").getBoundingClientRect();
-    return { points: [[.25,.25],[.55,.25],[.62,.46],[.44,.63],[.25,.54]]
-      .map(([x,y]) => ({ x: rect.left + rect.width * x, y: rect.top + rect.height * y })) };
+  const selectionBrush = await evaluate(`(async () => {
+    document.querySelector('[data-select-mode="brush"]').click();
+    const size = document.getElementById("viewer-selection-size");
+    size.value = "12";
+    size.dispatchEvent(new Event("input", { bubbles: true }));
+    const rect = document.getElementById("viewer-selection-mask").getBoundingClientRect();
+    return { first: { x: rect.left + rect.width * .68, y: rect.top + rect.height * .3 },
+      second: { x: rect.left + rect.width * .72, y: rect.top + rect.height * .34 },
+      erase: { x: rect.left + rect.width * .43, y: rect.top + rect.height * .43 } };
   })()`);
-  await send("Input.dispatchMouseEvent", { type: "mousePressed", x: lasso.points[0].x, y: lasso.points[0].y, button: "left", clickCount: 1 });
-  for (const point of lasso.points.slice(1)) {
-    await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y, button: "left", buttons: 1 });
+  for (const point of [selectionBrush.first, selectionBrush.second]) {
+    await send("Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "left", clickCount: 1 });
+    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: point.x, y: point.y, button: "left", clickCount: 1 });
   }
-  await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: lasso.points.at(-1).x, y: lasso.points.at(-1).y, button: "left", clickCount: 1 });
-  const lassoState = await evaluate(`({ enabled: !document.getElementById("viewer-selection-export").disabled,
-    path: document.getElementById("viewer-selection-path").getAttribute("d"),
-    active: document.querySelector('[data-select-mode="polygon"]').classList.contains("is-active"),
-    hidden: document.getElementById("viewer-selection-overlay").hasAttribute("hidden"),
-    style: document.getElementById("viewer-selection-overlay").getAttribute("style"),
-    display: getComputedStyle(document.getElementById("viewer-selection-overlay")).display })`);
-  assert.equal(lassoState.enabled, true, "freehand selection must enable selected export");
-  assert.ok(lassoState.path.split(" L ").length >= 5 && lassoState.path.endsWith(" Z"), "fine freehand selection must retain outline vertices");
-  assert.equal(lassoState.active, false, "freehand tool must release after completing an outline");
-  assert.equal(lassoState.display === "none" || lassoState.hidden, false, "freehand outline must be visible");
+  await evaluate(`document.querySelector('[data-select-mode="erase"]').click()`);
+  await send("Input.dispatchMouseEvent", { type: "mousePressed", x: selectionBrush.erase.x, y: selectionBrush.erase.y, button: "left", clickCount: 1 });
+  await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: selectionBrush.erase.x, y: selectionBrush.erase.y, button: "left", clickCount: 1 });
+  const painted = await evaluate(`(() => {
+    const canvas = document.getElementById("viewer-selection-mask");
+    const context = canvas.getContext("2d");
+    const alpha = (x,y) => context.getImageData(Math.floor(canvas.width * x), Math.floor(canvas.height * y), 1, 1).data[3];
+    return { add1: alpha(.68,.3), add2: alpha(.72,.34), erased: alpha(.43,.43),
+      kept: alpha(.5,.5), active: document.querySelector('[data-select-mode="erase"]').classList.contains("is-active"),
+      size: document.getElementById("viewer-selection-size-value").textContent,
+      enabled: !document.getElementById("viewer-selection-export").disabled };
+  })()`);
+  assert.ok(painted.add1 && painted.add2 && painted.kept && !painted.erased, `multiple brush strokes and a fine eraser must edit one mask: ${JSON.stringify(painted)}`);
+  assert.ok(painted.active && painted.enabled && painted.size === "12 像素", "selection tools must remain active and respect brush size");
   const overlayBeforeZoom = await evaluate(`(() => {
-    const box = document.getElementById("viewer-selection-overlay").getBoundingClientRect();
+    const box = document.getElementById("viewer-selection-mask").getBoundingClientRect();
     return { width: box.width, left: box.left };
   })()`);
   await evaluate(`(async () => { document.getElementById("viewer-zoom-in").click(); await new Promise(function (resolve) { setTimeout(resolve, 700); }); })()`);
   const overlayAfterZoom = await evaluate(`(() => {
-    const box = document.getElementById("viewer-selection-overlay").getBoundingClientRect();
+    const box = document.getElementById("viewer-selection-mask").getBoundingClientRect();
     return { width: box.width, left: box.left };
   })()`);
-  assert.ok(overlayAfterZoom.width > overlayBeforeZoom.width, "selection outline must scale with the image");
+  assert.ok(overlayAfterZoom.width > overlayBeforeZoom.width, "painted selection must scale with the image");
   await evaluate(`document.getElementById("viewer-selection-clear").click()`);
   assert.equal(await evaluate(`document.getElementById("viewer-selection-export").disabled`), true, "clearing selection must disable its export");
 

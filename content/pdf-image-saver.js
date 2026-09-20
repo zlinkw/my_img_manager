@@ -14,7 +14,7 @@ var PdfImageSaver = (() => {
   const BRIDGE_STATUS_COMMANDS = ["status", "getStatus"];
   const BRIDGE_PROVENANCE_COMMANDS = ["openPdfByImageId", "selectParentItemByImageId", "selectPdfAttachmentByImageId"];
   const BRIDGE_LIBRARY_COMMANDS = ["deleteImages", "exportImages", "importImages", "readImageBytes", "traceImage", "refreshLibrary", "updateImageNote"];
-  const GLOBAL_LIBRARY_VIEW_VERSION = "47";
+  const GLOBAL_LIBRARY_VIEW_VERSION = "48";
 
   const GLOBAL_LIBRARY_DIRECTORY_NAME = "paper-image-library-view";
   const GLOBAL_LIBRARY_HTML_NAME = "paper-image-library.html";
@@ -2441,14 +2441,19 @@ var PdfImageSaver = (() => {
     .viewer-osd { position:absolute; inset:0; background:#11161a; z-index:1; }
     .viewer-vector { position:absolute; z-index:2; display:block; max-width:none; max-height:none; pointer-events:none; }
     .viewer-annot { position:absolute; inset:0; z-index:3; pointer-events:none; background:transparent; }
-    .viewer-selection-overlay { position:absolute; z-index:4; overflow:visible; pointer-events:none; }
+    .viewer-selection-mask { position:absolute; z-index:4; pointer-events:none; opacity:.48; image-rendering:auto; }
+    .viewer-selection-overlay { position:absolute; z-index:5; overflow:visible; pointer-events:none; }
     .viewer-selection-overlay path { fill:rgba(28,124,222,.18); stroke:#e22b83; stroke-width:2; stroke-dasharray:6 4; vector-effect:non-scaling-stroke; }
-    .viewer-navigator { position:absolute; left:12px; bottom:12px; z-index:5; width:150px; height:110px; }
+    .viewer-selection-cursor { position:absolute; z-index:6; pointer-events:none; box-sizing:border-box; border:1px solid #e22b83; border-radius:50%; box-shadow:0 0 0 1px #fff; }
+    .viewer-navigator { position:absolute; left:12px; bottom:12px; z-index:7; width:150px; height:110px; }
 
     .viewer-editor { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:8px 14px; border-top:1px solid rgba(255,255,255,0.12); background:rgba(17,22,26,0.92); }
     .viewer-editor button { font:inherit; font-size:12px; color:#e4eaee; background:#252c31; border:1px solid rgba(255,255,255,0.16); border-radius:6px; padding:4px 10px; cursor:pointer; }
     .viewer-editor button:hover { background:#2f373d; }
     .viewer-editor button.is-active { background:#185fa5; border-color:#378add; color:#ffffff; }
+    .viewer-selection-size-label { display:inline-flex; align-items:center; gap:5px; color:#cbd3d8; font-size:12px; white-space:nowrap; }
+    .viewer-selection-size-label input { width:88px; accent-color:#378add; }
+    .viewer-selection-size-label output { min-width:46px; font-variant-numeric:tabular-nums; }
     .viewer-editor-sep { width:1px; height:18px; background:rgba(255,255,255,0.18); margin:0 2px; }
     .viewer-editor-help, .viewer-editor-status { color:#cbd3d8; font-size:12px; line-height:1.35; margin-left:4px; }
     .viewer-editor-status[data-error="true"] { color:#ffb4a9; }
@@ -2562,8 +2567,8 @@ var PdfImageSaver = (() => {
   <div class="mobile-selection-bar" id="mobile-selection-bar" role="toolbar" aria-label="移动端批量操作" hidden><strong id="mobile-selection-summary" role="status" aria-live="polite">未选择图片</strong><button class="action" id="mobile-clear-selection" type="button">清空</button><button class="action primary" id="mobile-share-selected" type="button">分享 0 张</button><button class="action danger" id="mobile-delete-selected" type="button">删除 0 张</button></div>
   <div class="viewer" id="library-viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" aria-describedby="viewer-meta viewer-position" aria-keyshortcuts="Escape ArrowLeft ArrowRight = - 0 1" hidden>
     <div class="viewer-header"><div class="viewer-heading"><div class="viewer-title" id="viewer-title"></div><div class="viewer-meta" id="viewer-meta"></div><p class="viewer-note" id="viewer-note" hidden></p></div><div class="viewer-header-actions"><label class="viewer-selection" id="viewer-selection-label" title="将当前图片加入批量选择；当前共选择 0 张"><input id="viewer-select" type="checkbox" aria-label="将当前图片加入批量选择；当前共选择 0 张"><span>加入批量</span><output class="viewer-selection-count" id="viewer-selection-count" aria-live="polite" title="当前共选择 0 张图片">0</output></label><button type="button" id="viewer-close" aria-label="关闭大图查看并返回图片库列表" title="关闭大图查看并返回图片库列表；也可按 Esc">关闭</button></div></div>
-    <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""><div class="viewer-osd" id="viewer-osd" hidden></div><img class="viewer-vector" id="viewer-vector" alt="" hidden><canvas class="viewer-annot" id="viewer-annot" hidden></canvas><svg class="viewer-selection-overlay" id="viewer-selection-overlay" aria-hidden="true" hidden><path id="viewer-selection-path"></path></svg><div class="viewer-navigator" id="viewer-navigator" hidden></div></div></div>
-    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注与选区工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" data-select-mode="rect" title="框住要提取的形状；可先放大再框选">矩形框选</button><button type="button" data-select-mode="polygon" title="沿形状边缘精细手绘；可先放大再绘制">手绘选区</button><button type="button" id="viewer-selection-clear" title="清除当前形状选区">清除选区</button><button type="button" id="viewer-selection-export" title="只描摹当前选区；手绘轮廓外透明，不附带文字标注" disabled>导出选区 SVG</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-original" title="按图库记录的原始格式导出，不改变图像内容">导出原图</button><button type="button" id="viewer-editor-save" title="位图描摹为近似矢量路径；原生 SVG 保留原路径，均包含标注">导出近似矢量 SVG</button><output class="viewer-editor-status" id="viewer-editor-status" role="status" aria-live="polite"></output><span class="viewer-editor-help" id="viewer-editor-help">放大后精细圈选 · Ctrl+拖动平移 · Esc退出工具</span></div>
+    <div class="viewer-stage" id="viewer-stage"><div class="viewer-canvas" id="viewer-canvas"><img id="viewer-image" alt=""><div class="viewer-osd" id="viewer-osd" hidden></div><img class="viewer-vector" id="viewer-vector" alt="" hidden><canvas class="viewer-annot" id="viewer-annot" hidden></canvas><canvas class="viewer-selection-mask" id="viewer-selection-mask" aria-hidden="true" hidden></canvas><svg class="viewer-selection-overlay" id="viewer-selection-overlay" aria-hidden="true" hidden><path id="viewer-selection-path"></path></svg><div class="viewer-selection-cursor" id="viewer-selection-cursor" aria-hidden="true" hidden></div><div class="viewer-navigator" id="viewer-navigator" hidden></div></div></div>
+    <div class="viewer-editor" id="viewer-editor" hidden role="toolbar" aria-label="图像标注与选区工具"><button type="button" data-editor-tool="brush" title="按住拖动涂画；快捷键 B">笔刷 B</button><button type="button" data-editor-tool="eraser" title="点击标注删除；快捷键 E">橡皮 E</button><button type="button" data-editor-tool="text" title="点击添加文字后直接输入；快捷键 T">文字 T</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-undo" title="撤销上一步；Ctrl+Z">撤销</button><button type="button" id="viewer-editor-clear" title="清空全部标注">清空</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" data-select-mode="rect" title="框住要提取的形状；可继续用选区画笔补充">矩形框选</button><button type="button" data-select-mode="brush" title="多次涂加形状选区；放大后可精细涂刷">选区画笔</button><button type="button" data-select-mode="erase" title="擦除选区中的杂乱部分；可反复修边">选区橡皮</button><label class="viewer-selection-size-label" for="viewer-selection-size">笔径 <input id="viewer-selection-size" type="range" min="1" max="64" value="8" aria-label="选区画笔和橡皮笔径，单位为原图像素"><output id="viewer-selection-size-value" for="viewer-selection-size">8 像素</output></label><button type="button" id="viewer-selection-clear" title="清除当前形状选区">清除选区</button><button type="button" id="viewer-selection-export" title="按涂刷轮廓重建形状 SVG；内部封闭空洞填充形状主色" disabled>导出选区 SVG</button><span class="viewer-editor-sep" aria-hidden="true"></span><button type="button" id="viewer-editor-original" title="按图库记录的原始格式导出，不改变图像内容">导出原图</button><button type="button" id="viewer-editor-save" title="位图描摹为近似矢量路径；原生 SVG 保留原路径，均包含标注">导出近似矢量 SVG</button><output class="viewer-editor-status" id="viewer-editor-status" role="status" aria-live="polite"></output><span class="viewer-editor-help" id="viewer-editor-help">画笔反复补选 · 橡皮修边 · Ctrl+拖动平移</span></div>
     <div class="viewer-footer"><div class="viewer-status"><span id="viewer-position" title="可按左右方向键切换图片"></span><div class="viewer-zoom" role="group" aria-label="图像缩放"><button type="button" id="viewer-zoom-out" aria-label="缩小图像" aria-keyshortcuts="-" title="缩小图像；也可按减号键">−</button><output id="viewer-zoom-value" aria-live="polite">适应窗口</output><button type="button" id="viewer-zoom-in" aria-label="放大图像" aria-keyshortcuts="=" title="放大图像；也可按加号键">＋</button><button type="button" id="viewer-zoom-actual" aria-label="按原始像素显示" aria-keyshortcuts="1" title="按原始像素显示；也可按数字 1">1:1</button><button type="button" id="viewer-zoom-fit" aria-label="完整显示当前图片" aria-keyshortcuts="0" title="完整显示当前图片；也可按数字 0">适应</button></div></div><div class="viewer-actions"><button type="button" id="viewer-prev" aria-label="查看上一张图片" aria-keyshortcuts="ArrowLeft" title="查看上一张图片；也可按方向键左">← 上一张</button><button type="button" id="viewer-next" aria-label="查看下一张图片" aria-keyshortcuts="ArrowRight" title="查看下一张图片；也可按方向键右">下一张 →</button><a id="viewer-download" href="" download title="下载当前完整原图">下载原图</a><a id="viewer-source" href="" title="定位当前图片的本机文献">定位原文</a></div></div>
   </div>
   ${vendorScriptHTML || vendorFallbackHTML}
@@ -2641,6 +2646,10 @@ var PdfImageSaver = (() => {
       const viewerAnnot = document.getElementById("viewer-annot");
       const viewerSelectionOverlay = document.getElementById("viewer-selection-overlay");
       const viewerSelectionPath = document.getElementById("viewer-selection-path");
+      const viewerSelectionMask = document.getElementById("viewer-selection-mask");
+      const viewerSelectionCursor = document.getElementById("viewer-selection-cursor");
+      const viewerSelectionSize = document.getElementById("viewer-selection-size");
+      const viewerSelectionSizeValue = document.getElementById("viewer-selection-size-value");
       const viewerSelectionExport = document.getElementById("viewer-selection-export");
       const viewerEditor = document.getElementById("viewer-editor");
       const viewerZoomOut = document.getElementById("viewer-zoom-out");
@@ -2812,8 +2821,10 @@ var PdfImageSaver = (() => {
       let annotCanvas = null;
       let activeEditorTool = "";
       let selectionMode = "";
-      let traceSelection = null;
       let selectionDraft = null;
+      let selectionPainted = false;
+      let selectionLastPoint = null;
+      let selectionCursorPoint = null;
       let modifierPan = false;
 
       let annotUndoStack = [];
@@ -2835,8 +2846,10 @@ var PdfImageSaver = (() => {
         annotUndoStack = [];
         activeEditorTool = "";
         selectionMode = "";
-        traceSelection = null;
         selectionDraft = null;
+        selectionPainted = false;
+        selectionLastPoint = null;
+        selectionCursorPoint = null;
         modifierPan = false;
 
         viewerOSD.hidden = true;
@@ -2845,6 +2858,10 @@ var PdfImageSaver = (() => {
         viewerNavigator.hidden = true;
         viewerNavigator.innerHTML = "";
         viewerAnnot.hidden = true;
+        viewerSelectionMask.hidden = true;
+        viewerSelectionMask.width = 0;
+        viewerSelectionMask.height = 0;
+        viewerSelectionCursor.hidden = true;
         viewerSelectionOverlay.setAttribute("hidden", "");
         viewerSelectionExport.disabled = true;
         document.querySelectorAll("[data-select-mode]").forEach((button) => {
@@ -2855,6 +2872,22 @@ var PdfImageSaver = (() => {
         viewerOSD.innerHTML = "";
       };
 
+      const updateSelectionCursor = () => {
+        if (!selectionCursorPoint || (selectionMode !== "brush" && selectionMode !== "erase") || modifierPan) {
+          viewerSelectionCursor.hidden = true;
+          return;
+        }
+        const scale = parseFloat(viewerSelectionMask.style.width) / annotImageSize.width;
+        const left = parseFloat(viewerSelectionMask.style.left);
+        const top = parseFloat(viewerSelectionMask.style.top);
+        if (!Number.isFinite(scale) || !Number.isFinite(left) || !Number.isFinite(top)) return;
+        const diameter = Math.max(1, Number(viewerSelectionSize.value) * scale);
+        viewerSelectionCursor.style.left = (left + selectionCursorPoint.x * scale - diameter / 2) + "px";
+        viewerSelectionCursor.style.top = (top + selectionCursorPoint.y * scale - diameter / 2) + "px";
+        viewerSelectionCursor.style.width = diameter + "px";
+        viewerSelectionCursor.style.height = diameter + "px";
+        viewerSelectionCursor.hidden = false;
+      };
       const syncAnnotViewport = () => {
         if (!osdViewer || !annotCanvas || !annotImageSize.width) return;
         const container = viewerOSD.getBoundingClientRect();
@@ -2879,6 +2912,11 @@ var PdfImageSaver = (() => {
         viewerSelectionOverlay.style.top = top + "px";
         viewerSelectionOverlay.style.width = (corner.x - left) + "px";
         viewerSelectionOverlay.style.height = (corner.y - top) + "px";
+        viewerSelectionMask.style.left = left + "px";
+        viewerSelectionMask.style.top = top + "px";
+        viewerSelectionMask.style.width = (corner.x - left) + "px";
+        viewerSelectionMask.style.height = (corner.y - top) + "px";
+        updateSelectionCursor();
         // Keep the footer readout honest: OpenSeadragon owns the zoom now, so the percentage has
         // to come from its viewport rather than from the old image-width maths.
         const fitScale = Math.min(container.width / annotImageSize.width, container.height / annotImageSize.height);
@@ -2903,6 +2941,18 @@ var PdfImageSaver = (() => {
         return { x: Math.min(annotImageSize.width, Math.max(0, pointer.x)),
           y: Math.min(annotImageSize.height, Math.max(0, pointer.y)) };
       };
+      const pointerToSelectionImage = (event) => {
+        const native = event.e || event;
+        const item = osdViewer?.world.getItemAt(0);
+        if (!item || !native) return { x: 0, y: 0 };
+        const container = viewerOSD.getBoundingClientRect();
+        const origin = osdViewer.viewport.pixelFromPoint(item.imageToViewportCoordinates(0, 0), true);
+        const corner = osdViewer.viewport.pixelFromPoint(item.imageToViewportCoordinates(annotImageSize.width, annotImageSize.height), true);
+        return { x: Math.min(annotImageSize.width, Math.max(0,
+          (native.clientX - container.left - origin.x) * annotImageSize.width / (corner.x - origin.x))),
+          y: Math.min(annotImageSize.height, Math.max(0,
+            (native.clientY - container.top - origin.y) * annotImageSize.height / (corner.y - origin.y))) };
+      };
       const selectionPoints = (shape) => {
         if (!shape) return [];
         if (shape.kind !== "rect") return shape.points;
@@ -2910,7 +2960,7 @@ var PdfImageSaver = (() => {
         return [start, { x: end.x, y: start.y }, end, { x: start.x, y: end.y }];
       };
       const renderTraceSelection = () => {
-        const shape = selectionDraft || traceSelection;
+        const shape = selectionDraft;
         if (!shape || !annotImageSize.width || !annotImageSize.height) {
           viewerSelectionOverlay.setAttribute("hidden", "");
           viewerSelectionPath.removeAttribute("d");
@@ -2919,12 +2969,14 @@ var PdfImageSaver = (() => {
         const points = selectionPoints(shape);
         if (points.length < 2) return;
         viewerSelectionOverlay.setAttribute("viewBox", "0 0 " + annotImageSize.width + " " + annotImageSize.height);
-        viewerSelectionPath.setAttribute("d", "M " + points.map((point) => point.x.toFixed(2) + " " + point.y.toFixed(2)).join(" L ") + (shape.kind === "rect" || !selectionDraft ? " Z" : ""));
+        viewerSelectionPath.setAttribute("d", "M " + points.map((point) => point.x.toFixed(2) + " " + point.y.toFixed(2)).join(" L ") + " Z");
         viewerSelectionOverlay.removeAttribute("hidden");
       };
       const setSelectionMode = (mode) => {
         selectionMode = mode === selectionMode ? "" : mode;
         selectionDraft = null;
+        selectionLastPoint = null;
+        selectionCursorPoint = null;
         if (selectionMode) {
           modifierPan = false;
           setEditorTool("");
@@ -2936,30 +2988,51 @@ var PdfImageSaver = (() => {
         });
         renderTraceSelection();
         syncEditorInput();
+        syncAnnotViewport();
       };
+      const selectionContext = () => viewerSelectionMask.getContext("2d", { willReadFrequently: true });
       const finishTraceSelection = () => {
-        const draft = selectionDraft;
-        selectionDraft = null;
-        if (!draft) return;
-        const points = selectionPoints(draft);
-        const xs = points.map((point) => point.x);
-        const ys = points.map((point) => point.y);
-        const width = Math.max(...xs) - Math.min(...xs);
-        const height = Math.max(...ys) - Math.min(...ys);
-        const area = draft.kind === "polygon"
-          ? Math.abs(draft.points.reduce((sum, point, index) => {
-            const next = draft.points[(index + 1) % draft.points.length];
-            return sum + point.x * next.y - next.x * point.y;
-          }, 0)) / 2
-          : width * height;
-        if (width >= 4 && height >= 4 && area >= 16 && draft.points.length <= 20000) {
-          traceSelection = draft;
-          viewerSelectionExport.disabled = false;
-          document.getElementById("viewer-editor-status").textContent = "已选中区域；可导出选区 SVG";
-        } else {
-          document.getElementById("viewer-editor-status").textContent = "选区太小或轨迹过长，请放大后重新绘制";
+        if (selectionDraft?.kind === "rect") {
+          const [start, end] = selectionDraft.points;
+          const left = Math.min(start.x, end.x);
+          const top = Math.min(start.y, end.y);
+          const width = Math.abs(start.x - end.x);
+          const height = Math.abs(start.y - end.y);
+          if (width >= 1 && height >= 1) {
+            selectionContext().fillStyle = "#1677d9";
+            selectionContext().fillRect(left, top, width, height);
+            selectionPainted = true;
+          }
         }
-        setSelectionMode("");
+        selectionDraft = null;
+        selectionLastPoint = null;
+        renderTraceSelection();
+        viewerSelectionMask.hidden = !selectionPainted;
+        viewerSelectionExport.disabled = !selectionPainted;
+        document.getElementById("viewer-editor-status").textContent = selectionPainted
+          ? "选区可继续涂加或擦除；导出时按轮廓生成 SVG" : "选区太小，请重试";
+      };
+      const paintSelection = (from, to) => {
+        const context = selectionContext();
+        const size = Number(viewerSelectionSize.value);
+        context.save();
+        context.globalCompositeOperation = selectionMode === "erase" ? "destination-out" : "source-over";
+        context.lineWidth = size;
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        context.strokeStyle = "#1677d9";
+        context.fillStyle = "#1677d9";
+        context.beginPath();
+        context.moveTo(from.x, from.y);
+        context.lineTo(to.x, to.y);
+        context.stroke();
+        context.beginPath();
+        context.arc(to.x, to.y, size / 2, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+        if (selectionMode === "brush") selectionPainted = true;
+        viewerSelectionMask.hidden = !selectionPainted;
+        viewerSelectionExport.disabled = !selectionPainted;
       };
       const setAnnotPointerCapture = (capture) => {
         if (!annotCanvas) return;
@@ -2994,11 +3067,14 @@ var PdfImageSaver = (() => {
         annotCanvas.freeDrawingBrush.width = 4;
         annotCanvas.on("mouse:down", (event) => {
           if (selectionMode && !modifierPan) {
-            const point = pointerToImage(event);
-            selectionDraft = { kind: selectionMode, points: [point, point] };
-            traceSelection = null;
-            viewerSelectionExport.disabled = true;
-            renderTraceSelection();
+            const point = pointerToSelectionImage(event);
+            if (selectionMode === "rect") {
+              selectionDraft = { kind: "rect", points: [point, point] };
+              renderTraceSelection();
+            } else {
+              selectionLastPoint = point;
+              paintSelection(point, point);
+            }
             return;
           }
           if (!activeEditorTool) return;
@@ -3033,27 +3109,33 @@ var PdfImageSaver = (() => {
           }
         });
         annotCanvas.on("mouse:move", (event) => {
-          if (!selectionDraft) return;
+          if (selectionMode === "brush" || selectionMode === "erase") {
+            selectionCursorPoint = pointerToSelectionImage(event);
+            updateSelectionCursor();
+          }
+          if (!selectionDraft && !selectionLastPoint) return;
           const coalesced = event.e?.getCoalescedEvents?.() || [];
           for (const nativeEvent of coalesced.length ? coalesced : [event.e]) {
-            const point = pointerToImage({ e: nativeEvent });
-            if (selectionDraft.kind === "rect") {
+            const point = pointerToSelectionImage({ e: nativeEvent });
+            if (selectionDraft?.kind === "rect") {
               selectionDraft.points[1] = point;
-            } else {
-              const previous = selectionDraft.points[selectionDraft.points.length - 1];
-              if (selectionDraft.points.length < 20000 && Math.hypot(point.x - previous.x, point.y - previous.y) >= 0.25) {
-                selectionDraft.points.push(point);
-              }
+            } else if (selectionLastPoint) {
+              paintSelection(selectionLastPoint, point);
+              selectionLastPoint = point;
             }
           }
           renderTraceSelection();
         });
         annotCanvas.on("mouse:up", (event) => {
-          if (!selectionDraft) return;
-          const point = pointerToImage(event);
-          if (selectionDraft.kind === "rect") selectionDraft.points[1] = point;
-          else selectionDraft.points.push(point);
+          if (!selectionDraft && !selectionLastPoint) return;
+          const point = pointerToSelectionImage(event);
+          if (selectionDraft?.kind === "rect") selectionDraft.points[1] = point;
+          else if (selectionLastPoint) paintSelection(selectionLastPoint, point);
           finishTraceSelection();
+        });
+        annotCanvas.upperCanvasEl.addEventListener("pointerleave", () => {
+          selectionCursorPoint = null;
+          viewerSelectionCursor.hidden = true;
         });
         if (!annotCanvas.__wheelForwardBound) {
           [annotCanvas.upperCanvasEl, annotCanvas.wrapperEl].filter(Boolean).forEach((element) => {
@@ -3077,6 +3159,9 @@ var PdfImageSaver = (() => {
         if (activeEditorTool && selectionMode) {
           selectionMode = "";
           selectionDraft = null;
+          selectionLastPoint = null;
+          selectionCursorPoint = null;
+          viewerSelectionCursor.hidden = true;
           document.querySelectorAll("[data-select-mode]").forEach((button) => {
             button.classList.remove("is-active");
             button.setAttribute("aria-pressed", "false");
@@ -3106,6 +3191,8 @@ var PdfImageSaver = (() => {
         image.onload = () => {
           annotImageSize = { width: image.naturalWidth || 1, height: image.naturalHeight || 1 };
           destroyViewerEngine();
+          viewerSelectionMask.width = annotImageSize.width;
+          viewerSelectionMask.height = annotImageSize.height;
           viewerImage.hidden = true;
           viewerOSD.hidden = false;
           viewerAnnot.hidden = false;
@@ -3239,12 +3326,20 @@ var PdfImageSaver = (() => {
       };
 
       const exportTraceSelection = async () => {
-        if (!traceSelection || !annotImageID || !annotImageSize.width || !annotImageSize.height) return;
-        const selection = { kind: traceSelection.kind,
-          points: traceSelection.points.map((point) => [
-            Number((point.x / annotImageSize.width).toFixed(7)),
-            Number((point.y / annotImageSize.height).toFixed(7)),
-          ]) };
+        if (!selectionPainted || !annotImageID || !annotImageSize.width || !annotImageSize.height) return;
+        const pixels = selectionContext().getImageData(0, 0, viewerSelectionMask.width, viewerSelectionMask.height).data;
+        let occupied = false;
+        for (let offset = 3; offset < pixels.length; offset += 4) {
+          if (pixels[offset] > 0) { occupied = true; break; }
+        }
+        if (!occupied) {
+          selectionPainted = false;
+          viewerSelectionExport.disabled = true;
+          viewerSelectionMask.hidden = true;
+          throw new Error("选区已擦空，请用选区画笔重新涂刷");
+        }
+        const selection = { kind: "mask", maskBase64: viewerSelectionMask.toDataURL("image/png").split(",")[1] };
+        if (selection.maskBase64.length > 32 * 1024 * 1024) throw new Error("选区蒙版过大，请缩小图像范围后重试");
         const result = await postCommand("traceImage", {
           image_id: annotImageID, trace_selection: JSON.stringify(selection),
         });
@@ -3272,7 +3367,7 @@ var PdfImageSaver = (() => {
         const status = document.getElementById("viewer-editor-status");
         status.dataset.error = "false";
         status.textContent = "已开始下载选区 SVG（" + result.width + " × " + result.height + "）";
-        setMessage("已导出手动选区的近似矢量 SVG；选区外透明");
+        setMessage("已按手动选区轮廓导出形状 SVG；封闭空洞填为周围主色");
       };
 
       document.querySelectorAll("[data-editor-tool]").forEach((button) => {
@@ -3281,9 +3376,17 @@ var PdfImageSaver = (() => {
       document.querySelectorAll("[data-select-mode]").forEach((button) => {
         button.addEventListener("click", () => setSelectionMode(button.dataset.selectMode));
       });
+      viewerSelectionSize.addEventListener("input", () => {
+        viewerSelectionSizeValue.value = viewerSelectionSize.value + " 像素";
+        viewerSelectionSizeValue.textContent = viewerSelectionSizeValue.value;
+        updateSelectionCursor();
+      });
       document.getElementById("viewer-selection-clear")?.addEventListener("click", () => {
-        traceSelection = null;
         selectionDraft = null;
+        selectionLastPoint = null;
+        selectionPainted = false;
+        selectionContext().clearRect(0, 0, viewerSelectionMask.width, viewerSelectionMask.height);
+        viewerSelectionMask.hidden = true;
         viewerSelectionExport.disabled = true;
         setSelectionMode("");
         document.getElementById("viewer-editor-status").textContent = "已清除形状选区";
@@ -10796,10 +10899,18 @@ var PdfImageSaver = (() => {
 
   function normalizeTraceSelection(value) {
     if (!value) return "";
-    if (value.length > 600000) throw new Error("Trace selection invalid.");
+    if (value.length > 32 * 1024 * 1024 + 1024) throw new Error("Trace selection invalid.");
     let parsed;
     try { parsed = JSON.parse(value); } catch (_error) { throw new Error("Trace selection invalid."); }
     const kind = parsed?.kind;
+    if (kind === "mask") {
+      const maskBase64 = parsed?.maskBase64;
+      if (typeof maskBase64 !== "string" || !maskBase64.length || maskBase64.length > 32 * 1024 * 1024
+        || !/^[A-Za-z0-9+/]+={0,2}$/.test(maskBase64) || maskBase64.length % 4 !== 0) {
+        throw new Error("Trace selection invalid.");
+      }
+      return JSON.stringify({ kind, maskBase64 });
+    }
     const points = parsed?.points;
     if ((kind !== "rect" && kind !== "polygon") || !Array.isArray(points)
       || points.length < (kind === "rect" ? 2 : 3) || points.length > 20000

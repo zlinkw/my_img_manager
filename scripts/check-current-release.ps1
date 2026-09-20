@@ -20,13 +20,13 @@ $package = Get-Content -Raw -Encoding UTF8 -LiteralPath ".\package.json" | Conve
 if ($package.version -ne $manifest.version) { throw "package.json version must match manifest.json" }
 if ($manifest.applications.zotero.id -ne "pdf-image-saver@zlk.local") { throw "Unexpected plugin id" }
 if ($manifest.applications.zotero.strict_max_version -ne "11.*") { throw "strict_max_version must be 11.*" }
-if ($manifest.version -ne "0.1.157") { throw "Release candidate version must be 0.1.157" }
+if ($manifest.version -ne "0.1.158") { throw "Release candidate version must be 0.1.158" }
 
 $source = Get-Content -Raw -Encoding UTF8 -LiteralPath ".\content\pdf-image-saver.js"
 foreach ($forbidden in @("pdf-image-saver-auto-button", "saveAutoDetectedPageImagePreviews", "imageCoordinatesToCandidates")) {
   if ($source.Contains($forbidden)) { throw "Automatic capture residue: $forbidden" }
 }
-foreach ($required in @("publishPreviewEntriesToSharedLibrary", "refreshLibrary", 'GLOBAL_LIBRARY_VIEW_VERSION = "47"', "paper-image-library-view", 'drawer: "canvas"')) {
+foreach ($required in @("publishPreviewEntriesToSharedLibrary", "refreshLibrary", 'GLOBAL_LIBRARY_VIEW_VERSION = "48"', "paper-image-library-view", 'drawer: "canvas"')) {
 
   if (!$source.Contains($required)) { throw "Missing release contract: $required" }
 }

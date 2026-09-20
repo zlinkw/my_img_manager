@@ -440,8 +440,22 @@ def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> d
                 "warnings": ["Image dimensions are too small to trace."], "elapsed_ms": elapsed_ms(started)}
 
     if args.trace_selection_file:
+        selection_json = args.trace_selection_file.read_text(encoding="utf-8")
+        selection = json.loads(selection_json)
+        if isinstance(selection, dict) and selection.get("kind") == "mask":
+            svg, width, height = trace_painted_mask_as_svg(fitz, image_bytes, selection, width, height)
+            payload = svg.encode("utf-8")
+            digest = hashlib.sha256(payload).hexdigest()
+            output_path = args.out_dir / f"selected-shape-{digest[:10]}.svg"
+            output_path.write_bytes(payload)
+            return {"schema_version": SCHEMA_VERSION, "status": "ok",
+                    "trace": {"format": "svg", "file_path": str(output_path), "width": width,
+                              "height": height, "byte_count": len(payload),
+                              "path_count": len(re.findall(r"<path\b", svg)), "approximate": True,
+                              "quality": "shape", "sha256": digest},
+                    "warnings": [], "elapsed_ms": elapsed_ms(started)}
         image_bytes, width, height = prepare_trace_selection(
-            fitz, image_bytes, args.trace_selection_file.read_text(encoding="utf-8"), width, height,
+            fitz, image_bytes, selection_json, width, height,
         )
         image_format = "png"
 
@@ -470,6 +484,148 @@ def trace_image_as_svg(fitz: Any, args: argparse.Namespace, started: float) -> d
                       "height": height, "byte_count": len(payload), "path_count": path_count,
                       "approximate": True, "quality": "shape", "sha256": digest},
             "warnings": [], "elapsed_ms": elapsed_ms(started)}
+
+
+def trace_painted_mask_as_svg(fitz: Any, image_bytes: bytes, selection: dict,
+                              width: int, height: int) -> tuple[str, int, int]:
+    """Vectorize the painted silhouette directly, without color-region fragmentation."""
+    import base64
+    from collections import deque
+
+    encoded = selection.get("maskBase64")
+    if not isinstance(encoded, str) or not encoded or len(encoded) > 32 * 1024 * 1024:
+        raise ValueError("Trace selection invalid.")
+    try:
+        mask_bytes = base64.b64decode(encoded, validate=True)
+    except (ValueError, base64.binascii.Error) as error:
+        raise ValueError("Trace selection invalid.") from error
+    if not mask_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ValueError("Trace selection invalid.")
+    mask = fitz.Pixmap(mask_bytes)
+    if mask.width != width or mask.height != height or not mask.alpha:
+        raise ValueError("Trace selection invalid.")
+    mask_samples = mask.samples
+    channels = mask.n
+    alpha_index = channels - 1
+    left, top, right, bottom = width, height, 0, 0
+    for y in range(height):
+        row_start = y * width * channels + alpha_index
+        for x in range(width):
+            if mask_samples[row_start + x * channels] >= 128:
+                left = min(left, x)
+                top = min(top, y)
+                right = max(right, x + 1)
+                bottom = max(bottom, y + 1)
+    crop_width, crop_height = right - left, bottom - top
+    if crop_width < 1 or crop_height < 1:
+        raise ValueError("Trace selection empty.")
+    selected = bytearray(crop_width * crop_height)
+    for y in range(crop_height):
+        source_row = ((top + y) * width + left) * channels + alpha_index
+        target_row = y * crop_width
+        for x in range(crop_width):
+            selected[target_row + x] = mask_samples[source_row + x * channels] >= 128
+
+    # A closed unpainted island is an accidental hole in a solid PPT-style shape.
+    # Only background connected to the crop boundary remains transparent.
+    exterior = bytearray(len(selected))
+    pending = deque()
+    for x in range(crop_width):
+        for index in (x, (crop_height - 1) * crop_width + x):
+            if not selected[index] and not exterior[index]:
+                exterior[index] = 1
+                pending.append(index)
+    for y in range(crop_height):
+        for index in (y * crop_width, y * crop_width + crop_width - 1):
+            if not selected[index] and not exterior[index]:
+                exterior[index] = 1
+                pending.append(index)
+    while pending:
+        index = pending.popleft()
+        x, y = index % crop_width, index // crop_width
+        for neighbor in ((index - 1 if x else -1),
+                         (index + 1 if x + 1 < crop_width else -1),
+                         (index - crop_width if y else -1),
+                         (index + crop_width if y + 1 < crop_height else -1)):
+            if neighbor >= 0 and not selected[neighbor] and not exterior[neighbor]:
+                exterior[neighbor] = 1
+                pending.append(neighbor)
+    for index in range(len(selected)):
+        if not exterior[index]:
+            selected[index] = 1
+
+    source = fitz.Pixmap(image_bytes)
+    if source.colorspace != fitz.csRGB:
+        source = fitz.Pixmap(fitz.csRGB, source)
+    samples = source.samples
+    color_counts: dict[int, int] = {}
+    for y in range(crop_height):
+        for x in range(crop_width):
+            mask_offset = ((top + y) * width + left + x) * channels + alpha_index
+            if mask_samples[mask_offset] < 128:
+                continue
+            offset = ((top + y) * width + left + x) * source.n
+            red, green, blue = samples[offset:offset + 3]
+            key = (red >> 3) << 10 | (green >> 3) << 5 | (blue >> 3)
+            color_counts[key] = color_counts.get(key, 0) + 1
+    if not color_counts:
+        raise ValueError("Trace selection empty.")
+    color_key = max(color_counts, key=color_counts.get)
+    color = f"#{((color_key >> 10) & 31) * 8 + 4:02X}{((color_key >> 5) & 31) * 8 + 4:02X}{(color_key & 31) * 8 + 4:02X}"
+
+    # Boundary edges have the selected pixel on their right. Join all edge loops
+    # into one SVG path; this preserves disconnected strokes without tiny paths.
+    edges: dict[tuple[int, int], list[tuple[int, int]]] = {}
+    def add(start: tuple[int, int], end: tuple[int, int]) -> None:
+        edges.setdefault(start, []).append(end)
+    for y in range(crop_height):
+        for x in range(crop_width):
+            if not selected[y * crop_width + x]:
+                continue
+            if y == 0 or not selected[(y - 1) * crop_width + x]:
+                add((x, y), (x + 1, y))
+            if x + 1 == crop_width or not selected[y * crop_width + x + 1]:
+                add((x + 1, y), (x + 1, y + 1))
+            if y + 1 == crop_height or not selected[(y + 1) * crop_width + x]:
+                add((x + 1, y + 1), (x, y + 1))
+            if x == 0 or not selected[y * crop_width + x - 1]:
+                add((x, y + 1), (x, y))
+    directions = {(1, 0): 0, (0, 1): 1, (-1, 0): 2, (0, -1): 3}
+    contours = []
+    while edges:
+        start = next(iter(edges))
+        first = edges[start].pop()
+        if not edges[start]:
+            del edges[start]
+        points = [start, first]
+        while points[-1] != start:
+            current = points[-1]
+            candidates = edges.get(current)
+            if not candidates:
+                raise ValueError("Trace boundary invalid.")
+            previous = points[-2]
+            incoming = directions[(current[0] - previous[0], current[1] - previous[1])]
+            next_index = min(range(len(candidates)), key=lambda index:
+                             (directions[(candidates[index][0] - current[0],
+                                          candidates[index][1] - current[1])] - incoming - 1) % 4)
+            next_point = candidates.pop(next_index)
+            if not candidates:
+                del edges[current]
+            points.append(next_point)
+        compact = []
+        for index, point in enumerate(points[:-1]):
+            before = points[index - 1] if index else points[-2]
+            after = points[index + 1]
+            if (point[0] - before[0], point[1] - before[1]) != (after[0] - point[0], after[1] - point[1]):
+                compact.append(point)
+        if compact:
+            contours.append("M " + " L ".join(f"{x} {y}" for x, y in compact) + " Z")
+    if not contours:
+        raise ValueError("Trace selection empty.")
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{crop_width}" height="{crop_height}" '
+           f'viewBox="0 0 {crop_width} {crop_height}"><path fill="{color}" d="'
+           + " ".join(contours) + '"/></svg>')
+    return svg, crop_width, crop_height
 
 
 def prepare_trace_selection(fitz: Any, image_bytes: bytes, selection_json: str,

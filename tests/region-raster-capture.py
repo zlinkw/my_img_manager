@@ -1,5 +1,6 @@
 """Exercise the shipped helper on a PDF whose selected figure is bitmap-only."""
 
+import base64
 import json
 import subprocess
 import sys
@@ -148,6 +149,38 @@ for kind, points, expected_size in (
         if kind == "polygon":
             assert rendered.pixel(33, 33)[3] == 0, "freehand area outside outline must stay transparent"
 print("rectangle and hand-drawn selection trace only chosen pixels")
+
+paint_mask = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 100, 100), True)
+paint_mask.set_rect(pymupdf.IRect(0, 0, 100, 100), (0, 0, 0, 0))
+paint_mask.set_rect(pymupdf.IRect(20, 20, 52, 52), (22, 119, 217, 255))
+paint_mask.set_rect(pymupdf.IRect(24, 24, 48, 48), (0, 0, 0, 0))
+paint_mask.set_rect(pymupdf.IRect(54, 30, 58, 35), (22, 119, 217, 255))
+mask_file = work / "paint-mask-selection.json"
+mask_file.write_text(json.dumps({"kind": "mask", "maskBase64":
+                                 base64.b64encode(paint_mask.tobytes("png")).decode("ascii")}),
+                     encoding="utf-8")
+mask_report_file = work / "paint-mask-report.json"
+mask_result = subprocess.run(
+    [str(trace_python if trace_python.exists() else sys.executable),
+     str(root / "content" / "helper" / "pdf_image_extract.py"), str(selected_path),
+     "--out-dir", str(work), "--report", str(mask_report_file), "--trace-image",
+     "--trace-selection-file", str(mask_file)],
+    capture_output=True, text=True, encoding="utf-8",
+)
+assert mask_result.returncode == 0, mask_result.stderr or mask_result.stdout
+mask_report = json.loads(mask_report_file.read_text(encoding="utf-8"))
+assert mask_report["status"] == "ok", mask_report
+assert (mask_report["trace"]["width"], mask_report["trace"]["height"]) == (38, 32)
+assert mask_report["trace"]["path_count"] == 1
+mask_svg = Path(mask_report["trace"]["file_path"]).read_text(encoding="utf-8")
+assert "<image" not in mask_svg and "#D73223" not in mask_svg
+with pymupdf.open(mask_report["trace"]["file_path"]) as painted_vector:
+    rendered = painted_vector[0].get_pixmap(alpha=True)
+    assert rendered.pixel(15, 15)[3] > 0, "the enclosed hole must fill with the shape color"
+    assert rendered.pixel(15, 15)[2] > rendered.pixel(15, 15)[0], "hole color must come from its painted surround"
+    assert rendered.pixel(35, 15)[3] == 0, "unpainted exterior must remain transparent"
+    assert rendered.pixel(36, 12)[3] > 0, "later additive strokes must remain present"
+print("painted mask contour joins strokes, fills enclosed holes, and omits exterior")
 
 bitmap_vector_result = subprocess.run(
     [sys.executable, str(root / "content" / "helper" / "pdf_image_extract.py"),

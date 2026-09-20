@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-- 版本 `0.1.157`；插件 ID `pdf-image-saver@zlk.local`。
-- `0.1.157`：图库查看器支持矩形与精细手绘选区，按选区原像素描摹路径 SVG；手绘边界外透明，整图导出保持独立。
-- 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "47"`。
+- 版本 `0.1.158`；插件 ID `pdf-image-saver@zlk.local`。
+- `0.1.158`：手动选区支持多次涂加、细擦、笔径调节；按涂刷蒙版轮廓生成单色 SVG，封闭内孔填主色；整图仍采用原描摹。
+- 冻结合同：SQLite schema 3；`GLOBAL_LIBRARY_VIEW_VERSION = "48"`。
 - 闸门：`npm.cmd run check`。
 
 ## 已关闭事项
